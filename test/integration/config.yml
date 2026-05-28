@@ -1,0 +1,38 @@
+# ProvidAPT Integration Test — VM Configuration
+#
+# Usage: python3 test/integration/integration_test.py --config test/integration/config.yml
+#
+# Each VM must have:
+#   - SSH key access (root or passwordless sudo)
+#   - Linux kernel 5.11+ with CONFIG_BPF_LSM=y
+#   - Network connectivity between VMs (for lateral movement tests)
+
+vms:
+  ubuntu:
+    host: "192.168.1.101"
+    port: 22
+    user: "root"
+    distro: "ubuntu"
+
+  centos:
+    host: "192.168.1.102"
+    port: 22
+    user: "root"
+    distro: "centos"
+
+  debian:
+    host: "192.168.1.103"
+    port: 22
+    user: "root"
+    distro: "debian"
+
+# Test parameters
+settings:
+  # Seconds between attack steps
+  attack_delay: 2
+
+  # Remote install directory
+  remote_dir: "/opt/providapt"
+
+  # Local ProvidAPT project directory (auto-detected)
+  # project_dir: "/path/to/ProvidAPT"

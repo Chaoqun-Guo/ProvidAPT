@@ -1,0 +1,76 @@
+# --- OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+*.icloud
+
+# --- Go ---
+/bin/
+/tmp/
+vendor/
+*.test
+*.out
+*.prof
+coverage.html
+coverage.out
+
+# --- C / Kernel Module ---
+*.o
+*.ko
+*.obj
+*.elf
+*.so
+*.a
+*.d
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+*.o.d
+*.o.cmd
+*.o.tmp
+
+# --- eBPF ---
+*.bpf.o
+*.bpf.obj
+*.skel.h
+
+# --- Build ---
+/build/
+/dist/
+/output/
+target/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Env ---
+.env
+.env.local
+
+# --- Temp ---
+*.log
+*.pid
+*.lock
+/tmp/

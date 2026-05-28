@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0
+# ProvidAPT development environment — Ubuntu 24.04 LTS
+FROM ubuntu:24.04
+
+LABEL description="ProvidAPT eBPF development environment"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Go toolchain
+    golang-go \
+    # LLVM/Clang for eBPF compilation
+    clang \
+    llvm \
+    lld \
+    # BPF tooling
+    bpftool \
+    libbpf-dev \
+    # System tools
+    linux-tools-common \
+    linux-tools-generic \
+    curl \
+    ca-certificates \
+    git \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY . .
+
+CMD ["/bin/bash"]

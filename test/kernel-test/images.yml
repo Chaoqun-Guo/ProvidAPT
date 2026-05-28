@@ -1,0 +1,71 @@
+# Kernel version compatibility test matrix
+# Each entry defines a kernel image to test against.
+#
+# Images are pulled from:
+#   - Docker Hub (ubuntu:20.04, etc. — uses host kernel)
+#   - QEMU images (for specific kernel versions)
+#   - Custom kernel builder (for custom configs)
+
+kernels:
+  - version: "5.4"
+    distro: "ubuntu"
+    tag: "20.04"
+    type: "docker"
+    features:
+      bpf: true
+      btf: false
+      bpf_lsm: false
+
+  - version: "5.10"
+    distro: "ubuntu"
+    tag: "20.04"
+    type: "docker"
+    features:
+      bpf: true
+      btf: true
+      bpf_lsm: false
+
+  - version: "5.11"
+    distro: "ubuntu"
+    tag: "22.04"
+    type: "docker"
+    features:
+      bpf: true
+      btf: true
+      bpf_lsm: true
+
+  - version: "5.15"
+    distro: "ubuntu"
+    tag: "22.04"
+    type: "docker"
+    features:
+      bpf: true
+      btf: true
+      bpf_lsm: true
+
+  - version: "6.1"
+    distro: "ubuntu"
+    tag: "24.04"
+    type: "docker"
+    features:
+      bpf: true
+      btf: true
+      bpf_lsm: true
+
+  - version: "6.6"
+    distro: "ubuntu"
+    tag: "24.04"
+    type: "docker"
+    features:
+      bpf: true
+      btf: true
+      bpf_lsm: true
+
+  - version: "6.8"
+    distro: "ubuntu"
+    tag: "24.10"
+    type: "docker"
+    features:
+      bpf: true
+      btf: true
+      bpf_lsm: true
