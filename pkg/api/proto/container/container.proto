@@ -1,0 +1,55 @@
+// ProvidAPT v2.1 — Container-aware provenance data model
+syntax = "proto3";
+package providapt;
+option go_package = "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/v21";
+
+// ContainerInfo is attached to every process node to provide
+// container context for provenance tracing.
+message ContainerInfo {
+    // CgroupID from bpf_get_current_cgroup_id()
+    uint64 cgroup_id = 1;
+
+    // PID namespace ID from bpf_get_current_task()->nsproxy->pid_ns_for_children
+    uint64 pid_namespace_id = 2;
+
+    // Resolved container ID (from cgroup path)
+    string container_id = 3;
+
+    // Container name (from Docker/Containerd metadata)
+    string container_name = 4;
+
+    // Container image name
+    string image = 5;
+
+    // Orchestrator: "docker", "containerd", "k8s", "lxc", ""
+    string orchestrator = 6;
+
+    // Kubernetes pod name (if applicable)
+    string pod_name = 7;
+
+    // Kubernetes pod namespace (if applicable)
+    string pod_namespace = 8;
+}
+
+// Extended event with container context.
+message ContainerEvent {
+    // Core event fields
+    uint32 type = 1;
+    uint32 flags = 2;
+    uint64 timestamp_ns = 3;
+    uint32 pid = 4;
+    uint32 tid = 5;
+    uint32 ppid = 6;
+    uint32 uid = 7;
+    string comm = 8;
+    string pathname = 9;
+
+    // Container context (enriched by eBPF)
+    uint64 cgroup_id = 10;
+    uint64 pid_namespace_id = 11;
+
+    // File/network payload
+    uint64 inode = 20;
+    uint32 daddr = 26;
+    uint32 dport = 29;
+}

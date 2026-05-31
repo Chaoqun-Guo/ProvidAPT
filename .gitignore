@@ -28,6 +28,10 @@ vendor/
 coverage.html
 coverage.out
 
+# --- Go Workspace ---
+go.work
+go.work.sum
+
 # --- C / Kernel Module ---
 *.o
 *.ko
@@ -51,6 +55,9 @@ dkms.conf
 *.bpf.o
 *.bpf.obj
 *.skel.h
+
+# --- Binaries ---
+*.exe
 
 # --- Build ---
 /build/

@@ -1,0 +1,7 @@
+.git/
+.gitignore
+.claude/
+build/bin/
+build/ebpf/
+*.o
+*.ll

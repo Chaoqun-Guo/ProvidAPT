@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/userspace/internal/syscall"
-	"github.com/Chaoqun-Guo/ProvidAPT/userspace/pkg/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 )
 
 // ─── Event distribution ─────────────────────────────────────

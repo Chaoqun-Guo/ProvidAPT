@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/userspace/pkg/pipeline"
-	"github.com/Chaoqun-Guo/ProvidAPT/userspace/pkg/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/pipeline"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
 // ─── Setup ───────────────────────────────────────────────────

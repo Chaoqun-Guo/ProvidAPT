@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/userspace/pkg/collector"
-	"github.com/Chaoqun-Guo/ProvidAPT/userspace/internal/syscall"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 const eventSize = 332
@@ -16,7 +16,8 @@ func makeTestEvent(eventType byte) []byte {
 	raw[0] = eventType       // type at offset 0
 	raw[4] = 0               // flags at offset 4
 	raw[16] = 42             // pid (LSB) at offset 16
-	raw[28] = 1000           // uid (LSB) at offset 28
+	raw[28] = 0xE8           // uid=1000 (LSB)
+	raw[29] = 0x03           // uid=1000 (MSB)
 	raw[60] = 't'            // comm[0] at offset 60
 	raw[61] = 'e'
 	raw[62] = 's'

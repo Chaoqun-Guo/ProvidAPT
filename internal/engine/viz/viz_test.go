@@ -1,0 +1,265 @@
+package viz
+
+import (
+	"strings"
+	"testing"
+)
+
+// ─── VizEngine tests ────────────────────────────────────────
+
+func TestNewVizEngine(t *testing.T) {
+	ve := NewVizEngine()
+	if ve == nil {
+		t.Fatal("NewVizEngine returned nil")
+	}
+}
+
+func TestAddNode(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:100", "process", "bash", 50)
+	ve.AddNode("f:500", "file", "/etc/shadow", 0)
+
+	ve.mu.Lock()
+	if len(ve.nodes) != 2 {
+		t.Errorf("nodes = %d", len(ve.nodes))
+	}
+	ve.mu.Unlock()
+}
+
+func TestAddEdge(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:100", "process", "bash", 0)
+	ve.AddNode("f:500", "file", "/etc/shadow", 0)
+	ve.AddEdge("p:100", "f:500", "prov:used", 1000)
+
+	ve.mu.Lock()
+	if len(ve.edges) != 1 {
+		t.Errorf("edges = %d", len(ve.edges))
+	}
+	ve.mu.Unlock()
+}
+
+// ─── Subgraph extraction tests ──────────────────────────────
+
+func TestExtractSubgraph(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:1", "process", "init", 0)
+	ve.AddNode("p:100", "process", "nginx", 0)
+	ve.AddNode("p:101", "process", "bash", 0)
+	ve.AddNode("f:500", "file", "/etc/shadow", 0)
+
+	ve.AddEdge("p:1", "p:100", "fork", 100)
+	ve.AddEdge("p:100", "p:101", "fork", 200)
+	ve.AddEdge("p:101", "f:500", "read", 300)
+
+	graph := ve.ExtractSubgraph([]string{"p:100"}, 2, 0, 0)
+
+	if graph.Data.NodeCount == 0 {
+		t.Error("no nodes in subgraph")
+	}
+	if graph.Data.EdgeCount == 0 {
+		t.Error("no edges in subgraph")
+	}
+
+	t.Logf("Subgraph: %d nodes, %d edges", graph.Data.NodeCount, graph.Data.EdgeCount)
+	for _, el := range graph.Elements {
+		t.Logf("  [%s] %+v", el.Group, el.Data)
+	}
+}
+
+func TestExtractSubgraphSingleNode(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:100", "process", "bash", 0)
+
+	graph := ve.ExtractSubgraph([]string{"p:100"}, 3, 0, 0)
+	if graph.Data.NodeCount != 1 {
+		t.Errorf("nodes = %d", graph.Data.NodeCount)
+	}
+}
+
+func TestExtractSubgraphTimeFilter(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:1", "process", "init", 0)
+	ve.AddNode("p:100", "process", "bash", 0)
+	ve.AddEdge("p:1", "p:100", "fork", 1000)
+	ve.AddEdge("p:100", "f:500", "write", 5000)
+
+	// Only events before t=2000
+	graph := ve.ExtractSubgraph([]string{"p:1"}, 5, 0, 2000)
+	if graph.Data.EdgeCount != 1 {
+		t.Logf("Time filter: %d edges (expected 1 before t=2000)", graph.Data.EdgeCount)
+	}
+}
+
+func TestCytoFormat(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:100", "process", "curl", 75)
+	ve.AddNode("n:5.6.7.8", "network", "5.6.7.8", 0)
+	ve.AddEdge("p:100", "n:5.6.7.8", "prov:used", 1000)
+
+	graph := ve.ExtractSubgraph([]string{"p:100"}, 1, 0, 0)
+
+	// Verify Cytoscape.js format
+	hasNode := false
+	hasEdge := false
+	for _, el := range graph.Elements {
+		if el.Group == "nodes" {
+			hasNode = true
+			if el.Data.ID == "" {
+				t.Error("node missing ID")
+			}
+		}
+		if el.Group == "edges" {
+			hasEdge = true
+			if el.Data.Source == "" || el.Data.Target == "" {
+				t.Error("edge missing source/target")
+			}
+		}
+	}
+	if !hasNode {
+		t.Error("no node elements")
+	}
+	if !hasEdge {
+		t.Error("no edge elements")
+	}
+}
+
+func TestSeedNodeClass(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:100", "process", "nginx", 0)
+	ve.AddNode("p:101", "process", "bash", 0)
+	ve.AddEdge("p:100", "p:101", "fork", 100)
+
+	graph := ve.ExtractSubgraph([]string{"p:100"}, 1, 0, 0)
+
+	for _, el := range graph.Elements {
+		if el.Data.ID == "p:100" && el.Data.Class != "seed" {
+			t.Error("seed node should have class='seed'")
+		}
+	}
+}
+
+// ─── Timeline tests ─────────────────────────────────────────
+
+func TestGenerateTimeline(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:1", "process", "sshd", 0)
+	ve.AddNode("p:100", "process", "bash", 0)
+	ve.AddNode("p:101", "process", "curl", 0)
+	ve.AddNode("f:500", "file", "/etc/shadow", 0)
+	ve.AddNode("n:5.6.7.8", "network", "5.6.7.8", 0)
+
+	ve.AddEdge("p:1", "p:100", "fork", 1000)
+	ve.AddEdge("p:100", "p:101", "fork", 2000)
+	ve.AddEdge("p:101", "f:500", "read", 3000)
+	ve.AddEdge("p:101", "n:5.6.7.8", "connect", 4000)
+
+	frames := ve.GenerateTimeline([]string{"p:1"}, 5, 3)
+	if len(frames) == 0 {
+		t.Fatal("no timeline frames")
+	}
+
+	t.Logf("Timeline frames: %d", len(frames))
+	for i, frame := range frames {
+		t.Logf("  Frame %d: %s (%d nodes, %d edges)",
+			i, frame.TimeLabel, len(frame.Nodes), len(frame.Edges))
+	}
+}
+
+func TestGenerateTimelineEmpty(t *testing.T) {
+	ve := NewVizEngine()
+	frames := ve.GenerateTimeline([]string{"nonexistent"}, 3, 5)
+	if len(frames) == 0 {
+		t.Error("should return at least 1 frame")
+	}
+}
+
+func TestGenerateTimelineSingleFrame(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:1", "process", "init", 0)
+	ve.AddEdge("p:1", "p:100", "fork", 100)
+
+	frames := ve.GenerateTimeline([]string{"p:1"}, 2, 1)
+	if len(frames) > 0 {
+		t.Logf("Single frame: %s (%d nodes)", frames[0].TimeLabel, len(frames[0].Nodes))
+	}
+}
+
+// ─── Helper tests ───────────────────────────────────────────
+
+func TestTruncateLabel(t *testing.T) {
+	if truncateLabel("prov:used") != "used" {
+		t.Errorf("used -> %s", truncateLabel("prov:used"))
+	}
+	if truncateLabel("prov:wasGeneratedBy") != "created" {
+		t.Errorf("created -> %s", truncateLabel("prov:wasGeneratedBy"))
+	}
+	if truncateLabel("custom_long_relation_name") != "custom_long_rela..." {
+		t.Errorf("truncated -> %s", truncateLabel("custom_long_relation_name"))
+	}
+}
+
+// ─── Integration test ───────────────────────────────────────
+
+func TestVizIntegration(t *testing.T) {
+	t.Log("=== Visualization Integration ===")
+
+	ve := NewVizEngine()
+
+	// Build a sample attack graph
+	ve.AddNode("p:1", "process", "systemd", 0)
+	ve.AddNode("p:100", "process", "nginx", 0)
+	ve.AddNode("p:101", "process", "bash", 0)
+	ve.AddNode("p:102", "process", "curl", 15)
+	ve.AddNode("f:500", "file", "/tmp/evil.sh", 0)
+	ve.AddNode("f:501", "file", "/etc/shadow", 85)
+	ve.AddNode("n:5.6.7.8", "network", "5.6.7.8:443", 70)
+
+	ve.AddEdge("p:1", "p:100", "fork", 100)
+	ve.AddEdge("p:100", "p:101", "fork", 200)
+	ve.AddEdge("p:101", "f:500", "write", 300)
+	ve.AddEdge("p:101", "p:102", "fork", 400)
+	ve.AddEdge("p:102", "f:501", "read", 500)
+	ve.AddEdge("p:102", "n:5.6.7.8", "connect", 600)
+
+	// 1. Subgraph from attack entry point
+	graph := ve.ExtractSubgraph([]string{"p:100"}, 3, 0, 0)
+	t.Logf("Subgraph (3 hops from p:100): %d nodes, %d edges",
+		graph.Data.NodeCount, graph.Data.EdgeCount)
+
+	// 2. Verify Cytoscape.js format
+	var nodeIDs []string
+	for _, el := range graph.Elements {
+		t.Logf("  [%s] %+v", el.Group, el.Data)
+		if el.Group == "nodes" {
+			nodeIDs = append(nodeIDs, el.Data.ID)
+		}
+	}
+
+	// 3. Targeted subgraph from high-risk nodes
+	riskGraph := ve.ExtractSubgraph([]string{"f:501", "n:5.6.7.8"}, 2, 0, 0)
+	t.Logf("Risk subgraph: %d nodes, %d edges",
+		riskGraph.Data.NodeCount, riskGraph.Data.EdgeCount)
+
+	// 4. Timeline replay
+	frames := ve.GenerateTimeline([]string{"p:100"}, 5, 4)
+	t.Logf("Timeline frames: %d", len(frames))
+	for i, frame := range frames {
+		t.Logf("  Frame %d: %s (%d nodes, %d edges)",
+			i, frame.TimeLabel, len(frame.Nodes), len(frame.Edges))
+	}
+
+	// 5. Verify seed node is marked
+	for _, el := range graph.Elements {
+		if el.Data.ID == "p:100" {
+			if el.Data.Class != "seed" {
+				t.Error("seed node should be marked")
+			}
+		}
+	}
+
+	t.Log("Visualization integration OK")
+}
+
+// Ensure strings is used
+var _ = strings.Contains

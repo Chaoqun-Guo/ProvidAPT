@@ -1,0 +1,134 @@
+// ProvidAPT v2.1 — Remote Management Protocol
+syntax = "proto3";
+package providapt.mgmt;
+option go_package = "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt";
+
+// ─── Management Service ─────────────────────────────────
+
+service ProvidAPTManagement {
+    // Query historical provenance data
+    rpc Query(QueryRequest) returns (QueryResponse);
+
+    // Stream real-time alerts
+    rpc WatchAlerts(AlertFilter) returns (stream AlertEvent);
+
+    // Update policies dynamically
+    rpc UpdatePolicy(PolicyUpdate) returns (PolicyAck);
+
+    // Health check
+    rpc Check(HealthCheck) returns (HealthStatus);
+}
+
+// ─── Query ──────────────────────────────────────────────
+
+message QueryRequest {
+    string query = 1;        // ProvQL query string
+    int32 max_results = 2;   // max results (default 100)
+    int64 start_time_ns = 3; // time range filter
+    int64 end_time_ns = 4;
+    string container = 5;    // container filter (optional)
+}
+
+message QueryResponse {
+    int32 result_count = 1;
+    string results_json = 2; // JSON-encoded results
+    int64 query_time_ns = 3;
+}
+
+// ─── Alert streaming ────────────────────────────────────
+
+message AlertFilter {
+    string min_severity = 1; // "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"
+    string container = 2;    // filter by container name
+}
+
+message AlertEvent {
+    int64 timestamp_ns = 1;
+    string alert_id = 2;
+    string severity = 3;
+    string title = 4;
+    string description = 5;
+    string subgraph_id = 6;
+    map<string,string> metadata = 7;
+}
+
+// ─── Policy management ──────────────────────────────────
+
+message PolicyUpdate {
+    oneof update {
+        // Whitelist updates
+        WhitelistUpdate whitelist = 1;
+        // Sigma rule updates
+        SigmaRule sigma = 2;
+        // Taint source definition updates
+        TaintSource taint_source = 3;
+        // Detection rule threshold adjustment
+        RuleThreshold threshold = 4;
+    }
+}
+
+message WhitelistUpdate {
+    string action = 1;    // "add", "remove", "clear"
+    string target = 2;    // "pid", "comm", "path"
+    string value = 3;     // the value to whitelist
+}
+
+message SigmaRule {
+    string action = 1;    // "add", "remove", "update"
+    string rule_id = 2;
+    string rule_yaml = 3; // full YAML rule content
+}
+
+message TaintSource {
+    string action = 1;    // "add", "remove"
+    string ip_prefix = 2; // new external IP prefix
+    string label = 3;     // taint label
+}
+
+message RuleThreshold {
+    string rule_id = 1;
+    double score = 2;     // new threshold score
+}
+
+message PolicyAck {
+    bool success = 1;
+    string message = 2;
+    int64 applied_at_ns = 3;
+}
+
+// ─── Telemetry (gRPC transport optimisation) ────────────
+
+service ProvidAPTTelemetry {
+    // Agent → Server: stream compressed provenance events.
+    // The server can use the Response for backpressure signals.
+    rpc ReportEvents(stream CompressedEvent) returns (ReportAck);
+}
+
+message CompressedEvent {
+    bytes payload = 1;      // Zstd+dict compressed protobuf data
+    string content_type = 2; // "heartbeat" | "summary" | "full"
+    int64  original_size = 3;
+    int64  timestamp_ns = 4;
+}
+
+message ReportAck {
+    bool accepted = 1;
+    int32 throttle_level = 2;  // 0=normal, 1=backoff, 2=drop_low, 3=critical_only
+    string message = 3;
+}
+
+// ─── Health ─────────────────────────────────────────────
+
+message HealthCheck {
+    string requesting_agent = 1;
+}
+
+message HealthStatus {
+    bool agent_running = 1;
+    string version = 2;
+    int64 uptime_ns = 3;
+    int32 active_rules = 4;
+    int32 rocksdb_nodes = 5;
+    int32 tailed_alerts = 6;
+    string status = 7;  // "HEALTHY", "DEGRADED", "ERROR"
+}
