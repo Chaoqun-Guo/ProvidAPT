@@ -29,7 +29,7 @@ var EventScores = map[uint32]float64{
 	21: 15,  // EV_NET_ACCEPT — inbound connection
 	50: 60,  // EV_MEMFD_CREATE — anonymous memory file (suspicious)
 	51: 100, // EV_MPROTECT_RX — memory shellcode injection
-	52: 20,  // EV_PIPE_WRITE — pipe data flow
+	52: 50,  // EV_PIPE_WRITE — pipe data flow (exfiltration risk)
 	53: 20,  // EV_PIPE_READ — pipe data flow
 }
 

@@ -136,8 +136,19 @@ func (l *lexer) nextToken() (token, error) {
 		return token{typ: tokSTRING, val: val, pos: pos}, nil
 	}
 
+	// Relations: -> (must check before bare '-')
+	if ch == '-' && l.peek() == '>' {
+		l.pos++
+		return token{typ: tokRARROW, val: "->", pos: pos}, nil
+	}
+
+	// Single '-'
+	if ch == '-' {
+		return token{typ: tokMINUS, val: "-", pos: pos}, nil
+	}
+
 	// Numbers (ISO timestamps, etc.)
-	if ch == '-' || (ch >= '0' && ch <= '9') {
+	if ch >= '0' && ch <= '9' {
 		start := l.pos - 1
 		// Read until whitespace or special char
 		for l.pos < len(l.input) && !unicode.IsSpace(rune(l.input[l.pos])) &&
@@ -145,12 +156,6 @@ func (l *lexer) nextToken() (token, error) {
 			l.pos++
 		}
 		return token{typ: tokSTRING, val: l.input[start:l.pos], pos: pos}, nil
-	}
-
-	// Relations: ->
-	if ch == '-' && l.peek() == '>' {
-		l.pos++
-		return token{typ: tokRARROW, val: "->", pos: pos}, nil
 	}
 
 	// Operators: >=, <=

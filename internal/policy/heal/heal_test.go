@@ -30,6 +30,11 @@ func testGraph(t *testing.T) *provenance.Graph {
 		PID: 100, Comm: "bash", Pathname: "/etc/shadow",
 		Inode: 5001, DevMajor: 8, DevMinor: 3,
 	})
+	// curl exec (updates comm from bash to curl after fork)
+	g.AddEvent(&collector.Event{
+		Type: syscall.EventProcessExec, TimestampNS: 1500,
+		PID: 200, Comm: "curl",
+	})
 	// curl connects to C2
 	g.AddEvent(&collector.Event{
 		Type: syscall.EventNetConnect, TimestampNS: 4000,
@@ -287,7 +292,7 @@ func TestAssessImpactDeepChain(t *testing.T) {
 	}
 	report := AssessImpact(g, "p:1", 10)
 	if len(report.ChildProcesses) < 3 {
-		t.Errorf("expected ≥3 child processes, got %d", len(report.ChildProcesses))
+		t.Errorf("expected >=3 child processes, got %d", len(report.ChildProcesses))
 	}
 	t.Logf("Deep chain: %d children", len(report.ChildProcesses))
 }

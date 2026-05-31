@@ -301,7 +301,10 @@ func (kl *K8sListener) resolvePodName(podUID string) string {
 			_ = req
 		}
 	}
-	return "pod-" + podUID[:8]
+	if len(podUID) > 8 {
+		podUID = podUID[:8]
+	}
+	return "pod-" + podUID
 }
 
 // ─── Helpers ────────────────────────────────────────────────

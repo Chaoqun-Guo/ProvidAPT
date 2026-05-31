@@ -172,7 +172,7 @@ func (lm *LifecycleManager) cleanupOrphans() {
 		if len(parts) < 2 {
 			continue
 		}
-		nodeID := parts[0] + ":" + parts[1]
+		nodeID := parts[1]
 		nodeRefs[nodeID] = 0
 
 		// Check for high-risk labels in the protobuf value

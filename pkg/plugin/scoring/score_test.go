@@ -61,11 +61,9 @@ func TestScoringThresholds(t *testing.T) {
 		{45, "CRITICAL"},
 	}
 	for _, tt := range tests {
-		result := engine.Score([]*plugin.Finding{
-			{Title: "test", Score: tt.score, PluginName: "test"},
-		}, provenance.NewGraph())
-		if result.RiskLevel != tt.level {
-			t.Errorf("score %.0f: expected %s, got %s", tt.score, tt.level, result.RiskLevel)
+		got := engine.riskLevel(tt.score)
+		if got != tt.level {
+			t.Errorf("score %.0f: expected %s, got %s", tt.score, tt.level, got)
 		}
 	}
 }

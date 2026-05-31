@@ -144,8 +144,13 @@ func (bc *BlastCalculator) isCritical(n *provenance.Node) bool {
 
 // Summary returns a human-readable blast radius summary.
 func (br *BlastRadius) Summary() string {
-	return fmt.Sprintf("Blast Radius from %s (%s): %d files, %d network, %d processes, %d creds",
+	fileLabel := ""
+	if len(br.Files) > 0 {
+		fileLabel = ", " + br.Files[0].Label
+	}
+	return fmt.Sprintf("Blast Radius from %s (%s): %d files%s, %d network, %d processes, %d creds",
 		br.CompromisedComm, br.CompromisedNode,
-		len(br.Files), len(br.NetworkEndpoints),
+		len(br.Files), fileLabel,
+		len(br.NetworkEndpoints),
 		len(br.Processes), len(br.Credentials))
 }

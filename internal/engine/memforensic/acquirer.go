@@ -127,7 +127,7 @@ func parseMapsLine(line string) (MemoryRegion, error) {
 	spaces := 0
 	addrEnd := 0
 	for i, c := range line {
-		if c == ' ' {
+		if c == ' ' || c == '	' {
 			spaces++
 			if spaces == 1 {
 				addrEnd = i

@@ -281,9 +281,9 @@ func parseFind(l *lexer) (QueryStep, error) {
 			return step, fmt.Errorf("expected value after =")
 		}
 		step.Value = val.val
-	} else {
-		// Put back the token (not a where clause)
-		l.pos-- // simple unget
+	} else if where.typ != tokEOF {
+		// Put back the token (not a where clause) — but don't unget EOF
+		l.pos--
 	}
 
 	return step, nil

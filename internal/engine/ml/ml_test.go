@@ -210,9 +210,14 @@ func TestMLDetectorGlobalStats(t *testing.T) {
 
 	g := provenance.NewGraph()
 	g.AddEvent(&collector.Event{
-		Type: syscall.EventFileOpen, TimestampNS: 1,
-		PID: 100, Comm: "bash", Pathname: "/etc/hosts",
+		Type: syscall.EventProcessExec, TimestampNS: 1,
+		PID: 100, Comm: "bash", Pathname: "/usr/bin/bash",
 		Inode: 1000, DevMajor: 8, DevMinor: 3,
+	})
+	g.AddEvent(&collector.Event{
+		Type: syscall.EventFileOpen, TimestampNS: 2,
+		PID: 100, Comm: "bash", Pathname: "/etc/hosts",
+		Inode: 2000, DevMajor: 8, DevMinor: 3,
 	})
 	md.Train(g)
 

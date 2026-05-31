@@ -46,7 +46,7 @@ func TestLatestVersion(t *testing.T) {
 	vt.NextVersion(2000, 8, 3)
 	vt.NextVersion(2000, 8, 3)
 	latest := vt.LatestVersion(2000, 8, 3)
-	if latest != "v:2000:8:3:2" {
+	if latest != "v:2000:8:3:3" {
 		t.Errorf("latest = %q", latest)
 	}
 }

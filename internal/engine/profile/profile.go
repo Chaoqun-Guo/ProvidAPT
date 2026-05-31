@@ -351,8 +351,17 @@ func (pr *ProfileReport) String() string {
 
 // Log logs the profile report at INFO level.
 func (pr *ProfileReport) Log() {
+	bpfRuns := int64(0)
+	if pr.BPF != nil {
+		bpfRuns = pr.BPF.TotalRuns
+	}
+	nps := float64(0)
+	if pr.Storage != nil {
+		if v, ok := pr.Storage["nodes_per_sec"]; ok {
+			nps, _ = v.(float64)
+		}
+	}
 	log.Printf("[profile] CPU=%.1f%% MEM=%.0fMB BPF_runs=%d NPS=%.0f",
 		pr.System.CPUPercent, pr.System.MemoryRSSMB,
-		pr.BPF.TotalRuns,
-		pr.Storage["nodes_per_sec"])
+		bpfRuns, nps)
 }

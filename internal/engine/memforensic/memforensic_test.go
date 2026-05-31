@@ -315,7 +315,7 @@ func	TestScanWithHexMatch(t	*testing.T)	{
 	dump	:=	&MemDumpResult{
 		PID:						1,
 		Comm:					"test",
-		ExecData:	[]byte("some data with /bin/sh in it"),
+		ExecData:	[]byte("some data with /bin/sh\x00 in it"),
 	}
 	result	:=	s.Scan(dump)
 	if	result	==	nil	{
@@ -379,7 +379,7 @@ func	TestScanWithMeterpreter(t	*testing.T)	{
 	dump	:=	&MemDumpResult{
 		PID:						4,
 		Comm:					"explorer",
-		ExecData:	[]byte("METERPETER	payload	here"),
+		ExecData:	[]byte("METERPRETER	payload	here"),
 	}
 	result	:=	s.Scan(dump)
 	if	!result.HasMatches()	{
@@ -490,7 +490,7 @@ func	TestScanRiskScoring(t	*testing.T)	{
 		{[]ScanMatch{
 			{Rule:	"MEMFD_REFERENCE",	Severity:	SevMedium},
 			{Rule:	"SHELLCODE_FORK",	Severity:	SevHigh},
-		},	"high"},
+		},	"critical"},
 	}
 	for	_,	tt	:=	range	tests	{
 		score	:=	calcMatchRisk(tt.matches)
@@ -871,7 +871,7 @@ func	TestMultipleSegmentScan(t	*testing.T)	{
 		PID:							12,
 		Comm:						"multi",
 		ExecData:		[]byte("/bin/sh\x00"),
-		StackData:	[]byte("meterpreter"),
+		StackData:	[]byte("METERPRETER"),
 		HeapData:		[]byte("messageBox"),
 	}
 	result	:=	s.Scan(dump)

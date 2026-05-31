@@ -191,10 +191,11 @@ func TestAlertsEndpoint(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	ts := testServer(t)
+	handler := corsMiddleware(ts.mux)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodOptions, "/api/v1/status", nil)
-	ts.mux.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
 		t.Error("missing CORS header")

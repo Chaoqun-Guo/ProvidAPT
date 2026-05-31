@@ -34,8 +34,8 @@ func TestLoadRule(t *testing.T) {
 	if rule.Level != "high" {
 		t.Errorf("Level = %q", rule.Level)
 	}
-	if len(rule.Detection.Selections) == 0 {
-		t.Fatal("no selections parsed")
+	if rule.Detection.Selection.EventType == nil {
+		t.Fatal("no selection parsed")
 	}
 }
 
@@ -64,7 +64,7 @@ func TestLoadDefaultRules(t *testing.T) {
 
 func TestMatchEventType(t *testing.T) {
 	rule := &Rule{Detection: Detection{
-		Selections: []Selection{{EventType: []uint32{11, 12}}},
+		Selection: Selection{EventType: []uint32{11, 12}},
 	}}
 	if !rule.Match(&pb.Event{Type: 11}) {
 		t.Error("should match type 11")
@@ -79,7 +79,7 @@ func TestMatchEventType(t *testing.T) {
 
 func TestMatchTargetPath(t *testing.T) {
 	rule := &Rule{Detection: Detection{
-		Selections: []Selection{{TargetPath: "/etc/passwd"}},
+		Selection: Selection{TargetPath: "/etc/passwd"},
 	}}
 	if !rule.Match(&pb.Event{Pathname: "/etc/passwd"}) {
 		t.Error("should match exact path")
@@ -91,7 +91,7 @@ func TestMatchTargetPath(t *testing.T) {
 
 func TestMatchWildcardPath(t *testing.T) {
 	rule := &Rule{Detection: Detection{
-		Selections: []Selection{{TargetPath: "/tmp/*"}},
+		Selection: Selection{TargetPath: "/tmp/*"},
 	}}
 	if !rule.Match(&pb.Event{Pathname: "/tmp/evil.sh"}) {
 		t.Error("should match /tmp/evil.sh")
@@ -106,7 +106,7 @@ func TestMatchWildcardPath(t *testing.T) {
 
 func TestMatchUID(t *testing.T) {
 	rule := &Rule{Detection: Detection{
-		Selections: []Selection{{UID: "!=0"}},
+		Selection: Selection{UID: "!=0"},
 	}}
 	if !rule.Match(&pb.Event{Uid: 1000}) {
 		t.Error("!=0 should match uid 1000")
@@ -118,7 +118,7 @@ func TestMatchUID(t *testing.T) {
 
 func TestMatchComm(t *testing.T) {
 	rule := &Rule{Detection: Detection{
-		Selections: []Selection{{Comm: "bash"}},
+		Selection: Selection{Comm: "bash"},
 	}}
 	if !rule.Match(&pb.Event{Comm: "bash"}) {
 		t.Error("should match bash")
@@ -130,11 +130,11 @@ func TestMatchComm(t *testing.T) {
 
 func TestMatchAllConditions(t *testing.T) {
 	rule := &Rule{Detection: Detection{
-		Selections: []Selection{{
+		Selection: Selection{
 			EventType:  []uint32{11},
 			TargetPath: "/etc/passwd",
 			UID:        "!=0",
-		}},
+		},
 	}}
 
 	// All conditions met
@@ -198,7 +198,7 @@ func TestNewScanner(t *testing.T) {
 
 func TestScannerMatchAndAlert(t *testing.T) {
 	rules, _ := LoadDefaultRules()
-	s := NewScanner(rules, ScannerConfig{BufferSize: 100})
+	s := NewScanner(rules, ScannerConfig{BufferSize: 100, FlushInterval: 50 * time.Millisecond})
 	s.Start()
 	defer s.Stop()
 

@@ -105,18 +105,16 @@ func (te *TriggerEvaluator) Evaluate(
 
 	// 1. Mprotect RW→RX trigger
 	if te.cfg.EnableMprotectRX {
-		if v, ok := nodeAttrs["shellcode"]; ok {
-			if b, isBool := v.(bool); isBool && b {
-				return &TriggerEvent{
-					PID:       pid,
-					Comm:      comm,
-					Reason:    TrigMprotectRX,
-					Detail:    fmt.Sprintf("进程 %s(PID %d) 执行了 mprotect RW→RX (可能的 Shellcode 注入)", comm, pid),
-					NodeAttrs: nodeAttrs,
-					NodeID:    nodeID,
-					HostID:    hostID,
-					Timestamp: time.Now(),
-				}
+		if isTruthyValue(nodeAttrs["shellcode"]) {
+			return &TriggerEvent{
+				PID:       pid,
+				Comm:      comm,
+				Reason:    TrigMprotectRX,
+				Detail:    fmt.Sprintf("进程 %s(PID %d) 执行了 mprotect RW→RX (可能的 Shellcode 注入)", comm, pid),
+				NodeAttrs: nodeAttrs,
+				NodeID:    nodeID,
+				HostID:    hostID,
+				Timestamp: time.Now(),
 			}
 		}
 		if s, isStr := nodeAttrs["memory_op"].(string); isStr && s == "mprotect_rx" {
@@ -135,36 +133,32 @@ func (te *TriggerEvaluator) Evaluate(
 
 	// 2. Shellcode attribute trigger
 	if te.cfg.EnableShellcodeAttr {
-		if v, ok := nodeAttrs["shellcode"]; ok {
-			if b, isBool := v.(bool); isBool && b {
-				return &TriggerEvent{
-					PID:       pid,
-					Comm:      comm,
-					Reason:    TrigShellcodeAttr,
-					Detail:    fmt.Sprintf("进程 %s(PID %d) 已被标记为包含 Shellcode", comm, pid),
-					NodeAttrs: nodeAttrs,
-					NodeID:    nodeID,
-					HostID:    hostID,
-					Timestamp: time.Now(),
-				}
+		if isTruthyValue(nodeAttrs["shellcode"]) {
+			return &TriggerEvent{
+				PID:       pid,
+				Comm:      comm,
+				Reason:    TrigShellcodeAttr,
+				Detail:    fmt.Sprintf("进程 %s(PID %d) 已被标记为包含 Shellcode", comm, pid),
+				NodeAttrs: nodeAttrs,
+				NodeID:    nodeID,
+				HostID:    hostID,
+				Timestamp: time.Now(),
 			}
 		}
 	}
 
 	// 3. Fileless execution trigger
 	if te.cfg.EnableFileless {
-		if v, ok := nodeAttrs["fileless"]; ok {
-			if b, isBool := v.(bool); isBool && b {
-				return &TriggerEvent{
-					PID:       pid,
-					Comm:      comm,
-					Reason:    TrigFilelessExec,
-					Detail:    fmt.Sprintf("进程 %s(PID %d) 为无文件执行 (memfd_create) ", comm, pid),
-					NodeAttrs: nodeAttrs,
-					NodeID:    nodeID,
-					HostID:    hostID,
-					Timestamp: time.Now(),
-				}
+		if isTruthyValue(nodeAttrs["fileless"]) {
+			return &TriggerEvent{
+				PID:       pid,
+				Comm:      comm,
+				Reason:    TrigFilelessExec,
+				Detail:    fmt.Sprintf("进程 %s(PID %d) 为无文件执行 (memfd_create) ", comm, pid),
+				NodeAttrs: nodeAttrs,
+				NodeID:    nodeID,
+				HostID:    hostID,
+				Timestamp: time.Now(),
 			}
 		}
 	}
@@ -252,6 +246,18 @@ func ManualTrigger(pid int, comm string, reason string) *TriggerEvent {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────
+
+// isTruthyValue checks if an interface value represents boolean true,
+// supporting both bool and string representations ("true", "1").
+func isTruthyValue(v interface{}) bool {
+	if b, isBool := v.(bool); isBool && b {
+		return true
+	}
+	if s, isStr := v.(string); isStr && (s == "true" || s == "1") {
+		return true
+	}
+	return false
+}
 
 func isHighOrCritical(level string) bool {
 	switch level {

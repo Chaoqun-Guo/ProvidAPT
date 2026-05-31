@@ -115,7 +115,8 @@ func (sm *SnapManager) CreateSnapshot() (*SnapshotMeta, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	id := fmt.Sprintf("snap-%s", time.Now().UTC().Format("20060102T150405"))
+	now := time.Now().UTC()
+	id := fmt.Sprintf("snap-%s-%06d", now.Format("20060102T150405"), now.UnixNano()%1000000)
 	snapPath := filepath.Join(sm.cfg.SnapDir, id)
 
 	// Create RocksDB checkpoint

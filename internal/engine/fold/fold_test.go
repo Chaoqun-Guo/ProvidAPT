@@ -53,6 +53,8 @@ func TestOnCloseFlush(t *testing.T) {
 
 func TestTick(t *testing.T) {
 	ia := NewIOAggregator()
+	// Set batch size to 1 so entries flush immediately
+	ia.batchSize = 1
 	ia.RecordIO(100, "bash", 3, 0, 4096)
 	ia.RecordIO(100, "bash", 4, 1, 512)
 

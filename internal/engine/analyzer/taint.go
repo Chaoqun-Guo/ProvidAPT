@@ -120,13 +120,11 @@ func NewTaintEngine(snap *Snapshot) *TaintEngine {
 
 // propagate runs fixpoint iteration.
 func (te *TaintEngine) propagate() {
-	// 1. Seed initial taints from knowledge base
 	worklist := te.seedTaints()
 	if len(worklist) == 0 {
 		return
 	}
 
-	// 2. BFS — each step decays taint one level
 	for head := 0; head < len(worklist); head++ {
 		id := worklist[head]
 		tn := te.tainted[id]
@@ -135,15 +133,13 @@ func (te *TaintEngine) propagate() {
 			continue
 		}
 
-		// Forward: source → target
 		for _, e := range te.forward[id] {
 			te.tryTaint(e.Target, id, e.Relation, nextLevel,
-				fmt.Sprintf("forward via %s", e.Relation), &worklist)
+				fmt.Sprintf("forward via %s", e.Relation), &worklist, e.Relation == "prov:used")
 		}
-		// Reverse: target → source
 		for _, e := range te.reverse[id] {
 			te.tryTaint(e.Source, id, e.Relation, nextLevel,
-				fmt.Sprintf("reverse via %s", e.Relation), &worklist)
+				fmt.Sprintf("reverse via %s", e.Relation), &worklist, e.Relation == "prov:wasInformedBy" || e.Relation == "prov:wasGeneratedBy")
 		}
 	}
 }
@@ -193,17 +189,36 @@ func (te *TaintEngine) seedTaints() []string {
 // tryTaint attempts to taint a node and adds it to the worklist if
 // the new level is higher than any existing taint.
 func (te *TaintEngine) tryTaint(id, prevID, rel string, level TaintLevel,
-	reason string, worklist *[]string) {
-
-	existing, ok := te.tainted[id]
-	if ok && existing.Level >= level {
-		return
-	}
+	reason string, worklist *[]string, reverse bool) {
 
 	prevTn, _ := te.tainted[prevID]
 	newDepth := 0
 	if prevTn != nil {
 		newDepth = prevTn.Depth + 1
+	}
+
+	existing, ok := te.tainted[id]
+	if ok {
+		if !reverse && existing.Level >= level {
+			return
+		}
+		if existing.Level > level && existing.Depth >= newDepth {
+			return
+		}
+		if existing.Level == level && existing.Depth >= newDepth {
+			return
+		}
+		if level > existing.Level {
+			existing.Level = level
+			existing.PrevID = prevID
+			existing.PrevRel = rel
+			*worklist = append(*worklist, id)
+		}
+		if reverse && newDepth > existing.Depth {
+			existing.Depth = newDepth
+			*worklist = append(*worklist, id)
+		}
+		return
 	}
 
 	te.tainted[id] = &TaintNode{
@@ -215,25 +230,6 @@ func (te *TaintEngine) tryTaint(id, prevID, rel string, level TaintLevel,
 	}
 	*worklist = append(*worklist, id)
 }
-
-// ── Queries ─────────────────────────────────────────────────
-
-// Tainted returns the taint state of a node, or nil if not tainted.
-func (te *TaintEngine) Tainted(id string) *TaintNode {
-	return te.tainted[id]
-}
-
-// TaintedProcesses returns all tainted process nodes.
-func (te *TaintEngine) TaintedProcesses() []string {
-	var out []string
-	for id, n := range te.nodes {
-		if n.Subtype == "process" && te.tainted[id] != nil {
-			out = append(out, id)
-		}
-	}
-	return out
-}
-
 // PropagationPath returns node IDs from the initial seed to the given
 // node, following PrevID pointers, EARLIEST first.
 func (te *TaintEngine) PropagationPath(id string) []string {
@@ -246,6 +242,34 @@ func (te *TaintEngine) PropagationPath(id string) []string {
 		rev[i], rev[j] = rev[j], rev[i]
 	}
 	return rev
+}
+
+// ── Public accessors ─────────────────────────────────────────
+
+// Tainted returns the taint node for a given node ID, or nil.
+func (te *TaintEngine) Tainted(id string) *TaintNode {
+	return te.tainted[id]
+}
+
+// TaintedProcesses returns IDs of all tainted process nodes.
+func (te *TaintEngine) TaintedProcesses() []string {
+	var out []string
+	for id, tn := range te.tainted {
+		if n, ok := te.nodes[id]; ok && n != nil && n.Subtype == "process" {
+			out = append(out, id)
+		}
+		_ = tn
+	}
+	return out
+}
+
+// TaintedNodes returns IDs of all tainted nodes.
+func (te *TaintEngine) TaintedNodes() []string {
+	var out []string
+	for id := range te.tainted {
+		out = append(out, id)
+	}
+	return out
 }
 
 // ── Helpers ─────────────────────────────────────────────────

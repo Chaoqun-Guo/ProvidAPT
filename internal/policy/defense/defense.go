@@ -56,16 +56,25 @@ func New(agentMap *ebpf.Map, protectedInodes *ebpf.Map, defenseRB *ebpf.Map) *Ma
 // RegisterAgentPID announces our PID to the kernel eBPF program.
 // This enables death monitoring and log protection exemptions.
 func (m *Manager) RegisterAgentPID(pid uint32) error {
+	if m.agentMap == nil {
+		return fmt.Errorf("agent eBPF map not initialized")
+	}
 	return m.agentMap.Put(pid, AgentFlag)
 }
 
 // UnregisterAgentPID removes our PID on graceful shutdown.
 func (m *Manager) UnregisterAgentPID(pid uint32) error {
+	if m.agentMap == nil {
+		return fmt.Errorf("agent eBPF map not initialized")
+	}
 	return m.agentMap.Delete(pid)
 }
 
 // RegisterWatchdogPID announces the watchdog's PID.
 func (m *Manager) RegisterWatchdogPID(pid uint32) error {
+	if m.agentMap == nil {
+		return fmt.Errorf("agent eBPF map not initialized")
+	}
 	return m.agentMap.Put(pid, WatchdogFlag)
 }
 
@@ -74,6 +83,9 @@ func (m *Manager) RegisterWatchdogPID(pid uint32) error {
 // ProtectPath registers a file path's inode as protected.
 // After registration, only the agent/watchdog can write to it.
 func (m *Manager) ProtectPath(path string) error {
+	if m.protectedInodes == nil {
+		return fmt.Errorf("protected inodes eBPF map not initialized")
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("stat %s: %w", path, err)
@@ -117,6 +129,10 @@ func (m *Manager) DeathEvents() <-chan *collector.Event {
 // Setup configures all defence mechanisms at startup.
 // It should be called after the eBPF loader initialises.
 func Setup(mgr *Manager, storePath string) error {
+	if mgr == nil {
+		return fmt.Errorf("defense manager is nil")
+	}
+
 	// 1. Register our PID
 	pid := uint32(os.Getpid())
 	if err := mgr.RegisterAgentPID(pid); err != nil {

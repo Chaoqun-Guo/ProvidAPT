@@ -9,7 +9,7 @@ import (
 
 func TestTokenizer(t *testing.T) {
 	parts := tokenize(`find process where name="nginx" -> follow child`)
-	if len(parts) != 7 {
+	if len(parts) != 9 {
 		t.Errorf("got %d tokens: %v", len(parts), parts)
 	}
 }
@@ -23,7 +23,7 @@ func TestTokenizerQuotedStrings(t *testing.T) {
 
 func TestTokenizerArrows(t *testing.T) {
 	parts := tokenize(`find process -> follow child`)
-	if len(parts) != 4 {
+	if len(parts) != 5 {
 		t.Errorf("got %d: %v", len(parts), parts)
 	}
 }

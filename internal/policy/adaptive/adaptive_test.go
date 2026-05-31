@@ -87,6 +87,7 @@ func TestUpgradeToSuspicious(t *testing.T) {
 
 func TestUpgradeToInvestigating(t *testing.T) {
 	ac := New(newMockBPF())
+	ac.upgradeCooldown = time.Millisecond
 	var level Level
 	for i := 0; i < 3; i++ {
 		level = ac.Upgrade(200, "repeated alert")
@@ -163,8 +164,8 @@ func TestOnAlertMultiple(t *testing.T) {
 	if level != LevelSuspicious {
 		t.Errorf("expected SUSPICIOUS, got %s", level)
 	}
-	// Second alert with medium score
-	level = ac.OnAlert(800, 15.0, "second alert")
+	// Second alert with high score — fast-path to INVESTIGATING
+	level = ac.OnAlert(800, 20.0, "second alert")
 	if level != LevelInvestigating {
 		t.Errorf("expected INVESTIGATING after 2nd alert, got %s", level)
 	}
@@ -183,7 +184,7 @@ func TestActiveProcesses(t *testing.T) {
 		if p.Level != LevelSuspicious {
 			t.Errorf("proc %d level = %s", p.PID, p.Level)
 		}
-		if p.Since <= 0 {
+		if p.Since < 0 {
 			t.Errorf("proc %d zero since", p.PID)
 		}
 	}

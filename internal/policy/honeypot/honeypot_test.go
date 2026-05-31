@@ -110,7 +110,7 @@ func TestOnAccessGeneratesAlert(t *testing.T) {
 
 func TestOnAccessSilent(t *testing.T) {
 	tr := NewTrigger(nil)
-	alert := tr.OnAccess("/root/.ssh/id_rsa", 200, "ssh", "stat")
+	alert := tr.OnAccess("/home/admin/.ssh/id_rsa", 200, "ssh", "stat")
 	if alert.Category != "cred" {
 		t.Errorf("category = %s", alert.Category)
 	}

@@ -47,7 +47,7 @@ type AdaptiveController struct {
 	history []*procState // completed states (for stats)
 
 	// Configuration
-	downgradeAfter time.Duration // Level1→2 default cooldown
+	downgradeAfter  time.Duration // overrides level-based downgrade when set (>0)
 	upgradeCooldown time.Duration // min time between upgrades
 
 	stats Stats
@@ -57,8 +57,8 @@ type AdaptiveController struct {
 type Stats struct {
 	TotalUpgrades   int
 	TotalDowngrades int
-	ActiveHigh       int // processes at LevelInvestigating
-	ActiveMedium     int // processes at LevelSuspicious
+	ActiveHigh      int // processes at LevelInvestigating
+	ActiveMedium    int // processes at LevelSuspicious
 }
 
 // New creates an adaptive controller.
@@ -66,7 +66,7 @@ func New(bpfMap BPFMapWriter) *AdaptiveController {
 	return &AdaptiveController{
 		bpfMap:          bpfMap,
 		procs:           make(map[int]*procState),
-		downgradeAfter:  600 * time.Second,
+		downgradeAfter:  0, // not set by default — use level-based times
 		upgradeCooldown: 30 * time.Second,
 	}
 }
@@ -90,43 +90,43 @@ func (ac *AdaptiveController) Upgrade(pid int, reason string) Level {
 	defer ac.mu.Unlock()
 
 	ps := ac.getOrCreate(pid)
-	newLevel := ps.Level
-
-	// Determine appropriate level based on alert frequency
-	switch {
-	case ps.AlertCount >= 3:
-		newLevel = LevelInvestigating
-	case ps.AlertCount >= 1:
-		newLevel = LevelSuspicious
-	}
-	// Respect cooldown
-	if time.Since(ps.UpgradedAt) < ac.upgradeCooldown && ps.Level > LevelDefault {
-		return ps.Level
-	}
-
-	ps.Level = newLevel
-	ps.UpgradedAt = time.Now()
-	ps.LastAlertAt = time.Now()
+	oldLevel := ps.Level
 	ps.AlertCount++
 
+	// Determine target level based on alert frequency
+	switch {
+	case ps.AlertCount >= 3:
+		ps.Level = LevelInvestigating
+	case ps.AlertCount >= 1:
+		ps.Level = LevelSuspicious
+	}
+
+	// Respect cooldown — only prevents re-upgrading to the same or lower level
+	if ps.Level <= oldLevel && time.Since(ps.UpgradedAt) < ac.upgradeCooldown && oldLevel > LevelDefault {
+		return oldLevel
+	}
+
+	ps.UpgradedAt = time.Now()
+	ps.LastAlertAt = time.Now()
+
 	// Compute downgrade time based on level
-	downgradeSec := newLevel.DowngradeAfter()
+	downgradeSec := ps.Level.DowngradeAfter()
 	if downgradeSec > 0 {
 		ps.DowngradeAt = time.Now().Add(time.Duration(downgradeSec) * time.Second)
 	}
 
 	// Write to BPF map
 	if ac.bpfMap != nil {
-		if err := ac.bpfMap.Put(uint32(pid), uint32(newLevel)); err != nil {
-			log.Printf("[adaptive] bpf put pid=%d level=%d: %v", pid, newLevel, err)
+		if err := ac.bpfMap.Put(uint32(pid), uint32(ps.Level)); err != nil {
+			log.Printf("[adaptive] bpf put pid=%d level=%d: %v", pid, ps.Level, err)
 		}
 	}
 
 	log.Printf("[adaptive] UPGRADE pid=%d %s→%s (reason=%s, alerts=%d)",
-		pid, LevelFor(ps.Level, newLevel), newLevel, reason, ps.AlertCount)
+		pid, oldLevel, ps.Level, reason, ps.AlertCount)
 	ac.stats.TotalUpgrades++
 	ac.refreshStats()
-	return newLevel
+	return ps.Level
 }
 
 // Downgrade lowers the monitoring level for a process.
@@ -173,7 +173,11 @@ func (ac *AdaptiveController) Tick() int {
 		}
 
 		// Check if downgrade time has elapsed
-		if !ps.DowngradeAt.IsZero() && now.After(ps.DowngradeAt) {
+		downgradeTime := ps.DowngradeAt
+		if ac.downgradeAfter > 0 && !ps.UpgradedAt.IsZero() {
+			downgradeTime = ps.UpgradedAt.Add(ac.downgradeAfter)
+		}
+		if !downgradeTime.IsZero() && now.After(downgradeTime) {
 			oldLevel := ps.Level
 			ps.Level = LevelDefault
 			ps.DowngradeAt = time.Time{}
@@ -220,7 +224,7 @@ func (ac *AdaptiveController) BackgroundLoop(stopCh <-chan struct{}) {
 // It uses the alert's score to determine the appropriate level.
 func (ac *AdaptiveController) OnAlert(pid int, score float64, reason string) Level {
 	// Never upgrade for very low scores
-	if score < LevelDefault.AlertThreshold() {
+	if score < LevelSuspicious.AlertThreshold() {
 		return ac.GetLevel(pid)
 	}
 
@@ -234,7 +238,12 @@ func (ac *AdaptiveController) OnAlert(pid int, score float64, reason string) Lev
 		ps.Level = LevelInvestigating
 		ps.AlertCount++
 		ps.LastAlertAt = time.Now()
-		ps.DowngradeAt = time.Now().Add(5 * time.Minute)
+		downgradeSec := ps.Level.DowngradeAfter()
+		if downgradeSec > 0 {
+			ps.DowngradeAt = time.Now().Add(time.Duration(downgradeSec) * time.Second)
+		} else {
+			ps.DowngradeAt = time.Now().Add(5 * time.Minute)
+		}
 		if ac.bpfMap != nil {
 			ac.bpfMap.Put(uint32(pid), uint32(LevelInvestigating))
 		}
@@ -279,11 +288,11 @@ func (ac *AdaptiveController) Stats() map[string]interface{} {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 	return map[string]interface{}{
-		"active_high":       ac.stats.ActiveHigh,
-		"active_medium":     ac.stats.ActiveMedium,
-		"total_upgrades":    ac.stats.TotalUpgrades,
-		"total_downgrades":  ac.stats.TotalDowngrades,
-		"tracked_pids":      len(ac.procs),
+		"active_high":      ac.stats.ActiveHigh,
+		"active_medium":    ac.stats.ActiveMedium,
+		"total_upgrades":   ac.stats.TotalUpgrades,
+		"total_downgrades": ac.stats.TotalDowngrades,
+		"tracked_pids":     len(ac.procs),
 	}
 }
 

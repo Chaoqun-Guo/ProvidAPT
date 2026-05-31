@@ -106,24 +106,31 @@ func (e *Executor) traverse(
 	nextLabel := path.Nodes[nodeIdx+1].Label
 	nextSubtype := labelToSubtype[nextLabel]
 
-	// Traverse forward edges
+	// Traverse forward and reverse edges
 	var rows []*ResultRow
 	for _, edge := range e.graph.Edges() {
-		if edge.Source != node.ID {
+		var targetNode *provenance.Node
+		var ok bool
+
+		if edge.Source == node.ID {
+			// Forward traversal: source → target
+			targetNode, ok = e.graph.LookupNode(edge.Target)
+		} else if edge.Target == node.ID {
+			// Reverse traversal: target → source
+			targetNode, ok = e.graph.LookupNode(edge.Source)
+		} else {
 			continue
 		}
 		if provRel != "" && edge.Relation != provRel {
 			continue
 		}
 
-		targetNode, ok := e.graph.LookupNode(edge.Target)
 		if !ok || targetNode == nil {
 			continue
 		}
 		if nextSubtype != "" && targetNode.Subtype != nextSubtype {
 			continue
 		}
-
 		// Apply WHERE on target
 		if !e.matchesWhere(targetNode, path.Nodes[nodeIdx+1].Variable, where) {
 			continue

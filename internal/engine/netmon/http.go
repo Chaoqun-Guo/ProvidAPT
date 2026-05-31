@@ -37,6 +37,9 @@ func NewHTTPTracker() *HTTPTracker {
 func ParseHTTPRequest(data []byte) *HTTPRequest {
 	req := &HTTPRequest{}
 	text := string(data)
+	if len(text) == 0 {
+		return nil
+	}
 
 	lines := strings.SplitN(text, "\r\n", 2)
 	if len(lines) == 0 {

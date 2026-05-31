@@ -204,8 +204,9 @@ func TestConsistencyPartialCorruption(t *testing.T) {
 	cfg.DryRun = true
 	lm := NewLifecycleManager(db, cfg)
 
-	// Valid edge
+	// Valid edge (both source and target nodes exist)
 	writeNode(t, db, "p:1", "process", "bash", "")
+	writeNode(t, db, "f:500", "file", "/etc/shadow", "")
 	writeEdge(t, db, "p:1", "f:500", 500)
 
 	// Corrupted edge (target missing)

@@ -58,6 +58,7 @@ func DefaultEscalationConfig() *EscalationConfig {
 // Trigger manages honey path alerting and escalation.
 type Trigger struct {
 	cfg    *EscalationConfig
+	mgr    *Manager
 	mu     sync.Mutex
 	alerts []*HoneyAlert
 
@@ -72,6 +73,7 @@ func NewTrigger(cfg *EscalationConfig) *Trigger {
 	}
 	return &Trigger{
 		cfg:            cfg,
+		mgr:            NewManager(),
 		triggeredProcs: make(map[uint32]time.Time),
 	}
 }
@@ -79,11 +81,9 @@ func NewTrigger(cfg *EscalationConfig) *Trigger {
 // OnAccess is called when a honey path is accessed.
 // It generates a silent alert and activates escalations.
 func (t *Trigger) OnAccess(path string, pid uint32, comm string, action string) *HoneyAlert {
-	mgr := NewManager() // or use a shared instance in production
-
 	// Find the honey path definition
 	var desc, ttp, category string
-	for _, hp := range mgr.Paths() {
+	for _, hp := range t.mgr.Paths() {
 		if hp.Path == path {
 			desc = hp.Description
 			ttp = hp.TTPRef
@@ -110,15 +110,15 @@ func (t *Trigger) OnAccess(path string, pid uint32, comm string, action string) 
 	t.mu.Unlock()
 
 	// Silent alert (only logged, not broadcast to avoid detection)
-	log.Printf("[honeypot] 🚨 SILENT ALERT: process %s (PID %d) accessed honey path: %s",
+	log.Printf("[honeypot] SILENT ALERT: process %s (PID %d) accessed honey path: %s",
 		comm, pid, path)
 
 	// Execute escalation actions
 	t.escalate(alert)
 
-	// Call registered handlers
+	// Call registered handlers (synchronously for deterministic testing)
 	for _, handler := range t.cfg.AlertHandlers {
-		go handler(alert)
+		handler(alert)
 	}
 
 	return alert
@@ -184,7 +184,7 @@ func (t *Trigger) ProcessAlertSummary() string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Honey Pot: %d alerts\n", len(alerts)))
 	for _, a := range alerts {
-		b.WriteString(fmt.Sprintf("  🚨 %s (PID %d) → %s [%s] %s\n",
+		b.WriteString(fmt.Sprintf("  %s (PID %d) → %s [%s] %s\n",
 			a.Comm, a.PID, a.Path, a.Category, a.Action))
 	}
 	return b.String()

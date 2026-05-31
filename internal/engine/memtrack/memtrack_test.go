@@ -247,9 +247,9 @@ func TestMemtrackIntegration(t *testing.T) {
 	mmaps.OnMmapExec(100, "python3", 0x7f1234560000, 32768, 5, 2, 3, "", true)
 	t.Log("Stage 3: python3 mmap PROT_EXEC fd=3 → 0x7f1234560000")
 
-	// Stage 4: fexecve
-	chain := eft.OnFexecve(3, 200, "bash", "/proc/self/fd/3")
-	t.Logf("Stage 4: fexecve(3) by pid=200 bash")
+	// Stage 4: fexecve (does not change PID — replaces process image)
+	chain := eft.OnFexecve(3, 100, "bash", "/proc/self/fd/3")
+	t.Logf("Stage 4: fexecve(3) by pid=100 bash")
 
 	// Verify complete chain
 	if chain != nil {

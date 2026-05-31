@@ -55,11 +55,21 @@ type NetworkNode struct {
 	Action   string `json:"action"` // "connect", "accept"
 }
 
+// bfsItem is used internally by AssessImpact for BFS traversal.
+type bfsItem struct {
+	nodeID string
+	depth  int
+	parent string
+	edge   *provenance.Edge
+}
+
 // AssessImpact traverses forward from a malicious process node
 // to find all successor nodes (files, child procs, networks).
 //
 // Algorithm:
 //   BFS forward from the seed node, following all outgoing edges.
+//   Also follows reverse edges to find child processes (fork creates
+//   child→parent edge) and generated files (wasGeneratedBy goes file→process).
 //   Depth-limited to prevent explosion (default maxDepth=5).
 func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *ImpactReport {
 	if maxDepth <= 0 {
@@ -80,14 +90,6 @@ func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *Im
 		report.MaliciousComm = n.Label
 	}
 
-	// BFS forward traversal
-	type bfsItem struct {
-		nodeID string
-		depth  int
-		parent string
-		edge   *provenance.Edge
-	}
-
 	visited := make(map[string]int)
 	queue := []bfsItem{{nodeID: startNodeID, depth: 0}}
 
@@ -100,7 +102,7 @@ func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *Im
 			continue
 		}
 
-		// Find all outgoing edges
+		// Follow outgoing edges (forward direction)
 		for _, e := range graph.Edges() {
 			if e.Source != item.nodeID {
 				continue
@@ -113,45 +115,26 @@ func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *Im
 			visited[targetID] = item.depth + 1
 
 			targetNode, _ := graph.LookupNode(targetID)
+			report.discoverNode(targetID, targetNode, e.Relation, item.depth+1, &queue, item.nodeID, e)
+		}
 
-			switch {
-			case targetNode != nil && targetNode.Subtype == "process":
-				childPID, _ := parsePID(targetID)
-				child := ProcessNode{
-					PID:    childPID,
-					NodeID: targetID,
-					Comm:   safeLabel(targetNode),
-					Depth:  item.depth + 1,
-				}
-				report.ChildProcesses = append(report.ChildProcesses, child)
-
-				// Recurse into child processes
-				queue = append(queue, bfsItem{
-					nodeID: targetID,
-					depth:  item.depth + 1,
-					parent: item.nodeID,
-					edge:   e,
-				})
-
-			case targetNode != nil && targetNode.Subtype == "file":
-				file := FileNode{
-					Path:   safeLabel(targetNode),
-					NodeID: targetID,
-					Action: classifyFileAction(e.Relation),
-				}
-				report.FilesWritten = append(report.FilesWritten, file)
-
-			case targetNode != nil && targetNode.Subtype == "network":
-				net := NetworkNode{
-					Address: safeLabel(targetNode),
-					NodeID:  targetID,
-					Action:  "connect",
-				}
-				report.C2Addresses = append(report.C2Addresses, net)
-
-			case targetNode != nil && targetNode.Subtype == "credential":
-				report.CredChanges = append(report.CredChanges, safeLabel(targetNode))
+		// Follow incoming edges (reverse direction):
+		//   - fork creates wasInformedBy(child, parent) — child is the source
+		//   - wasGeneratedBy(file, process) — file is the source
+		//   These edges flow toward the process, so the related node is the source.
+		for _, e := range graph.Edges() {
+			if e.Target != item.nodeID {
+				continue
 			}
+			sourceID := e.Source
+
+			if _, seen := visited[sourceID]; seen {
+				continue
+			}
+			visited[sourceID] = item.depth + 1
+
+			sourceNode, _ := graph.LookupNode(sourceID)
+			report.discoverNode(sourceID, sourceNode, e.Relation, item.depth+1, &queue, item.nodeID, e)
 		}
 	}
 
@@ -160,6 +143,51 @@ func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *Im
 		len(report.C2Addresses)
 
 	return report
+}
+
+// discoverNode processes a discovered node and adds it to the report.
+func (report *ImpactReport) discoverNode(nodeID string, node *provenance.Node, relation string,
+	depth int, queue *[]bfsItem, parent string, edge *provenance.Edge) {
+	if node == nil {
+		return
+	}
+
+	switch node.Subtype {
+	case "process":
+		childPID, _ := parsePID(nodeID)
+		child := ProcessNode{
+			PID:    childPID,
+			NodeID: nodeID,
+			Comm:   safeLabel(node),
+			Depth:  depth,
+		}
+		report.ChildProcesses = append(report.ChildProcesses, child)
+		*queue = append(*queue, bfsItem{
+			nodeID: nodeID,
+			depth:  depth,
+			parent: parent,
+			edge:   edge,
+		})
+
+	case "file":
+		file := FileNode{
+			Path:   safeLabel(node),
+			NodeID: nodeID,
+			Action: classifyFileAction(relation),
+		}
+		report.FilesWritten = append(report.FilesWritten, file)
+
+	case "network":
+		net := NetworkNode{
+			Address: safeLabel(node),
+			NodeID:  nodeID,
+			Action:  "connect",
+		}
+		report.C2Addresses = append(report.C2Addresses, net)
+
+	case "credential":
+		report.CredChanges = append(report.CredChanges, safeLabel(node))
+	}
 }
 
 // ── Helpers ─────────────────────────────────────────────────

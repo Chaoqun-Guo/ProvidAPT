@@ -81,63 +81,69 @@ func (a *Alert) Markdown() string {
 
 // DefaultRulesYAML returns the built-in detection rules.
 const DefaultRulesYAML = `
-- title: "Non-root modifies /etc/passwd"
-  id: "rule-passwd-001"
-  description: "Detects non-root processes writing to /etc/passwd"
-  level: high
-  tags: [attack.t1098, persistence]
-  detection:
-    EventType: [11, 12]
-    TargetPath: /etc/passwd
-    UID: "!=0"
+---
+title: "Non-root modifies /etc/passwd"
+id: "rule-passwd-001"
+description: "Detects non-root processes writing to /etc/passwd"
+level: high
+tags: [attack.t1098, persistence]
+detection:
+  EventType: [11, 12]
+  TargetPath: /etc/passwd
+  UID: "!=0"
 
-- title: "Shadow File Access"
-  id: "rule-shadow-001"
-  description: "Detects access to /etc/shadow by any process"
-  level: critical
-  tags: [attack.t1003, credential-access]
-  detection:
-    EventType: [10, 11, 12]
-    TargetPath: /etc/shadow
+---
+title: "Shadow File Access"
+id: "rule-shadow-001"
+description: "Detects access to /etc/shadow by any process"
+level: critical
+tags: [attack.t1003, credential-access]
+detection:
+  EventType: [10, 11, 12]
+  TargetPath: /etc/shadow
 
-- title: "Web Shell Execution"
-  id: "rule-webshell-001"
-  description: "Web server process spawns an interactive shell"
-  level: critical
-  tags: [attack.t1505, persistence]
-  detection:
-    EventType: [2]
-    Comm: bash
-    PID: ">1000"
+---
+title: "Web Shell Execution"
+id: "rule-webshell-001"
+description: "Web server process spawns an interactive shell"
+level: critical
+tags: [attack.t1505, persistence]
+detection:
+  EventType: [2]
+  Comm: bash
+  PID: ">1000"
 
-- title: "Suspicious Network Connection"
-  id: "rule-net-001"
-  description: "Non-browser process connects to external endpoint"
-  level: high
-  tags: [attack.t1043, c2]
-  detection:
-    EventType: [20]
-    Comm: bash
+---
+title: "Suspicious Network Connection"
+id: "rule-net-001"
+description: "Non-browser process connects to external endpoint"
+level: high
+tags: [attack.t1043, c2]
+detection:
+  EventType: [20]
+  Comm: bash
 
-- title: "C2 Beaconing via Curl"
-  id: "rule-c2-curl-001"
-  description: "Curl makes outbound connections from suspicious context"
-  level: high
-  tags: [attack.t1043, c2]
-  detection:
-    EventType: [20]
-    Comm: curl
-    TargetPort: "443"
+---
+title: "C2 Beaconing via Curl"
+id: "rule-c2-curl-001"
+description: "Curl makes outbound connections from suspicious context"
+level: high
+tags: [attack.t1043, c2]
+detection:
+  EventType: [20]
+  Comm: curl
+  TargetPort: "443"
 
-- title: "Fileless Payload Download"
-  id: "rule-fileless-001"
-  description: "Network tool writes executable to temp directory"
-  level: high
-  tags: [attack.t1204, execution]
-  detection:
-    EventType: [11, 12]
-    TargetPath: /tmp/*
-    Comm: "curl"
+---
+title: "Fileless Payload Download"
+id: "rule-fileless-001"
+description: "Network tool writes executable to temp directory"
+level: high
+tags: [attack.t1204, execution]
+detection:
+  EventType: [11, 12]
+  TargetPath: /tmp/*
+  Comm: "curl"
 `
 
 // LoadDefaultRules parses the built-in rules.

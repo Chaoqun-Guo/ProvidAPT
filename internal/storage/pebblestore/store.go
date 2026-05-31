@@ -298,8 +298,8 @@ func (s *Store) GetEdgesBySource(source string) ([]*pb.Edge, error) {
 
 // GetEdgesByTarget returns all incoming edges to a node.
 func (s *Store) GetEdgesByTarget(target string) ([]*pb.Edge, error) {
-	// Use reverse index: r:<target>:...
-	prefix := fmt.Sprintf("r:%s:", target)
+	// Use reverse index: r:<target>|<ts>|<source>
+	prefix := fmt.Sprintf("r:%s|", target)
 	iter, err := s.db.NewIter(&pebble.IterOptions{LowerBound: []byte(prefix), UpperBound: []byte(prefix + "\xff")})
 	if err != nil {
 		return nil, err

@@ -54,7 +54,7 @@ func (s *SocketEvent) SocketKey() string {
 
 // SeqHashKey includes the sequence hash for precise matching.
 func (s *SocketEvent) SeqHashKey() string {
-	return fmt.Sprintf("%s|%d", s.SocketKey(), s.SeqHash)
+	return fmt.Sprintf("%s|0x%X", s.SocketKey(), s.SeqHash)
 }
 
 // ═══════════════════════════════════════════════════════════════

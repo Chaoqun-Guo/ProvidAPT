@@ -128,9 +128,8 @@ func (b *Baseline) save() {
 	if b.persist == nil {
 		return
 	}
-	b.mu.RLock()
+	// Caller must hold b.mu (write lock).
 	data, err := json.Marshal(b.known)
-	b.mu.RUnlock()
 	if err != nil {
 		log.Printf("[filter] baseline save marshal: %v", err)
 		return

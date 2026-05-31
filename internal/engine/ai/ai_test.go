@@ -175,7 +175,7 @@ func TestLLMClientAnalyseNoEndpoint(t *testing.T) {
 func TestFormatResponse(t *testing.T) {
 	text := "### Section 1\ncontent\n### Section 2"
 	formatted := FormatResponse(text)
-	if !strings.HasPrefix(formatted, "\n### Section 1") {
+	if !strings.HasPrefix(formatted, "### Section 1") {
 		t.Errorf("formatted = %q", formatted)
 	}
 }

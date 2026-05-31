@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -140,7 +141,7 @@ func TestEdgeCount(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		s.PutEdge(&provenance.Edge{
 			Source:   "p:1",
-			Target:   "f:100",
+			Target:   fmt.Sprintf("f:%d", 100+i),
 			Relation: "prov:used",
 		})
 	}
@@ -163,7 +164,7 @@ func TestBatchFlush(t *testing.T) {
 	for i := 0; i < 500; i++ {
 		s.PutEdge(&provenance.Edge{
 			Source:   "p:1",
-			Target:   "f:100",
+			Target:   fmt.Sprintf("f:%d", i),
 			Relation: "prov:used",
 		})
 	}

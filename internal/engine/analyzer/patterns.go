@@ -161,11 +161,11 @@ func checkScriptChild(te *TaintEngine) []*Alert {
 
 	// Now find processes that read those files
 	for fileID, writerID := range writtenByTaint {
-		for _, e := range te.forward[fileID] {
+		for _, e := range te.reverse[fileID] {
 			if e.Relation != provenance.ProvUsed {
 				continue
 			}
-			reader := te.nodes[e.Target]
+			reader := te.nodes[e.Source]
 			if reader == nil || reader.Subtype != "process" {
 				continue
 			}

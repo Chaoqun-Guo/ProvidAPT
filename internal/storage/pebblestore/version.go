@@ -13,6 +13,7 @@ package pebblestore
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -81,7 +82,7 @@ func (vt *VersionTracker) NextVersion(inode uint64, devMajor, devMinor uint32) (
 	}
 	prevID := VersionID(inode, devMajor, devMinor, prev)
 
-	vt.latest[key]++
+	vt.latest[key] = prev + 1
 	newID := VersionID(inode, devMajor, devMinor, vt.latest[key])
 
 	return prevID, newID
@@ -220,6 +221,9 @@ func (vs *VersionStore) GetHistory(inode uint64, devMajor, devMinor uint32) []*V
 			history = append(history, rec)
 		}
 	}
+	sort.Slice(history, func(i, j int) bool {
+		return history[i].VersionNum < history[j].VersionNum
+	})
 	return history
 }
 

@@ -48,6 +48,8 @@ type OverlayManager struct {
 func NewOverlayManager(cfg *Config) *OverlayManager {
 	if cfg == nil {
 		cfg = DefaultConfig()
+	} else if cfg.Honeytokens == nil {
+		cfg.Honeytokens = DefaultHoneytokens()
 	}
 	return &OverlayManager{
 		cfg:       cfg,

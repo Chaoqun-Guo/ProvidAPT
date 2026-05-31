@@ -54,7 +54,7 @@ func Open(path string) (*Store, error) {
 	}
 	return &Store{
 		db:    db,
-		wb:    db.NewBatch(),
+		wb:    db.NewIndexedBatch(),
 		wbCap: 200,
 	}, nil
 }
@@ -74,7 +74,7 @@ func (s *Store) PutNode(n *provenance.Node) error {
 }
 
 func (s *Store) GetNode(id string) (*provenance.Node, error) {
-	v, closer, err := s.db.Get([]byte(nodeKey(id)))
+	v, closer, err := s.wb.Get([]byte(nodeKey(id)))
 	if err == pebble.ErrNotFound {
 		return nil, nil
 	}
@@ -188,7 +188,7 @@ func (s *Store) Flush() error {
 	if err := s.wb.Commit(&pebble.WriteOptions{Sync: true}); err != nil {
 		return fmt.Errorf("batch commit: %w", err)
 	}
-	s.wb = s.db.NewBatch()
+	s.wb = s.db.NewIndexedBatch()
 	return nil
 }
 

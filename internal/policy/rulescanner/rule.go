@@ -31,8 +31,8 @@ type Rule struct {
 
 // Detection contains the selection criteria.
 type Detection struct {
-	Selections []Selection `yaml:",inline"` // inline YAML keys
-	Condition  string      `yaml:"condition"`
+	Selection Selection `yaml:",inline"` // inline YAML keys
+	Condition  string   `yaml:"condition"`
 }
 
 // Selection is a set of AND-conditions.
@@ -111,14 +111,9 @@ func LoadAllRules(dir string) ([]*Rule, error) {
 
 // ─── Matching ───────────────────────────────────────────────
 
-// Match checks if an event matches this rule's selections.
+// Match checks if an event matches this rule's selection.
 func (r *Rule) Match(evt *pb.Event) bool {
-	for _, sel := range r.Detection.Selections {
-		if r.matchSelection(sel, evt) {
-			return true
-		}
-	}
-	return false
+	return r.matchSelection(r.Detection.Selection, evt)
 }
 
 // matchSelection checks if an event matches a single selection (AND logic).

@@ -94,7 +94,7 @@ func DefaultConfig() *Config {
 		},
 		SensitivePaths: []string{
 			"/etc/shadow", "/etc/passwd", "/etc/sudoers",
-			"/root/.ssh/", "/.aws/credentials",
+			"/etc/ssh/", "/root/.ssh/", "/.aws/credentials",
 		},
 		TaintDecayAfter: 30 * time.Minute,
 		EnableAlerting:  true,

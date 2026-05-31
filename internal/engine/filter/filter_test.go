@@ -260,7 +260,8 @@ func TestEngineNetworkAlwaysProcessed(t *testing.T) {
 
 func TestEngineCounters(t *testing.T) {
 	b := NewBaseline(nil)
-	evt := &collector.Event{Type: syscall.EventFileOpen, Comm: "systemd", Pathname: "/var/log/syslog"}
+	// Use comm+path with combined rep >= 80 so Decide increments counters: systemd(95) + /usr/bin(85) = 90
+	evt := &collector.Event{Type: syscall.EventFileOpen, Comm: "systemd", Pathname: "/usr/bin/systemctl"}
 	hash := Hash(evt)
 	b.Record(hash) // add to baseline
 

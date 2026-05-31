@@ -235,7 +235,12 @@ func TestEngineConfig(t *testing.T) {
 
 func TestStreamIntegration(t *testing.T) {
 	graph := provenance.NewGraph()
-	e := New(graph, nil)
+	e := New(graph, &EngineConfig{
+		MicroBatchWindow: 50 * time.Millisecond,
+		SnapshotWindow:   1 * time.Hour,
+		EnableNFA:        true,
+		EventChBuffer:    100,
+	})
 	e.Start()
 	defer e.Stop()
 

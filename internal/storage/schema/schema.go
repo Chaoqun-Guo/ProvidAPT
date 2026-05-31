@@ -48,18 +48,20 @@ func NodeKey(nodeType, nodeID string) string {
 }
 
 // EdgeKey returns a time-ordered storage key for an edge.
-// Format: "e:<16-hex-ts>:<source>:<target>"
+// Format: "e:<16-hex-ts>|<source>|<target>"
+// Uses | as delimiter after timestamp since source/target IDs may contain colons.
 // The 16-hex-ts prefix enables range scans by time.
 func EdgeKey(timestamp uint64, source, target string) string {
 	ts := fmt.Sprintf("%016x", timestamp)
-	return fmt.Sprintf("%s%s:%s:%s", edgePrefix, ts, source, target)
+	return fmt.Sprintf("%s%s|%s|%s", edgePrefix, ts, source, target)
 }
 
 // ReverseEdgeKey returns a reverse-index key for backward traversal.
-// Format: "r:<target>:<16-hex-ts>:<source>"
+// Format: "r:<target>|<16-hex-ts>|<source>"
+// Target comes first to enable prefix scans for all edges pointing to a target.
 func ReverseEdgeKey(timestamp uint64, target, source string) string {
 	ts := fmt.Sprintf("%016x", timestamp)
-	return fmt.Sprintf("%s%s:%s:%s", reversePrefix, ts, target, source)
+	return fmt.Sprintf("%s%s|%s|%s", reversePrefix, target, ts, source)
 }
 
 // PIDIndexKey returns the index key for a PID.
@@ -97,8 +99,8 @@ func ParseNodeKey(key string) (nodeType, nodeID string, ok bool) {
 // EdgeTimeRange returns the start and end keys for a time-range scan.
 // Scans [startKey, endKey) for edges in [startNs, endNs).
 func EdgeTimeRange(startNs, endNs uint64) (startKey, endKey string) {
-	startKey = fmt.Sprintf("%s%016x:", edgePrefix, startNs)
-	endKey = fmt.Sprintf("%s%016x:", edgePrefix, endNs)
+	startKey = fmt.Sprintf("%s%016x|", edgePrefix, startNs)
+	endKey = fmt.Sprintf("%s%016x|", edgePrefix, endNs)
 	return
 }
 
@@ -123,15 +125,18 @@ func InodeIndexPrefix(inode uint64) string {
 // ─── Source node ID extraction ───────────────────────────
 
 // ParseEdgeKey extracts source, target, and timestamp from an edge key.
+// Format: "e:<16-hex-ts>|<source>|<target>"
 func ParseEdgeKey(key string) (source, target string, ts uint64, ok bool) {
 	rest, found := strings.CutPrefix(key, edgePrefix)
-	if !found {
+	if !found || len(rest) < 17 {
 		return "", "", 0, false
 	}
-	parts := strings.SplitN(rest, ":", 3)
-	if len(parts) != 3 {
+	tsHex := rest[:16]
+	fmt.Sscanf(tsHex, "%x", &ts)
+	remaining := rest[17:] // skip ts + delimiter
+	parts := strings.SplitN(remaining, "|", 2)
+	if len(parts) != 2 {
 		return "", "", 0, false
 	}
-	fmt.Sscanf(parts[0], "%x", &ts)
-	return parts[1], parts[2], ts, true
+	return parts[0], parts[1], ts, true
 }

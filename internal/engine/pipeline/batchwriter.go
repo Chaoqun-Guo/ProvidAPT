@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -126,6 +127,10 @@ func (bw *BatchWriter) Flush() error {
 
 	if len(edges) == 0 {
 		return nil
+	}
+	if bw.store == nil {
+		bw.pending = edges // put back for retry
+		return fmt.Errorf("store not initialized")
 	}
 
 	// Disable WAL if configured

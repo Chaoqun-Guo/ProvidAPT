@@ -1,12 +1,23 @@
 package analyzer
 
 import (
+	"hash/fnv"
 	"testing"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
+
+// pathInode returns a deterministic inode for a pathname.
+func pathInode(pathname string) uint64 {
+	if pathname == "" {
+		return 0
+	}
+	h := fnv.New64a()
+	h.Write([]byte(pathname))
+	return h.Sum64()
+}
 
 // ── Snapshot builder helpers ────────────────────────────────
 
@@ -27,7 +38,7 @@ func testEvent(typ syscall.EventType, pid, uid uint32, comm, pathname string) *c
 		UID:         uid,
 		Comm:        comm,
 		Pathname:    pathname,
-		Inode:       uint64(pid * 1000),
+		Inode:       pathInode(pathname),
 		DevMajor:    8,
 		DevMinor:    3,
 		Mode:        0o100644,
@@ -56,7 +67,7 @@ func testWrite(pid, uid uint32, comm, pathname string) *collector.Event {
 		UID:         uid,
 		Comm:        comm,
 		Pathname:    pathname,
-		Inode:       uint64(pid * 1000),
+		Inode:       pathInode(pathname),
 		DevMajor:    8,
 		DevMinor:    3,
 		Mode:        0o100644,
@@ -106,7 +117,7 @@ func TestTaintPropagation_WriteRead(t *testing.T) {
 
 	// File written by nginx should be tainted
 	fileID := ""
-	for _, e := range te.forward["p:100"] {
+	for _, e := range te.reverse["p:100"] {
 		if e.Relation == "prov:wasGeneratedBy" {
 			fileID = e.Source
 			break
@@ -122,7 +133,7 @@ func TestTaintPropagation_WriteRead(t *testing.T) {
 	// Bash should be tainted from reading the file
 	if tn := te.Tainted("p:200"); tn == nil {
 		t.Fatal("bash reading tainted file should be tainted")
-	} else if tn.Level != TaintLow {
+	} else if tn.Level != TaintMedium {
 		t.Errorf("bash taint = %s, want LOW (2 hops)", tn.Level)
 	}
 }

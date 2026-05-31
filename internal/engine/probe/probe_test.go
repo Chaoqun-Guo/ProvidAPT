@@ -1,6 +1,7 @@
 package probe
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -46,6 +47,9 @@ func TestParseVersionInvalid(t *testing.T) {
 // ── Mode selection tests ───────────────────────────────────
 
 func TestModeDetectionFentry(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Probe reads /proc — not available on Windows")
+	}
 	// With kernel ≥5.11 and BTF, ModeFentry should be selected
 	r := Probe()
 	if r == nil {
@@ -86,6 +90,9 @@ func TestModeStrings(t *testing.T) {
 }
 
 func TestStructopt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Probe reads /proc — not available on Windows")
+	}
 	r := Probe()
 	opts := r.Structopt()
 	if opts["mode"] != r.ModeName {
@@ -174,6 +181,9 @@ func TestKallsymsAttachmentPoints(t *testing.T) {
 // ── Release string test ────────────────────────────────────
 
 func TestReleaseString(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("ReleaseString reads /proc — not available on Windows")
+	}
 	s := ReleaseString()
 	if s == "" || s == "unknown" {
 		t.Error("release string should not be empty")

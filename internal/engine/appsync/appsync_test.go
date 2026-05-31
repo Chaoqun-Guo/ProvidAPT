@@ -2,6 +2,7 @@ package appsync
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,9 @@ func TestNewProbeManager(t *testing.T) {
 }
 
 func TestDetectRunningApps(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("DetectRunningApps reads /proc — not available on Windows")
+	}
 	pm := NewProbeManager()
 	apps, err := pm.DetectRunningApps()
 	if err != nil {
@@ -179,6 +183,9 @@ func TestRecordFileAccess(t *testing.T) {
 	rt := NewRequestTracker()
 	rt.StartRequest(100, 200, "nginx", "txn-file", "GET", "/config")
 
+	info := rt.GetRequest(100)
+	sm.BeginTransaction(info)
+
 	// Record some file accesses
 	sm.RecordFileAccess(100, rt, "/etc/nginx/nginx.conf", false)
 	sm.RecordFileAccess(100, rt, "/etc/shadow", false)
@@ -204,6 +211,9 @@ func TestRecordNetworkConnect(t *testing.T) {
 	sm := NewSemanticMerger()
 	rt := NewRequestTracker()
 	rt.StartRequest(100, 200, "nginx", "txn-net", "POST", "/api/data")
+
+	info := rt.GetRequest(100)
+	sm.BeginTransaction(info)
 
 	sm.RecordNetworkConnect(100, rt, "5.6.7.8:443")
 	sm.RecordNetworkConnect(100, rt, "10.0.0.1:80")
