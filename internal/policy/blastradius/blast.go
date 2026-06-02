@@ -135,11 +135,26 @@ func (bre *BlastRadiusEngine) getHostProcesses(hostID string, edges []LateralEdg
 }
 
 func (bre *BlastRadiusEngine) getHostFiles(hostID string, edges []LateralEdge) []string {
-	return nil
+	var files []string
+	for _, e := range edges {
+		if e.SourceHost == hostID && e.Tainted && e.Comm != "" {
+			// If tainted lateral movement involved file transfers, flag it
+			if e.Relation == "scp" || e.Relation == "rsync" {
+				files = append(files, fmt.Sprintf("transferred_by_%s(PID %d)", e.Comm, e.PID))
+			}
+		}
+	}
+	return unique(files)
 }
 
 func (bre *BlastRadiusEngine) getHostNetworks(hostID string, edges []LateralEdge) []string {
-	return nil
+	var nets []string
+	for _, e := range edges {
+		if e.SourceHost == hostID && e.Tainted {
+			nets = append(nets, fmt.Sprintf("lateral_%s_to_%s", e.Relation, e.TargetHost))
+		}
+	}
+	return unique(nets)
 }
 
 func (bre *BlastRadiusEngine) calcHostRisk(impact HostImpact) float64 {

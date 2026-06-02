@@ -4,10 +4,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -20,6 +22,8 @@ import (
 	storage "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/format"
 )
 
+const pidFile = "/var/run/providaptd.pid"
+
 const ringBufSize = 1024
 
 func main() {
@@ -27,6 +31,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+
+	// ── PID file ──────────────────────────────────────────
+	writePIDFile()
+	defer os.Remove(pidFile)
 
 	// ── eBPF loader ─────────────────────────────────────
 	bpfLoader, err := loader.New(cfg)
@@ -167,5 +175,16 @@ loop:
 			analyzer.SerializeAlertJSON(f3, alerts)
 			log.Printf("Saved %d alerts: %s", len(alerts), alertPath)
 		}
+	}
+}
+
+// writePIDFile writes the daemon PID to /var/run/providaptd.pid.
+func writePIDFile() {
+	if err := os.MkdirAll(filepath.Dir(pidFile), 0755); err != nil {
+		log.Printf("pidfile dir: %v", err)
+		return
+	}
+	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())+"\n"), 0644); err != nil {
+		log.Printf("pidfile write: %v", err)
 	}
 }
