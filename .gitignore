@@ -58,6 +58,7 @@ dkms.conf
 
 # --- Binaries ---
 *.exe
+watchdog
 
 # --- Build ---
 /build/
