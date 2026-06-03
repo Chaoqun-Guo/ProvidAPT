@@ -232,5 +232,3 @@ func TestDetectIntegration(t *testing.T) {
 	t.Log("Lateral movement detection integration OK")
 }
 
-// Ensure time is used
-var _ = time.Now

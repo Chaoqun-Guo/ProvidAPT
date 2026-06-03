@@ -116,6 +116,14 @@ func (a *Analyzer) Stop() {
 	close(a.AlertCh)
 }
 
+// ReloadConfig atomically swaps the analyzer configuration.
+// The change takes effect on the next scan() iteration.
+func (a *Analyzer) ReloadConfig(cfg *Config) {
+	a.cfg = cfg
+	log.Printf("[analyzer] config reloaded (interval=%s, patterns=%d)",
+		cfg.ScanInterval, len(cfg.EnablePatterns))
+}
+
 // Alerts returns a copy of all alerts generated so far.
 func (a *Analyzer) Alerts() []*Alert {
 	a.mu.Lock()

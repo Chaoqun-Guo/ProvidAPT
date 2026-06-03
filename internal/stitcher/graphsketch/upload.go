@@ -321,5 +321,3 @@ func (vu *VectorUploader) Stats() map[string]interface{} {
 	}
 }
 
-// Ensure fmt is used.
-var _ = fmt.Sprintf

@@ -95,5 +95,3 @@ func (cps *CachedPolicyStore) Stats() map[string]interface{} {
 	}
 }
 
-// Ensure log is used
-var _ = log.Printf

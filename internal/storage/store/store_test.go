@@ -19,7 +19,7 @@ func tempDir(t *testing.T) string {
 }
 
 func openStore(t *testing.T) *Store {
-	s, err := Open(tempDir(t) + "/pebble")
+	s, err := Open(tempDir(t)+"/pebble", nil)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

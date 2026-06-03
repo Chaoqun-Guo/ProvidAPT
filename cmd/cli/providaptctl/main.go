@@ -6,12 +6,18 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/clioutput"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/diagnose"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/purge"
 )
 
 const (
@@ -19,35 +25,104 @@ const (
 	progName = "providaptd"
 )
 
+func usage() {
+	fmt.Fprint(os.Stderr, `SYNOPSIS
+    providaptctl [OPTIONS]
+
+DESCRIPTION
+    Control the ProvidAPT provenance monitor daemon.  Query status,
+    stop, or restart the daemon process.  Collect diagnostic bundles
+    or purge stored data.
+
+OPTIONS
+`)
+	flag.PrintDefaults()
+	fmt.Fprint(os.Stderr, `
+EXAMPLES
+    providaptctl -status
+        Show daemon status (PID, state, uptime, config path).
+
+    providaptctl -status -json
+        Show daemon status as JSON (for programmatic use).
+
+    providaptctl -stop
+        Gracefully stop the daemon (SIGTERM, 10 s timeout).
+
+    providaptctl -restart
+        Stop then start the daemon.
+
+    providaptctl -diagnose
+        Collect diagnostic bundle (kernel, probes, logs, resources)
+        and create a tar.gz archive.
+
+    providaptctl -purge -purge-mode=time -purge-cutoff=2026-01-01T00:00:00Z
+        Purge data older than the cutoff time.
+
+    providaptctl -purge -purge-mode=capacity -purge-maxbytes=104857600
+        Purge oldest data until store is under 100 MB.
+
+    providaptctl -purge -purge-mode=compliance -purge-dry-run
+        Preview a full compliance wipe.
+
+    providaptctl -config /custom/path/providapt.toml -status
+        Check status with a non-default config path.
+`)
+}
+
 func main() {
 	var (
-		status  = flag.Bool("status", false, "Query daemon status")
-		stop    = flag.Bool("stop", false, "Stop the daemon")
-		restart = flag.Bool("restart", false, "Restart the daemon")
-		cfgPath = flag.String("config", "/etc/providapt/providapt.toml", "Config file path")
+		status      = flag.Bool("status", false, "Query daemon status")
+		stop        = flag.Bool("stop", false, "Stop the daemon")
+		restart     = flag.Bool("restart", false, "Restart the daemon")
+		cfgPath     = flag.String("config", "/etc/providapt/providapt.toml", "Config file path")
+		jsonOut     = flag.Bool("json", false, "Output in JSON format")
+		diagnose    = flag.Bool("diagnose", false, "Collect diagnostic bundle")
+		diagnoseOut = flag.String("diagnose-out", "/var/log/providapt", "Diagnostic bundle output directory")
+		audit       = flag.Bool("audit", false, "Query audit log")
+		auditCat    = flag.String("audit-cat", "all", "Audit category: security, admin, system, integrity, all")
+		auditSince  = flag.String("audit-since", "", "Show entries since duration (e.g. 24h, 7d)")
+		auditLimit  = flag.Int("audit-limit", 50, "Max audit entries to show")
+		bpf         = flag.Bool("bpf", false, "Inspect eBPF state (capabilities, programs, pinned maps)")
+		verify      = flag.Bool("verify", false, "Verify store consistency")
+		verifyRepair = flag.Bool("repair", false, "Repair fixable issues (used with -verify)")
+		purge       = flag.Bool("purge", false, "Purge stored data")
+		purgeMode   = flag.String("purge-mode", "time", "Purge mode: time, capacity, compliance")
+		purgeCutoff = flag.String("purge-cutoff", "", "Purge cutoff time (RFC3339, e.g. 2026-01-01T00:00:00Z)")
+		purgeMax    = flag.Int64("purge-maxbytes", 0, "Target remaining bytes for capacity mode")
+		purgeDryRun = flag.Bool("purge-dry-run", false, "Preview purge without deleting")
 	)
+	flag.Usage = usage
 	flag.Parse()
+
+	clioutput.Init(*jsonOut)
+
+	hasAction := *status || *stop || *restart || *diagnose || *bpf || *verify || *purge || *audit
+	if !hasAction {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	clioutput.PrintBanner(version.Version)
 
 	switch {
 	case *status:
 		cmdStatus(*cfgPath)
 	case *stop:
-		cmdStop()
+		cmdStop(*cfgPath)
 	case *restart:
-		cmdRestart()
-	default:
-		fmt.Printf(`ProvidAPTctl - control the ProvidAPT provenance monitor
-
-Usage:
-  providaptctl -status           Query daemon status
-  providaptctl -stop             Stop the daemon
-  providaptctl -restart          Restart the daemon
-  providaptctl -config <path>    Specify config file path
-
-Flags:
-`)
-		flag.PrintDefaults()
-		os.Exit(1)
+		cmdRestart(*cfgPath)
+	case *audit:
+		cmdAudit(*cfgPath, *auditCat, *auditSince, *auditLimit)
+		os.Exit(0)
+	case *bpf:
+		cmdBPF(*jsonOut)
+	case *verify:
+		cmdVerify(*cfgPath, *verifyRepair, true)
+		os.Exit(0)
+	case *diagnose:
+		cmdDiagnose(*diagnoseOut)
+	case *purge:
+		cmdPurge(*cfgPath, *purgeMode, *purgeCutoff, *purgeMax, *purgeDryRun)
 	}
 }
 
@@ -64,17 +139,13 @@ func isRunning(pid int) bool {
 	if err != nil {
 		return false
 	}
-	// Sending signal 0 checks if the process exists without actually
-	// delivering a signal.
 	return proc.Signal(syscall.Signal(0)) == nil
 }
 
 func findDaemonPID() int {
-	// Try pidfile first
 	if pid, err := readPID(); err == nil && isRunning(pid) {
 		return pid
 	}
-	// Fallback: search for providaptd process using pgrep
 	cmd := exec.Command("pgrep", "-x", progName)
 	out, err := cmd.Output()
 	if err != nil {
@@ -87,61 +158,89 @@ func findDaemonPID() int {
 	return pid
 }
 
+type statusInfo struct {
+	Running    bool   `json:"running"`
+	PID        int    `json:"pid,omitempty"`
+	State      string `json:"state,omitempty"`
+	Comm       string `json:"comm,omitempty"`
+	ConfigPath string `json:"config_path"`
+	ConfigOK   bool   `json:"config_ok"`
+	Pidfile    string `json:"pidfile,omitempty"`
+}
+
 func cmdStatus(cfgPath string) {
 	pid := findDaemonPID()
 	if pid == 0 {
-		fmt.Println("ProvidAPT: stopped")
+		if clioutput.IsJSONMode() {
+			clioutput.PrintJSON(statusInfo{Running: false, ConfigPath: cfgPath})
+		} else {
+			fmt.Println(clioutput.Warnf("ProvidAPT: stopped"))
+		}
 		os.Exit(1)
 	}
 
-	fmt.Printf("ProvidAPT: running (PID %d)\n", pid)
+	info := statusInfo{
+		Running:    true,
+		PID:        pid,
+		ConfigPath: cfgPath,
+	}
 
-	// Check config
 	if _, err := os.Stat(cfgPath); err == nil {
-		fmt.Printf("  Config: %s (exists)\n", cfgPath)
-	} else {
-		fmt.Printf("  Config: %s (not found)\n", cfgPath)
+		info.ConfigOK = true
 	}
 
-	// Check pidfile
-	if _, err := os.Stat(pidFile); err == nil {
-		fmt.Printf("  PID file: %s\n", pidFile)
-	}
-
-	// Check daemon uptime via procfs
 	statPath := filepath.Join("/proc", strconv.Itoa(pid), "stat")
 	if data, err := ioutil.ReadFile(statPath); err == nil {
 		fields := strings.Fields(string(data))
 		if len(fields) >= 22 {
-			// starttime field (field 22) is in jiffies — just show comm/state
-			comm := strings.Trim(fields[1], "()")
-			state := fields[2]
-			fmt.Printf("  Process: %s (state %s)\n", comm, state)
+			info.Comm = strings.Trim(fields[1], "()")
+			info.State = fields[2]
 		}
 	}
-}
 
-func cmdStop() {
-	pid := findDaemonPID()
-	if pid == 0 {
-		fmt.Println("ProvidAPT: not running")
+	if _, err := os.Stat(pidFile); err == nil {
+		info.Pidfile = pidFile
+	}
+
+	if clioutput.IsJSONMode() {
+		clioutput.PrintJSON(info)
 		return
 	}
 
-	fmt.Printf("Stopping ProvidAPT (PID %d)...\n", pid)
+	fmt.Println(clioutput.Okf("ProvidAPT: running"))
+
+	t := clioutput.NewTable("Field", "Value")
+	t.AddRow("PID", strconv.Itoa(info.PID))
+	t.AddRow("State", info.State)
+	t.AddRow("Process", info.Comm)
+	if info.ConfigOK {
+		t.AddRow("Config", clioutput.Okf(info.ConfigPath))
+	} else {
+		t.AddRow("Config", clioutput.Warnf(info.ConfigPath+" (not found)"))
+	}
+	if info.Pidfile != "" {
+		t.AddRow("PID file", info.Pidfile)
+	}
+	t.Render()
+}
+
+func cmdStop(cfgPath string) {
+	pid := findDaemonPID()
+	if pid == 0 {
+		clioutput.Printf("%s\n", clioutput.Warnf("ProvidAPT: not running"))
+		return
+	}
+
+	clioutput.Printf("%s\n", clioutput.Infof("Stopping ProvidAPT (PID %d)...", pid))
 	proc, err := os.FindProcess(pid)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error finding process: %v\n", err)
-		os.Exit(1)
+		clioutput.Fatalf("Error finding process: %v", err)
 	}
 
-	// Send SIGTERM for graceful shutdown
 	if err := proc.Signal(syscall.SIGTERM); err != nil {
-		fmt.Fprintf(os.Stderr, "Error sending SIGTERM: %v\n", err)
-		os.Exit(1)
+		clioutput.Fatalf("Error sending SIGTERM: %v", err)
 	}
 
-	// Wait for process to exit (up to 10 seconds)
 	done := make(chan struct{})
 	go func() {
 		proc.Wait()
@@ -150,32 +249,211 @@ func cmdStop() {
 
 	select {
 	case <-done:
-		fmt.Println("ProvidAPT: stopped")
+		clioutput.Printf("%s\n", clioutput.Okf("ProvidAPT: stopped"))
 	case <-time.After(10 * time.Second):
-		fmt.Println("ProvidAPT: force killing...")
+		clioutput.Printf("%s\n", clioutput.Warnf("ProvidAPT: force killing..."))
 		proc.Kill()
 		<-done
-		fmt.Println("ProvidAPT: killed")
+		clioutput.Printf("%s\n", clioutput.Errf("ProvidAPT: killed"))
 	}
 
-	// Clean up pidfile
 	os.Remove(pidFile)
+
+	if as := auditStore(cfgPath); as != nil {
+		as.Log(audit.Entry{
+			Category: audit.CatAdmin,
+			Severity: "INFO",
+			Message:  "Daemon stopped",
+			Source:   "cli",
+		})
+		as.Close()
+	}
 }
 
-func cmdRestart() {
-	cmdStop()
-	fmt.Println("Starting ProvidAPT...")
+func cmdRestart(cfgPath string) {
+	cmdStop(cfgPath)
+	clioutput.Printf("%s\n", clioutput.Infof("Starting ProvidAPT..."))
 	cmd := exec.Command(progName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting %s: %v\n", progName, err)
-		os.Exit(1)
+		clioutput.Fatalf("Error starting %s: %v", progName, err)
 	}
-	fmt.Printf("ProvidAPT: started (PID %d)\n", cmd.Process.Pid)
+	clioutput.Printf("%s\n", clioutput.Okf("ProvidAPT: started (PID %d)", cmd.Process.Pid))
+
+	if as := auditStore(cfgPath); as != nil {
+		as.Log(audit.Entry{
+			Category: audit.CatAdmin,
+			Severity: "INFO",
+			Message:  "Daemon restarted",
+			Source:   "cli",
+		})
+		as.Close()
+	}
 }
 
-func init() {
-	// Suppress unused import warning for signal on platforms without SIGTERM
-	_ = signal.Notify
+func cmdDiagnose(outDir string) {
+	clioutput.Printf("%s\n", clioutput.Infof("Collecting diagnostic bundle..."))
+
+	path, err := diagnose.Collect(outDir)
+	if err != nil {
+		clioutput.Fatalf("Diagnostic collection failed: %v", err)
+	}
+
+	// Get file size
+	fi, err := os.Stat(path)
+	size := "unknown"
+	if err == nil {
+		size = formatBytes(fi.Size())
+	}
+
+	clioutput.Printf("%s\n", clioutput.Okf("Diagnostic bundle created"))
+	t := clioutput.NewTable("Field", "Value")
+	t.AddRow("Path", path)
+	t.AddRow("Size", size)
+	t.Render()
+}
+
+func cmdPurge(cfgPath, mode, cutoff string, maxBytes int64, dryRun bool) {
+	// Stop the daemon first
+	cmdStop(cfgPath)
+
+	// Load config for store path
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		clioutput.Fatalf("Config load failed: %v", err)
+	}
+
+	storePath := cfg.Output.Dir + "/store"
+	if storePath == "/store" {
+		storePath = "/var/log/providapt/store"
+	}
+
+	// Parse purge mode
+	var purgeMode purge.PurgeMode
+	switch mode {
+	case "time":
+		purgeMode = purge.PurgeByTime
+	case "capacity":
+		purgeMode = purge.PurgeByCapacity
+	case "compliance":
+		purgeMode = purge.PurgeCompliance
+	default:
+		clioutput.Fatalf("Unknown purge mode: %s (use: time, capacity, compliance)", mode)
+	}
+
+	// Build config
+	purgeCfg := &purge.PurgeConfig{
+		Mode:      purgeMode,
+		StorePath: storePath,
+		DryRun:    dryRun,
+	}
+
+	if purgeMode == purge.PurgeByTime {
+		if cutoff == "" {
+			clioutput.Fatalf("-purge-cutoff required for time mode (RFC3339 format)")
+		}
+		t, err := time.Parse(time.RFC3339, cutoff)
+		if err != nil {
+			clioutput.Fatalf("Invalid cutoff time %q: %v", cutoff, err)
+		}
+		purgeCfg.Cutoff = t
+	}
+
+	if purgeMode == purge.PurgeByCapacity {
+		if maxBytes <= 0 {
+			clioutput.Fatalf("-purge-maxbytes required for capacity mode")
+		}
+		purgeCfg.MaxBytes = maxBytes
+	}
+
+	// Load encryption key if configured
+	if cfg.Storage.Encrypt && cfg.Storage.KeyFile != "" {
+		data, err := os.ReadFile(cfg.Storage.KeyFile)
+		if err != nil {
+			clioutput.Fatalf("Failed to read encryption key: %v", err)
+		}
+		purgeCfg.EncKey = data
+	}
+
+	clioutput.Printf("%s\n", clioutput.Infof("Purging data (mode=%s, dry_run=%v)...", mode, dryRun))
+
+	report, err := purge.Execute(purgeCfg)
+	if err != nil {
+		clioutput.Fatalf("Purge failed: %v", err)
+	}
+
+	clioutput.Printf("%s\n", clioutput.Okf("Purge complete"))
+
+	if as := auditStore(cfgPath); as != nil {
+		as.Log(audit.Entry{
+			Category: audit.CatAdmin,
+			Severity: "INFO",
+			Message:  "Data purge executed",
+			Source:   "cli",
+			Details: map[string]interface{}{
+				"mode":            mode,
+				"dry_run":         dryRun,
+				"total_deleted":   report.TotalKeysDeleted,
+				"bytes_freed":     report.BytesFreed,
+				"remaining_bytes": report.RemainingSize,
+			},
+		})
+		as.Close()
+	}
+
+	t := clioutput.NewTable("Field", "Value")
+	t.AddRow("Mode", report.Mode)
+	t.AddRow("Nodes Deleted", fmt.Sprintf("%d", report.NodesDeleted))
+	t.AddRow("Edges Deleted", fmt.Sprintf("%d", report.EdgesDeleted))
+	t.AddRow("Total Keys Deleted", fmt.Sprintf("%d", report.TotalKeysDeleted))
+	t.AddRow("Bytes Freed", formatBytes(report.BytesFreed))
+	t.AddRow("Remaining Size", formatBytes(report.RemainingSize))
+	t.AddRow("Duration", report.Duration.Round(time.Millisecond).String())
+	if report.DryRun {
+		t.AddRow("Dry Run", "true (no data was deleted)")
+	}
+	t.Render()
+
+	// Restart the daemon
+	clioutput.Printf("%s\n", clioutput.Infof("Restarting daemon..."))
+	cmd := exec.Command(progName)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		clioutput.Warnf("Failed to restart daemon: %v", err)
+	} else {
+		clioutput.Printf("%s\n", clioutput.Okf("Daemon restarted (PID %d)", cmd.Process.Pid))
+	}
+}
+
+// auditStore opens the audit store from a config path, or returns nil on error.
+func auditStore(cfgPath string) *audit.Store {
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return nil
+	}
+	dir := cfg.Output.Dir
+	if dir == "" {
+		dir = "/var/log/providapt"
+	}
+	s, err := audit.New(dir)
+	if err != nil {
+		return nil
+	}
+	return s
+}
+
+// formatBytes returns a human-readable byte size string.
+func formatBytes(b int64) string {
+	if b < 1024 {
+		return fmt.Sprintf("%d B", b)
+	}
+	if b < 1024*1024 {
+		return fmt.Sprintf("%.1f KB", float64(b)/1024)
+	}
+	if b < 1024*1024*1024 {
+		return fmt.Sprintf("%.1f MB", float64(b)/(1024*1024))
+	}
+	return fmt.Sprintf("%.1f GB", float64(b)/(1024*1024*1024))
 }

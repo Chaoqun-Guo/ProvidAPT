@@ -6,6 +6,103 @@
 
 ---
 
+## 2026-06-03 — v1.1.0: 运维工具增强 + 全量测试覆盖 + 存储修复
+
+### 新增功能
+
+#### eBPF Map Inspection CLI (`providaptctl -bpf`)
+
+统一 CLI 查看 eBPF 状态，替代手动组合 `bpftool` 命令：
+
+- **内核能力探测**：调用 `probe.Probe()` 检测内核版本、BTF 可用性、BPF LSM、Fentry、Kprobe
+- **eBPF 程序列表**：通过 `profile.CollectBPFStats()` 获取已加载的 eBPF 程序列表（ID、名称、类型、运行次数、平均耗时）
+- **Pinned Maps 列表**：读取 `/sys/fs/bpf/providapt/` 目录列出所有 pinned 文件
+
+输出支持表格和 JSON 两种格式。
+
+**涉及文件：** `cmd/cli/providaptctl/bpf.go`（新建），`cmd/cli/providaptctl/main.go`（新增 `-bpf` 标志）
+
+#### Data Validation/Repair Tool (`providaptctl -verify`)
+
+PebbleDB 存储一致性检查与修复工具：
+
+- **Edge 一致性检查**：迭代 `e:` 前缀键，查找对应 `r:` 引用关系
+- **Node 引用检查**：对每个 `e:` 的 source/target，查找对应 `n:` 节点
+- **Index 一致性检查**：对每个 `idx:` 前缀，查找对应节点
+- **磁盘使用统计**：Pebble 存储用量 + 键计数
+- **自动修复**：`-repair` 标志自动修复可修复的问题（先做快照）
+- **Dry-Run 模式**：默认启用，仅报告不修改
+
+**涉及文件：** `pkg/verify/verify.go`（新建），`pkg/verify/verify_test.go`（新建），`cmd/cli/providaptctl/verify.go`（新建）
+
+#### Admin Audit Logging Framework
+
+持久化审计日志系统，整合分散的审计点：
+
+- **持久化存储**：NDJSON 格式追加写入，默认输出目录 `/var/log/providapt/`
+- **4 种分类**：Security（安全事件）、Admin（管理操作）、System（系统事件）、Integrity（完整性事件）
+- **查询接口**：按分类、时间范围、数量过滤
+- **集成点**：daemon 启停、purge、restart、蜜罐触发、eBPF 缺失、自检失败、防篡改告警
+
+**涉及文件：** `pkg/audit/audit.go`（新建），`pkg/audit/audit_test.go`（新建），`cmd/cli/providaptctl/audit.go`（新建）
+
+#### CO-RE Fallback Handling
+
+eBPF CO-RE 加载失败时的优雅降级：
+
+- 自动检测 BTF 可用性，CO-RE 失败后回退到 kprobe 模式
+- 通过 `/proc/kallsyms` 解析符号地址，使用 `link.Kprobe()` 逐个 attach
+- fallback 模式记录 audit event，所有失败不阻断（best-effort）
+
+**涉及文件：** `internal/engine/loader/loader.go`（修改 `New()`）
+
+#### Fuzz Testing
+
+为关键解析器添加模糊测试覆盖：
+
+| Fuzz 函数 | 包 | 输入 |
+|-----------|------|-------|
+| `FuzzParseRawEvent` | `internal/engine/collector/` | `[]byte` (raw ringbuf event) |
+| `FuzzParseEdgeKey` | `internal/storage/schema/` | `string` (edge key) |
+| `FuzzParseNodeKey` | `internal/storage/schema/` | `string` (node key) |
+| `FuzzConfigLoad` | `pkg/config/` | `[]byte` (TOML content) |
+| `FuzzMatchTaint` | `internal/engine/taint/` | `(pattern, path string)` |
+| `FuzzParseQuery` | `internal/engine/query/` | `string` (query text) |
+
+### 测试覆盖大幅提升
+
+| 包 | 之前 | 之后 | 新增测试数 |
+|----|------|------|-----------|
+| `internal/engine/graphquery/` | 0% | ~100% | 15 |
+| `pkg/transport/` | 20.9% | 70.2% | 30 |
+| `pkg/secure/` | 54.9% | 78.2% | 23 |
+| `pkg/plugin/` | 47.1% | 100.0% | 8 |
+| `pkg/plugin/threatintel/` | 32.3% | 88.9% | 20 |
+| `pkg/hwaccel/` | 56.6% | >70% | 8 |
+| `pkg/supportbundle/` | 56.0% | >70% | 7 |
+
+### 重构
+
+- **graphquery 接口化**：`QueryEngine` 不再依赖具体 `*store.Store`，改为 `Store` 接口，便于测试和扩展
+- **profile.go JSON 解析修复**：`CollectBPFStats()` 原为空桩（`_ = output`），现正确解析 `bpftool prog list --json` 输出
+
+### 文档更新
+
+- `CHANGELOG.md` — 新增 v1.1.0 变更日志
+- `docs/user-guide/cli.md` — 新增 `-bpf`、`-audit`、`-verify` 命令参考
+- `docs/user-guide/operations.md` — 新增审计日志管理章节
+- `README.md` — 更新项目结构树，增加 audit、verify 等新包
+
+### 验证状态
+
+| 检查项 | 状态 |
+|--------|------|
+| `go build ./...` | ✅ 通过 |
+| `go vet ./pkg/... ./internal/... ./cmd/...` | ✅ 0 警告 |
+| 跨平台测试（32 包） | ✅ 全部通过 |
+
+---
+
 ## 2026-05-31 — 版本目录统一化 + 全流程测试 + 发布准备
 
 ### 代码重构：版本目录统一化

@@ -3,21 +3,24 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"math"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/logx"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/supportbundle"
 	"github.com/cilium/ebpf/rlimit"
 )
 
-// ─── Constants (must match kernel defense.bpf.c) ────────────
-
+// agentFlag matches the kernel defense.bpf.c constant.
 const agentFlag = 1 << 0
 
-// ─── Main ───────────────────────────────────────────────────
+const maxBackoff = 60 * time.Second
+const initialBackoff = 1 * time.Second
 
 func main() {
 	var (
@@ -27,69 +30,90 @@ func main() {
 	)
 	flag.Parse()
 
-	log.SetPrefix("[watchdog] ")
-	log.Printf("ProvidAPT Watchdog starting")
-	log.Printf("  agent:   %s", *agentPath)
-	log.Printf("  config:  %s", *configPath)
-	log.Printf("  interval: %v", *interval)
+	// Structured logging
+	logx.Init("info", "json")
+	logx.System().Info("watchdog starting",
+		"version", version.String(),
+		"agent", *agentPath,
+		"config", *configPath,
+		"interval", interval.String(),
+	)
 
 	// Remove memlock for eBPF map access
 	if err := rlimit.RemoveMemlock(); err != nil {
-		log.Fatalf("rlimit: %v", err)
+		logx.System().Error("rlimit remove memlock failed", "error", err)
+		os.Exit(1)
 	}
 
 	// Signal handling for graceful shutdown
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// Main monitoring loop
+	backoff := initialBackoff
+
 	for {
 		select {
 		case <-sigCh:
-			log.Printf("watchdog shutting down")
+			logx.System().Info("watchdog shutting down")
 			return
 
 		default:
-			checkAndRestart(*agentPath, *configPath)
+			running := isAgentRunning(*agentPath)
+			if running {
+				// Reset backoff on successful health check
+				backoff = initialBackoff
+				time.Sleep(*interval)
+				continue
+			}
+
+			logx.System().Warn("agent not running — attempting restart",
+				"backoff", backoff.String(),
+			)
+
+			if err := restartAgent(*agentPath, *configPath); err != nil {
+				logx.System().Error("agent restart failed", "error", err)
+				supportbundle.Capture(fmt.Sprintf("watchdog: restart failed after %v backoff", backoff))
+
+				// Exponential backoff with cap
+				time.Sleep(backoff)
+				backoff = time.Duration(math.Min(
+					float64(backoff)*2,
+					float64(maxBackoff),
+				))
+				continue
+			}
+
+			logx.System().Info("agent restarted successfully")
+			backoff = initialBackoff
 			time.Sleep(*interval)
 		}
 	}
 }
 
-// ── Health check ────────────────────────────────────────────
-
-func checkAndRestart(agentPath, configPath string) {
-	running := isAgentRunning(agentPath)
-	if running {
-		return
-	}
-
-	log.Printf("Agent not running — restarting")
-
-	// Start the agent
+// restartAgent starts the agent and verifies it stays alive.
+func restartAgent(agentPath, configPath string) error {
 	cmd := exec.Command(agentPath, "-config", configPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("restart failed: %v", err)
-		return
+		return fmt.Errorf("start: %w", err)
 	}
 
 	pid := cmd.Process.Pid
-	log.Printf("Agent restarted with PID %d", pid)
+	logx.System().Info("agent process started", "pid", pid)
 
 	// Wait a moment and check it's still alive
 	time.Sleep(2 * time.Second)
-	if cmd.Process == nil || cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-		log.Printf("Agent exited immediately after restart")
+	if cmd.Process == nil || (cmd.ProcessState != nil && cmd.ProcessState.Exited()) {
+		return fmt.Errorf("agent exited immediately after restart (pid=%d)", pid)
 	}
+
+	return nil
 }
 
-// isAgentRunning checks if the agent process is alive.
-// Uses pid file check and procfs scanning.
+// isAgentRunning checks if the agent process is alive via pid file and procfs.
 func isAgentRunning(path string) bool {
-	// Check by pid file
 	pidData, err := os.ReadFile("/var/run/providaptd.pid")
 	if err == nil {
 		var pid int
@@ -102,7 +126,6 @@ func isAgentRunning(path string) bool {
 		}
 	}
 
-	// Fallback: scan procfs for our binary
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return false
@@ -113,7 +136,6 @@ func isAgentRunning(path string) bool {
 			continue
 		}
 		pid := e.Name()
-		// Must be a number
 		if pid[0] < '0' || pid[0] > '9' {
 			continue
 		}
@@ -127,13 +149,3 @@ func isAgentRunning(path string) bool {
 	}
 	return false
 }
-
-// ── eBPF map pinning for agent_pids map ─────────────────────
-
-// Note: In production, the watchdog needs access to the agent_pids
-// BPF map (pinned at /sys/fs/bpf/providapt/agent_pids) to register
-// its own PID.  This requires the map to be pinned by the agent at
-// startup and opened by the watchdog.
-//
-// For simplicity, the watchdog currently monitors via procfs.
-// Full eBPF integration requires shared map pinning.

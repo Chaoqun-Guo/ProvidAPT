@@ -270,5 +270,3 @@ func HandleTrigger(
 	return result, attrsMap
 }
 
-// Ensure log is used.
-var _ = log.Printf

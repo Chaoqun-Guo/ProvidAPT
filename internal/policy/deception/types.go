@@ -224,5 +224,3 @@ func DefaultHoneytokens() []HoneytokenDef {
 	}
 }
 
-// Ensure time is used.
-var _ = time.Now

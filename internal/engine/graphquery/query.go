@@ -12,8 +12,17 @@ import (
 	"time"
 
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
-	store "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/pebblestore"
 )
+
+// Store defines the storage operations needed by QueryEngine.
+type Store interface {
+	GetNodeByPID(pid uint32) (*pb.Node, error)
+	GetNodeByInode(inode uint64) (*pb.Node, error)
+	GetNode(nodeType, nodeID string) (*pb.Node, error)
+	GetEdgesBySource(source string) ([]*pb.Edge, error)
+	GetEdgesByTarget(target string) ([]*pb.Edge, error)
+	GetEdgesByTimeRange(startNs, endNs uint64) ([]*pb.Edge, error)
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Query Result
@@ -27,11 +36,11 @@ type NodeDetail struct {
 
 // QueryEngine provides graph query operations.
 type QueryEngine struct {
-	store *store.Store
+	store Store
 }
 
 // New creates a query engine.
-func New(st *store.Store) *QueryEngine {
+func New(st Store) *QueryEngine {
 	return &QueryEngine{store: st}
 }
 

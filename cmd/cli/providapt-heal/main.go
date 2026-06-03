@@ -1,25 +1,49 @@
-// ProvidAPT Self-Healing Tool
-//
-// Assesses attack impact, rolls back changes, and blocks C2
-// communication based on provenance graph analysis.
-//
-// Usage:
-//   providapt-heal -pid 1234                         # Assess and heal
-//   providapt-heal -pid 1234 -dry-run                # Preview only
-//   providapt-heal -pid 1234 -rollback               # Kill + quarantine
-//   providapt-heal -pid 1234 -firewall               # Block C2 IPs only
 package main
 
 import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/heal"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/heal"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/clioutput"
 )
+
+func usage() {
+	fmt.Fprint(os.Stderr, `SYNOPSIS
+    providapt-heal [OPTIONS]
+
+DESCRIPTION
+    Assess attack impact, roll back malicious changes, and block C2
+    communication based on provenance graph analysis.
+
+OPTIONS
+`)
+	flag.PrintDefaults()
+	fmt.Fprint(os.Stderr, `
+EXAMPLES
+    providapt-heal -pid 1234
+        Assess impact from process 1234 (dry-run only).
+
+    providapt-heal -pid 1234 -rollback
+        Kill the malicious process and quarantine written files.
+
+    providapt-heal -pid 1234 -firewall
+        Block C2 IP addresses via iptables/nftables.
+
+    providapt-heal -pid 1234 -rollback -firewall -dry-run=false
+        Full active response: rollback + firewall, no dry-run.
+
+    providapt-heal -pid 1234 -depth 10
+        Traverse up to 10 hops for blast-radius analysis.
+
+    providapt-heal -pid 1234 -json
+        Output impact assessment as JSON.
+`)
+}
 
 func main() {
 	var (
@@ -31,70 +55,82 @@ func main() {
 		firewall    = flag.Bool("firewall", false, "Block C2 IPs via iptables/nftables")
 		output      = flag.String("output", "", "Save impact report to file")
 		maxDepth    = flag.Int("depth", 5, "Max traversal depth")
+		jsonOut     = flag.Bool("json", false, "Output in JSON format")
 	)
+	flag.Usage = usage
 	flag.Parse()
+
+	clioutput.Init(*jsonOut)
 
 	startNode := *nodeID
 	if *pid > 0 && startNode == "" {
 		startNode = fmt.Sprintf("p:%d", *pid)
 	}
 	if startNode == "" {
-		fmt.Println("Usage: providapt-heal -pid <pid> [options]")
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Load provenance graph from JSON
+	clioutput.PrintBanner(version.Version)
+
+	// Load provenance graph
 	graph := loadGraph(*graphPath)
 
 	// Phase 1: Impact assessment
-	fmt.Println("ProvidAPT Self-Healing")
-	fmt.Println("======================")
-	fmt.Printf("\nPhase 1: Assessing impact from %s...\n", startNode)
+	fmt.Println(clioutput.Bold("Phase 1: Impact Assessment"))
+	fmt.Printf("  Analyzing impact from %s...\n\n", clioutput.Infof(startNode))
 
 	report := heal.AssessImpact(graph, startNode, *maxDepth)
+
+	if clioutput.IsJSONMode() {
+		clioutput.PrintJSON(report)
+		return
+	}
+
 	printReport(report)
 
 	// Save report
 	if *output != "" {
 		data, _ := json.MarshalIndent(report, "", "  ")
-		os.WriteFile(*output, data, 0644)
-		fmt.Printf("\nReport saved: %s\n", *output)
+		_ = os.WriteFile(*output, data, 0644)
+		fmt.Printf("\nReport saved: %s\n", clioutput.Okf(*output))
 	}
 
 	// Phase 2: Rollback
 	if *rollback && report.TotalImpacted > 0 {
-		fmt.Println("\nPhase 2: Executing rollback...")
+		fmt.Println(clioutput.Bold("\nPhase 2: Rollback"))
 		cfg := heal.DefaultRollbackConfig()
 		cfg.DryRun = *dryRun
 		result := heal.Rollback(report, cfg)
 
-		fmt.Printf("  Processes killed:  %d\n", result.ProcessesKilled)
-		fmt.Printf("  Files quarantined: %d\n", result.FilesQuarantined)
-		if len(result.Errors) > 0 {
-			for _, e := range result.Errors {
-				fmt.Printf("  Error: %s\n", e)
-			}
+		t := clioutput.NewTable("Action", "Count")
+		t.AddRow("Processes killed", fmt.Sprintf("%d", result.ProcessesKilled))
+		t.AddRow("Files quarantined", fmt.Sprintf("%d", result.FilesQuarantined))
+		t.Render()
+
+		for _, e := range result.Errors {
+			fmt.Printf("  %s\n", clioutput.Errf("Error: %s", e))
 		}
 	}
 
 	// Phase 3: Block C2
 	if *firewall && len(report.C2Addresses) > 0 {
-		fmt.Println("\nPhase 3: Blocking C2 communication...")
+		fmt.Println(clioutput.Bold("\nPhase 3: C2 Blocking"))
 		fwResult := heal.BlockC2IPs(report, *dryRun)
 
-		fmt.Printf("  Backend: %s\n", fwResult.Backend)
-		fmt.Printf("  Rules added: %d\n", fwResult.RulesAdded)
-		fmt.Printf("  IPs blocked: %v\n", fwResult.IPsBlocked)
-		if len(fwResult.Errors) > 0 {
-			for _, e := range fwResult.Errors {
-				fmt.Printf("  Error: %s\n", e)
-			}
+		t := clioutput.NewTable("Item", "Value")
+		t.AddRow("Backend", fwResult.Backend)
+		t.AddRow("Rules added", fmt.Sprintf("%d", fwResult.RulesAdded))
+		t.AddRow("IPs blocked", fmt.Sprintf("%v", fwResult.IPsBlocked))
+		t.Render()
+
+		for _, e := range fwResult.Errors {
+			fmt.Printf("  %s\n", clioutput.Errf("Error: %s", e))
 		}
 	}
 
 	if *dryRun && (*rollback || *firewall) {
-		fmt.Println("\n⚠ Dry-run mode — no actions were executed.")
+		fmt.Printf("\n%s\n", clioutput.Warnf("⚠  Dry-run mode — no actions were executed."))
 		fmt.Println("  Re-run without -dry-run to apply.")
 	}
 }
@@ -102,11 +138,10 @@ func main() {
 func loadGraph(path string) *provenance.Graph {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatalf("Read graph: %v", err)
+		clioutput.Fatalf("Read graph: %v", err)
 	}
 	graph := provenance.NewGraph()
 
-	// Parse JSON and feed events
 	var cyto struct {
 		Elements []struct {
 			Group string `json:"group"`
@@ -120,36 +155,67 @@ func loadGraph(path string) *provenance.Graph {
 		} `json:"elements"`
 	}
 	if err := json.Unmarshal(data, &cyto); err != nil {
-		log.Fatalf("Parse graph: %v", err)
+		clioutput.Fatalf("Parse graph: %v", err)
 	}
 
 	for _, el := range cyto.Elements {
-		if el.Group == "nodes" {
-			// Node is already in the graph from events
-			_ = el.Data.ID
-		}
+		_ = el.Data.ID
 	}
 
 	return graph
 }
 
 func printReport(r *heal.ImpactReport) {
-	fmt.Printf("\nImpact Report:\n")
-	fmt.Printf("  Malicious process: %s (%s)\n", r.MaliciousNode, r.MaliciousComm)
-	fmt.Printf("  Child processes:   %d\n", len(r.ChildProcesses))
-	for _, c := range r.ChildProcesses {
-		fmt.Printf("    - %s (PID %d, depth %d)\n", c.Comm, c.PID, c.Depth)
+	// Risk level
+	var riskLabel string
+	switch {
+	case r.TotalImpacted > 10:
+		riskLabel = clioutput.Errf("CRITICAL")
+	case r.TotalImpacted > 3:
+		riskLabel = clioutput.Warnf("HIGH")
+	default:
+		riskLabel = clioutput.Okf("LOW")
 	}
-	fmt.Printf("  Files written:     %d\n", len(r.FilesWritten))
-	for _, f := range r.FilesWritten {
-		fmt.Printf("    - %s [%s]\n", f.Path, f.Action)
-	}
-	fmt.Printf("  C2 addresses:      %d\n", len(r.C2Addresses))
-	for _, n := range r.C2Addresses {
-		fmt.Printf("    - %s\n", n.Address)
-	}
-	fmt.Printf("  Total impacted:    %d\n", r.TotalImpacted)
+
+	t := clioutput.NewTable("Metric", "Value")
+	t.AddRow("Malicious node", fmt.Sprintf("%s (%s)", r.MaliciousNode, r.MaliciousComm))
+	t.AddRow("Impact level", riskLabel)
+	t.AddRow("Total impacted", fmt.Sprintf("%d", r.TotalImpacted))
+	t.AddRow("Child processes", fmt.Sprintf("%d", len(r.ChildProcesses)))
+	t.AddRow("Files written", fmt.Sprintf("%d", len(r.FilesWritten)))
+	t.AddRow("C2 addresses", fmt.Sprintf("%d", len(r.C2Addresses)))
 	if r.Truncated {
-		fmt.Printf("  ⚠  Traversal truncated at depth %d\n", r.MaxDepth)
+		t.AddRow("⚠  Truncated", fmt.Sprintf("at depth %d", r.MaxDepth))
+	}
+	t.Render()
+
+	// Child processes detail
+	if len(r.ChildProcesses) > 0 {
+		fmt.Println()
+		ct := clioutput.NewTable("Comm", "PID", "Depth")
+		for _, c := range r.ChildProcesses {
+			ct.AddRow(c.Comm, fmt.Sprintf("%d", c.PID), fmt.Sprintf("%d", c.Depth))
+		}
+		ct.Render()
+	}
+
+	// Files written
+	if len(r.FilesWritten) > 0 {
+		fmt.Println()
+		ft := clioutput.NewTable("Path", "Action")
+		for _, f := range r.FilesWritten {
+			ft.AddRow(f.Path, f.Action)
+		}
+		ft.Render()
+	}
+
+	// C2 addresses
+	if len(r.C2Addresses) > 0 {
+		fmt.Println()
+		nt := clioutput.NewTable("C2 Address")
+		for _, n := range r.C2Addresses {
+			nt.AddRow(n.Address)
+		}
+		nt.Render()
 	}
 }

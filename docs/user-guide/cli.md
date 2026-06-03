@@ -16,6 +16,12 @@ Primary CLI for daemon management.
 | Stop | `-stop` | Gracefully stop the daemon |
 | Restart | `-restart` | Stop then start |
 | Config | `-config <path>` | Specify config file (default: `/etc/providapt/providapt.toml`) |
+| Diagnose | `-diagnose` | Collect diagnostic bundle (kernel, probes, logs) |
+| Purge | `-purge` | Purge stored data by time, capacity, or compliance |
+| eBPF Inspect | `-bpf` | Inspect eBPF state (capabilities, programs, pinned maps) |
+| Verify Store | `-verify` | Check PebbleDB store consistency and optionally repair |
+| Audit Log | `-audit` | Query the persistent audit log |
+| JSON Output | `-json` | Output in JSON format (works with -status, -bpf, -verify, -audit) |
 
 ### Usage
 
@@ -32,7 +38,94 @@ providaptctl -restart
 
 # Custom config
 providaptctl -config /opt/providapt/config.toml -status
+
+# Diagnose
+providaptctl -diagnose
+
+# Purge data older than cutoff
+providaptctl -purge -purge-mode=time -purge-cutoff=2026-01-01T00:00:00Z
+
+# Purge by capacity
+providaptctl -purge -purge-mode=capacity -purge-maxbytes=104857600
+
+# Compliance purge (dry-run preview)
+providaptctl -purge -purge-mode=compliance -purge-dry-run
 ```
+
+#### eBPF Inspection (`-bpf`)
+
+```bash
+# Inspect eBPF state (table format)
+providaptctl -bpf
+
+# JSON output for programmatic use
+providaptctl -bpf -json
+```
+
+Output sections:
+- **Kernel Capabilities**: kernel version, BTF availability, BPF LSM, Fentry, Kprobe
+- **eBPF Programs**: loaded program IDs, names, types, run counts, average execution time
+- **Pinned Maps**: files in `/sys/fs/bpf/providapt/`
+
+#### Store Verification (`-verify`)
+
+```bash
+# Quick consistency check (dry-run by default)
+providaptctl -verify
+
+# Repair fixable issues
+providaptctl -verify -repair
+
+# JSON report
+providaptctl -verify -json
+```
+
+Checks performed:
+- Edge consistency (every `e:` has a corresponding `r:`)
+- Node reference integrity (every edge source/target has a node)
+- Index consistency (every `idx:` points to a valid node)
+- Disk usage and Pebble health statistics
+
+On repair: creates a snapshot before modifying, then re-verifies.
+
+#### Audit Log Query (`-audit`)
+
+```bash
+# Show recent 50 audit entries
+providaptctl -audit
+
+# Filter by category: security, admin, system, integrity
+providaptctl -audit -audit-cat=security
+
+# Show entries from last 24 hours
+providaptctl -audit -audit-since=24h
+
+# Show entries from last 7 days
+providaptctl -audit -audit-since=7d
+
+# Limit results
+providaptctl -audit -audit-limit=100
+
+# JSON output
+providaptctl -audit -audit-cat=admin -json
+```
+
+Audit categories:
+
+| Category | Description | Sources |
+|----------|-------------|---------|
+| `security` | Security events | Honeypot triggers, tamper detection |
+| `admin` | Administrative actions | Purge, stop, restart, config changes |
+| `system` | System events | Daemon start/stop, sanity check failures |
+| `integrity` | Integrity events | eBPF program loss, map inconsistencies |
+
+### Purge Modes
+
+| Mode | Flag | Description |
+|------|------|-------------|
+| Time-based | `-purge-mode=time -purge-cutoff=RFC3339` | Delete data older than cutoff |
+| Capacity-based | `-purge-mode=capacity -purge-maxbytes=N` | Reduce store to target size |
+| Compliance | `-purge-mode=compliance -purge-dry-run` | Full compliance wipe (preview with dry-run) |
 
 ## 2. providapt-verify — Data Integrity
 

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -58,15 +60,24 @@ func DefaultConfig() *Config {
 
 // Healer monitors eBPF integrity and self-heals.
 type Healer struct {
-	cfg       *Config
-	mu        sync.Mutex
-	auditLog  []AuditEvent
-	healthy   bool
-	checkCnt  int64
-	failCnt   int64
-	reloadCnt int64
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
+	cfg        *Config
+	mu         sync.Mutex
+	auditLog   []AuditEvent
+	auditStore *audit.Store
+	healthy    bool
+	checkCnt   int64
+	failCnt    int64
+	reloadCnt  int64
+	stopCh     chan struct{}
+	wg         sync.WaitGroup
+}
+
+// SetAuditStore attaches an audit logging store. If set, integrity
+// events are recorded to it.
+func (h *Healer) SetAuditStore(as *audit.Store) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.auditStore = as
 }
 
 // AuditEvent is a security-relevant event recorded by the healer.
@@ -165,6 +176,19 @@ func (h *Healer) runCheck() {
 		})
 		log.Printf("[heal] CRITICAL: %d eBPF programs missing: %v", len(missing), missing)
 
+		if h.auditStore != nil {
+			h.auditStore.Log(audit.Entry{
+				Category: audit.CatIntegrity,
+				Severity: "CRITICAL",
+				Message:  fmt.Sprintf("eBPF programs missing: %s", strings.Join(missing, ", ")),
+				Source:   "selfheal",
+				Details: map[string]interface{}{
+					"missing": missing,
+					"checks":  h.checkCnt,
+				},
+			})
+		}
+
 		// Auto-reload
 		if h.cfg.EnableAutoReload {
 			h.reloadPrograms()
@@ -193,6 +217,18 @@ func (h *Healer) reloadPrograms() {
 		Message:   "Initiating eBPF program reload",
 	})
 
+	if h.auditStore != nil {
+		h.auditStore.Log(audit.Entry{
+			Category: audit.CatIntegrity,
+			Severity: "WARNING",
+			Message:  "Initiating eBPF program reload",
+			Source:   "selfheal",
+			Details: map[string]interface{}{
+				"reload_count": h.reloadCnt,
+			},
+		})
+	}
+
 	if h.cfg.ReloadCmd != "" {
 		// Custom reload command
 		parts := strings.Fields(h.cfg.ReloadCmd)
@@ -205,13 +241,23 @@ func (h *Healer) reloadPrograms() {
 				Message:   fmt.Sprintf("Reload failed: %v\n%s", err, string(output)),
 			})
 			log.Printf("[heal] reload failed: %v", err)
+			if h.auditStore != nil {
+				h.auditStore.Log(audit.Entry{
+					Category: audit.CatIntegrity,
+					Severity: "CRITICAL",
+					Message:  fmt.Sprintf("eBPF reload failed: %v", err),
+					Source:   "selfheal",
+				})
+			}
 			return
 		}
 	} else {
 		// Default: attempt to re-attach via bpftool
 		// In production, the agent would re-exec its eBPF loader
 		log.Printf("[heal] auto-reload triggered — re-attaching eBPF programs")
-		_ = exec.Command("bpftool", "prog", "attach", "name", "probe_file_open", "lsm", "file_open").Run()
+		if out, err := exec.Command("bpftool", "prog", "attach", "name", "probe_file_open", "lsm", "file_open").CombinedOutput(); err != nil {
+			log.Printf("[heal] bpftool re-attach failed: %v\n%s", err, string(out))
+		}
 	}
 
 	h.auditLog = append(h.auditLog, AuditEvent{
@@ -221,6 +267,15 @@ func (h *Healer) reloadPrograms() {
 		Message:   "eBPF programs reloaded successfully",
 	})
 	log.Printf("[heal] eBPF programs reloaded")
+
+	if h.auditStore != nil {
+		h.auditStore.Log(audit.Entry{
+			Category: audit.CatIntegrity,
+			Severity: "INFO",
+			Message:  "eBPF programs reloaded successfully",
+			Source:   "selfheal",
+		})
+	}
 }
 
 // ─── Map cleanup ─────────────────────────────────────────────
@@ -233,6 +288,15 @@ func (h *Healer) runCleanup() {
 		Severity:  "INFO",
 		Message:   "Running BPF map cleanup",
 	})
+
+	if h.auditStore != nil {
+		h.auditStore.Log(audit.Entry{
+			Category: audit.CatIntegrity,
+			Severity: "INFO",
+			Message:  "BPF map cleanup started",
+			Source:   "selfheal",
+		})
+	}
 
 	// 1. Dump and verify agent_pids map
 	h.verifyMap("agent_pids")
@@ -256,6 +320,14 @@ func (h *Healer) verifyMap(name string) {
 			Severity:  "WARNING",
 			Message:   fmt.Sprintf("Cannot dump map %s: %v", name, err),
 		})
+		if h.auditStore != nil {
+			h.auditStore.Log(audit.Entry{
+				Category: audit.CatIntegrity,
+				Severity: "WARNING",
+				Message:  fmt.Sprintf("Cannot dump map %s: %v", name, err),
+				Source:   "selfheal",
+			})
+		}
 		return
 	}
 

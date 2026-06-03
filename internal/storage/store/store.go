@@ -1,13 +1,3 @@
-// Package store provides a RocksDB-compatible persistent storage layer
-// for provenance graph data.  It uses CockroachDB Pebble as the engine.
-//
-// Key schema (all keys are lexicographically sortable strings):
-//
-//   n:<node_id>               → Node JSON     (cold nodes)
-//   e:<ts_hex>:<src>:<tgt>    → Edge JSON     (time-range ordered)
-//
-// All writes go through an internal WriteBatch for atomicity, and are
-// flushed automatically when the batch reaches the configured size.
 package store
 
 import (
@@ -16,38 +6,32 @@ import (
 
 	"github.com/cockroachdb/pebble"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/secure"
 )
 
 const (
-	nodePrefix     = "n:"
-	edgePrefix     = "e:"
+	nodePrefix        = "n:"
+	edgePrefix        = "e:"
 	reverseEdgePrefix = "r:"
 )
 
-// nodeKey returns the store key for a node.
-func nodeKey(id string) string { return nodePrefix + id }
-
-// edgeKey returns a lexicographically time-ordered store key for an edge.
+func nodeKey(id string) string        { return nodePrefix + id }
 func edgeKey(ts uint64, source, target string) string {
 	return fmt.Sprintf("e:%020d:%s:%s", ts, source, target)
 }
-
-// reverseEdgeKey returns a reverse-index key for backward traversal.
-// Prefix scan "r:<target>" finds all edges pointing TO target.
 func reverseEdgeKey(ts uint64, target, source string) string {
 	return fmt.Sprintf("r:%s:%020d:%s", target, ts, source)
 }
 
-// ─── Store ──────────────────────────────────────────────────
-
 type Store struct {
-	db     *pebble.DB
-	wb     *pebble.Batch
-	wbCap  int // auto-flush when count >= cap
-	closed bool
+	db        *pebble.DB
+	wb        *pebble.Batch
+	wbCap     int
+	closed    bool
+	encKey    []byte // nil = no encryption
 }
 
-func Open(path string) (*Store, error) {
+func Open(path string, encryptKey []byte) (*Store, error) {
 	db, err := pebble.Open(path, &pebble.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("pebble open %s: %w", path, err)
@@ -56,7 +40,24 @@ func Open(path string) (*Store, error) {
 		db:    db,
 		wb:    db.NewIndexedBatch(),
 		wbCap: 200,
+		encKey: encryptKey,
 	}, nil
+}
+
+// encrypt encrypts data if encryption is enabled.
+func (s *Store) encrypt(data []byte) ([]byte, error) {
+	if s.encKey == nil {
+		return data, nil
+	}
+	return secure.Encrypt(s.encKey, data)
+}
+
+// decrypt decrypts data if encryption is enabled.
+func (s *Store) decrypt(data []byte) ([]byte, error) {
+	if s.encKey == nil {
+		return data, nil
+	}
+	return secure.Decrypt(s.encKey, data)
 }
 
 // ── Node persistence ───────────────────────────────────────
@@ -69,7 +70,11 @@ func (s *Store) PutNode(n *provenance.Node) error {
 	if err != nil {
 		return fmt.Errorf("marshal node: %w", err)
 	}
-	s.wb.Set([]byte(nodeKey(n.ID)), data, pebble.Sync)
+	enc, err := s.encrypt(data)
+	if err != nil {
+		return err
+	}
+	s.wb.Set([]byte(nodeKey(n.ID)), enc, pebble.Sync)
 	return s.autoFlush()
 }
 
@@ -82,8 +87,12 @@ func (s *Store) GetNode(id string) (*provenance.Node, error) {
 		return nil, err
 	}
 	defer closer.Close()
+	dec, err := s.decrypt(v)
+	if err != nil {
+		return nil, err
+	}
 	var n provenance.Node
-	if err := json.Unmarshal(v, &n); err != nil {
+	if err := json.Unmarshal(dec, &n); err != nil {
 		return nil, err
 	}
 	return &n, nil
@@ -104,15 +113,16 @@ func (s *Store) PutEdge(e *provenance.Edge) error {
 	if err != nil {
 		return fmt.Errorf("marshal edge: %w", err)
 	}
+	enc, err := s.encrypt(data)
+	if err != nil {
+		return err
+	}
 	ts := uint64(e.Timestamp.UnixNano())
-	// Primary index: time-range ordered
-	s.wb.Set([]byte(edgeKey(ts, e.Source, e.Target)), data, pebble.Sync)
-	// Reverse index: target-prefixed for backward traversal
-	s.wb.Set([]byte(reverseEdgeKey(ts, e.Target, e.Source)), data, pebble.Sync)
+	s.wb.Set([]byte(edgeKey(ts, e.Source, e.Target)), enc, pebble.Sync)
+	s.wb.Set([]byte(reverseEdgeKey(ts, e.Target, e.Source)), enc, pebble.Sync)
 	return s.autoFlush()
 }
 
-// GetEdgesByTimeRange returns edges with timestamps in [start, end).
 func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, error) {
 	lo := []byte(edgeKey(start, "", ""))
 	hi := []byte(edgeKey(end, "", ""))
@@ -125,8 +135,12 @@ func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, erro
 
 	var out []*provenance.Edge
 	for iter.First(); iter.Valid(); iter.Next() {
+		dec, err := s.decrypt(iter.Value())
+		if err != nil {
+			return nil, err
+		}
 		var e provenance.Edge
-		if err := json.Unmarshal(iter.Value(), &e); err != nil {
+		if err := json.Unmarshal(dec, &e); err != nil {
 			return nil, err
 		}
 		out = append(out, &e)
@@ -134,8 +148,6 @@ func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, erro
 	return out, iter.Error()
 }
 
-// GetEdgesByTarget returns all edges whose Target field matches the given
-// node ID.  Uses the reverse index ("r:") for efficient lookup.
 func (s *Store) GetEdgesByTarget(targetID string) ([]*provenance.Edge, error) {
 	lo := []byte(fmt.Sprintf("r:%s:", targetID))
 	hi := []byte(fmt.Sprintf("r:%s\xff", targetID))
@@ -148,8 +160,12 @@ func (s *Store) GetEdgesByTarget(targetID string) ([]*provenance.Edge, error) {
 
 	var out []*provenance.Edge
 	for iter.First(); iter.Valid(); iter.Next() {
+		dec, err := s.decrypt(iter.Value())
+		if err != nil {
+			return nil, err
+		}
 		var e provenance.Edge
-		if err := json.Unmarshal(iter.Value(), &e); err != nil {
+		if err := json.Unmarshal(dec, &e); err != nil {
 			return nil, err
 		}
 		out = append(out, &e)
@@ -198,7 +214,15 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// ── Statistics ─────────────────────────────────────────────
+// UnderlyingDB returns the raw pebble.DB for direct operations.
+func (s *Store) UnderlyingDB() *pebble.DB {
+	return s.db
+}
+
+// DiskUsage returns the approximate disk space used by the store.
+func (s *Store) DiskUsage() int64 {
+	return int64(s.db.Metrics().DiskSpaceUsage())
+}
 
 func (s *Store) Stats() map[string]interface{} {
 	m := s.db.Metrics()

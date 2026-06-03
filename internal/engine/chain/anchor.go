@@ -106,7 +106,9 @@ func (am *AnchoringManager) anchor() {
 		msg := fmt.Sprintf("PROVIDAPT_ANCHOR ts=%d root=%s len=%d\n",
 			now.UnixNano(), rootHash, chainLen)
 		if f, err := os.OpenFile("/dev/kmsg", os.O_WRONLY, 0); err == nil {
-			f.WriteString(msg)
+			if _, err := f.WriteString(msg); err != nil {
+				log.Printf("[anchor] kmsg write failed: %v", err)
+			}
 			f.Close()
 			log.Printf("[anchor] wrote to /dev/kmsg: root=%s len=%d", rootHash[:16], chainLen)
 			am.addAnchor(now, rootHash, chainLen, "kmsg")
@@ -114,7 +116,9 @@ func (am *AnchoringManager) anchor() {
 			// Fallback: write to local file
 			if f, err := os.OpenFile("/var/log/providapt/anchor.log",
 				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
-				f.WriteString(msg)
+				if _, err := f.WriteString(msg); err != nil {
+					log.Printf("[anchor] fallback write failed: %v", err)
+				}
 				f.Close()
 				log.Printf("[anchor] wrote to anchor.log: root=%s", rootHash[:16])
 				am.addAnchor(now, rootHash, chainLen, "fallback")

@@ -362,3 +362,20 @@ func TestTaintIntegration(t *testing.T) {
 		t.Error("expected at least 1 alert")
 	}
 }
+
+// FuzzTaintStringMethods fuzzes taint string matching functions with arbitrary inputs.
+func FuzzTaintStringMethods(f *testing.F) {
+	f.Add("/etc/shadow", "10.0.0.1", "openssl")
+	f.Add("/random/path", "1.2.3.4", "unknown-cmd")
+	f.Add("", "", "")
+	f.Fuzz(func(t *testing.T, path, ip, cmd string) {
+		te := New(nil)
+		sensitive := te.IsSensitivePath(path)
+		external := te.IsExternalIP(ip)
+		clean := te.IsCleanCommand(cmd)
+		// These should never panic regardless of input
+		_ = sensitive
+		_ = external
+		_ = clean
+	})
+}

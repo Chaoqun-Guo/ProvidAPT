@@ -311,3 +311,16 @@ func TestExecuteWithTimeWindow(t *testing.T) {
 	// way after the epoch window — they should be excluded
 	t.Logf("time window query: %d rows", len(result.Rows))
 }
+
+// FuzzParseQuery fuzzes the query parser with arbitrary input strings.
+func FuzzParseQuery(f *testing.F) {
+	f.Add("MATCH (p:Process)-[:WROTE]->(f:File) WHERE f.path STARTSWITH '/etc' RETURN p, f")
+	f.Add("MATCH (a)-[:CONNECTED]->(b) RETURN a, b")
+	f.Add("")
+	f.Add("INVALID QUERY")
+	f.Fuzz(func(t *testing.T, input string) {
+		q, err := Parse(input)
+		_ = q
+		_ = err
+	})
+}

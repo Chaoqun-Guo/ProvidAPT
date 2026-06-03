@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "providapt.fullname" . }}
+  labels:
+    {{- include "providapt.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "providapt.selectorLabels" . | nindent 6 }}
+  updateStrategy:
+    {{- toYaml .Values.updateStrategy | nindent 4 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "providapt.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      serviceAccountName: {{ include "providapt.serviceAccountName" . }}
+      hostPID: true
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      containers:
+        - name: providapt
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            privileged: false
+            runAsUser: 950
+            runAsGroup: 950
+            capabilities:
+              add:
+                - BPF
+                - SYS_ADMIN
+                - NET_ADMIN
+                - SYS_PTRACE
+                - SYS_RESOURCE
+                - PERFMON
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: PROVIDAPT_CONFIG
+              value: /etc/providapt/providapt.toml
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/providapt
+              readOnly: true
+            - name: certificates
+              mountPath: /etc/providapt/certs
+              readOnly: true
+            - name: btf
+              mountPath: /sys/kernel/btf
+              readOnly: true
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+            - name: debug
+              mountPath: /sys/kernel/debug
+              readOnly: true
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: src
+              mountPath: /usr/src
+              readOnly: true
+            - name: logs
+              mountPath: /var/log/providapt
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - providaptctl
+                - -status
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          startupProbe:
+            exec:
+              command:
+                - providaptctl
+                - -status
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "providapt.fullname" . }}-config
+        - name: certificates
+          hostPath:
+            path: {{ .Values.hostPaths.certificates.path }}
+            type: {{ .Values.hostPaths.certificates.type }}
+        - name: btf
+          hostPath:
+            path: {{ .Values.hostPaths.btf.path }}
+            type: {{ .Values.hostPaths.btf.type }}
+        - name: cgroup
+          hostPath:
+            path: {{ .Values.hostPaths.cgroup.path }}
+            type: {{ .Values.hostPaths.cgroup.type }}
+        - name: debug
+          hostPath:
+            path: {{ .Values.hostPaths.debug.path }}
+            type: {{ .Values.hostPaths.debug.type }}
+            {{- if .Values.hostPaths.debug.optional }}
+            optional: true
+            {{- end }}
+        - name: proc
+          hostPath:
+            path: {{ .Values.hostPaths.proc.path }}
+            type: {{ .Values.hostPaths.proc.type }}
+        - name: modules
+          hostPath:
+            path: {{ .Values.hostPaths.modules.path }}
+            type: {{ .Values.hostPaths.modules.type }}
+        - name: src
+          hostPath:
+            path: {{ .Values.hostPaths.src.path }}
+            type: {{ .Values.hostPaths.src.type }}
+            {{- if .Values.hostPaths.src.optional }}
+            optional: true
+            {{- end }}
+        - name: logs
+          hostPath:
+            path: /var/log/providapt
+            type: DirectoryOrCreate

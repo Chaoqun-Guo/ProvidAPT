@@ -196,7 +196,55 @@ max_age_days = 30
 compress = true
 ```
 
-### 4.2 Log Categories
+### 4.2 Audit Log
+
+ProvidAPT includes a persistent audit logging framework that records security events, administrative actions, system events, and integrity issues in NDJSON format.
+
+#### Audit Event Categories
+
+| Category | Severity | Typical Events |
+|----------|----------|---------------|
+| `security` | CRITICAL / WARNING | Honeypot token triggers, tamper detection, policy violations |
+| `admin` | INFO | Daemon stop/restart, data purge, config changes |
+| `system` | INFO | Daemon startup/shutdown, sanity check failures |
+| `integrity` | WARNING | eBPF program loss, CO-RE fallback, map inconsistencies |
+
+#### Audit Log Location
+
+```
+/var/log/providapt/
+└── audit.ndjson        # Newline-delimited JSON, rotated by logrotate
+```
+
+Each entry contains: `id` (UUID), `timestamp`, `category`, `severity`, `message`, `source` (module name), and optional `details`.
+
+#### Querying Audit Logs
+
+```bash
+# Show recent 50 entries
+providaptctl -audit
+
+# Filter by security events
+providaptctl -audit -audit-cat=security
+
+# Last 7 days
+providaptctl -audit -audit-since=7d
+
+# JSON output
+providaptctl -audit -audit-cat=admin -json
+```
+
+#### Audit Points
+
+| Source Module | Events Logged |
+|--------------|---------------|
+| Daemon (`main.go`) | Startup, shutdown |
+| CLI (`providaptctl`) | Stop, restart, purge operations |
+| Self-Heal (`selfheal.go`) | eBPF program reload, integrity check failures |
+| Deception (`freeze.go`) | Honeypot trigger events |
+| Loader (`loader.go`) | CO-RE fallback activation |
+
+### 4.3 Log Categories
 
 | Component | Prefix | Typical Volume |
 |-----------|--------|---------------|

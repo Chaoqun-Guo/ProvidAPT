@@ -2,11 +2,15 @@ package transport
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 
@@ -58,6 +62,74 @@ func NewGrpcClientWithOpts(addr string, opts []grpc.DialOption) *GrpcClient {
 		opts:       append(defaults, opts...),
 		retryDelay: 5 * time.Second,
 	}
+}
+
+// GrpcClientConfig holds mTLS configuration for the gRPC client.
+type GrpcClientConfig struct {
+	ServerAddr string
+	CertFile   string
+	KeyFile    string
+	CAFile     string
+	ServerName string
+	EnableTLS  bool
+}
+
+// NewGrpcClientWithTLS creates a gRPC client with mTLS transport credentials.
+//
+//	client := transport.NewGrpcClientWithTLS(&transport.GrpcClientConfig{
+//	    ServerAddr: "collector.providapt.io:50051",
+//	    CertFile:   "/etc/providapt/certs/client.crt",
+//	    KeyFile:    "/etc/providapt/certs/client.key",
+//	    CAFile:     "/etc/providapt/certs/ca.crt",
+//	    EnableTLS:  true,
+//	})
+func NewGrpcClientWithTLS(cfg *GrpcClientConfig) *GrpcClient {
+	var creds credentials.TransportCredentials
+	if cfg.EnableTLS {
+		tlsCfg := loadTLSClientConfig(cfg)
+		creds = credentials.NewTLS(tlsCfg)
+	} else {
+		creds = insecure.NewCredentials()
+	}
+	return NewGrpcClientWithOpts(cfg.ServerAddr, []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+	})
+}
+
+// loadTLSClientConfig builds a tls.Config for mTLS client connections.
+func loadTLSClientConfig(cfg *GrpcClientConfig) *tls.Config {
+	tlsCfg := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
+
+	if cfg.ServerName != "" {
+		tlsCfg.ServerName = cfg.ServerName
+	}
+
+	// Load client certificate
+	if cfg.CertFile != "" && cfg.KeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
+		if err == nil {
+			tlsCfg.Certificates = []tls.Certificate{cert}
+		} else {
+			log.Printf("[grpc] failed to load client cert: %v", err)
+		}
+	}
+
+	// Load CA pool for server verification
+	if cfg.CAFile != "" {
+		caData, err := os.ReadFile(cfg.CAFile)
+		if err == nil {
+			caPool := x509.NewCertPool()
+			if caPool.AppendCertsFromPEM(caData) {
+				tlsCfg.RootCAs = caPool
+			}
+		} else {
+			log.Printf("[grpc] failed to load CA file: %v", err)
+		}
+	}
+
+	return tlsCfg
 }
 
 // Connect establishes the gRPC connection.

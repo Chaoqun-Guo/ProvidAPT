@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 )
 
 // ═══════════════════════════════════════════════════════════════════
@@ -36,9 +37,18 @@ import (
 
 // Freezer manages process freezing via cgroup v2.
 type Freezer struct {
-	cfg     *Config
-	mu      sync.Mutex
-	records map[int]*FreezeRecord // PID → freeze record
+	cfg        *Config
+	mu         sync.Mutex
+	records    map[int]*FreezeRecord // PID → freeze record
+	auditStore *audit.Store
+}
+
+// SetAuditStore attaches an audit logging store. If set, honeypot
+// trigger events are recorded to it.
+func (f *Freezer) SetAuditStore(as *audit.Store) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.auditStore = as
 }
 
 // NewFreezer creates a cgroup-based process freezer.
@@ -131,6 +141,23 @@ func (f *Freezer) Freeze(trigger *HoneypotTrigger) (*FreezeRecord, error) {
 	}
 
 	f.records[pid] = record
+
+	if f.auditStore != nil {
+		f.auditStore.Log(audit.Entry{
+			Category: audit.CatSecurity,
+			Severity: "CRITICAL",
+			Message:  fmt.Sprintf("Honeypot triggered by pid=%d comm=%s path=%s", pid, trigger.Comm, trigger.Path),
+			Source:   "deception",
+			Details: map[string]interface{}{
+				"pid":      pid,
+				"comm":     trigger.Comm,
+				"path":     trigger.Path,
+				"type":     string(trigger.TokenType),
+				"trigger":  string(trigger.Trigger),
+				"tripwire": trigger.Tripwire,
+			},
+		})
+	}
 
 	// 6. Call graph updater if configured.
 	if f.cfg.GraphUpdater != nil {
@@ -333,7 +360,9 @@ func CleanupStaleCgroups(cfg *Config) error {
 	killPath := filepath.Join(cgPath, "cgroup.kill")
 	if _, err := os.ReadFile(killPath); err == nil {
 		// Kill all processes in the cgroup.
-		os.WriteFile(killPath, []byte("1"), 0644)
+		if err := os.WriteFile(killPath, []byte("1"), 0644); err != nil {
+			log.Printf("[deception] cgroup.kill write failed: %v", err)
+		}
 	}
 
 	if err := os.RemoveAll(cgPath); err != nil {
@@ -342,5 +371,3 @@ func CleanupStaleCgroups(cfg *Config) error {
 	return nil
 }
 
-// Ensure exec is used.
-var _ = exec.Command

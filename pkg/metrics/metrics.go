@@ -82,6 +82,44 @@ var (
 		Name:      "backpressure_events_total",
 		Help:      "Total backpressure events triggered.",
 	})
+
+	// ── System health metrics ────────────────────────────────
+
+	// CPU usage ratio (0.0–1.0), updated periodically.
+	CPUUsageRatio = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "cpu_usage_ratio",
+		Help:      "Process CPU usage ratio (0.0–1.0).",
+	})
+
+	// Resident set size in bytes.
+	MemoryUsageBytes = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "memory_usage_bytes",
+		Help:      "Process resident set size in bytes.",
+	})
+
+	// Total events dropped (ring buffer overflow or backpressure).
+	EventsDroppedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: namespace,
+		Name:      "events_dropped_total",
+		Help:      "Total events dropped (ring buffer overflow or backpressure).",
+	})
+
+	// Uptime in seconds.
+	UptimeSeconds = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "uptime_seconds",
+		Help:      "Process uptime in seconds.",
+	})
+
+	// Pipeline queue depth (events waiting to be processed).
+	PipelineQueueDepth = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: "pipeline",
+		Name:      "queue_depth",
+		Help:      "Current number of events queued in the pipeline.",
+	})
 )
 
 // MustRegister registers all metrics with the default Prometheus registry.
@@ -99,8 +137,13 @@ func MustRegister() {
 		AlertsTriggered,
 		PipelineEventsProcessed,
 		PipelineBackpressure,
+		CPUUsageRatio,
+		MemoryUsageBytes,
+		EventsDroppedTotal,
+		UptimeSeconds,
+		PipelineQueueDepth,
 	)
-	log.Printf("[metrics] registered %d Prometheus metrics", 10)
+	log.Printf("[metrics] registered %d Prometheus metrics", 15)
 }
 
 // Handler returns the Prometheus HTTP handler for /metrics.

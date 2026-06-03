@@ -23,6 +23,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -40,10 +42,18 @@ type AuditRecord struct {
 
 // MapAuditor periodically checks BPF map integrity.
 type MapAuditor struct {
-	mu        sync.Mutex
-	records   []AuditRecord
-	anomalies []AuditRecord
-	checkPIDs map[uint32]bool // known-good PID set
+	mu         sync.Mutex
+	records    []AuditRecord
+	anomalies  []AuditRecord
+	checkPIDs  map[uint32]bool // known-good PID set
+	auditStore *audit.Store
+}
+
+// SetAuditStore attaches an audit logging store.
+func (ma *MapAuditor) SetAuditStore(as *audit.Store) {
+	ma.mu.Lock()
+	defer ma.mu.Unlock()
+	ma.auditStore = as
 }
 
 // NewMapAuditor creates a map auditor.
@@ -120,7 +130,37 @@ func (ma *MapAuditor) Anomalies() []AuditRecord {
 	defer ma.mu.Unlock()
 	out := make([]AuditRecord, len(ma.anomalies))
 	copy(out, ma.anomalies)
+
+	if len(out) > 0 && ma.auditStore != nil {
+		details := make([]map[string]interface{}, 0, len(out))
+		for _, a := range out {
+			details = append(details, map[string]interface{}{
+				"map_name": a.MapName,
+				"key":      a.Key,
+				"value":    a.Value,
+				"expected": a.Expected,
+				"match":    a.Match,
+			})
+		}
+		ma.auditStore.Log(audit.Entry{
+			Category: audit.CatSecurity,
+			Severity: "WARNING",
+			Message:  fmt.Sprintf("BPF map audit: %d anomalies detected", len(out)),
+			Source:   "armor",
+			Details: map[string]interface{}{
+				"anomalies": details,
+			},
+		})
+	}
+
 	return out
+}
+
+// AnomalyCount returns the number of detected anomalies.
+func (ma *MapAuditor) AnomalyCount() int {
+	ma.mu.Lock()
+	defer ma.mu.Unlock()
+	return len(ma.anomalies)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -136,9 +176,17 @@ type KallsymsSnapshot struct {
 
 // KallsymsMonitor watches /proc/kallsyms for changes.
 type KallsymsMonitor struct {
-	mu        sync.Mutex
-	baseline  *KallsymsSnapshot
-	anomalies []string
+	mu         sync.Mutex
+	baseline   *KallsymsSnapshot
+	anomalies  []string
+	auditStore *audit.Store
+}
+
+// SetAuditStore attaches an audit logging store.
+func (km *KallsymsMonitor) SetAuditStore(as *audit.Store) {
+	km.mu.Lock()
+	defer km.mu.Unlock()
+	km.auditStore = as
 }
 
 // NewKallsymsMonitor creates a kallsyms monitor.

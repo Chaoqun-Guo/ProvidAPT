@@ -190,5 +190,3 @@ func AttrsForTrigger(t *HoneypotTrigger) map[string]string {
 	})
 }
 
-// Ensure fmt is used.
-var _ = fmt.Sprintf

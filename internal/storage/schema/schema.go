@@ -128,14 +128,17 @@ func InodeIndexPrefix(inode uint64) string {
 // Format: "e:<16-hex-ts>|<source>|<target>"
 func ParseEdgeKey(key string) (source, target string, ts uint64, ok bool) {
 	rest, found := strings.CutPrefix(key, edgePrefix)
-	if !found || len(rest) < 17 {
+	if !found || len(rest) < 17 || rest[16] != '|' {
 		return "", "", 0, false
 	}
 	tsHex := rest[:16]
 	fmt.Sscanf(tsHex, "%x", &ts)
 	remaining := rest[17:] // skip ts + delimiter
+	if remaining == "" {
+		return "", "", 0, false
+	}
 	parts := strings.SplitN(remaining, "|", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return "", "", 0, false
 	}
 	return parts[0], parts[1], ts, true

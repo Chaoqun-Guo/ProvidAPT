@@ -1,0 +1,122 @@
+# ── ProvidAPT Helm Chart Values ──────────────────────────────
+# This file contains the default configuration for the ProvidAPT
+# DaemonSet deployment on Kubernetes.
+
+# -- Image settings
+image:
+  repository: ghcr.io/chaoqun-guo/providapt
+  tag: v1.0.2
+  pullPolicy: IfNotPresent
+
+# -- Node selection
+nodeSelector: {}
+
+# -- Node tolerations (DaemonSet schedules on all nodes by default)
+tolerations:
+  - operator: Exists
+
+# -- Resource limits & requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+# -- ProvidAPT configuration (merged into ConfigMap /etc/providapt/providapt.toml)
+config:
+  kernel:
+    verbose: false
+    hooks:
+      - task_alloc
+      - task_free
+      - file_open
+      - bprm_check_security
+      - socket_connect
+  output:
+    dir: /var/log/providapt
+    format: json
+  capture:
+    enable_net: true
+    enable_file: true
+    enable_proc: true
+    sensitive_dir: false
+  api:
+    grpc: ":50051"
+    rest: ":8080"
+
+  # -- TLS configuration for gRPC mTLS
+  tls:
+    enable: false
+    cert_file: /etc/providapt/certs/server.crt
+    key_file: /etc/providapt/certs/server.key
+    ca_file: /etc/providapt/certs/ca.crt
+
+  # -- Storage encryption configuration
+  storage:
+    encrypt: false
+    key_file: /etc/providapt/storage.key
+
+# -- Host paths to mount into the pod
+hostPaths:
+  btf:
+    path: /sys/kernel/btf
+    type: Directory
+  cgroup:
+    path: /sys/fs/cgroup
+    type: Directory
+  debug:
+    path: /sys/kernel/debug
+    type: Directory
+    optional: true
+  proc:
+    path: /proc
+    type: Directory
+  modules:
+    path: /lib/modules
+    type: Directory
+  src:
+    path: /usr/src
+    type: Directory
+    optional: true
+
+  # -- TLS certificate directory (host-pki volume)
+  certificates:
+    path: /etc/providapt/certs
+    type: DirectoryOrCreate
+
+# -- Service Account configuration
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# -- Priority class name for the DaemonSet pod
+priorityClassName: ""
+
+# -- Update strategy for the DaemonSet
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+
+# -- Additional environment variables
+extraEnv: []
+# - name: MY_VAR
+#   value: "value"
+
+# -- Annotations for the DaemonSet pod template
+podAnnotations: {}
+
+# -- Pod Security Policy (enabled for clusters with PSP admission)
+psp:
+  create: false
+
+# -- Service Monitor for Prometheus Operator
+serviceMonitor:
+  enabled: false
+  interval: 15s
+  namespace: monitoring
+#   additionalLabels:
+#     release: prometheus

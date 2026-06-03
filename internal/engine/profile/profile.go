@@ -4,6 +4,7 @@
 package profile
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -74,8 +75,26 @@ func CollectBPFStats() (*BPFStats, error) {
 		}
 	}
 
-	// Parse JSON output (future)
-	_ = output
+	// Parse JSON output
+	var progList []struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(output, &progList); err == nil {
+		stats.Programs = make([]BPFProgInfo, 0, len(progList))
+		for _, p := range progList {
+			prog := BPFProgInfo{
+				ID:   p.ID,
+				Name: p.Name,
+				Type: p.Type,
+			}
+			prog = collectProgRunTime(prog)
+			stats.Programs = append(stats.Programs, prog)
+			stats.TotalRuns += prog.RunCount
+			stats.TotalTime += prog.RunTimeNS
+		}
+	}
 
 	return stats, nil
 }
@@ -264,8 +283,14 @@ func CollectSystemStats() *SystemStats {
 	return stats
 }
 
+var procStartTime time.Time
+
+func init() {
+	procStartTime = time.Now()
+}
+
 func processStartTime() time.Time {
-	return time.Now() // approximate
+	return procStartTime
 }
 
 // ═══════════════════════════════════════════════════════════════

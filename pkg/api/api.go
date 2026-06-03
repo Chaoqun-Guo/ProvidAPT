@@ -18,8 +18,30 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/backtrace"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/store"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
 )
+
+// ═══════════════════════════════════════════════════════════════
+// Health check types
+// ═══════════════════════════════════════════════════════════════
+
+// HealthStatus represents the current health of the daemon.
+type HealthStatus struct {
+	Status          string `json:"status"`            // "healthy" or "unhealthy"
+	UptimeSeconds   int64  `json:"uptime_seconds"`    // process uptime
+	EbpfCollector   bool   `json:"ebpf_collector"`    // eBPF ring buffer active
+	PipelineHealthy bool   `json:"pipeline_healthy"`  // pipeline processing
+	StoreHealthy    bool   `json:"store_healthy"`     // storage backend
+	EventsIngested  uint64 `json:"events_ingested"`   // total ingested
+	EventsDropped   uint64 `json:"events_dropped"`    // total dropped
+	MemoryBytes     uint64 `json:"memory_bytes"`      // RSS in bytes
+	Version         string `json:"version"`           // build version
+	SanityCheck     string `json:"sanity_check,omitempty"` // "pass", "fail", or "" (not run)
+}
+
+// HealthCheckFunc is called by /health to determine daemon health.
+type HealthCheckFunc func() HealthStatus
 
 // ═══════════════════════════════════════════════════════════════
 // Server
@@ -30,18 +52,26 @@ type Server struct {
 	graph      *provenance.Graph
 	store      *store.Store
 	backtracer *backtrace.Backtracer
+	healthFn   HealthCheckFunc
 	mux        *http.ServeMux
+	startTime  time.Time
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
 	s := &Server{
-		addr:       addr,
-		graph:      graph,
-		store:      st,
+		addr:      addr,
+		graph:     graph,
+		store:     st,
 		backtracer: backtrace.New(graph, st),
+		startTime: time.Now(),
 	}
 	s.mux = s.buildMux()
 	return s
+}
+
+// SetHealthFunc registers a health check callback for the /health endpoint.
+func (s *Server) SetHealthFunc(fn HealthCheckFunc) {
+	s.healthFn = fn
 }
 
 func (s *Server) Start() error {
@@ -53,6 +83,7 @@ func (s *Server) Start() error {
 func (s *Server) buildMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())
+	mux.HandleFunc("/health", s.jsonHandler(s.handleHealth))
 	mux.HandleFunc("/api/v1/status", s.jsonHandler(s.handleStatus))
 	mux.HandleFunc("/api/v1/graph/export", s.jsonHandler(s.handleExport))
 	mux.HandleFunc("/api/v1/graph/node/", s.jsonHandler(s.handleNode)) // parsed from path
@@ -84,12 +115,41 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 	stats := s.graph.Stats()
-	return json.NewEncoder(w).Encode(map[string]interface{}{
+	resp := map[string]interface{}{
 		"status":    "running",
 		"nodes":     stats.Nodes,
 		"edges":     stats.Edges,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
+	}
+	// Augment with health fields when available
+	if s.healthFn != nil {
+		h := s.healthFn()
+		resp["health"] = h.Status
+		resp["uptime_seconds"] = h.UptimeSeconds
+		resp["memory_bytes"] = h.MemoryBytes
+	}
+	return json.NewEncoder(w).Encode(resp)
+}
+
+// handleHealth returns detailed health status. Returns 200 when healthy, 503 when degraded.
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) error {
+	var hs HealthStatus
+	if s.healthFn != nil {
+		hs = s.healthFn()
+	} else {
+		hs = HealthStatus{
+			Status:        "unknown",
+			UptimeSeconds: int64(time.Since(s.startTime).Seconds()),
+			Version:       version.String(),
+		}
+	}
+
+	if hs.Status == "healthy" {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	return json.NewEncoder(w).Encode(hs)
 }
 
 // ── Graph export: /api/v1/graph/export?pid=1234&start=...&end=... ──

@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "providapt.fullname" . }}-config
+  labels:
+    {{- include "providapt.labels" . | nindent 4 }}
+data:
+  providapt.toml: |
+    {
+      "kernel": {
+        "verbose": {{ .Values.config.kernel.verbose }},
+        "hooks": [
+          {{- range $i, $hook := .Values.config.kernel.hooks }}
+          {{- if $i }}, {{ end }}"{{ $hook }}"
+          {{- end }}
+        ]
+      },
+      "output": {
+        "dir": "{{ .Values.config.output.dir }}",
+        "format": "{{ .Values.config.output.format }}"
+      },
+      "capture": {
+        "enable_net": {{ .Values.config.capture.enable_net }},
+        "enable_file": {{ .Values.config.capture.enable_file }},
+        "enable_proc": {{ .Values.config.capture.enable_proc }},
+        "sensitive_dir": {{ .Values.config.capture.sensitive_dir }}
+      },
+      "api": {
+        "grpc": "{{ .Values.config.api.grpc }}",
+        "rest": "{{ .Values.config.api.rest }}"
+      },
+      "tls": {
+        "enable": {{ .Values.config.tls.enable }},
+        "cert_file": "{{ .Values.config.tls.cert_file }}",
+        "key_file": "{{ .Values.config.tls.key_file }}",
+        "ca_file": "{{ .Values.config.tls.ca_file }}"
+      },
+      "storage": {
+        "encrypt": {{ .Values.config.storage.encrypt }},
+        "key_file": "{{ .Values.config.storage.key_file }}"
+      }
+    }

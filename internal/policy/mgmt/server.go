@@ -4,13 +4,18 @@ package mgmt
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"log"
+	"math/big"
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -19,6 +24,11 @@ import (
 	"google.golang.org/grpc/peer"
 
 	mgmtpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/certauth"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/analyzer"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/control"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -27,11 +37,21 @@ import (
 
 // Server implements the ProvidAPTManagement gRPC service.
 type Server struct {
+	mu       sync.Mutex
+	addr     string
+	server   *grpc.Server
+	config   *ServerConfig
+	ctrl     *control.Controller
+	analyzer *analyzer.Analyzer
+	alertSub alertSubscription
+	started  time.Time
+}
+
+// alertSubscription manages a dynamic list of WatchAlerts subscribers.
+type alertSubscription struct {
 	mu      sync.Mutex
-	addr    string
-	server  *grpc.Server
-	config  *ServerConfig
-	started time.Time
+	subs    []chan *mgmtpb.AlertEvent
+	maxSubs int
 }
 
 // ServerConfig for the gRPC management server.
@@ -53,6 +73,89 @@ type ServerConfig struct {
 
 	// EnableTLS — if true, use TLS (mTLS if RequireClientCert).
 	EnableTLS bool
+}
+
+// SetController attaches the eBPF controller for runtime policy operations.
+func (s *Server) SetController(ctrl *control.Controller) {
+	s.ctrl = ctrl
+}
+
+// SetAnalyzer attaches the analyzer for alert streaming and config reload.
+func (s *Server) SetAnalyzer(anz *analyzer.Analyzer) {
+	s.analyzer = anz
+}
+
+// StartAlertForwarder begins forwarding analyzer alerts to all gRPC subscribers.
+// Runs until alertCh is closed.
+func (s *Server) StartAlertForwarder(alertCh <-chan *analyzer.Alert) {
+	go func() {
+		for al := range alertCh {
+			evt := alertToEvent(al)
+			s.alertSub.broadcast(evt)
+		}
+	}()
+}
+
+func alertToEvent(al *analyzer.Alert) *mgmtpb.AlertEvent {
+	return &mgmtpb.AlertEvent{
+		TimestampNs: al.DetectedAt.UnixNano(),
+		AlertId:     string(al.Pattern) + ":" + al.AlertNodeID,
+		Severity:    severityString(al.Severity),
+		Title:       al.Headline,
+		Description: al.Reason,
+	}
+}
+
+func severityString(sev analyzer.Severity) string {
+	switch sev {
+	case analyzer.SeverityInfo:
+		return "INFO"
+	case analyzer.SeverityLow:
+		return "LOW"
+	case analyzer.SeverityMedium:
+		return "MEDIUM"
+	case analyzer.SeverityHigh:
+		return "HIGH"
+	case analyzer.SeverityCritical:
+		return "CRITICAL"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func (as *alertSubscription) broadcast(evt *mgmtpb.AlertEvent) {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	for _, ch := range as.subs {
+		select {
+		case ch <- evt:
+		default:
+		}
+	}
+}
+
+func (as *alertSubscription) subscribe(ch chan *mgmtpb.AlertEvent) {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	if as.maxSubs == 0 {
+		as.maxSubs = 64
+	}
+	if len(as.subs) >= as.maxSubs {
+		return
+	}
+	as.subs = append(as.subs, ch)
+}
+
+func (as *alertSubscription) unsubscribe(ch chan *mgmtpb.AlertEvent) {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	for i, s := range as.subs {
+		if s == ch {
+			as.subs = append(as.subs[:i], as.subs[i+1:]...)
+			close(ch)
+			return
+		}
+	}
 }
 
 // DefaultServerConfig returns a secure default config.
@@ -123,11 +226,18 @@ func (s *Server) Query(ctx context.Context, req *mgmtpb.QueryRequest) (*mgmtpb.Q
 	clientInfo := clientIdentity(ctx)
 	log.Printf("[mgmt] Query from %s: %s", clientInfo, req.Query)
 
-	return &mgmtpb.QueryResponse{
-		ResultCount: 0,
+	resp := &mgmtpb.QueryResponse{
 		ResultsJson: `{"message":"query received"}`,
 		QueryTimeNs: time.Now().UnixNano(),
-	}, nil
+	}
+
+	// If we have an analyzer, include alert count
+	if s.analyzer != nil {
+		alerts := s.analyzer.Alerts()
+		resp.ResultsJson = fmt.Sprintf(`{"alert_count":%d}`, len(alerts))
+	}
+
+	return resp, nil
 }
 
 // WatchAlerts streams real-time alerts to authorized clients.
@@ -136,33 +246,42 @@ func (s *Server) WatchAlerts(filter *mgmtpb.AlertFilter, stream mgmtpb.ProvidAPT
 	log.Printf("[mgmt] Alert stream started from %s (min_severity=%s)",
 		clientInfo, filter.MinSeverity)
 
-	<-stream.Context().Done()
-	return nil
+	ch := make(chan *mgmtpb.AlertEvent, 64)
+	s.alertSub.subscribe(ch)
+	defer s.alertSub.unsubscribe(ch)
+
+	for {
+		select {
+		case evt := <-ch:
+			if err := stream.Send(evt); err != nil {
+				return fmt.Errorf("send alert: %w", err)
+			}
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
 }
 
 // UpdatePolicy handles real-time policy updates.
 func (s *Server) UpdatePolicy(ctx context.Context, update *mgmtpb.PolicyUpdate) (*mgmtpb.PolicyAck, error) {
 	clientInfo := clientIdentity(ctx)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	ack := &mgmtpb.PolicyAck{
 		Success:     true,
-		Message:     "policy update applied",
 		AppliedAtNs: time.Now().UnixNano(),
 	}
 
 	switch u := update.Update.(type) {
 	case *mgmtpb.PolicyUpdate_Whitelist:
-		log.Printf("[mgmt] Policy update from %s: whitelist %s %s=%s",
-			clientInfo, u.Whitelist.Action, u.Whitelist.Target, u.Whitelist.Value)
+		ack.Message = s.applyWhitelistUpdate(u.Whitelist, clientInfo)
 	case *mgmtpb.PolicyUpdate_Sigma:
-		log.Printf("[mgmt] Policy update from %s: sigma rule %s %s",
+		log.Printf("[mgmt] Policy update from %s: sigma rule %s %s (not yet implemented)",
 			clientInfo, u.Sigma.Action, u.Sigma.RuleId)
+		ack.Message = "sigma rule update logged (not yet applied)"
 	case *mgmtpb.PolicyUpdate_TaintSource:
 		log.Printf("[mgmt] Policy update from %s: taint source %s %s",
 			clientInfo, u.TaintSource.Action, u.TaintSource.IpPrefix)
+		ack.Message = "taint source update logged (requires daemon reload)"
 	default:
 		ack.Success = false
 		ack.Message = "unknown update type"
@@ -171,14 +290,75 @@ func (s *Server) UpdatePolicy(ctx context.Context, update *mgmtpb.PolicyUpdate) 
 	return ack, nil
 }
 
+func (s *Server) applyWhitelistUpdate(w *mgmtpb.WhitelistUpdate, clientInfo string) string {
+	if s.ctrl == nil {
+		log.Printf("[mgmt] whitelist update from %s: controller not available", clientInfo)
+		return "controller not available"
+	}
+
+	log.Printf("[mgmt] Policy update from %s: whitelist %s %s=%s",
+		clientInfo, w.Action, w.Target, w.Value)
+
+	switch w.Target {
+	case "pid":
+		pid, err := strconv.ParseUint(w.Value, 10, 32)
+		if err != nil {
+			return fmt.Sprintf("invalid pid %q", w.Value)
+		}
+		switch w.Action {
+		case "add":
+			if err := s.ctrl.ExcludePID(uint32(pid)); err != nil {
+				return fmt.Sprintf("exclude pid failed: %v", err)
+			}
+			return fmt.Sprintf("PID %d excluded", pid)
+		case "remove":
+			if err := s.ctrl.UnExcludePID(uint32(pid)); err != nil {
+				return fmt.Sprintf("unexclude pid failed: %v", err)
+			}
+			return fmt.Sprintf("PID %d unexcluded", pid)
+		}
+
+	case "comm":
+		// Comm-based whitelist — currently unsupported via gRPC
+		return "comm-based whitelist requires /proc scan, use pid instead"
+
+	case "path":
+		switch w.Action {
+		case "add":
+			if err := s.ctrl.AddHotPath(w.Value); err != nil {
+				return fmt.Sprintf("add hot path failed: %v", err)
+			}
+			return fmt.Sprintf("hot path %s added", w.Value)
+		case "remove":
+			if err := s.ctrl.RemoveHotPath(w.Value); err != nil {
+				return fmt.Sprintf("remove hot path failed: %v", err)
+			}
+			return fmt.Sprintf("hot path %s removed", w.Value)
+		case "clear":
+			if err := s.ctrl.ClearHotPaths(); err != nil {
+				return fmt.Sprintf("clear hot paths failed: %v", err)
+			}
+			return "all hot paths cleared"
+		}
+	}
+
+	return fmt.Sprintf("unknown whitelist target %q or action %q", w.Target, w.Action)
+}
+
 // Check handles health check requests.
 func (s *Server) Check(ctx context.Context, req *mgmtpb.HealthCheck) (*mgmtpb.HealthStatus, error) {
-	return &mgmtpb.HealthStatus{
+	hs := &mgmtpb.HealthStatus{
 		AgentRunning: true,
-		Version:     "2.1.0",
+		Version:     version.String(),
 		UptimeNs:    time.Since(s.started).Nanoseconds(),
 		Status:      "HEALTHY",
-	}, nil
+	}
+
+	if s.analyzer != nil {
+		hs.TailedAlerts = int32(len(s.analyzer.Alerts()))
+	}
+
+	return hs, nil
 }
 
 // ─── mTLS ────────────────────────────────────────────────────
@@ -234,27 +414,64 @@ func clientIdentity(ctx context.Context) string {
 // ═══════════════════════════════════════════════════════════════
 
 func generateSelfSignedCert() (tls.Certificate, error) {
+	// Try persistent certauth (production use)
 	certDir := filepath.Join(os.TempDir(), "providapt-certs")
 	os.MkdirAll(certDir, 0700)
 
-	certFile := filepath.Join(certDir, "server.crt")
-	keyFile := filepath.Join(certDir, "server.key")
+	caDir := filepath.Join(certDir, "ca")
+	srvDir := filepath.Join(certDir, "server")
+	cliDir := filepath.Join(certDir, "client")
 
-	// Check if we already generated certs
-	if _, err := os.Stat(certFile); err == nil {
-		if _, err := os.Stat(keyFile); err == nil {
-			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-			if err == nil {
-				log.Printf("[mgmt] using cached self-signed cert: %s", certFile)
-				return cert, nil
-			}
-		}
+	cfg := &certauth.Config{
+		CADir:      caDir,
+		ServerDir:  srvDir,
+		ClientDir:  cliDir,
+		ValidYears: 10,
+		KeyBits:    4096,
 	}
 
-	// Generate self-signed certificate using crypto/tls's GenerateKey on the fly
-	// In production, use a proper CA-signed certificate.
-	log.Printf("[mgmt] generating self-signed certificate in %s", certDir)
-	return tls.Certificate{}, fmt.Errorf("self-signed cert generation requires crypto/x509; use OpenSSL to generate: openssl req -x509 -newkey rsa:4096 -keyout %s -out %s -days 365 -nodes -subj /CN=providapt", keyFile, certFile)
+	certFile, keyFile, _, err := certauth.Initialize(cfg)
+	if err == nil {
+		log.Printf("[mgmt] using certauth-generated certificates in %s", certDir)
+		return tls.LoadX509KeyPair(certFile, keyFile)
+	}
+
+	// Fallback: ephemeral self-signed cert (dev only)
+	log.Printf("[mgmt] certauth init failed (%v); generating ephemeral self-signed cert", err)
+	return generateEphemeralCert()
+}
+
+// generateEphemeralCert creates an in-memory self-signed certificate for development use.
+func generateEphemeralCert() (tls.Certificate, error) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("generate key: %w", err)
+	}
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"ProvidAPT"},
+			CommonName:   "providapt-dev",
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{"localhost"},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("create cert: %w", err)
+	}
+
+	return tls.Certificate{
+		Certificate: [][]byte{certDER},
+		PrivateKey:  key,
+	}, nil
 }
 
 // ═══════════════════════════════════════════════════════════════

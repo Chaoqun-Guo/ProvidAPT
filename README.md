@@ -103,6 +103,9 @@ ProvidAPT/
 │   ├── transport/              # Transport layer (gRPC, compression)
 │   ├── metrics/                # Prometheus metrics
 │   ├── hwaccel/                # Hardware acceleration (NVMe, GPU)
+│   ├── supportbundle/          # Crash-site support bundle capture
+│   ├── verify/                 # Store consistency verification & repair
+│   ├── audit/                  # Persistent audit logging
 │   └── plugin/                 # Plugin system (scoring, threat intel)
 │
 ├── build/                      # Build & deployment

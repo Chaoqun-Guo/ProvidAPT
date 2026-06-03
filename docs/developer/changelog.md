@@ -4,6 +4,32 @@
 
 ---
 
+## v1.1.0 (2026-06-03)
+
+### New Features
+
+- **eBPF Map Inspection CLI**: `providaptctl -bpf` — unified eBPF state inspection (kernel capabilities, loaded programs, pinned maps). Supports table and JSON output.
+- **Data Validation/Repair Tool**: `providaptctl -verify` — PebbleDB consistency checking (edge, node, index integrity) with optional `-repair` mode. Dry-run by default.
+- **Audit Logging Framework**: `pkg/audit/` — persistent NDJSON audit log with 4 categories (security, admin, system, integrity). Query via `providaptctl -audit`.
+- **CO-RE Fallback**: eBPF loader gracefully falls back to kprobe mode when BTF/CO-RE loading fails, with audit event logging.
+- **Fuzz Testing**: 6 fuzz functions for event parser, key parsing, config loading, taint matching, and query parser.
+
+### Testing
+
+- graphquery: 15 tests added (100% coverage), refactored to `Store` interface
+- transport: 30 tests added (20.9% → 70.2%)
+- secure: 23 tests added (54.9% → 78.2%)
+- plugin: 8 tests added (47.1% → 100%)
+- threatintel: 20 tests added (32.3% → 88.9%)
+- hwaccel: 8 tests added (56.6% → >70%)
+- supportbundle: 7 tests added (56.0% → >70%)
+
+### Fixes
+
+- `profile.CollectBPFStats()`: fixed JSON parsing stub that was discarding output
+
+---
+
 ## v2.2.0 (2026-05-29)
 
 ### Major Features
@@ -77,7 +103,31 @@
 
 ---
 
-## v2.0.0 (2026-03-01)
+## v2.2.0 (2026-05-29)
+
+### New Features
+
+- **eBPF Map Inspection CLI**: `providaptctl -bpf` — unified eBPF state inspection (kernel capabilities, loaded programs, pinned maps). Supports table and JSON output.
+- **Data Validation/Repair Tool**: `providaptctl -verify` — PebbleDB consistency checking (edge, node, index integrity) with optional `-repair` mode. Dry-run by default.
+- **Audit Logging Framework**: `pkg/audit/` — persistent NDJSON audit log with 4 categories (security, admin, system, integrity). Query via `providaptctl -audit`.
+- **CO-RE Fallback**: eBPF loader gracefully falls back to kprobe mode when BTF/CO-RE loading fails, with audit event logging.
+- **Fuzz Testing**: 6 fuzz functions for event parser, key parsing, config loading, taint matching, and query parser.
+
+### Testing
+
+- graphquery: 15 tests added (100% coverage), refactored to `Store` interface
+- transport: 30 tests added (20.9% → 70.2%)
+- secure: 23 tests added (54.9% → 78.2%)
+- plugin: 8 tests added (47.1% → 100%)
+- threatintel: 20 tests added (32.3% → 88.9%)
+- hwaccel: 8 tests added (56.6% → >70%)
+- supportbundle: 7 tests added (56.0% → >70%)
+
+### Fixes
+
+- `profile.CollectBPFStats()`: fixed JSON parsing stub that was discarding output
+
+---
 
 ### Major Features
 

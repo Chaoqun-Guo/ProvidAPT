@@ -53,6 +53,10 @@ type Config struct {
 
 	// FlushInterval controls periodic edge flush to RocksDB.
 	FlushInterval time.Duration
+
+	// EncryptionKey enables transparent AES-256-GCM encryption at rest.
+	// Nil means no encryption.
+	EncryptionKey []byte
 }
 
 func DefaultConfig() *Config {
@@ -96,7 +100,7 @@ func New(graph *provenance.Graph, cfg *Config) (*Pipeline, error) {
 		cfg = DefaultConfig()
 	}
 
-	st, err := store.Open(cfg.StorePath)
+	st, err := store.Open(cfg.StorePath, cfg.EncryptionKey)
 	if err != nil {
 		return nil, err
 	}

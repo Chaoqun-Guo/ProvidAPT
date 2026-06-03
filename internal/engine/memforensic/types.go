@@ -239,5 +239,3 @@ func joinStrings(elems []string, sep string) string {
 	return out
 }
 
-// Ensure time is used.
-var _ = time.Now

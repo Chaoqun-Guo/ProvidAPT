@@ -377,5 +377,3 @@ func stringContains(s, substr string) bool {
 	return false
 }
 
-// Ensure fmt is used
-var _ = fmt.Sprintf("%d", 0)

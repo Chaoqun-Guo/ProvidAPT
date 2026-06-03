@@ -5,7 +5,12 @@
 package control
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/cilium/ebpf"
@@ -32,13 +37,21 @@ func TaintString(flags uint32) string {
 		return "NONE"
 	}
 	s := ""
+	var known uint32
 	for mask, name := range taintNames {
 		if flags&mask != 0 {
+			known |= mask
 			if s != "" {
 				s += "|"
 			}
 			s += name
 		}
+	}
+	if unknown := flags & ^known; unknown != 0 {
+		if s != "" {
+			s += "|"
+		}
+		s += fmt.Sprintf("0x%x", unknown)
 	}
 	return s
 }
@@ -117,26 +130,50 @@ func (ctl *Controller) DumpTaints(fn func(pid uint32, flags uint32)) {
 // ── Convenience: batch exclude (common noisy processes) ────
 
 // DefaultExcludes adds common build/update tool PIDs to the
-// whitelist.  This should be called AFTER process discovery.
-// In practice, userspace monitors fork events and adds PIDs
-// matching known comm names.
+// whitelist. It scans /proc for processes matching known noisy comm
+// names and excludes them from monitoring.
 func (ctl *Controller) DefaultExcludes() error {
-	noisyComms := []string{
-		"yum", "dnf", "apt", "dpkg", "rpm",
-		"make", "gcc", "cc", "g++", "clang",
-		"systemd-journal", "systemd-resolve",
-		"cron", "anacron", "systemd-tmpfiles",
-		"updatedb", "locate", "plocate",
-		"mandb", "catman",
+	noisyComms := map[string]bool{
+		"yum": true, "dnf": true, "apt": true, "dpkg": true, "rpm": true,
+		"make": true, "gcc": true, "cc": true, "g++": true, "clang": true,
+		"systemd-journal": true, "systemd-resolve": true,
+		"cron": true, "anacron": true, "systemd-tmpfiles": true,
+		"updatedb": true, "locate": true, "plocate": true,
+		"mandb": true, "catman": true,
 	}
-	// Note: We can't resolve comm→PID without scanning /proc.
-	// This is a placeholder — the actual implementation should
-	// watch for fork events with these comm names and add their PIDs.
-	log.Printf("[control] default excludes configured for %d comms; "+
-		"PIDs must be resolved dynamically via /proc scan", len(noisyComms))
-	for _, c := range noisyComms {
-		log.Printf("  exclude-by-comm: %s", c)
+
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return fmt.Errorf("scan /proc: %w", err)
 	}
+
+	var excluded int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		pid, err := strconv.ParseUint(e.Name(), 10, 32)
+		if err != nil {
+			continue
+		}
+
+		commData, err := os.ReadFile(filepath.Join("/proc", e.Name(), "comm"))
+		if err != nil {
+			continue
+		}
+		comm := strings.TrimSpace(string(commData))
+
+		if noisyComms[comm] {
+			if err := ctl.ExcludePID(uint32(pid)); err != nil {
+				log.Printf("[control] failed to exclude PID %d (%s): %v", pid, comm, err)
+			} else {
+				excluded++
+			}
+		}
+	}
+
+	log.Printf("[control] default excludes: scanned %d processes, excluded %d noisy comms",
+		len(entries), excluded)
 	return nil
 }
 

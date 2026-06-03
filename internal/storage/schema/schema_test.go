@@ -160,3 +160,35 @@ func TestReverseEdgeKeyRoundTrip(t *testing.T) {
 	}
 	_ = key
 }
+
+// FuzzParseEdgeKey fuzzes edge key parsing with arbitrary strings.
+func FuzzParseEdgeKey(f *testing.F) {
+	f.Add("e:00000000000003e8|p:1|f:500")
+	f.Add("invalid")
+	f.Add("e:short")
+	f.Add("e:00000000000007d0|f:5000:8:3|p:100")
+	f.Add("e:gggggggggggggggg|p:1|f:2")
+	f.Fuzz(func(t *testing.T, key string) {
+		src, tgt, ts, ok := ParseEdgeKey(key)
+		if ok {
+			if src == "" || tgt == "" {
+				t.Errorf("ParseEdgeKey(%q) ok=true but empty src/tgt", key)
+			}
+			_ = ts
+		}
+	})
+}
+
+// FuzzParseNodeKey fuzzes node key parsing with arbitrary strings.
+func FuzzParseNodeKey(f *testing.F) {
+	f.Add("n:process:p:1234")
+	f.Add("n:file:f:5000:8:3")
+	f.Add("invalid")
+	f.Add("n:")
+	f.Fuzz(func(t *testing.T, key string) {
+		typ, id, ok := ParseNodeKey(key)
+		_ = typ
+		_ = id
+		_ = ok
+	})
+}

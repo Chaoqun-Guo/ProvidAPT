@@ -2,8 +2,10 @@ package analyzer
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
@@ -41,30 +43,82 @@ func (l TaintLevel) String() string {
 
 // ─── Knowledge base: initial suspicion seeds ────────────────
 
-// untrustedComms are network-facing or externally-reachable process
-// names — if they touch sensitive files, it is anomalous.
-var untrustedComms = map[string]bool{
-	"nginx": true, "apache2": true, "httpd": true, "tomcat": true,
-	"uwsgi": true, "gunicorn": true, "php-fpm": true, "php-cgi": true,
-	"node": true, "sshd": true, "smtpd": true, "dovecot": true,
-	"cupsd": true, "rpcbind": true, "dhclient": true, "systemd-resolve": true,
+var (
+	taintMu         sync.RWMutex
+	untrustedComms  = defaultUntrustedComms()
+	networkTools    = defaultNetworkTools()
+	sensitivePaths  = defaultSensitivePaths()
+)
+
+func defaultUntrustedComms() map[string]bool {
+	return map[string]bool{
+		"nginx": true, "apache2": true, "httpd": true, "tomcat": true,
+		"uwsgi": true, "gunicorn": true, "php-fpm": true, "php-cgi": true,
+		"node": true, "sshd": true, "smtpd": true, "dovecot": true,
+		"cupsd": true, "rpcbind": true, "dhclient": true, "systemd-resolve": true,
+	}
 }
 
-// networkTools are programs commonly used for data transfer.
-var networkTools = map[string]bool{
-	"curl": true, "wget": true, "nc": true, "ncat": true,
-	"socat": true, "tftp": true, "ftp": true,
-	"scp": true, "sftp": true, "rsync": true,
+func defaultNetworkTools() map[string]bool {
+	return map[string]bool{
+		"curl": true, "wget": true, "nc": true, "ncat": true,
+		"socat": true, "tftp": true, "ftp": true,
+		"scp": true, "sftp": true, "rsync": true,
+	}
 }
 
-// sensitivePaths — access by a non-privileged process is suspicious.
-var sensitivePaths = []string{
-	"/etc/shadow", "/etc/passwd", "/etc/security",
-	"/etc/sudoers", "/etc/sudoers.d",
-	"/etc/ssh/", "/.ssh/",
-	"/root/", "/var/log/auth.log",
-	"/var/log/secure", "/var/log/syslog",
-	"/etc/cron", "/var/spool/cron",
+func defaultSensitivePaths() []string {
+	return []string{
+		"/etc/shadow", "/etc/passwd", "/etc/security",
+		"/etc/sudoers", "/etc/sudoers.d",
+		"/etc/ssh/", "/.ssh/",
+		"/root/", "/var/log/auth.log",
+		"/var/log/secure", "/var/log/syslog",
+		"/etc/cron", "/var/spool/cron",
+	}
+}
+
+// ReloadTaintSeeds replaces the taint seed lists at runtime.
+// All subsequent TaintEngine instances will use the new values.
+func ReloadTaintSeeds(untrusted map[string]bool, network map[string]bool, sensitive []string) {
+	taintMu.Lock()
+	defer taintMu.Unlock()
+	untrustedComms = untrusted
+	networkTools = network
+	sensitivePaths = sensitive
+	log.Printf("[analyzer] taint seeds reloaded: %d untrusted comms, %d network tools, %d sensitive paths",
+		len(untrusted), len(network), len(sensitive))
+}
+
+// getUntrustedComms returns a thread-safe copy of the untrusted comms map.
+func getUntrustedComms() map[string]bool {
+	taintMu.RLock()
+	defer taintMu.RUnlock()
+	m := make(map[string]bool, len(untrustedComms))
+	for k, v := range untrustedComms {
+		m[k] = v
+	}
+	return m
+}
+
+// getNetworkTools returns a thread-safe copy of the network tools map.
+func getNetworkTools() map[string]bool {
+	taintMu.RLock()
+	defer taintMu.RUnlock()
+	m := make(map[string]bool, len(networkTools))
+	for k, v := range networkTools {
+		m[k] = v
+	}
+	return m
+}
+
+// getSensitivePaths returns a thread-safe copy of the sensitive paths list.
+func getSensitivePaths() []string {
+	taintMu.RLock()
+	defer taintMu.RUnlock()
+	out := make([]string, len(sensitivePaths))
+	copy(out, sensitivePaths)
+	return out
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -166,12 +220,12 @@ func (te *TaintEngine) seedTaints() []string {
 		switch n.Subtype {
 		case "process":
 			// Untrusted network-facing daemon
-			if untrustedComms[comm] {
+			if getUntrustedComms()[comm] {
 				add(id, TaintCritical,
 					fmt.Sprintf("network-facing process: %s", comm))
 			}
 			// Network tool that could exfiltrate
-			if networkTools[comm] {
+			if getNetworkTools()[comm] {
 				add(id, TaintMedium,
 					fmt.Sprintf("network-capable tool: %s", comm))
 			}
@@ -275,7 +329,8 @@ func (te *TaintEngine) TaintedNodes() []string {
 // ── Helpers ─────────────────────────────────────────────────
 
 func (te *TaintEngine) isSensitivePath(path string) bool {
-	for _, p := range sensitivePaths {
+	paths := getSensitivePaths()
+	for _, p := range paths {
 		matched, err := filepath.Match(p, path)
 		if err == nil && matched {
 			return true

@@ -162,6 +162,3 @@ func (a *Analyzer) SetSketchIntegrator(si *SketchIntegrator) {
 	a.sketchIntegrator = si
 }
 
-// Compile-time check: SetSketchIntegrator method exists on Analyzer.
-// (The struct field sketchIntegrator is defined in analyzer.go.)
-var _ = (*Analyzer).SetSketchIntegrator

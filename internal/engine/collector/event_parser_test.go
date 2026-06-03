@@ -282,3 +282,29 @@ func TestCString(t *testing.T) {
 	}
 }
 
+// FuzzParseRawEvent fuzzes the raw event parser with arbitrary byte slices.
+func FuzzParseRawEvent(f *testing.F) {
+	f.Add([]byte{
+		1, 0, 0, 0, // Type
+		0, 0, 0, 0, // Flags
+		0, 0, 0, 0, 0, 0, 0, 0, // Timestamp
+		100, 0, 0, 0, // PID
+		101, 0, 0, 0, // TID
+		1, 0, 0, 0, // PPID
+		232, 3, 0, 0, // UID = 1000
+		0, 0, 0, 0, // GID
+		0, 0, 0, 0, 0, 0, 0, 0, // Inode
+		0, 0, 0, 0, // DevMajor
+		0, 0, 0, 0, // DevMinor
+		0, 0, 0, 0, // Mode
+		0, 0, 0, 0, // FFlags
+		0, 0, 0, 0, // ChildPID
+		99, 0, // Comm (nul-terminated)
+	})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		evt, err := ParseRawEvent(data)
+		_ = evt
+		_ = err
+	})
+}
+
