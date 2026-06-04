@@ -1,7 +1,6 @@
 package deception
 
 import (
-	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"log"
@@ -357,6 +356,3 @@ func (om *OverlayManager) Stats() map[string]interface{} {
 		"map_fd":        om.mapFd,
 	}
 }
-
-// Ensure binary is used.
-var _ = binary.MaxVarintLen64

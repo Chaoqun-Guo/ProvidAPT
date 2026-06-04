@@ -1,7 +1,6 @@
 package dist
 
 import (
-	"encoding/binary"
 	"fmt"
 	"sync"
 )
@@ -157,6 +156,3 @@ func (c *Compressor) Stats() map[string]interface{} {
 		"ratio":          fmt.Sprintf("%.1f%%", float64(c.hits)/float64(c.hits+c.misses+1)*100),
 	}
 }
-
-// Ensure binary is used
-var _ = binary.LittleEndian

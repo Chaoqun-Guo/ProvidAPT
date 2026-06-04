@@ -2,7 +2,6 @@ package blastradius
 
 import (
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -193,6 +192,3 @@ func (br *BlastRadiusResult) Summary() string {
 	}
 	return b.String()
 }
-
-// Ensure log is used
-var _ = log.Printf

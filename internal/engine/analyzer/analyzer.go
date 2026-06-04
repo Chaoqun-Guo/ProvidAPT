@@ -18,11 +18,13 @@
 package analyzer
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/sigma"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -83,6 +85,9 @@ type Analyzer struct {
 
 	sketchIntegrator *SketchIntegrator // optional graph sketching
 
+	sigmaRules map[string]*sigma.Rule // rule ID → parsed rule
+	sigmaMu    sync.RWMutex
+
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 }
@@ -92,13 +97,23 @@ func New(graph *provenance.Graph, cfg *Config) *Analyzer {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &Analyzer{
-		graph:   graph,
-		cfg:     cfg,
-		alerts:  make([]*Alert, 0),
-		AlertCh: make(chan *Alert, 128),
-		stopCh:  make(chan struct{}),
+	a := &Analyzer{
+		graph:      graph,
+		cfg:        cfg,
+		alerts:     make([]*Alert, 0),
+		AlertCh:    make(chan *Alert, 128),
+		sigmaRules: make(map[string]*sigma.Rule),
+		stopCh:     make(chan struct{}),
 	}
+	// Load built-in Sigma rules
+	for _, rule := range sigma.DefaultRules() {
+		id := rule.ID
+		if id == "" {
+			id = rule.Title
+		}
+		a.sigmaRules[id] = rule
+	}
+	return a
 }
 
 // Start begins periodic scanning in a background goroutine.
@@ -131,6 +146,38 @@ func (a *Analyzer) Alerts() []*Alert {
 	out := make([]*Alert, len(a.alerts))
 	copy(out, a.alerts)
 	return out
+}
+
+// AddSigmaRule stores a Sigma rule for evaluation during each scan cycle.
+func (a *Analyzer) AddSigmaRule(id string, rule *sigma.Rule) {
+	a.sigmaMu.Lock()
+	defer a.sigmaMu.Unlock()
+	a.sigmaRules[id] = rule
+	log.Printf("[analyzer] sigma rule added: %s (%s)", id, rule.Title)
+}
+
+// RemoveSigmaRule deletes a previously added Sigma rule by ID.
+func (a *Analyzer) RemoveSigmaRule(id string) {
+	a.sigmaMu.Lock()
+	defer a.sigmaMu.Unlock()
+	delete(a.sigmaRules, id)
+	log.Printf("[analyzer] sigma rule removed: %s", id)
+}
+
+// sigmaLevelToSeverity maps a Sigma rule level string to an analyzer Severity.
+func sigmaLevelToSeverity(level string) Severity {
+	switch level {
+	case "critical", "CRITICAL":
+		return SeverityCritical
+	case "high", "HIGH":
+		return SeverityHigh
+	case "medium", "MEDIUM":
+		return SeverityMedium
+	case "low", "LOW":
+		return SeverityLow
+	default:
+		return SeverityMedium
+	}
 }
 
 // ── Scan loop ───────────────────────────────────────────────
@@ -184,6 +231,29 @@ func (a *Analyzer) scan() {
 	}
 	if enabled[PatMemoryAnomaly] {
 		alerts = append(alerts, checkMemoryAnomaly(te)...)
+	}
+
+	// Sigma rules (no taint required — match on node/edge patterns directly)
+	a.sigmaMu.RLock()
+	ruleCount := len(a.sigmaRules)
+	a.sigmaMu.RUnlock()
+
+	if ruleCount > 0 {
+		a.sigmaMu.RLock()
+		for id, rule := range a.sigmaRules {
+			matches := sigma.EvaluateRule(rule, snap.Nodes, snap.Edges)
+			for _, match := range matches {
+				alertNodeID := match[0]
+				alerts = append(alerts, &Alert{
+					Pattern:     PatternID("SIGMA:" + id),
+					Severity:    sigmaLevelToSeverity(rule.Level),
+					Headline:    fmt.Sprintf("[Sigma] %s: matched %d nodes", rule.Title, len(match)),
+					Reason:      fmt.Sprintf("Sigma rule %q matched nodes %v", rule.Title, match),
+					AlertNodeID: alertNodeID,
+				})
+			}
+		}
+		a.sigmaMu.RUnlock()
 	}
 
 	// Attach subgraphs and deduplicate

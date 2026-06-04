@@ -3,7 +3,6 @@ package export
 import (
 	"fmt"
 	"log"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -240,6 +239,3 @@ func (s *Server) stitchEvents(batch []*SocketEvent) {
 	s.stitchedEdges = append(s.stitchedEdges, stitcher.StitchedEdges()...)
 	s.mu.Unlock()
 }
-
-// Ensure sort is used (referenced by future implementation)
-var _ = sort.Ints

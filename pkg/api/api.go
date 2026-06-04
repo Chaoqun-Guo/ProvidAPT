@@ -55,6 +55,7 @@ type Server struct {
 	healthFn   HealthCheckFunc
 	mux        *http.ServeMux
 	startTime  time.Time
+	reloadFn   func() error
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
@@ -74,6 +75,12 @@ func (s *Server) SetHealthFunc(fn HealthCheckFunc) {
 	s.healthFn = fn
 }
 
+// SetReloadHandler registers a config reload callback called by
+// POST /api/v1/admin/reload. Same logic as SIGHUP handling.
+func (s *Server) SetReloadHandler(fn func() error) {
+	s.reloadFn = fn
+}
+
 func (s *Server) Start() error {
 	metrics.MustRegister()
 	log.Printf("[api] listening on %s", s.addr)
@@ -88,6 +95,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/graph/export", s.jsonHandler(s.handleExport))
 	mux.HandleFunc("/api/v1/graph/node/", s.jsonHandler(s.handleNode)) // parsed from path
 	mux.HandleFunc("/api/v1/alerts", s.jsonHandler(s.handleAlerts))
+	mux.HandleFunc("/api/v1/admin/reload", s.jsonHandler(s.handleReload))
 	mux.HandleFunc("/api/v1/", s.notFound)
 	return mux
 }
@@ -264,6 +272,29 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, r *http.Request, path str
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.Write(svg)
 	return nil
+}
+
+// ── Admin: /api/v1/admin/reload ──────────────────────────────
+
+// handleReload triggers a config reload of all components.
+// POST only; returns 405 for other methods.
+func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return fmt.Errorf("use POST for reload (got %s)", r.Method)
+	}
+	if s.reloadFn == nil {
+		w.WriteHeader(http.StatusNotImplemented)
+		return json.NewEncoder(w).Encode(map[string]string{
+			"status": "no reload handler registered",
+		})
+	}
+	if err := s.reloadFn(); err != nil {
+		return fmt.Errorf("reload failed: %w", err)
+	}
+	return json.NewEncoder(w).Encode(map[string]string{
+		"status": "reload triggered",
+	})
 }
 
 // ═══════════════════════════════════════════════════════════════

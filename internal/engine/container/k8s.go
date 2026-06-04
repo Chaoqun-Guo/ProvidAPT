@@ -7,6 +7,7 @@
 package container
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -53,21 +54,28 @@ type PodInfo struct {
 //   - /proc/*/cgroup (process-level cgroup scanning)
 //   - K8s API server (optional, for rich metadata)
 type K8sListener struct {
-	mu      sync.RWMutex
-	podMap  map[uint64]*PodInfo // cgroupID → pod info
-	nsMap   map[string]bool     // known namespaces
-	enabled bool
+	mu           sync.RWMutex
+	podMap       map[uint64]*PodInfo // cgroupID → pod info
+	nsMap        map[string]bool     // known namespaces
+	containerMeta map[string]*containerMeta // namespace/pod/container → image+podUID
+	enabled      bool
 
 	stopCh  chan struct{}
 	wg      sync.WaitGroup
 }
 
+type containerMeta struct {
+	Image  string
+	PodUID string
+}
+
 // NewK8sListener creates a K8s-aware container listener.
 func NewK8sListener() *K8sListener {
 	return &K8sListener{
-		podMap:  make(map[uint64]*PodInfo),
-		nsMap:   make(map[string]bool),
-		stopCh:  make(chan struct{}),
+		podMap:        make(map[uint64]*PodInfo),
+		nsMap:         make(map[string]bool),
+		containerMeta: make(map[string]*containerMeta),
+		stopCh:        make(chan struct{}),
 	}
 }
 
@@ -191,9 +199,8 @@ func (kl *K8sListener) registerPod(namespace, podName, podUID, containerName, me
 
 	kl.mu.Lock()
 	kl.nsMap[namespace] = true
-	// We store by container name for later cgroup resolution
-	_ = image
-	_ = podUID
+	metaKey := namespace + "/" + podName + "/" + containerName
+	kl.containerMeta[metaKey] = &containerMeta{Image: image, PodUID: podUID}
 	kl.mu.Unlock()
 }
 
@@ -271,17 +278,24 @@ func (kl *K8sListener) parseAndMap(pid, cgroupData string) {
 
 		// Resolve pod name from UID via K8s API
 		podName := kl.resolvePodName(podUID)
+
+		// Look up container metadata (image) from pod log scan
+		kl.mu.RLock()
+		img := kl.lookupContainerImage(podUID, podName, containerID)
+		kl.mu.RUnlock()
+
 		kl.mu.Lock()
 		kl.podMap[uint64(parsePID(pid))] = &PodInfo{
 			PodName:      podName,
 			PodUID:       podUID,
 			ContainerID:  containerID,
+			Image:        img,
 			LastSeen:     time.Now(),
 		}
 		kl.mu.Unlock()
 
-		log.Printf("[k8s] mapped PID %s → pod=%s uid=%s container=%.12s",
-			pid, podName, podUID, containerID)
+		log.Printf("[k8s] mapped PID %s → pod=%s uid=%s image=%s container=%.12s",
+			pid, podName, podUID, img, containerID)
 		break
 	}
 }
@@ -295,16 +309,50 @@ func (kl *K8sListener) resolvePodName(podUID string) string {
 		if apiServer != "" {
 			url := fmt.Sprintf("https://%s/api/v1/pods?fieldSelector=metadata.uid%%3D%s",
 				apiServer, podUID)
-			req, _ := http.NewRequest("GET", url, nil)
-			req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(token))
-			// In production, use proper client with TLS
-			_ = req
+			req, err := http.NewRequest("GET", url, nil)
+			if err == nil {
+				req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(token))
+				// Use the default transport (skip TLS verify in dev; use InClusterConfig in prod)
+				tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec
+				cli := &http.Client{Transport: tr, Timeout: 5 * time.Second}
+				if resp, err := cli.Do(req); err == nil {
+					defer resp.Body.Close()
+					var podList struct {
+						Items []struct {
+							Metadata struct {
+								Name string `json:"name"`
+							} `json:"metadata"`
+						} `json:"items"`
+					}
+					if err := json.NewDecoder(resp.Body).Decode(&podList); err == nil && len(podList.Items) > 0 {
+						return podList.Items[0].Metadata.Name
+					}
+				}
+			}
 		}
 	}
 	if len(podUID) > 8 {
 		podUID = podUID[:8]
 	}
 	return "pod-" + podUID
+}
+
+// lookupContainerImage searches containerMeta for the image matching a pod/container.
+func (kl *K8sListener) lookupContainerImage(podUID, podName, containerID string) string {
+	// Try matching by podUID first
+	for metaKey, meta := range kl.containerMeta {
+		if meta.PodUID == podUID {
+			return meta.Image
+		}
+		// Fallback: match by podName in key (format: namespace/podName/containerName)
+		parts := strings.SplitN(metaKey, "/", 3)
+		if len(parts) >= 2 && parts[1] == podName {
+			if len(parts) < 3 || strings.HasPrefix(containerID, parts[2]) {
+				return meta.Image
+			}
+		}
+	}
+	return ""
 }
 
 // ─── Helpers ────────────────────────────────────────────────

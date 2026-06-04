@@ -207,8 +207,7 @@ func (g *Graph) addFileUse(evt *collector.Event, ts time.Time) {
 	proc.upsertAttr("uid", evt.UID)
 	proc.touch(ts)
 
-	fileNode, fileID := g.getOrCreateBaseFileNode(evt, ts)
-	_ = fileNode
+	_, fileID := g.getOrCreateBaseFileNode(evt, ts)
 
 	g.addEdge(ProvUsed, procID, fileID, ts, map[string]interface{}{
 		"f_flags": evt.FFlags,

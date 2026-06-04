@@ -8,9 +8,14 @@
 package pebblestore
 
 import (
+	"errors"
+
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 	"github.com/cilium/ebpf/ringbuf"
 )
+
+// ErrParseFailed is returned when a raw ringbuf record cannot be parsed.
+var ErrParseFailed = errors.New("parse error")
 
 // ─── RingBufferStats ────────────────────────────────────────
 
@@ -68,7 +73,7 @@ func (z *ZeroCopyReader) Read() (*pb.Event, error) {
 	evt := RawEventToProto(record.RawSample)
 	if evt == nil {
 		z.stats.ParseErrors++
-		return nil, ringbuf.ErrClosed // placeholder
+		return nil, ErrParseFailed
 	}
 
 	return evt, nil

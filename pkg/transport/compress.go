@@ -81,7 +81,11 @@ func (c *Compressor) initCodecs() {
 	enc, err := zstd.NewWriter(nil, encOpts...)
 	if err != nil {
 		log.Printf("[compress] encoder init: %v (fallback to no-dict)", err)
-		enc, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(c.level.zstd()))
+		enc, err = zstd.NewWriter(nil, zstd.WithEncoderLevel(c.level.zstd()))
+		if err != nil {
+			log.Printf("[compress] encoder fallback also failed: %v", err)
+			enc = nil
+		}
 	}
 	c.enc = enc
 
@@ -93,7 +97,11 @@ func (c *Compressor) initCodecs() {
 	dec, err := zstd.NewReader(nil, decOpts...)
 	if err != nil {
 		log.Printf("[compress] decoder init: %v (fallback to no-dict)", err)
-		dec, _ = zstd.NewReader(nil)
+		dec, err = zstd.NewReader(nil)
+		if err != nil {
+			log.Printf("[compress] decoder fallback also failed: %v", err)
+			dec = nil
+		}
 	}
 	c.dec = dec
 }
@@ -164,6 +172,9 @@ func (c *Compressor) Compress(data []byte) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.enc == nil {
+		return nil, fmt.Errorf("compressor not initialized")
+	}
 	var buf bytes.Buffer
 	c.enc.Reset(&buf)
 	if _, err := c.enc.Write(data); err != nil {
@@ -185,6 +196,9 @@ func (c *Compressor) Decompress(data []byte) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.dec == nil {
+		return nil, fmt.Errorf("decompressor not initialized")
+	}
 	decoded, err := c.dec.DecodeAll(data, nil)
 	if err != nil {
 		return nil, fmt.Errorf("decompress: %w", err)

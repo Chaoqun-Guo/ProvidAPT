@@ -110,13 +110,12 @@ func (im *IncidentManager) ResolveOld() int {
 
 	now := time.Now()
 	resolved := 0
-	for key, inc := range im.incidents {
+	for _, inc := range im.incidents {
 		if !inc.Resolved && now.Sub(inc.LastSeen) > im.resolveAfter {
 			inc.Resolved = true
 			resolved++
 			log.Printf("[alert] auto-resolved incident %s (%s)", inc.ID, inc.PatternName)
 		}
-		_ = key
 	}
 	return resolved
 }

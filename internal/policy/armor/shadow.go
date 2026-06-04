@@ -3,6 +3,8 @@ package armor
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/exec"
 	"sync"
 	"time"
 )
@@ -107,9 +109,10 @@ func (sm *ShadowMonitor) CheckMapIntegrity(agentPID int) bool {
 
 	allFound := true
 	for _, m := range expectedMaps {
-		// Check via bpftool: bpftool map show name <name>
-		// For now, trust but verify in production
-		_ = m
+		if !checkBPFMapExists(m) {
+			log.Printf("[armor] BPF map %s not found", m)
+			allFound = false
+		}
 	}
 
 	sm.status.MapIntegrity = allFound
@@ -191,6 +194,21 @@ func (sm *ShadowMonitor) BackgroundLoop(stopCh <-chan struct{}, agentPID int) {
 			return
 		}
 	}
+}
+
+// checkBPFMapExists verifies a pinned BPF map exists in bpffs.
+func checkBPFMapExists(name string) bool {
+	// Check /sys/fs/bpf/providapt/<name>
+	path := fmt.Sprintf("/sys/fs/bpf/providapt/%s", name)
+	if _, err := os.Stat(path); err == nil {
+		return true
+	}
+	// Also check bpftool map show as fallback
+	out, err := exec.Command("bpftool", "map", "show", "name", name).Output()
+	if err != nil {
+		return false
+	}
+	return len(out) > 0
 }
 
 // ═══════════════════════════════════════════════════════════════

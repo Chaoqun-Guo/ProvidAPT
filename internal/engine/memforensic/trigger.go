@@ -2,7 +2,6 @@ package memforensic
 
 import (
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -283,6 +282,3 @@ func ValidateConfig(cfg *TriggerConfig) error {
 	}
 	return nil
 }
-
-// Ensure log is used.
-var _ = log.Printf

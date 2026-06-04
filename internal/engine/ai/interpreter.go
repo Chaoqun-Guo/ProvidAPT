@@ -141,8 +141,14 @@ func (lc *LLMClient) sendOpenAI(messages []chatMessage) (string, error) {
 		Messages: messages,
 	}
 
-	data, _ := json.Marshal(req)
-	httpReq, _ := http.NewRequest("POST", lc.cfg.Endpoint, bytes.NewReader(data))
+	data, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("openai marshal: %w", err)
+	}
+	httpReq, err := http.NewRequest("POST", lc.cfg.Endpoint, bytes.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("openai new request: %w", err)
+	}
 	httpReq.Header.Set("Authorization", "Bearer "+lc.cfg.APIKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
@@ -152,7 +158,10 @@ func (lc *LLMClient) sendOpenAI(messages []chatMessage) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("openai read body: %w", err)
+	}
 	var chatResp chatResponse
 	if err := json.Unmarshal(body, &chatResp); err != nil {
 		return "", fmt.Errorf("openai parse: %w (body: %s)", err, string(body))
@@ -170,8 +179,14 @@ func (lc *LLMClient) sendOllama(messages []chatMessage) (string, error) {
 		Stream:   false,
 	}
 
-	data, _ := json.Marshal(req)
-	httpReq, _ := http.NewRequest("POST", lc.cfg.Endpoint, bytes.NewReader(data))
+	data, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("ollama marshal: %w", err)
+	}
+	httpReq, err := http.NewRequest("POST", lc.cfg.Endpoint, bytes.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("ollama new request: %w", err)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := lc.client.Do(httpReq)
@@ -180,7 +195,10 @@ func (lc *LLMClient) sendOllama(messages []chatMessage) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("ollama read body: %w", err)
+	}
 	var ollamaResp ollamaResponse
 	if err := json.Unmarshal(body, &ollamaResp); err != nil {
 		return "", fmt.Errorf("ollama parse: %w (body: %s)", err, string(body))

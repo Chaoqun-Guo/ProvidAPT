@@ -11,8 +11,6 @@
 //	                           Anomaly? → Force full data upload
 package graphsketch
 
-import "time"
-
 // ─────────────────────────────────────────────────────────────────
 // Graph input types
 // ─────────────────────────────────────────────────────────────────
@@ -200,6 +198,3 @@ type UploadPayload struct {
 
 // AnomalyCallback is invoked when the entropy detector finds an anomaly.
 type AnomalyCallback func(result *EntropyResult, vector *GraphFeatureVector)
-
-// Ensure time is imported.
-var _ = time.Now

@@ -1,7 +1,6 @@
 package viz
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -260,6 +259,3 @@ func TestVizIntegration(t *testing.T) {
 
 	t.Log("Visualization integration OK")
 }
-
-// Ensure strings is used
-var _ = strings.Contains

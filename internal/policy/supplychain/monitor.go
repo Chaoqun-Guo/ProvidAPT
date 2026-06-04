@@ -1,8 +1,8 @@
 package supplychain
 
 import (
-	"fmt"
 	"log"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -213,17 +213,45 @@ func inferPackageName(filePath string, installed []string) string {
 }
 
 // queryDpkgVersion reads the version from dpkg's database.
-// In production this shells out to `dpkg -s <pkg>` or reads
-// /var/lib/dpkg/available. Here we use a placeholder.
+// Uses `dpkg -S <path>` to find the owning package, then
+// `dpkg-query -W -f=${Version} <pkg>` to extract the version.
+// Returns empty string if the tool is unavailable or the path is unknown.
 func queryDpkgVersion(filePath string) string {
-	// Production: exec.Command("dpkg", "-S", filePath) or parse /var/lib/dpkg/info/.
-	// For the framework, we return empty to indicate best-effort.
-	return ""
+	// Step 1: find the package that owns this file
+	cmd := exec.Command("dpkg", "-S", filePath)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	// Output format: "package-name: /path/to/file"
+	parts := strings.SplitN(string(out), ":", 2)
+	if len(parts) < 2 {
+		return ""
+	}
+	pkgName := strings.TrimSpace(parts[0])
+	if pkgName == "" {
+		return ""
+	}
+
+	// Step 2: query the installed version
+	verCmd := exec.Command("dpkg-query", "-W", "-f=${Version}", pkgName)
+	verOut, err := verCmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(verOut))
 }
 
 // queryRpmVersion reads the version from rpm's database.
+// Uses `rpm -qf --queryformat %{VERSION} <path>` to get the version directly.
+// Returns empty string if the tool is unavailable or the path is unknown.
 func queryRpmVersion(filePath string) string {
-	return ""
+	cmd := exec.Command("rpm", "-qf", "--queryformat", "%{VERSION}", filePath)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // checkAptSignature verifies that the apt session used signed packages.
@@ -294,6 +322,3 @@ func (pmm *PackageManagerMonitor) Stats() map[string]interface{} {
 		"indexed_files":   len(pmm.fileIndex),
 	}
 }
-
-// Ensure fmt is used.
-var _ = fmt.Sprintf

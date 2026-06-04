@@ -42,7 +42,10 @@ func DropPrivileges() error {
 	if err == nil {
 		gids := make([]int, len(groupIDs))
 		for i, g := range groupIDs {
-			gids[i], _ = strconv.Atoi(g)
+			gids[i], err = strconv.Atoi(g)
+			if err != nil {
+				return fmt.Errorf("parse gid %q: %w", g, err)
+			}
 		}
 		syscall.Setgroups(gids)
 	}

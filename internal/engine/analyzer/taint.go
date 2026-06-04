@@ -90,6 +90,22 @@ func ReloadTaintSeeds(untrusted map[string]bool, network map[string]bool, sensit
 		len(untrusted), len(network), len(sensitive))
 }
 
+// AddUntrustedComm adds a comm to the untrusted list at runtime.
+func AddUntrustedComm(comm string) {
+	taintMu.Lock()
+	defer taintMu.Unlock()
+	untrustedComms[comm] = true
+	log.Printf("[analyzer] added untrusted comm: %s", comm)
+}
+
+// RemoveUntrustedComm removes a comm from the untrusted list at runtime.
+func RemoveUntrustedComm(comm string) {
+	taintMu.Lock()
+	defer taintMu.Unlock()
+	delete(untrustedComms, comm)
+	log.Printf("[analyzer] removed untrusted comm: %s", comm)
+}
+
 // getUntrustedComms returns a thread-safe copy of the untrusted comms map.
 func getUntrustedComms() map[string]bool {
 	taintMu.RLock()
@@ -308,11 +324,10 @@ func (te *TaintEngine) Tainted(id string) *TaintNode {
 // TaintedProcesses returns IDs of all tainted process nodes.
 func (te *TaintEngine) TaintedProcesses() []string {
 	var out []string
-	for id, tn := range te.tainted {
+	for id := range te.tainted {
 		if n, ok := te.nodes[id]; ok && n != nil && n.Subtype == "process" {
 			out = append(out, id)
 		}
-		_ = tn
 	}
 	return out
 }

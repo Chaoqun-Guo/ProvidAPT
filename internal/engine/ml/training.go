@@ -178,7 +178,10 @@ func LoadTrainingData(path string) ([]FeatureVector, error) {
 		}
 		var fv FeatureVector
 		for i := 0; i < int(NumFeatures); i++ {
-			fv[i], _ = strconv.ParseFloat(row[i+1], 64)
+			fv[i], err = strconv.ParseFloat(row[i+1], 64)
+			if err != nil {
+				log.Printf("[ml] parse feature %d: %v", i, err)
+			}
 		}
 		samples = append(samples, fv)
 	}

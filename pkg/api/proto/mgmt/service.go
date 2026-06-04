@@ -7,9 +7,6 @@ import (
 	"context"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
 // ─── ProvidAPTManagement Server ──────────────────────────────
@@ -233,8 +230,3 @@ func (x *providaptAPTTelemetryReportEventsServer) Recv() (*CompressedEvent, erro
 func _ProvidAPTTelemetry_ReportEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(ProvidAPTTelemetryServer).ReportEvents(&providaptAPTTelemetryReportEventsServer{stream})
 }
-
-// Ensure unused imports are satisfied.
-var _ codes.Code
-var _ metadata.MD
-var _ = status.Error

@@ -91,8 +91,15 @@ func main() {
 
 	// Save report
 	if *output != "" {
-		data, _ := json.MarshalIndent(report, "", "  ")
-		_ = os.WriteFile(*output, data, 0644)
+		data, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error marshalling report: %v\n", err)
+			return
+		}
+		if err := os.WriteFile(*output, data, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error saving report: %v\n", err)
+			return
+		}
 		fmt.Printf("\nReport saved: %s\n", clioutput.Okf(*output))
 	}
 
@@ -158,9 +165,6 @@ func loadGraph(path string) *provenance.Graph {
 		clioutput.Fatalf("Parse graph: %v", err)
 	}
 
-	for _, el := range cyto.Elements {
-		_ = el.Data.ID
-	}
 
 	return graph
 }

@@ -8,6 +8,9 @@ import (
 	"time"
 
 	mgmtpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/analyzer"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
 // ─── Server tests ───────────────────────────────────────────
@@ -96,6 +99,11 @@ func TestUpdatePolicySigma(t *testing.T) {
 	cfg.EnableTLS = false
 	s, _ := NewServer(cfg)
 
+	// Attach an analyzer for the sigma rule to be applied
+	g := provenance.NewGraph()
+	anz := analyzer.New(g, nil)
+	s.SetAnalyzer(anz)
+
 	update := &mgmtpb.PolicyUpdate{
 		Update: &mgmtpb.PolicyUpdate_Sigma{
 			Sigma: &mgmtpb.SigmaRule{
@@ -107,6 +115,9 @@ func TestUpdatePolicySigma(t *testing.T) {
 	ack, _ := s.UpdatePolicy(context.Background(), update)
 	if !ack.Success {
 		t.Errorf("sigma update failed: %s", ack.Message)
+	}
+	if ack.Message != "sigma rule rule-001 applied" {
+		t.Errorf("ack message = %q, want %q", ack.Message, "sigma rule rule-001 applied")
 	}
 }
 

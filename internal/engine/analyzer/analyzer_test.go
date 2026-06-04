@@ -3,10 +3,12 @@ package analyzer
 import (
 	"hash/fnv"
 	"testing"
+	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/sigma"
 )
 
 // pathInode returns a deterministic inode for a pathname.
@@ -442,3 +444,90 @@ func TestSeedTaints(t *testing.T) {
 		t.Error("curl should be tainted (network tool)")
 	}
 }
+
+// TestSigmaRuleInAnalyzer verifies that sigma rules added to the
+// analyzer are evaluated during scan() and produce alerts.
+func TestSigmaRuleInAnalyzer(t *testing.T) {
+	g := buildGraph([]*collector.Event{
+		testEvent(syscall.EventProcessExec, 100, 0, "bash", "/usr/bin/bash"),
+		testEvent(syscall.EventFileOpen, 100, 0, "bash", "/etc/shadow"),
+	})
+
+	anz := New(g, &Config{
+		ScanInterval:       1 * time.Hour, // won't fire during test
+		DeepTaintThreshold: 3,
+		EnablePatterns:     []PatternID{},
+	})
+
+	rule, err := sigma.ParseRule([]byte(`
+title: Shadow Access Test
+logsource:
+  category: file_access
+detection:
+  selection:
+    target: /etc/shadow
+  condition: selection
+level: high
+`))
+	if err != nil {
+		t.Fatalf("ParseRule: %v", err)
+	}
+
+	anz.AddSigmaRule("test-shadow-001", rule)
+
+	// Start triggers an immediate scan
+	anz.Start()
+	anz.Stop()
+
+	alerts := anz.Alerts()
+	var sigmaAlerts []*Alert
+	for _, a := range alerts {
+		if len(a.Pattern) > 6 && string(a.Pattern[:6]) == "SIGMA:" {
+			sigmaAlerts = append(sigmaAlerts, a)
+		}
+	}
+
+	if len(sigmaAlerts) == 0 {
+		// Log all alerts for debugging
+		t.Logf("all alerts: %d", len(alerts))
+		for _, a := range alerts {
+			t.Logf("  pattern=%s headline=%s", a.Pattern, a.Headline)
+		}
+		t.Fatal("expected at least one sigma alert for /etc/shadow access")
+	}
+	t.Logf("sigma alerts: %d", len(sigmaAlerts))
+	for _, a := range sigmaAlerts {
+		t.Logf("  [%s] %s", a.Severity, a.Headline)
+	}
+}
+
+// TestAddRemoveSigmaRule verifies that rules can be added and removed.
+func TestAddRemoveSigmaRule(t *testing.T) {
+	g := provenance.NewGraph()
+	anz := New(g, DefaultConfig())
+
+	rule, _ := sigma.ParseRule([]byte(`
+title: Test Rule
+logsource:
+  category: process
+detection:
+  selection:
+    image: bash
+  condition: selection
+level: low
+`))
+
+	anz.AddSigmaRule("test-rule", rule)
+	anz.RemoveSigmaRule("test-rule")
+
+	// After removal, scan should produce no sigma alerts
+	anz.Start()
+	anz.Stop()
+
+	for _, a := range anz.Alerts() {
+		if string(a.Pattern) == "SIGMA:test-rule" {
+			t.Error("sigma alert should not be generated after rule removal")
+		}
+	}
+}
+

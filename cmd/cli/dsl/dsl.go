@@ -274,7 +274,6 @@ func parseFind(l *lexer) (QueryStep, error) {
 		if eq.typ != tokEq {
 			return step, fmt.Errorf("expected = after field name")
 		}
-		_ = eq
 
 		val := l.next()
 		if val.typ != tokString && val.typ != tokNumber && val.typ != tokIdent {

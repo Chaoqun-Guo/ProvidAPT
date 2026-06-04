@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -87,12 +88,16 @@ func (c *Client) flush() {
 
 func (c *Client) sendBatch(batch []*SocketEvent) error {
 	url := c.cfg.ServerAddr + "/api/v1/socket-events"
-	data, _ := json.Marshal(batch)
+	data, err := json.Marshal(batch)
+	if err != nil {
+		return fmt.Errorf("json marshal: %w", err)
+	}
 	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("http post: %w", err)
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned %d", resp.StatusCode)
 	}

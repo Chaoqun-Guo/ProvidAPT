@@ -224,11 +224,14 @@ func (ma *MerkleAnchoring) MaybeAnchor() (*AnchorRecord, error) {
 	}
 
 	// Sign the record
-	data, _ := json.Marshal(map[string]interface{}{
-		"ts":  rec.Timestamp.UnixNano(),
-		"cnt": rec.LeafCount,
+	data, err := json.Marshal(map[string]interface{}{
+		"ts":   rec.Timestamp.UnixNano(),
+		"cnt":  rec.LeafCount,
 		"root": rec.RootHashHex,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal anchor: %w", err)
+	}
 	mac := hmac.New(sha256.New, ma.hmacKey)
 	mac.Write(data)
 	rec.Signature = hex.EncodeToString(mac.Sum(nil))
@@ -236,7 +239,10 @@ func (ma *MerkleAnchoring) MaybeAnchor() (*AnchorRecord, error) {
 	// Persist
 	if ma.store != nil {
 		key := fmt.Sprintf("anchor:%d", rec.Timestamp.UnixNano())
-		val, _ := json.Marshal(rec)
+		val, err := json.Marshal(rec)
+		if err != nil {
+			return nil, fmt.Errorf("marshal record: %w", err)
+		}
 		if err := ma.store.Put(key, val); err != nil {
 			return nil, fmt.Errorf("store anchor: %w", err)
 		}

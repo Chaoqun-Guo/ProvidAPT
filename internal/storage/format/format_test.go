@@ -125,10 +125,16 @@ func TestNewWriterUnknownFormat(t *testing.T) {
 	}
 }
 
-func TestNewWriterParquetNotImplemented(t *testing.T) {
-	_, err := NewWriter(t.TempDir(), "parquet")
-	if err == nil {
-		t.Fatal("expected error for parquet (not implemented)")
+func TestNewWriterParquet(t *testing.T) {
+	w, err := NewWriter(t.TempDir(), "parquet")
+	if err != nil {
+		t.Fatalf("NewWriter(parquet) failed: %v", err)
+	}
+	defer w.Close()
+
+	evt := testEvent()
+	if err := w.Write(evt); err != nil {
+		t.Fatalf("Write failed: %v", err)
 	}
 }
 

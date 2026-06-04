@@ -130,11 +130,10 @@ func (ys *YARAScanner) IsAvailable() bool {
 	if ys.cfg.RulesPath == "" {
 		return false
 	}
-	info, err := exec.LookPath(ys.cfg.RulesPath)
+	_, err := exec.LookPath(ys.cfg.RulesPath)
 	if err != nil {
 		_, err := os.Stat(ys.cfg.RulesPath)
 		return err == nil
 	}
-	_ = info
 	return true
 }

@@ -28,6 +28,7 @@ import (
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/analyzer"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/control"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/sigma"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
 )
 
@@ -275,13 +276,53 @@ func (s *Server) UpdatePolicy(ctx context.Context, update *mgmtpb.PolicyUpdate) 
 	case *mgmtpb.PolicyUpdate_Whitelist:
 		ack.Message = s.applyWhitelistUpdate(u.Whitelist, clientInfo)
 	case *mgmtpb.PolicyUpdate_Sigma:
-		log.Printf("[mgmt] Policy update from %s: sigma rule %s %s (not yet implemented)",
+		log.Printf("[mgmt] Policy update from %s: sigma rule %s %s",
 			clientInfo, u.Sigma.Action, u.Sigma.RuleId)
-		ack.Message = "sigma rule update logged (not yet applied)"
+
+		if s.analyzer == nil {
+			ack.Message = "analyzer not available"
+			break
+		}
+
+		switch u.Sigma.Action {
+		case "add", "update":
+			parsed, err := sigma.ParseRule([]byte(u.Sigma.RuleYaml))
+			if err != nil {
+				ack.Success = false
+				ack.Message = fmt.Sprintf("parse error: %v", err)
+				break
+			}
+			s.analyzer.AddSigmaRule(u.Sigma.RuleId, parsed)
+			ack.Message = fmt.Sprintf("sigma rule %s applied", u.Sigma.RuleId)
+		case "remove":
+			s.analyzer.RemoveSigmaRule(u.Sigma.RuleId)
+			ack.Message = fmt.Sprintf("sigma rule %s removed", u.Sigma.RuleId)
+		default:
+			ack.Success = false
+			ack.Message = fmt.Sprintf("unknown action %q", u.Sigma.Action)
+		}
 	case *mgmtpb.PolicyUpdate_TaintSource:
-		log.Printf("[mgmt] Policy update from %s: taint source %s %s",
-			clientInfo, u.TaintSource.Action, u.TaintSource.IpPrefix)
-		ack.Message = "taint source update logged (requires daemon reload)"
+		log.Printf("[mgmt] Policy update from %s: taint source %s %s (label=%s)",
+			clientInfo, u.TaintSource.Action, u.TaintSource.IpPrefix, u.TaintSource.Label)
+		switch u.TaintSource.Action {
+		case "add":
+			if u.TaintSource.Label != "" {
+				analyzer.AddUntrustedComm(u.TaintSource.Label)
+				ack.Message = fmt.Sprintf("taint source %s added (label=%s)", u.TaintSource.IpPrefix, u.TaintSource.Label)
+			} else {
+				ack.Message = fmt.Sprintf("taint source %s added (no label)", u.TaintSource.IpPrefix)
+			}
+		case "remove":
+			if u.TaintSource.Label != "" {
+				analyzer.RemoveUntrustedComm(u.TaintSource.Label)
+				ack.Message = fmt.Sprintf("taint source %s removed (label=%s)", u.TaintSource.IpPrefix, u.TaintSource.Label)
+			} else {
+				ack.Message = fmt.Sprintf("taint source %s removed", u.TaintSource.IpPrefix)
+			}
+		default:
+			ack.Success = false
+			ack.Message = fmt.Sprintf("unknown taint action %q", u.TaintSource.Action)
+		}
 	default:
 		ack.Success = false
 		ack.Message = "unknown update type"

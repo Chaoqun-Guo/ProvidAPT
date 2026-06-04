@@ -4,6 +4,7 @@ package supportbundle
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,28 +48,38 @@ func Capture(reason string) error {
 }
 
 func writeFile(path, content string) {
-	os.WriteFile(path, []byte(content), 0644)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		log.Printf("[bundle] write %s: %v", path, err)
+	}
 }
 
 func tryWriteFile(path, content string) {
 	if content != "" {
-		os.WriteFile(path, []byte(content), 0644)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			log.Printf("[bundle] write %s: %v", path, err)
+		}
 	}
 }
 
 func writeGoroutines(path string) {
 	buf := make([]byte, 1<<20) // 1 MB
 	n := runtime.Stack(buf, true)
-	os.WriteFile(path, buf[:n], 0644)
+	if err := os.WriteFile(path, buf[:n], 0644); err != nil {
+		log.Printf("[bundle] write goroutines: %v", err)
+	}
 }
 
 func writeBuildInfo(path string) {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		os.WriteFile(path, []byte("(no build info)\n"), 0644)
+		if err := os.WriteFile(path, []byte("(no build info)\n"), 0644); err != nil {
+			log.Printf("[bundle] write buildinfo: %v", err)
+		}
 		return
 	}
-	os.WriteFile(path, []byte(info.String()+"\n"), 0644)
+	if err := os.WriteFile(path, []byte(info.String()+"\n"), 0644); err != nil {
+		log.Printf("[bundle] write buildinfo: %v", err)
+	}
 }
 
 func readConfig() string {

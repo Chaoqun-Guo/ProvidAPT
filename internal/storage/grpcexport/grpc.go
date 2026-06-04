@@ -3,7 +3,12 @@
 package grpcexport
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -131,17 +136,38 @@ func (e *GRPCExporter) flush() {
 		return
 	}
 
-	// In production: use gRPC client stream:
-	//   client, _ := grpc.Dial(e.cfg.RemoteAddr, grpc.WithInsecure())
-	//   stream, _ := pb.NewProvidaptExportClient(client).ExportStream(ctx)
-	//   for _, evt := range batch {
-	//       stream.Send(evt.ToProto())
-	//   }
-	//   stream.CloseAndRecv()
+	if err := e.sendBatch(batch); err != nil {
+		log.Printf("[export] gRPC send error: %v (queued %d events)", err, len(batch))
+		// Re-queue for retry
+		e.mu.Lock()
+		e.buffer = append(e.buffer, batch...)
+		e.mu.Unlock()
+		return
+	}
 
 	e.totalSent += int64(len(batch))
 	log.Printf("[export] sent %d events to %s (total: %d)",
 		len(batch), e.cfg.RemoteAddr, e.totalSent)
+}
+
+// sendBatch posts events to the remote server via HTTP.
+// Uses JSON encoding over HTTP until a protobuf export service is defined.
+func (e *GRPCExporter) sendBatch(batch []*ExportEvent) error {
+	url := fmt.Sprintf("http://%s/api/v1/socket-events", e.cfg.RemoteAddr)
+	data, err := json.Marshal(batch)
+	if err != nil {
+		return fmt.Errorf("json marshal: %w", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("http post: %w", err)
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func (e *GRPCExporter) flushLoop() {

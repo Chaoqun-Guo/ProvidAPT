@@ -356,7 +356,131 @@ func TestBindToNode(t *testing.T) {
 	}
 }
 
-// ─── Detector tests ────────────────────────────────────────────
+func TestBindByPrefix(t *testing.T) {
+	store := NewSBOMStore()
+
+	// Import SPDX with nginx and curl packages
+	_, err := store.ImportSPDX([]byte(`{
+		"spdxId": "SPDXRef-DOCUMENT",
+		"name": "system-sbom",
+		"documentNamespace": "spdx://system",
+		"packages": [
+			{
+				"spdxId": "SPDXRef-nginx",
+				"name": "nginx",
+				"versionInfo": "1.24.0-1",
+				"supplier": "Organization: Debian",
+				"licenseDeclared": "BSD-2-Clause",
+				"checksums": [{"algorithm": "SHA256", "value": "abc123"}],
+				"externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceLocator": "pkg:deb/debian/nginx@1.24.0-1"}]
+			}
+		],
+		"creationInfo": {"created": "2024-01-01T00:00:00Z"}
+	}`), "test")
+	if err != nil {
+		t.Fatalf("ImportSPDX: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		path     string
+		wantPkg  string
+		wantVer  string
+	}{
+		{
+			name:    "system binary exact match",
+			path:    "/usr/bin/nginx",
+			wantPkg: "nginx",
+			wantVer: "1.24.0-1",
+		},
+		{
+			name:    "doc file under nginx package",
+			path:    "/usr/share/doc/nginx/NEWS.gz",
+			wantPkg: "nginx",
+			wantVer: "1.24.0-1",
+		},
+		{
+			name:    "library file suffix match",
+			path:    "/usr/lib/nginx/modules/ngx_http_modsecurity.so",
+			wantPkg: "nginx",
+			wantVer: "1.24.0-1",
+		},
+		{
+			name:     "unrelated file no match",
+			path:     "/usr/bin/python3",
+			wantPkg:  "",
+			wantVer:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// First try ResolveByPath — should fail since no mapping registered
+			entry := store.ResolveByPath(tt.path)
+			if entry != nil {
+				t.Skip("unexpected direct hit — test setup issue")
+			}
+
+			attrs := make(map[string]string)
+			store.BindByPrefix(tt.path, attrs)
+
+			if tt.wantPkg == "" {
+				if len(attrs) > 0 {
+					t.Errorf("expected no attrs, got %v", attrs)
+				}
+				return
+			}
+
+			if attrs["package_name"] != tt.wantPkg {
+				t.Errorf("package_name = %q, want %q", attrs["package_name"], tt.wantPkg)
+			}
+			if attrs["package_version"] != tt.wantVer {
+				t.Errorf("package_version = %q, want %q", attrs["package_version"], tt.wantVer)
+			}
+			if attrs["sbom_ref"] == "" {
+				t.Error("sbom_ref should be set")
+			}
+			if attrs["artifact_hash"] == "" {
+				t.Error("artifact_hash should be set")
+			}
+
+			// Verify path mapping was registered for future lookups
+			if entry := store.ResolveByPath(tt.path); entry == nil {
+				t.Error("expected ResolveByPath to succeed after BindByPrefix")
+			}
+		})
+	}
+}
+
+func TestGuessPackageName(t *testing.T) {
+	tests := []struct {
+		path string
+		want []string
+	}{
+		{"/usr/bin/curl", []string{"curl"}},
+		{"/usr/bin/curl.so", []string{"curl"}},
+		{"/usr/lib/python3/dist-packages/requests/__init__.py", []string{"python3-requests", "requests", "requests"}},
+		{"/usr/lib/python3.11/site-packages/flask/app.py", []string{"python3-flask", "flask", "app", "flask"}},
+		{"/usr/lib/node_modules/express/index.js", []string{"node-express", "express", "express"}},
+		{"/opt/nginx/sbin/nginx", []string{"nginx"}},
+		{"/home/user/random/file.txt", []string{"file", "random"}},
+		{"/usr/share/doc/nginx/NEWS.gz", []string{"NEWS", "nginx"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got := guessPackageCandidates(tt.path)
+			if len(got) != len(tt.want) {
+				t.Errorf("guessPackageCandidates(%q) = %v, want %v", tt.path, got, tt.want)
+				return
+			}
+			for i := range got {
+				if i < len(tt.want) && got[i] != tt.want[i] {
+					t.Errorf("guessPackageCandidates(%q)[%d] = %q, want %q", tt.path, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
 
 func TestNewIllegalSourceDetector(t *testing.T) {
 	pmm := NewPackageManagerMonitor()

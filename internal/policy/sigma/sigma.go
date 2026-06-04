@@ -124,7 +124,7 @@ func (p *SigmaRulePlugin) matchProcess(rule *Rule, nodes []*provenance.Node, edg
 		if n.Subtype != "process" {
 			continue
 		}
-		if !p.matchSelection(sel, n, edges) {
+		if !p.matchSelection(sel, n, nodes, edges) {
 			continue
 		}
 		matches = append(matches, []string{n.ID})
@@ -153,7 +153,7 @@ func (p *SigmaRulePlugin) matchFileAccess(rule *Rule, nodes []*provenance.Node, 
 		if srcNode.Subtype != "process" || tgtNode.Subtype != "file" {
 			continue
 		}
-		if !p.matchSelection(sel, srcNode, edges) {
+		if !p.matchSelection(sel, srcNode, nodes, edges) {
 			continue
 		}
 		if !p.matchTargetSelection(sel, tgtNode) {
@@ -183,7 +183,7 @@ func (p *SigmaRulePlugin) matchNetwork(rule *Rule, nodes []*provenance.Node, edg
 		if srcNode.Subtype != "process" || tgtNode.Subtype != "network" {
 			continue
 		}
-		if !p.matchSelection(sel, srcNode, edges) {
+		if !p.matchSelection(sel, srcNode, nodes, edges) {
 			continue
 		}
 		if !p.matchTargetSelection(sel, tgtNode) {
@@ -201,7 +201,7 @@ func (p *SigmaRulePlugin) matchGeneric(rule *Rule, nodes []*provenance.Node, edg
 		return nil
 	}
 	for _, n := range nodes {
-		if !p.matchSelection(sel, n, edges) {
+		if !p.matchSelection(sel, n, nodes, edges) {
 			continue
 		}
 		matches = append(matches, []string{n.ID})
@@ -211,10 +211,15 @@ func (p *SigmaRulePlugin) matchGeneric(rule *Rule, nodes []*provenance.Node, edg
 
 // ── Selection matching ──────────────────────────────────────
 
-func (p *SigmaRulePlugin) matchSelection(sel map[string]map[string]string, n *provenance.Node, edges []*provenance.Edge) bool {
+func (p *SigmaRulePlugin) matchSelection(sel map[string]map[string]string, n *provenance.Node, nodes []*provenance.Node, edges []*provenance.Edge) bool {
 	for _, criteria := range sel {
 		for field, expected := range criteria {
-			actual := p.fieldValue(n, field, edges)
+			lower := strings.ToLower(field)
+			// Skip target-related fields — they are checked in matchTargetSelection
+			if lower == "target" || lower == "dest" || lower == "dhost" {
+				continue
+			}
+			actual := p.fieldValue(n, field, nodes, edges)
 			if !wildcardMatch(expected, actual) {
 				return false
 			}
@@ -240,7 +245,7 @@ func (p *SigmaRulePlugin) matchTargetSelection(sel map[string]map[string]string,
 }
 
 // fieldValue extracts a Sigma field value from a provenance node.
-func (p *SigmaRulePlugin) fieldValue(n *provenance.Node, field string, edges []*provenance.Edge) string {
+func (p *SigmaRulePlugin) fieldValue(n *provenance.Node, field string, nodes []*provenance.Node, edges []*provenance.Edge) string {
 	switch strings.ToLower(field) {
 	case "image", "process", "commandline":
 		return n.Label
@@ -260,6 +265,19 @@ func (p *SigmaRulePlugin) fieldValue(n *provenance.Node, field string, edges []*
 		if v, ok := n.Attributes["comm"]; ok {
 			return fmt.Sprintf("%v", v)
 		}
+	case "parent":
+		// Walk wasInformedBy edges to find the parent process label.
+		// Edge direction: Source(child) -> wasInformedBy -> Target(parent)
+		for _, e := range edges {
+			if e.Source == n.ID && e.Relation == provenance.ProvWasInformedBy {
+				for _, pn := range nodes {
+					if pn.ID == e.Target {
+						return pn.Label
+					}
+				}
+			}
+		}
+		return ""
 	case "target", "dest", "dhost":
 		return n.Label
 	case "filepath", "path":
@@ -307,6 +325,22 @@ func LoadRules(data []byte) ([]*Rule, error) {
 		return nil, fmt.Errorf("no valid Sigma rules found")
 	}
 	return rules, nil
+}
+
+// EvaluateRule runs a single Sigma rule against node/edge slices
+// without requiring a *provenance.Graph. Useful for analyzer integration.
+func EvaluateRule(rule *Rule, nodes []*provenance.Node, edges []*provenance.Edge) [][]string {
+	p := &SigmaRulePlugin{Name_: "sigma"}
+	switch rule.LogSource.Category {
+	case "process":
+		return p.matchProcess(rule, nodes, edges)
+	case "file_access":
+		return p.matchFileAccess(rule, nodes, edges)
+	case "network":
+		return p.matchNetwork(rule, nodes, edges)
+	default:
+		return p.matchGeneric(rule, nodes, edges)
+	}
 }
 
 // ── Built-in rules ──────────────────────────────────────────

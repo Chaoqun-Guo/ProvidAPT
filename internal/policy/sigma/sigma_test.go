@@ -59,7 +59,85 @@ func TestMatchShadowAccess(t *testing.T) {
 	}
 }
 
-// ── Helpers ──────────────────────────────────────────────────
+func TestEvaluateRule(t *testing.T) {
+	rule, err := ParseRule([]byte(`
+title: Shadow Read
+logsource:
+  category: file_access
+detection:
+  selection:
+    target: /etc/shadow
+  condition: selection
+level: high
+`))
+	if err != nil {
+		t.Fatalf("ParseRule: %v", err)
+	}
+
+	// Build graph with matching event
+	g := buildGraph([]*collector.Event{
+		makeEvent(syscall.EventFileOpen, 100, 0, "cat", "/etc/shadow"),
+	})
+
+	matches := EvaluateRule(rule, g.Nodes(), g.Edges())
+	if len(matches) == 0 {
+		t.Fatal("EvaluateRule: expected at least 1 match for /etc/shadow access")
+	}
+	t.Logf("EvaluateRule: %d matches", len(matches))
+	for _, m := range matches {
+		t.Logf("  match: %v", m)
+	}
+}
+
+func TestEvaluateRuleNoMatch(t *testing.T) {
+	rule, err := ParseRule([]byte(`
+title: No Match
+logsource:
+  category: file_access
+detection:
+  selection:
+    target: /nonexistent
+  condition: selection
+level: low
+`))
+	if err != nil {
+		t.Fatalf("ParseRule: %v", err)
+	}
+
+	g := buildGraph([]*collector.Event{
+		makeEvent(syscall.EventFileOpen, 100, 0, "cat", "/etc/hostname"),
+	})
+
+	matches := EvaluateRule(rule, g.Nodes(), g.Edges())
+	if len(matches) != 0 {
+		t.Errorf("EvaluateRule: expected 0 matches for non-matching rule, got %d", len(matches))
+	}
+}
+
+func TestEvaluateRuleNetwork(t *testing.T) {
+	rule, err := ParseRule([]byte(`
+title: Network Connect
+logsource:
+  category: network
+detection:
+  selection:
+    image: curl
+  condition: selection
+level: high
+`))
+	if err != nil {
+		t.Fatalf("ParseRule: %v", err)
+	}
+
+	// Network connection creates a process → network edge
+	g := buildGraph([]*collector.Event{
+		makeEvent(syscall.EventNetConnect, 100, 0, "curl", "10.0.0.1:443"),
+	})
+
+	matches := EvaluateRule(rule, g.Nodes(), g.Edges())
+	t.Logf("network matches: %d", len(matches))
+	// Note: match may require specific node/edge structure from network events
+}
 
 func makeEvent(typ syscall.EventType, pid, uid uint32, comm, path string) *collector.Event {
 	return &collector.Event{

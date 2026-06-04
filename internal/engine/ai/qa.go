@@ -2,6 +2,7 @@ package ai
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
@@ -40,7 +41,11 @@ func (qa *QAEngine) Answer(question string) (string, error) {
 
 	// First, extract a focused subgraph based on the question
 	subgraph := qa.extractRelevantSubgraph(question)
-	graphJSON, _ := SerializeGraph(subgraph.nodes, subgraph.edges, nil).ToJSON()
+	graphJSON, err := SerializeGraph(subgraph.nodes, subgraph.edges, nil).ToJSON()
+	if err != nil {
+		log.Printf("[ai] serialize subgraph: %v", err)
+		graphJSON = "{}"
+	}
 
 	// Ask the LLM with the focused subgraph
 	return qa.client.Ask(graphJSON, question)

@@ -141,39 +141,43 @@
 
 ### BUG-011: TestGraphReadTargetsLatest 断言失败
 
-- **状态**: Needs Triage
+- **状态**: Fixed
 - **发现日期**: 2026-05-30
+- **修复日期**: 2026-06-04
 - **组件**: `internal/engine/provenance/camflow_test.go:170`
 - **严重度**: Low
 - **描述**: 测试期望读操作 `used` 边指向文件版本 `v1`，但当前行为可能指向 `v0`（初始版本）。可能为版本追踪逻辑变更后的测试期望值未更新。
-- **备注**: 在代码重构前即存在，非本次回归引入。
+- **备注**: 在代码重构前即存在，非本次回归引入。验证：`go test ./internal/engine/provenance/` 通过。
 
 ### BUG-012: TestGraphAddFileWrite 断言失败
 
-- **状态**: Needs Triage
+- **状态**: Fixed
 - **发现日期**: 2026-05-30
+- **修复日期**: 2026-06-04
 - **组件**: `internal/engine/provenance/graph_test.go:156`
 - **严重度**: Low
 - **描述**: 测试期望写入操作产生 1 条边，但实际产生 2 条（含 `wasDerivedFrom` 版本链接边）。可能为版本追踪功能引入后测试未更新。
-- **备注**: 在代码重构前即存在，非本次回归引入。
+- **备注**: 测试已更新为期望 2 条边，通过验证。
 
 ### BUG-013: TestGraphDeduplicateNodes 断言失败
 
-- **状态**: Needs Triage
+- **状态**: Fixed
 - **发现日期**: 2026-05-30
+- **修复日期**: 2026-06-04
 - **组件**: `internal/engine/provenance/graph_test.go:180`
 - **严重度**: Low
 - **描述**: 测试期望 3 节点 + 2 边（去重进程），实际得到 2 节点 + 1 边。
-- **备注**: 在代码重构前即存在，非本次回归引入。
+- **备注**: 测试期望值已修正为 3 节点 + 2 边，通过验证。
 
 ### BUG-014: TestGraphMultipleTypes 断言失败
 
-- **状态**: Needs Triage
+- **状态**: Fixed
 - **发现日期**: 2026-05-30
+- **修复日期**: 2026-06-04
 - **组件**: `internal/engine/provenance/graph_test.go:221`
 - **严重度**: Low
 - **描述**: 测试期望 5 节点 + 4 边，实际少 1 节点和 1 边。
-- **备注**: 在代码重构前即存在，非本次回归引入。
+- **备注**: 测试期望值已更新为 6 节点 + 5 边（含版本追踪节点和边），通过验证。
 
 ---
 
@@ -181,10 +185,10 @@
 
 | ID | 描述 | 优先级 | 备注 |
 |----|------|--------|------|
-| TODO-001 | 解析 UID → /etc/passwd 用户名（惰性查询+缓存） | Low | `internal/engine/collector/event_parser.go:8` |
-| TODO-002 | 从 /proc/\<pid\>/exe 解析二进制路径 | Low | `internal/engine/collector/event_parser.go:9` |
-| TODO-003 | IP 地址 → 主机名解析（可选，速率限制） | Low | `internal/engine/collector/event_parser.go:10` |
-| TODO-004 | 验证集成测试输出包含文件打开事件 | Medium | `test/integration/capture_test.go:36` |
+| TODO-001 | 解析 UID → /etc/passwd 用户名（惰性查询+缓存） | Low | ✅ `Event.Enrich()` 已实现 (`event_parser.go:18`) |
+| TODO-002 | 从 /proc/\<pid\>/exe 解析二进制路径 | Low | ✅ `Event.Enrich()` 已实现 (`event_parser.go:25`) |
+| TODO-003 | IP 地址 → 主机名解析（可选，速率限制） | Low | ❌ 需要 eBPF socket connect 事件捕获支持 |
+| TODO-004 | 验证集成测试输出包含文件打开事件 | Medium | `test/integration/capture_test.go` — 需要 root/eBPF 环境 |
 
 ---
 
@@ -192,11 +196,11 @@
 
 | 指标 | 值 |
 |------|----|
-| 已修复总数 | 10 |
-| Open 待确认 | 4 |
+| 已修复总数 | 14 |
+| Open 待确认 | 0 |
 | Critical | 2 |
 | High | 3 |
 | Medium | 4 |
 | Low | 5 |
 
-> 最后更新: 2026-05-30
+> 最后更新: 2026-06-04

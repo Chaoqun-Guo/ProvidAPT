@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -320,6 +319,3 @@ func TestStitchIntegration(t *testing.T) {
 
 	t.Log("Stitching integration OK")
 }
-
-// Ensure strings is used
-var _ = strings.Contains

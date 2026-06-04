@@ -52,7 +52,6 @@ func Rollback(report *ImpactReport, cfg *RollbackConfig) *RollbackResult {
 			if child.PID == 0 {
 				continue
 			}
-			_ = fmt.Sprintf("kill -9 %d", child.PID)
 			if cfg.DryRun {
 				log.Printf("[heal] DRY-RUN: kill -9 %d (%s)", child.PID, child.Comm)
 				result.ProcessesKilled++

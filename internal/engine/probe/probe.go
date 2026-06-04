@@ -61,10 +61,20 @@ func ParseVersion(s string) (Version, error) {
 		return Version{}, fmt.Errorf("cannot parse version: %s", s)
 	}
 	v := Version{}
-	v.Major, _ = strconv.Atoi(parts[0])
-	v.Minor, _ = strconv.Atoi(parts[1])
+	var err error
+	v.Major, err = strconv.Atoi(parts[0])
+	if err != nil {
+		return Version{}, fmt.Errorf("parse major version %q: %w", parts[0], err)
+	}
+	v.Minor, err = strconv.Atoi(parts[1])
+	if err != nil {
+		return Version{}, fmt.Errorf("parse minor version %q: %w", parts[1], err)
+	}
 	if len(parts) > 2 {
-		v.Patch, _ = strconv.Atoi(parts[2])
+		v.Patch, err = strconv.Atoi(parts[2])
+		if err != nil {
+			return Version{}, fmt.Errorf("parse patch version %q: %w", parts[2], err)
+		}
 	}
 	return v, nil
 }

@@ -145,8 +145,6 @@ func (l *Loader) attachKprobeFallback() ([]link.Link, error) {
 	}
 
 	// Attempt to read kallsyms for verification (non-fatal if unavailable).
-	ks, _ := probe.ReadKallsyms()
-	_ = ks
 
 	var links []link.Link
 	for _, ca := range candidates {
