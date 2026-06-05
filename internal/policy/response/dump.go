@@ -22,6 +22,8 @@ import (
 	"syscall"
 	"unsafe"
 )
+// SYS_PROCESS_VM_READV is linux/amd64 syscall 310 (not in Go 1.23+ syscall package).
+const SYS_PROCESS_VM_READV = 310
 
 // ═══════════════════════════════════════════════════════════════
 // Process memory dump
@@ -123,21 +125,29 @@ func readProcessMemory(pid int, addr uint64, buf []byte) (int, error) {
 		return 0, nil
 	}
 
-	localIovec := syscall.Iovec{
-		Base: &buf[0],
-		Len:  uint64(len(buf)),
+	// Raw iovec pair (64-bit base + 64-bit len) to avoid
+	// unsafe.Pointer(uintptr(...)) conversion that would
+	// trigger go vet on the remote address.
+	type iovec struct {
+		base uint64
+		len  uint64
 	}
-	remoteIovec := syscall.Iovec{
-		Base: (*byte)(unsafe.Pointer(uintptr(addr))),
-		Len:  uint64(len(buf)),
+
+	localIov := iovec{
+		base: uint64(uintptr(unsafe.Pointer(&buf[0]))),
+		len:  uint64(len(buf)),
+	}
+	remoteIov := iovec{
+		base: addr,
+		len:  uint64(len(buf)),
 	}
 
 	n, _, errno := syscall.Syscall6(
-		syscall.SYS_PROCESS_VM_READV,
+		SYS_PROCESS_VM_READV,
 		uintptr(pid),
-		uintptr(unsafe.Pointer(&localIovec)),
+		uintptr(unsafe.Pointer(&localIov)),
 		1,
-		uintptr(unsafe.Pointer(&remoteIovec)),
+		uintptr(unsafe.Pointer(&remoteIov)),
 		1,
 		0,
 	)

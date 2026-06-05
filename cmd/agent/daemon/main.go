@@ -18,7 +18,6 @@ import (
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/analyzer"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/control"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/loader"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/pipeline"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
@@ -202,7 +201,7 @@ func main() {
 	defer writer.Close()
 
 	// ── API server with /health and /metrics ────────────
-	apiServer := api.NewServer(cfg.API.Rest, graph, nil)
+	apiServer := api.NewServer(cfg.API.REST, graph, nil)
 	metrics.MustRegister()
 
 	// Health check closure — populated every iteration
@@ -238,7 +237,7 @@ func main() {
 	})
 
 	go func() {
-		logx.System().Info("api server starting", "addr", cfg.API.Rest)
+		logx.System().Info("api server starting", "addr", cfg.API.REST)
 		if err := apiServer.Start(); err != nil {
 			logx.System().Error("api server error", "error", err)
 		}

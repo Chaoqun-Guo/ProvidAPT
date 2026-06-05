@@ -12,7 +12,6 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/control"
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/probe"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 )
