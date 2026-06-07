@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package collector
 
 import (
@@ -301,6 +304,25 @@ func FuzzParseRawEvent(f *testing.F) {
 		0, 0, 0, 0, // ChildPID
 		99, 0, // Comm (nul-terminated)
 	})
+	f.Add([]byte{}) // empty
+	f.Add([]byte{0xFF, 0xFF, 0xFF, 0xFF}) // minimal garbage
+	f.Add([]byte{
+		0, 0, 0, 0, // Type = 0 (invalid)
+		1, 0, 0, 0, // Flags
+		0, 0, 0, 0, 0, 0, 0, 0, // Timestamp
+		0, 0, 0, 0, // PID = 0
+		0, 0, 0, 0, // TID = 0
+		0, 0, 0, 0, // PPID = 0
+		0, 0, 0, 0, // UID = 0
+		0, 0, 0, 0, // GID = 0
+		0, 0, 0, 0, 0, 0, 0, 0, // Inode
+		0, 0, 0, 0, // DevMajor
+		0, 0, 0, 0, // DevMinor
+		0, 0, 0, 0, // Mode
+		0, 0, 0, 0, // FFlags
+		0, 0, 0, 0, // ChildPID
+	})
+	f.Add(make([]byte, 512)) // large zero-filled
 	f.Fuzz(func(t *testing.T, data []byte) {
 		evt, err := ParseRawEvent(data)
 		_ = evt

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store — zero-copy ring buffer parser.
 //
 // Reads raw bytes directly from the BPF ring buffer (mmap'd memory)

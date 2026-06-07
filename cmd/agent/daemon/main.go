@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build linux
 
 package main
@@ -29,6 +32,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/logx"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
+t"github.com/Chaoqun-Guo/ProvidAPT/pkg/notify"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/sanity"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/secure"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/supportbundle"
@@ -191,6 +195,11 @@ func main() {
 	si := analyzer.NewSketchIntegrator(analyzer.DefaultSketchConfig())
 	apt.SetSketchIntegrator(si)
 	defer si.Stop()
+n	// ── Notification manager ────────────────────────────
+	notifyMgr := initNotifier(cfg)
+	if notifyMgr != nil {
+		defer notifyMgr.Close()
+	}
 
 	// ── Raw event log writer ────────────────────────────
 	writer, err := storage.NewWriter(cfg.Output.Dir, cfg.Output.Format)
@@ -202,6 +211,11 @@ func main() {
 
 	// ── API server with /health and /metrics ────────────
 	apiServer := api.NewServer(cfg.API.REST, graph, nil)
+		apiServer.SetAPIKeyAuth(cfg.API.AuthKeys, cfg.API.AuthEnabled)
+		apiServer.SetCORSOrigins(cfg.API.CORSOrigins)
+		if cfg.API.RateLimitPerSec > 0 {
+			apiServer.SetRateLimit(cfg.API.RateLimitPerSec, cfg.API.RateLimitBurst)
+		}
 	metrics.MustRegister()
 
 	// Health check closure — populated every iteration
@@ -237,9 +251,16 @@ func main() {
 	})
 
 	go func() {
-		logx.System().Info("api server starting", "addr", cfg.API.REST)
-		if err := apiServer.Start(); err != nil {
-			logx.System().Error("api server error", "error", err)
+		if cfg.TLS.Enable {
+			logx.System().Info("api server starting with TLS", "addr", cfg.API.REST)
+			if err := apiServer.StartTLS(cfg.TLS.CertFile, cfg.TLS.KeyFile); err != nil {
+				logx.System().Error("api server error", "error", err)
+			}
+		} else {
+			logx.System().Info("api server starting", "addr", cfg.API.REST)
+			if err := apiServer.Start(); err != nil {
+				logx.System().Error("api server error", "error", err)
+			}
 		}
 	}()
 
@@ -283,7 +304,7 @@ func main() {
 
 	// ── Signals: shutdown (SIGINT/SIGTERM) + reload (SIGHUP) ──
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 
 	logx.System().Info("daemon started",
 		"events", "RingBuf → Pipeline → Graph → Analyzer",
@@ -330,6 +351,18 @@ loop:
 			if alertEnc != nil {
 				if err := alertEnc.Encode(al); err != nil {
 					logx.System().Error("alert write failed", "error", err)
+n				// Dispatch via notification channels
+				if notifyMgr != nil {
+					notifyMgr.Send(notify.Alert{
+						ID:        al.AlertNodeID,
+						Timestamp: al.DetectedAt,
+						Severity:  notify.Severity(al.Severity.String()),
+						Pattern:   string(al.Pattern),
+						Headline:  al.Headline,
+						Reason:    al.Reason,
+						Source:    "analyzer",
+					})
+				}
 				}
 			}
 
@@ -356,6 +389,13 @@ loop:
 			sdNotifyWatchdog()
 
 		case sig := <-sigCh:
+			if sig == syscall.SIGQUIT {
+				logx.System().Info("SIGQUIT received, dumping goroutine stacks")
+				buf := make([]byte, 1<<20)
+				n := runtime.Stack(buf, true)
+				logx.System().Info("goroutine dump", "stack", string(buf[:n]))
+				continue
+			}
 			if sig == syscall.SIGHUP {
 				logx.System().Info("SIGHUP received, reloading config")
 				newCfg, err := config.Load(*configPath)

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store — entity versioning for provenance data.
 //
 // When a file is written and later read, new version nodes are

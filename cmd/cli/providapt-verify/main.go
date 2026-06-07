@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -128,7 +131,7 @@ func main() {
 		if err := os.WriteFile(*output, []byte(report), 0644); err != nil {
 			clioutput.Fatalf("Write report: %v", err)
 		}
-		fmt.Printf("\nReport saved to: %s\n", clioutput.Okf(*output))
+		fmt.Printf("\nReport saved to: %s\n", clioutput.Okf("%s", *output))
 	}
 
 	// Summary
@@ -136,12 +139,12 @@ func main() {
 	t := clioutput.NewTable("Check", "Result")
 	t.AddRow("Files checked", fmt.Sprintf("%d", result.FilesChecked))
 	if result.FilesTampered > 0 {
-		t.AddRow("Tampered files", clioutput.Errf(fmt.Sprintf("%d", result.FilesTampered)))
+		t.AddRow("Tampered files", clioutput.Errf("%s", fmt.Sprintf("%d", result.FilesTampered)))
 	} else {
 		t.AddRow("Tampered files", clioutput.Okf("0"))
 	}
 	if result.AnchorsFailed > 0 {
-		t.AddRow("Anchor failures", clioutput.Errf(fmt.Sprintf("%d", result.AnchorsFailed)))
+		t.AddRow("Anchor failures", clioutput.Errf("%s", fmt.Sprintf("%d", result.AnchorsFailed)))
 	} else {
 		t.AddRow("Anchor failures", clioutput.Okf("0"))
 	}

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package stitch implements cross-host causal chain stitching for ProvidAPT v2.2.
 //
 // Core algorithm:

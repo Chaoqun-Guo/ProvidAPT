@@ -1,0 +1,302 @@
+openapi: "3.0.3"
+info:
+  title: ProvidAPT API
+  description: Provenance-based APT detection and graph analysis API
+  version: "2.0.0"
+  contact:
+    name: ProvidAPT Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://localhost:8080
+    description: TLS-enabled
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns daemon health status including eBPF, pipeline, and store health
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /api/v1/status:
+    get:
+      summary: Daemon status
+      description: Returns running status, node/edge counts, and optional health info
+      operationId: getStatus
+      responses:
+        "200":
+          description: Status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: running
+                  nodes:
+                    type: integer
+                  edges:
+                    type: integer
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/v1/graph/export:
+    get:
+      summary: Export provenance graph
+      description: Returns the graph in Cytoscape.js-compatible JSON format
+      operationId: exportGraph
+      parameters:
+        - name: pid
+          in: query
+          schema:
+            type: string
+          description: Filter by process ID (e.g. "1234")
+      responses:
+        "200":
+          description: Cytoscape.js graph JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CytoMeta"
+                  elements:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CytoElement"
+
+  /api/v1/graph/node/{id}/backward:
+    get:
+      summary: Backward trace
+      description: Trace backward from a node to find ancestor paths
+      operationId: traceBackward
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Node ID
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            default: 5
+          description: Maximum trace depth
+      responses:
+        "200":
+          description: Traced subgraph in Cytoscape.js format
+
+  /api/v1/graph/node/{id}/forward:
+    get:
+      summary: Forward trace
+      description: Trace forward from a node to find descendant paths
+      operationId: traceForward
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Traced subgraph in Cytoscape.js format
+
+  /api/v1/alerts:
+    get:
+      summary: List alerts
+      description: Returns all triggered alerts
+      operationId: listAlerts
+      responses:
+        "200":
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+                  count:
+                    type: integer
+
+  /api/v1/alerts/{id}/svg:
+    get:
+      summary: Alert SVG snapshot
+      description: Returns an SVG visualization of the alert context graph
+      operationId: getAlertSVG
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SVG image
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/admin/reload:
+    post:
+      summary: Reload configuration
+      description: Triggers a hot reload of daemon configuration
+      operationId: reloadConfig
+      responses:
+        "200":
+          description: Reload triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: reload triggered
+        "405":
+          description: Method not allowed (use POST)
+
+  /api/v1/events/search:
+    get:
+      summary: Search events
+      description: Search ingested events by criteria
+      operationId: searchEvents
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search query
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: Search results
+
+  /api/v1/events/recent:
+    get:
+      summary: Recent events
+      description: Returns the most recently ingested events
+      operationId: getRecentEvents
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Recent events list
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Returns Prometheus-format metrics
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus metrics text
+
+  /dashboard:
+    get:
+      summary: Web dashboard
+      description: Live web-based provenance graph dashboard
+      operationId: getDashboard
+      responses:
+        "200":
+          description: HTML dashboard page
+          content:
+            text/html:
+              schema:
+                type: string
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy, unknown]
+        uptime_seconds:
+          type: integer
+        ebpf_collector:
+          type: boolean
+        pipeline_healthy:
+          type: boolean
+        store_healthy:
+          type: boolean
+        events_ingested:
+          type: integer
+        events_dropped:
+          type: integer
+        memory_bytes:
+          type: integer
+        version:
+          type: string
+        sanity_check:
+          type: string
+          enum: [pass, fail]
+
+    CytoMeta:
+      type: object
+      properties:
+        generated:
+          type: string
+          format: date-time
+        node_count:
+          type: integer
+        edge_count:
+          type: integer
+
+    CytoElement:
+      type: object
+      properties:
+        group:
+          type: string
+          enum: [nodes, edges]
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            source:
+              type: string
+            target:
+              type: string
+            label:
+              type: string
+            type:
+              type: string
+            class:
+              type: string

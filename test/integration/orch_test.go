@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -73,7 +76,7 @@ func TestCommands(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestOrchStats(t *testing.T) {
 	pd := orch.NewPolicyDispatcher()
 	pd.RegisterAgent("agent-a")
 	stats := pd.Stats()
@@ -207,7 +210,7 @@ func TestLastSync(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestOrchStats2(t *testing.T) {
 	cps := orch.NewCachedPolicyStore(nil)
 	stats := cps.Stats()
 	if !stats["synced"].(bool) {

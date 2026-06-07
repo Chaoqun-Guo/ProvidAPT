@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package pipeline implements the event processing pipeline for
 // ProvidAPT v2 with causality-preserving data reduction.
 package edgereduce

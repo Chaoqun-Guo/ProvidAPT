@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package benchmark provides a high-throughput event generator that
 // simulates realistic kernel provenance events for performance testing.
 package benchmark

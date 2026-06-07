@@ -1,0 +1,28 @@
+#!/bin/bash
+# ── ProvidAPT Store Backup ────────────────────────────────────
+set -euo pipefail
+
+BACKUP_FILE="{{ backup_temp_dir }}/providapt-$(date +%Y%m%dT%H%M%S).tar.gz"
+LOG_FILE="/var/log/providapt-backup.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${LOG_FILE}"
+}
+
+log "Starting ProvidAPT backup"
+
+# Create backup inside the container
+docker exec {{ providapt_container_name }} \
+    providaptctl -backup -backup-out "${BACKUP_FILE}" \
+    >> "${LOG_FILE}" 2>&1
+
+# Upload to S3
+if [ -f "${BACKUP_FILE}" ]; then
+    aws s3 cp "${BACKUP_FILE}" {{ providapt_backup_bucket }}/ \
+        --sse AES256 >> "${LOG_FILE}" 2>&1
+    rm -f "${BACKUP_FILE}"
+    log "Backup completed and uploaded to {{ providapt_backup_bucket }}"
+else
+    log "ERROR: Backup file not created"
+    exit 1
+fi

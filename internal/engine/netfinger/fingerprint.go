@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package netfinger implements TCP fingerprinting for ProvidAPT v2.1.
 //
 // Extracts TCP initial sequence numbers (ISN) and timestamp options

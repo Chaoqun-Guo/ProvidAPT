@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package clioutput provides shared CLI output formatting for ProvidAPT tools:
 // branded banner, ANSI color helpers, structured JSON output, and table rendering.
 package clioutput

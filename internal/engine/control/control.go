@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package control provides dynamic runtime control over the eBPF
 // kernel programs — allowing userspace to inject PID/path whitelist
 // entries, read taint state, and query sampling statistics without

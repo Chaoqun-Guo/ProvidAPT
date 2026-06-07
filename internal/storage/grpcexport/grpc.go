@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package export implements data export for ProvidAPT v2 including
 // gRPC streaming, CEF/ASIM format integration, and JSON CLI output.
 package grpcexport

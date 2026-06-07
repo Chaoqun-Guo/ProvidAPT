@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -36,7 +39,7 @@ func TestLookupOrEnqueue(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestContainerStats(t *testing.T) {
 	m := container.New()
 	stats := m.Stats()
 	if stats["resolved_containers"] != 0 {
@@ -47,7 +50,7 @@ func TestStats(t *testing.T) {
 func TestResolveProcCgroup(t *testing.T) {
 	m := container.New()
 	// This reads /proc/self/cgroup which exists on container hosts
-	info := m.scanProc(12345678)
+	info := m.LookupOrEnqueue(12345678)
 	if info == nil {
 		t.Log("no container cgroup found (expected on bare metal)")
 	} else {

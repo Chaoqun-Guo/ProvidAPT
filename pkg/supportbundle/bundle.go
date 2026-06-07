@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package supportbundle captures crash-site snapshots for post-mortem
 // analysis on panic, SIGABRT, or watchdog-detected failures.
 package supportbundle

@@ -1,0 +1,69 @@
+# ── Release Pipeline ──────────────────────────────────────────
+# Triggered by git tags matching v* pattern.
+# Uses goreleaser to build, package, and publish binaries.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang llvm libbpf-dev
+
+      - name: Install Syft (SBOM)
+        uses: anchore/sbom-action@v0
+        with:
+          syft-version: latest
+
+      - name: Generate source SBOM
+        run: |
+          syft dir:. --output spdx-json=build/providapt-source.spdx.json
+          syft dir:. --output cyclonedx-json=build/providapt-source.cdx.json
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: build/providapt-*.spdx.json
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: dist/checksums.txt

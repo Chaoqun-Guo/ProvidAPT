@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package detect — weight model and path aggregation for
 // composite alerting.  Each operation type has a base score;
 // when a process's downstream path exceeds the threshold,

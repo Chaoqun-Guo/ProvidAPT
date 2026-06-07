@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package query implements a declarative graph query language (ProvQL)
 // for threat hunting on provenance data.
 //

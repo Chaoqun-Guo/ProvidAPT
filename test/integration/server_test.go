@@ -1,10 +1,12 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
 
 import (
 	"testing"
-	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/stitcher/server"
 )
@@ -128,7 +130,7 @@ func TestEmptyDequeue(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestServerStats(t *testing.T) {
 	eq := server.NewEventQueueManager()
 	eq.Enqueue(&server.QueueEvent{ID: "a", RiskScore: 10})
 	eq.Enqueue(&server.QueueEvent{ID: "b", RiskScore: 20})
@@ -178,14 +180,14 @@ func TestHighLoadTrigger(t *testing.T) {
 	}
 }
 
-func TestRegisterAgent(t *testing.T) {
+func TestServerRegisterAgent(t *testing.T) {
 	lc := server.NewLoadController(nil)
 	lc.RegisterAgent("agent-a")
 	lc.Heartbeat("agent-a")
 	// Should not panic
 }
 
-func TestStats(t *testing.T) {
+func TestServerStats2(t *testing.T) {
 	lc := server.NewLoadController(nil)
 	stats := lc.Stats()
 	if stats["load_level"].(int) != 0 {

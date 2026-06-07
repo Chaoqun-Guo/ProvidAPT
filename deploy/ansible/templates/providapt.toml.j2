@@ -1,0 +1,39 @@
+# ── ProvidAPT Configuration ──────────────────────────────────
+# Managed by Ansible — manual changes will be overwritten.
+
+[output]
+dir = "{{ providapt_data_dir }}"
+format = "json"
+
+[log]
+level = "{{ providapt_log_level }}"
+format = "{{ providapt_log_format }}"
+
+[capture]
+enable_net = {{ providapt_capture_net | lower }}
+enable_file = {{ providapt_capture_file | lower }}
+enable_proc = {{ providapt_capture_proc | lower }}
+sensitive_dir = false
+
+[api]
+rest = "{{ providapt_api_rest }}"
+grpc = "{{ providapt_api_grpc }}"
+auth_enabled = {{ providapt_api_auth_enabled | lower }}
+rate_limit_per_sec = {{ providapt_api_rate_limit }}
+rate_limit_burst = {{ providapt_api_rate_burst }}
+
+{% if providapt_tls_enabled %}
+[tls]
+enable = true
+cert_file = "{{ providapt_tls_cert }}"
+key_file = "{{ providapt_tls_key }}"
+{% endif %}
+
+[analyzer]
+scan_interval = "30s"
+deep_taint_threshold = 5
+
+[taint_secrets]
+untrusted_comms = ["curl", "wget", "nc", "ncat"]
+network_tools = ["nmap", "masscan", "zmap"]
+sensitive_paths = ["/etc/shadow", "/etc/passwd", "/etc/ssh/sshd_config"]

@@ -1,0 +1,20 @@
+# ProvidAPT runtime configuration for Docker deployment
+[output]
+dir = "/var/log/providapt"
+
+[log]
+level = "info"
+
+[api]
+rest = ":8080"
+
+[capture]
+enable_net = true
+enable_file = true
+enable_proc = true
+
+[analyzer]
+scan_interval = "10s"
+
+[license]
+path = "/etc/providapt/license.lic"

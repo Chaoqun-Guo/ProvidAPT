@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package compact implements long-term storage optimisation for
 // ProvidAPT provenance data, enabling 6-month attack backtracking
 // with minimal storage overhead.

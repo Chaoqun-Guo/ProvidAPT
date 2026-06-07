@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package plugin provides the analysis plugin system for ProvidAPT.
 // It defines a Plugin interface and registry, along with concrete
 // plugins for Sigma rule matching, threat intelligence alignment,
@@ -66,6 +69,17 @@ type Plugin interface {
 	Analyse(snap *provenance.Graph) []*Finding
 }
 
+// LifecyclePlugin is an optional interface that plugins can implement
+// alongside Plugin to support initialization and shutdown hooks.
+type LifecyclePlugin interface {
+	// Init is called once when the plugin is loaded. Config is
+	// a plugin-specific key/value map. Return an error to abort.
+	Init(config map[string]interface{}) error
+
+	// Shutdown is called when the plugin is being unloaded.
+	Shutdown() error
+}
+
 // Finding is the result of a plugin analysis.
 type Finding struct {
 	PluginName string                 `json:"plugin"`
@@ -87,11 +101,50 @@ func (f *Finding) String() string {
 // PluginManager orchestrates multiple plugins over a graph snapshot.
 type PluginManager struct {
 	enabled []string
+	configs map[string]map[string]interface{}
 }
 
 // NewManager creates a manager with the given enabled plugin names.
 func NewManager(enabled []string) *PluginManager {
 	return &PluginManager{enabled: enabled}
+}
+
+// SetPluginConfig sets configuration for a named plugin.
+func (pm *PluginManager) SetPluginConfig(name string, cfg map[string]interface{}) {
+	if pm.configs == nil {
+		pm.configs = make(map[string]map[string]interface{})
+	}
+	pm.configs[name] = cfg
+}
+
+// InitAll initializes all enabled plugins that implement LifecyclePlugin.
+// Returns the first initialization error, if any.
+func (pm *PluginManager) InitAll() error {
+	for _, name := range pm.enabled {
+		p := Get(name)
+		if p == nil {
+			continue
+		}
+		if lp, ok := p.(LifecyclePlugin); ok {
+			if err := lp.Init(pm.configs[name]); err != nil {
+				return fmt.Errorf("plugin %q init: %w", name, err)
+			}
+		}
+	}
+	return nil
+}
+
+// ShutdownAll shuts down all enabled plugins that implement LifecyclePlugin.
+func (pm *PluginManager) ShutdownAll() {
+	for _, name := range pm.enabled {
+		p := Get(name)
+		if p == nil {
+			continue
+		}
+		if lp, ok := p.(LifecyclePlugin); ok {
+			lp.Shutdown()
+		}
+	}
 }
 
 // RunAll executes all enabled plugins against the graph snapshot

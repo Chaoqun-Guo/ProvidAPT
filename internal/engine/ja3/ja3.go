@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package ja3 implements TLS fingerprinting for ProvidAPT v2.2.
 //
 // JA3 fingerprint identifies TLS client connections by the cipher

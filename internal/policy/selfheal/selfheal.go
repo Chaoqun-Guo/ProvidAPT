@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package heal implements self-healing and anti-tampering for
 // ProvidAPT v2.  It periodically verifies eBPF program integrity,
 // cleans stale BPF map data, and automatically reloads programs

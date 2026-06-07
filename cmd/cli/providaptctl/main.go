@@ -1,9 +1,13 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -82,6 +86,10 @@ func main() {
 		auditCat    = flag.String("audit-cat", "all", "Audit category: security, admin, system, integrity, all")
 		auditSince  = flag.String("audit-since", "", "Show entries since duration (e.g. 24h, 7d)")
 		auditLimit  = flag.Int("audit-limit", 50, "Max audit entries to show")
+		reload      = flag.Bool("reload", false, "Trigger config reload via daemon API")
+		report      = flag.Bool("report", false, "Generate MITRE ATT&CK heatmap report")
+		reportOut   = flag.String("report-out", "", "Report output path")
+		dashboard   = flag.Bool("dashboard", false, "Live terminal dashboard (real-time monitoring)")
 		bpf         = flag.Bool("bpf", false, "Inspect eBPF state (capabilities, programs, pinned maps)")
 		verify      = flag.Bool("verify", false, "Verify store consistency")
 		verifyRepair = flag.Bool("repair", false, "Repair fixable issues (used with -verify)")
@@ -90,13 +98,28 @@ func main() {
 		purgeCutoff = flag.String("purge-cutoff", "", "Purge cutoff time (RFC3339, e.g. 2026-01-01T00:00:00Z)")
 		purgeMax    = flag.Int64("purge-maxbytes", 0, "Target remaining bytes for capacity mode")
 		purgeDryRun = flag.Bool("purge-dry-run", false, "Preview purge without deleting")
+		replay      = flag.Bool("replay", false, "Replay events from NDJSON logs")
+		replayInput = flag.String("replay-input", "", "Input directory with NDJSON files (default: output dir)")
+		replayMax   = flag.Int("replay-max", 0, "Max events to replay (0 = unlimited)")
+		archive     = flag.Bool("archive", false, "Archive old event logs")
+		archiveDir  = flag.String("archive-dir", "", "Input directory with NDJSON files (default: output dir)")
+		archiveAge  = flag.Int("archive-age", 7, "Archive files older than N days")
+		archiveDryRun = flag.Bool("archive-dry-run", false, "Preview archive without archiving")
+		genrules    = flag.Bool("genrules", false, "Generate Prometheus alert rules")
+		genrulesOut = flag.String("genrules-out", "", "Output path for rules file")
+		profileFlag = flag.Bool("profile", false, "Collect performance profile")
+		backupFlag   = flag.Bool("backup", false, "Backup store to tar.gz archive")
+		backupOut    = flag.String("backup-out", "", "Backup output path (.tar.gz)")
+		restoreFlag  = flag.Bool("restore", false, "Restore store from tar.gz backup")
+		restoreIn    = flag.String("restore-in", "", "Backup input path (.tar.gz)")
+		configCheck  = flag.Bool("config-check", false, "Validate config file and exit")
 	)
 	flag.Usage = usage
 	flag.Parse()
 
 	clioutput.Init(*jsonOut)
 
-	hasAction := *status || *stop || *restart || *diagnose || *bpf || *verify || *purge || *audit
+	hasAction := *status || *stop || *restart || *reload || *report || *dashboard || *diagnose || *bpf || *verify || *purge || *audit || *replay || *archive || *genrules || *profileFlag || *backupFlag || *restoreFlag || *configCheck
 	if !hasAction {
 		flag.Usage()
 		os.Exit(1)
@@ -111,6 +134,13 @@ func main() {
 		cmdStop(*cfgPath)
 	case *restart:
 		cmdRestart(*cfgPath)
+	case *reload:
+		cmdReload(*cfgPath)
+	case *report:
+		outDir := resolveOutputDir(*cfgPath)
+		cmdReport(outDir, *reportOut)
+	case *dashboard:
+		cmdDashboard(*cfgPath)
 	case *audit:
 		cmdAudit(*cfgPath, *auditCat, *auditSince, *auditLimit)
 		os.Exit(0)
@@ -123,6 +153,23 @@ func main() {
 		cmdDiagnose(*diagnoseOut)
 	case *purge:
 		cmdPurge(*cfgPath, *purgeMode, *purgeCutoff, *purgeMax, *purgeDryRun)
+	case *replay:
+		cmdReplay(*cfgPath, *replayInput, *replayMax)
+	case *archive:
+		cmdArchive(*cfgPath, *archiveDir, *archiveAge, *archiveDryRun)
+	case *genrules:
+		cmdGenRules(*genrulesOut)
+	case *profileFlag:
+		cmdProfile(*jsonOut)
+	case *configCheck:
+		cmdConfigCheck(*cfgPath)
+		os.Exit(0)
+	case *backupFlag:
+		cmdBackup(*cfgPath, *backupOut)
+		os.Exit(0)
+	case *restoreFlag:
+		cmdRestore(*cfgPath, *restoreIn)
+		os.Exit(0)
 	}
 }
 
@@ -214,9 +261,9 @@ func cmdStatus(cfgPath string) {
 	t.AddRow("State", info.State)
 	t.AddRow("Process", info.Comm)
 	if info.ConfigOK {
-		t.AddRow("Config", clioutput.Okf(info.ConfigPath))
+		t.AddRow("Config", clioutput.Okf("%s", info.ConfigPath))
 	} else {
-		t.AddRow("Config", clioutput.Warnf(info.ConfigPath+" (not found)"))
+		t.AddRow("Config", clioutput.Warnf("%s (not found)", info.ConfigPath))
 	}
 	if info.Pidfile != "" {
 		t.AddRow("PID file", info.Pidfile)
@@ -286,6 +333,46 @@ func cmdRestart(cfgPath string) {
 			Category: audit.CatAdmin,
 			Severity: "INFO",
 			Message:  "Daemon restarted",
+			Source:   "cli",
+		})
+		as.Close()
+	}
+}
+
+// cmdReload triggers a config reload by sending POST to the daemon API.
+func cmdReload(cfgPath string) {
+	clioutput.Printf("%s\n", clioutput.Infof("Reloading daemon configuration..."))
+
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		clioutput.Fatalf("Config load failed: %v", err)
+	}
+
+	apiAddr := cfg.API.REST
+	if apiAddr == "" {
+		apiAddr = "http://:8080"
+	} else if !strings.HasPrefix(apiAddr, "http") {
+		apiAddr = "http://" + apiAddr
+	}
+
+	url := apiAddr + "/api/v1/admin/reload"
+	resp, err := http.Post(url, "application/json", nil)
+	if err != nil {
+		clioutput.Fatalf("Reload request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotImplemented {
+		clioutput.Printf("%s\n", clioutput.Okf("Config reload triggered"))
+	} else {
+		clioutput.Printf("%s\n", clioutput.Warnf("Reload returned %d", resp.StatusCode))
+	}
+
+	if as := auditStore(cfgPath); as != nil {
+		as.Log(audit.Entry{
+			Category: audit.CatAdmin,
+			Severity: "INFO",
+			Message:  "Config reload triggered",
 			Source:   "cli",
 		})
 		as.Close()

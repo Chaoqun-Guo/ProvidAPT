@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package alert provides optimized alerting with incident clustering,
 // topology-based risk scoring, and context-enriched reports.
 package incident

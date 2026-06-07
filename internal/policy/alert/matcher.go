@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package alert provides advanced alerting for ProvenAPT with
 // graph pattern matching, incident aggregation, and context-aware
 // summaries for webhook delivery.

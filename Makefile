@@ -106,6 +106,47 @@ staticcheck:
 	staticcheck ./cmd/... ./internal/... ./pkg/...
 	@echo "✓ staticcheck passed"
 
+# ── SBOM generation ──────────────────────────────────────
+.PHONY: sbom sbom-syft
+
+SBOM_OUT ?= build
+
+sbom: sbom-syft
+	@echo "✓ SBOM generated in $(SBOM_OUT)/"
+
+sbom-syft:
+	@if command -v syft &>/dev/null; then \
+		syft dir:. --output spdx-json=$(SBOM_OUT)/providapt-source.spdx.json; \
+		syft dir:. --output cyclonedx-json=$(SBOM_OUT)/providapt-source.cdx.json; \
+		echo "✓ syft SBOM: $(SBOM_OUT)/providapt-source.spdx.json"; \
+	else \
+		echo "syft not installed. Install from https://github.com/anchore/syft"; \
+		exit 1; \
+	fi
+
+# ── Fuzz testing ──────────────────────────────────────────
+.PHONY: fuzz fuzz-short
+
+FUZZ_TIME ?= 15s
+
+fuzz-short:
+	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=10s ./internal/engine/collector/
+	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=10s ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=10s ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=10s ./pkg/config/
+	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=10s ./internal/engine/taint/
+	$(GO) test -fuzz=FuzzParseQuery -fuzztime=10s ./internal/engine/query/
+	@echo "✓ Fuzz testing passed"
+
+fuzz:
+	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=$(FUZZ_TIME) ./internal/engine/collector/
+	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=$(FUZZ_TIME) ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=$(FUZZ_TIME) ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) ./pkg/config/
+	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=$(FUZZ_TIME) ./internal/engine/taint/
+	$(GO) test -fuzz=FuzzParseQuery -fuzztime=$(FUZZ_TIME) ./internal/engine/query/
+	@echo "✓ Fuzz testing passed"
+
 ext-test:
 	$(GO) test -v -count=1 ./internal/engine/edgereduce/... ./internal/engine/graphquery/... ./internal/engine/profile/... ./internal/engine/ratelimit/... ./internal/storage/schema/... ./internal/storage/pebblestore/... ./internal/storage/grpcexport/... ./internal/policy/rulescanner/... ./internal/policy/selfheal/...
 

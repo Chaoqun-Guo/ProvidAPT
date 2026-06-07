@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package probe detects kernel capabilities at runtime and selects
 // the optimal eBPF attachment mode.  It supports automatic fallback
 // from fentry/fexit to kprobe/kretprobe to tracepoint-only mode,

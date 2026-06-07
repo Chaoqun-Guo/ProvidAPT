@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package cache provides an LRU (Least Recently Used) cache for
 // provenance graph nodes.  Hot/active nodes stay in memory; cold nodes
 // are evicted to a persistent store.

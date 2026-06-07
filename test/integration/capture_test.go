@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -12,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	evtsyscall "github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // TestCaptureFileOpen verifies that ProvidAPT captures file open events.
@@ -69,7 +72,7 @@ func TestCaptureFileOpen(t *testing.T) {
 			if err := json.Unmarshal([]byte(line), &evt); err != nil {
 				continue
 			}
-			if evt.Type == int(collector.EventFileOpen) && strings.Contains(evt.Pathname, "/etc/hostname") {
+			if evt.Type == int(evtsyscall.EventFileOpen) && strings.Contains(evt.Pathname, "/etc/hostname") {
 				found = true
 				return fmt.Errorf("stop walk") // break out of Walk
 			}

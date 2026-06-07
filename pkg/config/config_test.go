@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package config
 
 import (
@@ -330,6 +333,12 @@ http_addr = ":8080"
 `))
 	f.Add([]byte("invalid toml [[["))
 	f.Add([]byte(""))
+	f.Add([]byte("[api]\nrest = \":8080\"\n[tls]\nenable = true\ncert_file = \"/certs/cert.pem\"\nkey_file = \"/certs/key.pem\""))
+	f.Add([]byte("[capture]\nmax_events = 99999\nenable_net = true\nenable_file = false\nenable_proc = true"))
+	f.Add([]byte("[analyzer]\nscan_interval = \"0s\"\ndeep_taint_threshold = -1"))
+	f.Add([]byte("[storage]\nencrypt = true"))
+	f.Add([]byte("[kernel]\nverbose = true\nhooks = [\"file_open\", \"socket_connect\", \"nonexistent_hook\"]"))
+	f.Add([]byte("\x00\x00\x00"))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		tmp := filepath.Join(t.TempDir(), "providapt.toml")
 		if err := os.WriteFile(tmp, data, 0644); err != nil {

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package purge provides secure data destruction for ProvidAPT's PebbleDB store.
 // It supports three modes: by time range, by capacity threshold, and compliance wipe.
 package purge

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store implements an asynchronous RocksDB (Pebble) writer
 // for ProvidAPT v2.  It reads events from the BPF ring buffer,
 // converts them to protobuf-encoded Node/Edge records, and writes

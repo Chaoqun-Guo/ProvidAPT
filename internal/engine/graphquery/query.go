@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package query provides a high-level query interface for the
 // ProvidAPT v2 storage layer.  It supports:
 //

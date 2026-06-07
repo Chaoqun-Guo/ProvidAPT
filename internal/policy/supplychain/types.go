@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package supplychain implements supply-chain provenance tracking for ProvidAPT v2.2.
 //
 // It provides three capabilities:

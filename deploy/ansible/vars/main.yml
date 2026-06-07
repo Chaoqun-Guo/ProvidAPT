@@ -1,0 +1,50 @@
+# ── ProvidAPT Ansible Variables ─────────────────────────────────
+# Default variables shared across all hosts.
+
+# ---- Environment ----
+environment: prod
+deploy_uid: 950
+deploy_gid: 950
+
+# ---- Kernel settings ----
+kernel_modules:
+  - bpf
+  - xdp
+
+kernel_params:
+  - name: kernel.bpf_stats_enabled
+    value: 1
+
+# ---- Docker ----
+docker_compose_version: v2.27.0
+
+# ---- ProvidAPT container settings ----
+providapt_container_name: providapt
+providapt_restart_policy: unless-stopped
+providapt_privileged: true
+providapt_network_mode: host
+
+providapt_volumes:
+  - /sys:/sys:ro
+  - /sys/kernel/btf:/sys/kernel/btf:ro
+  - /sys/fs/bpf:/sys/fs/bpf:rw
+  - /proc:/host/proc:ro
+  - /lib/modules:/lib/modules:ro
+  - "{{ providapt_data_dir }}:{{ providapt_data_dir }}"
+  - "{{ providapt_config_path }}:/etc/providapt/providapt.toml:ro"
+
+providapt_env:
+  PROVIDAPT_LOG_LEVEL: "{{ providapt_log_level }}"
+  PROVIDAPT_OUTPUT_DIR: "{{ providapt_data_dir }}"
+  PROVIDAPT_API_REST: "{{ providapt_api_rest }}"
+  PROVIDAPT_API_AUTH_ENABLED: "{{ providapt_api_auth_enabled | string }}"
+
+# ---- Monitoring ----
+prometheus_version: latest
+grafana_version: latest
+grafana_admin_password: admin
+
+# ---- Backup ----
+backup_script_path: /usr/local/bin/providapt-backup.sh
+backup_temp_dir: /tmp/providapt-backups
+cron_file: /etc/cron.d/providapt-backup

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package analyzer implements APT detection logic on top of the
 // provenance graph.  It follows the approaches described in:
 //

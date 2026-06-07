@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package deception implements active defense through honeytoken
 // deception. It injects phantom sensitive files into directory
 // listings (via overlayfs mounts), monitors for access to these

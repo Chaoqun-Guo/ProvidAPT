@@ -1,0 +1,60 @@
+# ── ProvidAPT Ansible Inventory ─────────────────────────────────
+# Basic inventory for provisioning ProvidAPT nodes.
+# Usage:
+#   ansible-playbook -i inventory.yml playbook.yml
+
+all:
+  children:
+    providapt:
+      hosts:
+        providapt-01:
+          ansible_host: 10.0.1.100
+          ansible_user: ubuntu
+          # ansible_ssh_private_key_file: ~/.ssh/providapt-key.pem
+
+        providapt-02:
+          ansible_host: 10.0.1.101
+          ansible_user: ubuntu
+
+    monitoring:
+      hosts:
+        monitor-01:
+          ansible_host: 10.0.1.200
+          ansible_user: ubuntu
+
+  vars:
+    # Common connection settings
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+    ansible_python_interpreter: /usr/bin/python3
+
+    # ProvidAPT configuration
+    providapt_config_path: /etc/providapt/providapt.toml
+    providapt_data_dir: /var/log/providapt
+    providapt_version: v1.0.2
+    providapt_image: ghcr.io/chaoqun-guo/providapt
+
+    # API settings
+    providapt_api_rest: ":8080"
+    providapt_api_grpc: ":50051"
+    providapt_api_auth_enabled: true
+    providapt_api_rate_limit: 100
+    providapt_api_rate_burst: 200
+
+    # TLS (optional)
+    providapt_tls_enabled: false
+    # providapt_tls_cert: /etc/providapt/certs/server.crt
+    # providapt_tls_key: /etc/providapt/certs/server.key
+
+    # Capture settings
+    providapt_capture_net: true
+    providapt_capture_file: true
+    providapt_capture_proc: true
+
+    # Logging
+    providapt_log_level: info
+    providapt_log_format: json
+
+    # Backup
+    providapt_backup_enabled: true
+    providapt_backup_bucket: s3://providapt-prod-backups
+    providapt_backup_schedule: "0 3 * * *"

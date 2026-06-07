@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package certauth provides automated CA and certificate generation for
 // ProvidAPT's mTLS communication layer. All operations use crypto/x509
 // from the Go standard library — zero external dependencies.

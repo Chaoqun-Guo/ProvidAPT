@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package viz provides a lightweight visualization backend for ProvidAPT v2.1.
 //
 // Features:

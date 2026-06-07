@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package api
 
 import (
@@ -191,7 +194,7 @@ func TestAlertsEndpoint(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	ts := testServer(t)
-	handler := corsMiddleware(ts.mux)
+	handler := corsMiddleware([]string{"*"})(ts.mux)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodOptions, "/api/v1/status", nil)

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rn \"return nil$\" --include=\"*.go\" internal/ pkg/ cmd/)",
+      "Bash(sed -i '/for id, tn := range te.tainted {/,/^[[:space:]]*}/{ *)",
+      "Bash(sed -i '/for key, inc := range im.incidents {/,/^[[:space:]]*}/{ *)",
+      "Bash(sed -i '/fileNode, fileID := g.getOrCreateBaseFileNode\\(evt, ts\\)/,/^[[:space:]]*_ = fileNode$/{ *)",
+      "Bash(sed -i '/info, err := exec.LookPath/,/^[[:space:]]*_ = info$/{ *)",
+      "Bash(sed -i '/ks, _ := probe.ReadKallsyms\\(\\)/,/^[[:space:]]*_ = ks$/d' internal/engine/loader/loader.go)",
+      "Bash(sed -i '/^[[:space:]]*_ = key$/d' internal/policy/alert/incident.go)",
+      "Bash(sed -i '/^[[:space:]]*_ = tn$/d' internal/engine/analyzer/taint.go)",
+      "Bash(sed -i 's/data, _ := json.Marshal\\(map\\\\[string\\\\]interface{}{/data, err := json.Marshal\\(map[string]interface{}{/' pkg/secure/merkle.go)",
+      "Bash(sed -i '/^[[:space:]]*mac := hmac.New/a\\\\\\\\tif err != nil {\\\\n\\\\t\\\\treturn nil, fmt.Errorf\\(\"marshal anchor: %w\", err\\)\\\\n\\\\t}' pkg/secure/merkle.go)",
+      "Bash(sed -i 's/val, _ := json.Marshal\\(rec\\)/val, err := json.Marshal\\(rec\\)/' pkg/secure/merkle.go)",
+      "Bash(sed -i '/^[[:space:]]*if ma.store != nil {/a\\\\\\\\t\\\\tif err != nil {\\\\n\\\\t\\\\t\\\\treturn nil, fmt.Errorf\\(\"marshal record: %w\", err\\)\\\\n\\\\t\\\\t}' pkg/secure/merkle.go)",
+      "Bash(sed -i 's/^tif err != nil {/\\\\tif err != nil {/' pkg/secure/merkle.go)",
+      "Bash(sed -i 's/^t\\\\tif err != nil {/\\\\t\\\\tif err != nil {/' pkg/secure/merkle.go)",
+      "Bash(sed -i 's/val, err := json.Marshal\\(rec\\)/val, err2 := json.Marshal\\(rec\\)/' pkg/secure/merkle.go)",
+      "Bash(sed -i '227s/data, _ := json.Marshal\\(/data, err := json.Marshal\\(/' pkg/secure/merkle.go)",
+      "Bash(sed -i '239s/val, _ := json.Marshal\\(rec\\)/val, err := json.Marshal\\(rec\\)/' pkg/secure/merkle.go)",
+      "Bash(sed -i '181s/fv\\\\[i\\\\], _ = strconv.ParseFloat/fv[i], err := strconv.ParseFloat/;181s/64$/64\\)\\\\n\\\\t\\\\t\\\\tif err != nil {\\\\n\\\\t\\\\t\\\\t\\\\tlog.Printf\\(\"[ml] parse feature value: %v \\(row=%d, col=%d\\)\", err, i+1, i\\)\\\\n\\\\t\\\\t\\\\t}/' internal/engine/ml/training.go)",
+      "Bash(sed -i '45s/gids\\\\[i\\\\], _ = strconv.Atoi\\(g\\)/gids[i], err := strconv.Atoi\\(g\\); if err != nil { return fmt.Errorf\\(\"parse gid %q: %w\", g, err\\) }/' pkg/secure/privdrop.go)",
+      "Bash(sed -i '64s/v.Major, _ = strconv.Atoi\\(parts\\\\[0\\\\]\\)/v.Major, err = strconv.Atoi\\(parts[0]\\); if err != nil { return Version{}, fmt.Errorf\\(\"parse major: %w\", err\\) }/' internal/engine/probe/probe.go)",
+      "Bash(python3 -c ' *)",
+      "Bash(python -c ' *)",
+      "Bash(py --version)",
+      "Bash(powershell -Command \"Get-Command python -ErrorAction SilentlyContinue; Get-Command python3 -ErrorAction SilentlyContinue\")",
+      "Bash(\"C:\\\\Users\\\\guocq317\\\\anaconda3\\\\python.exe\" c:/Users/guocq317/Downloads/ProvidAPT/.claude/fix_errors.py)"
+    ]
+  }
+}

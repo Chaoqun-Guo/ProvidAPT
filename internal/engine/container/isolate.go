@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package container — multi-tenant isolation analysis.
 //
 // Detects unexpected inter-pod communications (lateral movement)

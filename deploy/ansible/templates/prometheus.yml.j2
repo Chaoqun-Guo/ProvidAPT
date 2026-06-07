@@ -1,0 +1,36 @@
+# ── Prometheus Configuration for ProvidAPT ────────────────────
+# Managed by Ansible — manual changes will be overwritten.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "{{ environment }}"
+
+rule_files:
+  - /etc/prometheus/providapt_alerts.yml
+
+scrape_configs:
+  - job_name: "providapt"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+{% for host in groups['providapt'] %}
+        - "{{ hostvars[host].ansible_host | default(host) }}:{{ providapt_api_rest | regex_replace(':', '') }}"
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: "([^:]+):.*"
+        replacement: "$1"
+
+  - job_name: "node"
+    static_configs:
+      - targets:
+{% for host in groups['providapt'] %}
+        - "{{ hostvars[host].ansible_host | default(host) }}:9100"
+{% endfor %}
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

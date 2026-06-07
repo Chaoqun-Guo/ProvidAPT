@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // ProvidAPT v2 — Storage Layer Integration
 //
 // Demonstrates: Protobuf schema → RocksDB Key Schema →

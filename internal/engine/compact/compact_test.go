@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package compact
 
 import (
@@ -146,7 +149,7 @@ func TestCombine(t *testing.T) {
 	if result.StorageSaved <= 0 {
 		t.Error("no storage saved")
 	}
-	t.Logf(result.Summary())
+	t.Logf("%s", result.Summary())
 }
 
 // ── Tiering tests ──────────────────────────────────────────

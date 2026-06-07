@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package threatintel provides threat intelligence alignment for
 // provenance data.  It maintains a local cache of known-bad IPs,
 // domains, and file hashes, and can synchronise with MISP or other

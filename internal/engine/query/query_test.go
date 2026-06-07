@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package query
 
 import (
@@ -318,6 +321,14 @@ func FuzzParseQuery(f *testing.F) {
 	f.Add("MATCH (a)-[:CONNECTED]->(b) RETURN a, b")
 	f.Add("")
 	f.Add("INVALID QUERY")
+	f.Add("MATCH ()-->() RETURN")
+	f.Add("MATCH (n) RETURN n")
+	f.Add("MATCH (a)-[r]->(b) WHERE a.id > 10 RETURN a, b")
+	f.Add("MATCH (a:Process) WHERE a.name CONTAINS 'bash' RETURN a")
+	f.Add("MATCH (a)-[:USED|:WROTE|:READ]->(b) RETURN a, b")
+	f.Add("RETURN 1")
+	f.Add("MATCH (n) WHERE n.x IN [1,2,3] RETURN n")
+	f.Add(string([]byte{0xFF, 0xFE, 0xFD}))
 	f.Fuzz(func(t *testing.T, input string) {
 		q, err := Parse(input)
 		_ = q

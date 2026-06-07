@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package identity implements user identity association for ProvidAPT.
 // It tracks login sessions, propagates identity across process trees,
 // and enriches the provenance graph with who-did-what attribution.

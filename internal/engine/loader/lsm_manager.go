@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package loader
 
 // lsm_manager.go — Manages per-hook enable/disable at runtime.

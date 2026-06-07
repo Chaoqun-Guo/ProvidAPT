@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package predict
 
 import (
@@ -204,7 +207,7 @@ func TestPredictIntegration(t *testing.T) {
 	de := NewDefenseEngine()
 	recs := de.Recommend(g, "p:101", "bash", 101)
 	t.Logf("=== Recommendations ===")
-	t.Logf(FormatRecommendations(recs))
+	t.Logf("%s", FormatRecommendations(recs))
 
 	t.Log("=== Prediction Integration Complete ===")
 }

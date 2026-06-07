@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package diagnose collects system diagnostics into a tar.gz archive
 // for troubleshooting ProvidAPT deployments.
 package diagnose

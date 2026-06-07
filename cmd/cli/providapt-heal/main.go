@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -78,7 +81,7 @@ func main() {
 
 	// Phase 1: Impact assessment
 	fmt.Println(clioutput.Bold("Phase 1: Impact Assessment"))
-	fmt.Printf("  Analyzing impact from %s...\n\n", clioutput.Infof(startNode))
+	fmt.Printf("  Analyzing impact from %s...\n\n", clioutput.Infof("%s", startNode))
 
 	report := heal.AssessImpact(graph, startNode, *maxDepth)
 
@@ -100,7 +103,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error saving report: %v\n", err)
 			return
 		}
-		fmt.Printf("\nReport saved: %s\n", clioutput.Okf(*output))
+		fmt.Printf("\nReport saved: %s\n", clioutput.Okf("%s", *output))
 	}
 
 	// Phase 2: Rollback

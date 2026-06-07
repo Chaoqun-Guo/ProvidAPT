@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package taint implements dynamic taint tracking for ProvidAPT v2.1.
 //
 // Taint sources:  socket_read from non-internal IPs
@@ -99,6 +102,23 @@ func DefaultConfig() *Config {
 		TaintDecayAfter: 30 * time.Minute,
 		EnableAlerting:  true,
 	}
+}
+
+// MatchTaint performs case-insensitive pattern matching for taint rules.
+// Patterns ending with "*" use prefix matching; otherwise exact match.
+// Returns true if value matches the pattern.
+func MatchTaint(pattern, value string) bool {
+	if pattern == "" {
+		return false
+	}
+	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
+		prefix := pattern[:len(pattern)-1]
+		if len(value) < len(prefix) {
+			return false
+		}
+		return strings.EqualFold(value[:len(prefix)], prefix)
+	}
+	return strings.EqualFold(value, pattern)
 }
 
 // ═══════════════════════════════════════════════════════════════

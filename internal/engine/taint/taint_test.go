@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package taint
 
 import (
@@ -363,11 +366,30 @@ func TestTaintIntegration(t *testing.T) {
 	}
 }
 
+// FuzzMatchTaint fuzzes MatchTaint with arbitrary pattern and value strings.
+func FuzzMatchTaint(f *testing.F) {
+	f.Add("/etc/shadow", "/etc/shadow")
+	f.Add("/etc/*", "/etc/shadow")
+	f.Add("openssl", "OpenSSL")
+	f.Add("", "anything")
+	f.Add("*", "")
+	f.Add("/etc/*", "/etc")
+	f.Add(string(make([]byte, 100)), string(make([]byte, 50)))
+	f.Fuzz(func(t *testing.T, pattern, value string) {
+		_ = MatchTaint(pattern, value)
+	})
+}
+
 // FuzzTaintStringMethods fuzzes taint string matching functions with arbitrary inputs.
 func FuzzTaintStringMethods(f *testing.F) {
 	f.Add("/etc/shadow", "10.0.0.1", "openssl")
 	f.Add("/random/path", "1.2.3.4", "unknown-cmd")
 	f.Add("", "", "")
+	f.Add("/etc/passwd", "192.168.1.1", "bash")
+	f.Add("/tmp/test", "10.0.0.0", "nc")
+	f.Add("/proc/1/root", "::1", "python3")
+	f.Add("\x00/etc/shadow\x00", "999.999.999.999", "")
+	f.Add(string(make([]byte, 1000)), string(make([]byte, 100)), string(make([]byte, 100)))
 	f.Fuzz(func(t *testing.T, path, ip, cmd string) {
 		te := New(nil)
 		sensitive := te.IsSensitivePath(path)

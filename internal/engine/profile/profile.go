@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package profile provides built-in performance statistics for
 // ProvidAPT v2, covering kernel eBPF overhead, RocksDB throughput,
 // and overall system resource usage.

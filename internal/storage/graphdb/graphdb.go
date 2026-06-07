@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store implements the central server storage layer for ProvidAPT v2.2.
 //
 // Features:

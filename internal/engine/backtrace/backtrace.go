@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package backtrace implements retrospective provenance tracing.
 //
 // Given a suspicious file inode or process PID, it walks backward

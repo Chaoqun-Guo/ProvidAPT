@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package audit provides a persistent audit logging framework for
 // security-relevant and administrative events. Entries are stored as
 // newline-delimited JSON (NDJSON) for easy querying and forwarding.
@@ -38,17 +41,18 @@ type Entry struct {
 
 // Store persists audit entries to an NDJSON file and maintains a
 // bounded in-memory buffer for efficient recent-entry queries.
+// The on-disk file is automatically rotated when it exceeds MaxFileSize.
 type Store struct {
-	mu       sync.Mutex
-	f        *os.File
-	path     string
-	entries  []Entry
-	maxSize  int
+	mu          sync.Mutex
+	f           *os.File
+	path        string
+	entries     []Entry
+	maxSize     int
+	maxFileSize int64  // bytes; 0 = no rotation
+	maxBackups  int    // number of rotated files to retain
 }
 
 // New creates or opens an audit store at <dir>/audit.ndjson.
-// The directory is created if it does not exist. Existing audit
-// entries are replayed into the in-memory buffer on startup.
 func New(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("audit mkdir: %w", err)
@@ -61,10 +65,12 @@ func New(dir string) (*Store, error) {
 	}
 
 	s := &Store{
-		f:       f,
-		path:    path,
-		entries: make([]Entry, 0, 1024),
-		maxSize: 10000,
+		f:           f,
+		path:        path,
+		entries:     make([]Entry, 0, 1024),
+		maxSize:     10000,
+		maxFileSize: 100 * 1024 * 1024, // 100 MB default
+		maxBackups:  3,
 	}
 
 	// Replay existing entries into memory.
@@ -96,6 +102,15 @@ func (s *Store) Log(entry Entry) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// Rotate if current file exceeds maxFileSize.
+	if s.maxFileSize > 0 {
+		if fi, _ := s.f.Stat(); fi != nil && fi.Size() > s.maxFileSize {
+			if err := s.rotate(); err != nil {
+				fmt.Fprintf(os.Stderr, "audit rotate warning: %v\n", err)
+			}
+		}
+	}
 
 	if _, err := s.f.Write(data); err != nil {
 		return fmt.Errorf("audit write: %w", err)
@@ -162,6 +177,59 @@ func (s *Store) Close() error {
 	if s.f != nil {
 		return s.f.Close()
 	}
+	return nil
+}
+
+// rotate closes the current file, renames it with a timestamp suffix,
+// opens a new file, and cleans up old backups.
+func (s *Store) rotate() error {
+	// Close current file.
+	if err := s.f.Close(); err != nil {
+		return fmt.Errorf("close audit: %w", err)
+	}
+
+	// Rename with timestamp.
+	timestamp := time.Now().UTC().Format("20060102T150405")
+	rotatedPath := s.path + "." + timestamp
+	if err := os.Rename(s.path, rotatedPath); err != nil {
+		return fmt.Errorf("rename audit: %w", err)
+	}
+
+	// Open new file.
+	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		// Try to restore the old file.
+		os.Rename(rotatedPath, s.path)
+		return fmt.Errorf("open new audit: %w", err)
+	}
+	s.f = f
+
+	// Clean up old backups beyond maxBackups.
+	if s.maxBackups > 0 {
+		dir := filepath.Dir(s.path)
+		base := filepath.Base(s.path)
+		entries, _ := os.ReadDir(dir)
+		var backups []string
+		for _, e := range entries {
+			if !e.IsDir() && len(e.Name()) > len(base) && e.Name()[:len(base)] == base && e.Name()[len(base)] == '.' {
+				backups = append(backups, filepath.Join(dir, e.Name()))
+			}
+		}
+		// Sort by name (which includes timestamp, making it chronological).
+		// Remove oldest beyond maxBackups.
+		for len(backups) > s.maxBackups {
+			// Find the oldest (sorted by name = oldest timestamp)
+			oldest := 0
+			for i := 1; i < len(backups); i++ {
+				if backups[i] < backups[oldest] {
+					oldest = i
+				}
+			}
+			os.Remove(backups[oldest])
+			backups = append(backups[:oldest], backups[oldest+1:]...)
+		}
+	}
+
 	return nil
 }
 

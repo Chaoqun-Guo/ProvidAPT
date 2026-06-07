@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package syscall
 
 // Event flag bits (matches EV_FLAG_* in kernel/include/providapt.h)

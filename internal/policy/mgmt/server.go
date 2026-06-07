@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package mgmt implements the ProvidAPT v2.1 remote management
 // architecture with gRPC, dynamic policy delivery, and mTLS.
 package mgmt

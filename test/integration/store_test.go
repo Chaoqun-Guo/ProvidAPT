@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -91,7 +94,7 @@ func TestInsertSubgraph(t *testing.T) {
 		t.Fatalf("InsertSubgraph: %v", err)
 	}
 
-	stats := db.(*store.MemGraphDB).Stats()
+	stats := db.Stats()
 	if stats["nodes"].(int) != 2 {
 		t.Errorf("nodes = %d", stats["nodes"])
 	}
@@ -170,7 +173,7 @@ func TestGlobalBacktrack(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestStoreStats2(t *testing.T) {
 	gi := store.NewGlobalIndex()
 	gi.IndexNode(&store.GlobalNode{ID: "p:1", HostID: "h1"})
 	gi.IndexNode(&store.GlobalNode{ID: "p:2", HostID: "h2"})
@@ -237,7 +240,7 @@ func TestTick(t *testing.T) {
 	lm.Tick()
 }
 
-func TestStats(t *testing.T) {
+func TestStoreStats3(t *testing.T) {
 	lm := store.NewLifecycleManager(nil)
 	stats := lm.Stats()
 	if stats["hot_retention_days"].(int) != 7 {

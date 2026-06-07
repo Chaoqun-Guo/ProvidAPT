@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package ml provides machine learning-based anomaly detection for
 // provenance graphs.  It extracts structural features from subgraphs
 // and uses an Isolation Forest / statistical model to identify

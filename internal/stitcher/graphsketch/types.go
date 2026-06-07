@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package graphsketch computes lightweight graph feature vectors (sketches)
 // from provenance graphs for local anomaly detection and compressed upload
 // to the central server for global clustering analysis.

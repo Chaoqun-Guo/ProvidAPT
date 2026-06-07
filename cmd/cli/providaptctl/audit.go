@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -86,9 +89,9 @@ func cmdAudit(cfgPath, catFilter, sinceDuration string, limit int) {
 func severityColor(s string) string {
 	switch s {
 	case "CRITICAL":
-		return clioutput.Errf(s)
+		return clioutput.Errf("%s", s)
 	case "WARNING":
-		return clioutput.Warnf(s)
+		return clioutput.Warnf("%s", s)
 	default:
 		return s
 	}

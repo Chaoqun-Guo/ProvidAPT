@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -6,7 +9,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -142,7 +144,7 @@ func TestMultipleStitches(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestStitchStats(t *testing.T) {
 	st := stitch.NewStitchTable()
 	st.RecordOutbound(flowID("1", "2", 1, 2, 1, 1), "a", 1, "p1", "1", "2", 1, 2, false, "")
 
@@ -264,7 +266,7 @@ func TestQueryByFlow(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestStitchStats2(t *testing.T) {
 	cs := stitch.NewCentralServer()
 	stats := cs.Stats()
 	if stats["stitch_edges"].(int) != 0 {

@@ -1,0 +1,41 @@
+# ── Backup configuration tasks ─────────────────────────────────
+
+- name: Create backup script directory
+  ansible.builtin.file:
+    path: "{{ backup_temp_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "{{ backup_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install cron job for daily backup
+  ansible.builtin.cron:
+    name: "providapt daily backup"
+    user: root
+    job: "{{ backup_script_path }} >> /var/log/providapt-backup.log 2>&1"
+    minute: "0"
+    hour: "3"
+    state: present
+
+- name: Create logrotate config for backup logs
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/providapt-backup
+    content: |
+      /var/log/providapt-backup.log {
+        daily
+        rotate 7
+        compress
+        missingok
+        notifempty
+      }
+    owner: root
+    group: root
+    mode: "0644"

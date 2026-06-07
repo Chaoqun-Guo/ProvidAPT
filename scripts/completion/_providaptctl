@@ -1,0 +1,49 @@
+#compdef providaptctl
+
+# ProvidAPT CLI zsh completion
+# Install: providaptctl completion zsh > /usr/local/share/zsh/site-functions/_providaptctl
+
+_providaptctl() {
+    local -a args
+    local -a subcmds
+
+    args=(
+        '(-status)'{-status}'[Query daemon status]'
+        '(-stop)'{-stop}'[Stop the daemon]'
+        '(-restart)'{-restart}'[Restart the daemon]'
+        '(-reload)'{-reload}'[Trigger config reload]'
+        '(-diagnose)'{-diagnose}'[Collect diagnostic bundle]'
+        '(-bpf)'{-bpf}'[Inspect eBPF state]'
+        '(-verify)'{-verify}'[Verify store consistency]'
+        '(-purge)'{-purge}'[Purge stored data]'
+        '(-audit)'{-audit}'[Query audit log]'
+        '(-replay)'{-replay}'[Replay events from NDJSON]'
+        '(-archive)'{-archive}'[Archive old event logs]'
+        '(-genrules)'{-genrules}'[Generate Prometheus alert rules]'
+        '(-profile)'{-profile}'[Collect performance profile]'
+        '(-report)'{-report}'[Generate MITRE ATT&CK heatmap]'
+        '(-dashboard)'{-dashboard}'[Live terminal dashboard]'
+        {--json}'[Output in JSON format]'
+        {--config}'[Config file path]:config file:_files'
+        {--diagnose-out}'[Diagnostic output directory]:directory:_files -/'
+        {--purge-mode}'[Purge mode]:mode:(time capacity compliance)'
+        {--purge-cutoff}'[Purge cutoff time (RFC3339)]:cutoff:'
+        {--purge-maxbytes}'[Target remaining bytes]:bytes:'
+        {--purge-dry-run}'[Preview purge without deleting]'
+        {--audit-cat}'[Audit category]:category:(security admin system integrity all)'
+        {--audit-since}'[Show entries since]:duration:(1h 6h 24h 7d 30d)'
+        {--audit-limit}'[Max entries]:count:(10 50 100 500 1000)'
+        {--repair}'[Repair fixable issues]'
+        {--replay-input}'[Input directory]:directory:_files -/'
+        {--replay-max}'[Max events]:count:(100 1000 10000)'
+        {--archive-dir}'[Input directory]:directory:_files -/'
+        {--archive-age}'[Archive files older than N days]:days:(1 7 14 30 90)'
+        {--archive-dry-run}'[Preview archive]'
+        {--genrules-out}'[Output path for rules]:file:_files'
+        {--report-out}'[Report output path]:file:_files'
+    )
+
+    _arguments -w -S -s $args
+}
+
+_providaptctl "$@"

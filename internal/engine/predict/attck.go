@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package predict implements a prediction engine for ProvidAPT that
 // helps security teams stay ahead of attackers.  It provides:
 //

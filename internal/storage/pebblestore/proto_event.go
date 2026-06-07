@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store — Protobuf-based Event serialization.
 //
 // Replaces JSON encoding with Protocol Buffers for a 40%+ reduction

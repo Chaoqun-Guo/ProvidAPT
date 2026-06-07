@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package adaptive implements the adaptive collection engine for
 // ProvidAPT.  It dynamically adjusts per-process monitoring levels
 // based on risk assessment from the analysis engine.

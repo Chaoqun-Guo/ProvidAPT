@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package secure provides forensic-grade storage security for
 // ProvidAPT provenance data.  It implements:
 //

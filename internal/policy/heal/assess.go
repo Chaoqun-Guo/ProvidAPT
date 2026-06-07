@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package heal provides system self-healing capabilities for
 // ProvidAPT.  Given a malicious process node, it can:
 //

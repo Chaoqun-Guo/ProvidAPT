@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Code generated hand-written gRPC service definitions for ProvidAPT mgmt proto.
 // Equivalent to what protoc-gen-go-grpc would generate.
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -134,7 +137,7 @@ func TestRecord(t *testing.T) {
 	}
 }
 
-func TestStats(t *testing.T) {
+func TestJA3Stats(t *testing.T) {
 	js := ja3.NewJA3Store()
 	js.Record(&ja3.JA3Record{JA3: "known-hash", SourceHost: "h1"})
 	js.Record(&ja3.JA3Record{JA3: "00000000deadbeef", SourceHost: "h2"})
@@ -227,7 +230,7 @@ func TestMixedJAHosts(t *testing.T) {
 		stats["ja3_fingerprints"], stats["c2_clusters"], stats["alerts"])
 }
 
-func TestStats(t *testing.T) {
+func TestJA3Stats2(t *testing.T) {
 	cc := ja3.NewCentralCorrelator()
 	stats := cc.Stats()
 	if stats["ja3_fingerprints"].(int) != 0 {

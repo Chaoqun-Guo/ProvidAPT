@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package export implements the gRPC-based telemetry export and
 // cross-host correlation for ProvidAPT.
 //

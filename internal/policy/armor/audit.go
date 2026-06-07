@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package armor provides anti-rootkit defence mechanisms for
 // ProvidAPT's eBPF monitoring infrastructure.
 //

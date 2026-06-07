@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package honeypot implements kernel-level decoy paths (honey inodes)
 // for ProvidAPT active defense.  These are virtual file paths that
 // appear attractive to attackers but do not exist in the filesystem.

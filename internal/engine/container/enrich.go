@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package container — async enrichment of container metadata.
 //
 // Before data enters RocksDB, this module attaches K8s metadata

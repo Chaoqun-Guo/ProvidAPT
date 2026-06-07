@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package config
 
 import (
@@ -38,8 +41,13 @@ type Config struct {
 	} `json:"capture" yaml:"capture"`
 
 	API struct {
-		GRPC string `json:"grpc" yaml:"grpc"`
-		REST string `json:"rest" yaml:"rest"`
+		GRPC           string   `json:"grpc" yaml:"grpc"`
+		REST           string   `json:"rest" yaml:"rest"`
+		AuthEnabled    bool     `json:"auth_enabled" yaml:"auth_enabled"`
+		AuthKeys       []string `json:"auth_keys" yaml:"auth_keys"`
+		RateLimitPerSec float64 `json:"rate_limit_per_sec" yaml:"rate_limit_per_sec"`
+		RateLimitBurst int      `json:"rate_limit_burst" yaml:"rate_limit_burst"`
+		CORSOrigins    []string `json:"cors_origins" yaml:"cors_origins"`
 	} `json:"api" yaml:"api"`
 
 	TLS struct {
@@ -66,6 +74,18 @@ type Config struct {
 		NetworkTools   []string `json:"network_tools" yaml:"network_tools"`
 		SensitivePaths []string `json:"sensitive_paths" yaml:"sensitive_paths"`
 	} `json:"taint_secrets" yaml:"taint_secrets"`
+		Notify struct {
+			SlackWebhook  string   `json:"slack_webhook" yaml:"slack_webhook"`
+			SlackChannel  string   `json:"slack_channel" yaml:"slack_channel"`
+			SMTPAddr      string   `json:"smtp_addr" yaml:"smtp_addr"`
+			SMTPUser      string   `json:"smtp_user" yaml:"smtp_user"`
+			SMTPPass      string   `json:"smtp_pass" yaml:"smtp_pass"`
+			EmailFrom     string   `json:"email_from" yaml:"email_from"`
+			EmailTo       []string `json:"email_to" yaml:"email_to"`
+			WebhookURL    string   `json:"webhook_url" yaml:"webhook_url"`
+			WebhookSecret string   `json:"webhook_secret" yaml:"webhook_secret"`
+			MinInterval   string   `json:"min_interval" yaml:"min_interval"`
+		} `json:"notify" yaml:"notify"`
 
 	License struct {
 		Path string `json:"path" yaml:"path"`
@@ -127,13 +147,16 @@ func DefaultConfig() *Config {
 	c.Capture.EnableProc = true
 	c.API.GRPC = ":50051"
 	c.API.REST = ":8080"
+	c.API.RateLimitPerSec = 100
+	c.API.RateLimitBurst = 200
+	c.API.CORSOrigins = []string{"*"}
 	return c
 }
 
 // Load reads configuration from a YAML or JSON file.
 // Falls back to defaults if the file doesn't exist.
 // After loading, applies PROVIDAPT_* environment variable overrides,
-// then validates the result.
+// resolves env: prefixed secrets, then validates the result.
 func Load(path string) (*Config, error) {
 	cfg := DefaultConfig()
 
@@ -141,6 +164,7 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			applyEnvOverrides(cfg)
+			resolveSecrets(cfg)
 			return cfg, nil
 		}
 		return nil, fmt.Errorf("read config: %w", err)
@@ -152,12 +176,38 @@ func Load(path string) (*Config, error) {
 	}
 
 	applyEnvOverrides(cfg)
+	resolveSecrets(cfg)
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
 	return cfg, nil
+}
+
+// resolveSecrets replaces "env:SOME_VAR" values with the actual environment
+// variable content. This allows sensitive config fields (passwords, keys)
+// to reference environment variables instead of plaintext in the config file.
+func resolveSecrets(cfg *Config) {
+	resolveSecretString(&cfg.Notify.SMTPPass, "PROVIDAPT_NOTIFY_SMTP_PASS")
+	resolveSecretString(&cfg.Notify.WebhookSecret, "PROVIDAPT_NOTIFY_WEBHOOK_SECRET")
+}
+
+func resolveSecretString(field *string, envKey string) {
+	if field == nil {
+		return
+	}
+	// Check for env: prefix
+	if len(*field) > 4 && (*field)[:4] == "env:" {
+		envVar := (*field)[4:]
+		if val, ok := os.LookupEnv(envVar); ok {
+			*field = val
+		}
+		// Also check PROVIDAPT_ fallback for backward compat
+		if val, ok := os.LookupEnv(envKey); ok && *field != "" {
+			*field = val
+		}
+	}
 }
 
 // Validate checks configuration values and returns an error for invalid values.
@@ -214,8 +264,12 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Capture.SensitiveDir, "PROVIDAPT_CAPTURE_SENSITIVE_DIR")
 	overrideBool(&cfg.Storage.Encrypt, "PROVIDAPT_STORAGE_ENCRYPT")
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
+	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
 
 	overrideInt(&cfg.Capture.MaxEvents, "PROVIDAPT_CAPTURE_MAX_EVENTS")
+	overrideInt(&cfg.API.RateLimitBurst, "PROVIDAPT_API_RATE_LIMIT_BURST")
+
+	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
 }
 
 func overrideString(field *string, envKey string) {
@@ -233,6 +287,14 @@ func overrideBool(field *bool, envKey string) {
 func overrideInt(field *int, envKey string) {
 	if v, ok := os.LookupEnv(envKey); ok {
 		if n, err := strconv.Atoi(v); err == nil {
+			*field = n
+		}
+	}
+}
+
+func overrideFloat(field *float64, envKey string) {
+	if v, ok := os.LookupEnv(envKey); ok {
+		if n, err := strconv.ParseFloat(v, 64); err == nil {
 			*field = n
 		}
 	}

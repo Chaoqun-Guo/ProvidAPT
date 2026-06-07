@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -6,7 +9,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"testing"
-	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/transport"
 )

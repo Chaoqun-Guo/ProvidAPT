@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // cluster-test-harness — HTTP/JSON API wrapping all v2.2 components
 // for the Python integration test script.
 //

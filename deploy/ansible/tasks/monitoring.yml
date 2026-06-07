@@ -1,0 +1,54 @@
+# ── Monitoring agent tasks (for the monitoring host) ──────────
+
+- name: Create Prometheus configuration directory
+  ansible.builtin.file:
+    path: /etc/prometheus
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart prometheus
+
+# Prometheus is managed via docker-compose on the monitoring host
+- name: Deploy Prometheus container
+  community.docker.docker_container:
+    name: prometheus
+    image: "prom/prometheus:{{ prometheus_version }}"
+    state: started
+    restart_policy: always
+    network_mode: host
+    volumes:
+      - /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+
+- name: Deploy Grafana container
+  community.docker.docker_container:
+    name: grafana
+    image: "grafana/grafana:{{ grafana_version }}"
+    state: started
+    restart_policy: always
+    network_mode: host
+    env:
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+
+- name: Deploy Prometheus alerting rules
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../helm/providapt/files/providapt_alerts.yml"
+    dest: /etc/prometheus/providapt_alerts.yml
+    owner: root
+    group: root
+    mode: "0644"
+  when: false  # Adjust path as needed

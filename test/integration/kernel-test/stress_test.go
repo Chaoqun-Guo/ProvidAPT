@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // stress_test — kernel compatibility stress test
 //
 // Tests ProvidAPT under high load:

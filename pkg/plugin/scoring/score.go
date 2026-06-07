@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package scoring implements a multi-dimensional risk scoring system
 // for provenance subgraphs.  Each suspicious node contributes to one
 // or more scoring dimensions; the combined score determines the

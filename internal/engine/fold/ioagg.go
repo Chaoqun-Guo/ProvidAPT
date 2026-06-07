@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package fold implements kernel-side event folding for ProvidAPT v2.1.
 //
 // Reduces ring buffer pressure by aggregating high-frequency I/O events

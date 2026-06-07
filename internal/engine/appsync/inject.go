@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package appsync implements application-layer provenance enhancement
 // for ProvidAPT.  It uses eBPF uprobes to instrument common applications
 // (Nginx, Apache, MySQL, Go programs) and correlates application-level

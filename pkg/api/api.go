@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package api provides a lightweight HTTP API for the ProvidAPT
 // provenance graph, supporting Cytoscape.js-compatible graph export,
 // interactive node backtracking, and alert SVG snapshots.
@@ -10,6 +13,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
@@ -48,14 +52,18 @@ type HealthCheckFunc func() HealthStatus
 // ═══════════════════════════════════════════════════════════════
 
 type Server struct {
-	addr       string
-	graph      *provenance.Graph
-	store      *store.Store
-	backtracer *backtrace.Backtracer
-	healthFn   HealthCheckFunc
-	mux        *http.ServeMux
-	startTime  time.Time
-	reloadFn   func() error
+	addr        string
+	graph       *provenance.Graph
+	store       *store.Store
+	backtracer  *backtrace.Backtracer
+	healthFn    HealthCheckFunc
+	mux         *http.ServeMux
+	startTime   time.Time
+	reloadFn    func() error
+	authKeys    []string
+	authEnabled bool
+	rateLimiter *rateLimiter
+	corsOrigins []string
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
@@ -81,21 +89,85 @@ func (s *Server) SetReloadHandler(fn func() error) {
 	s.reloadFn = fn
 }
 
+// SetAPIKeyAuth enables API key authentication.
+// When enabled, requests must include X-API-Key header with a matching key.
+func (s *Server) SetAPIKeyAuth(keys []string, enabled bool) {
+	s.authKeys = keys
+	s.authEnabled = enabled
+}
+
+// SetRateLimit configures per-IP rate limiting.
+func (s *Server) SetRateLimit(ratePerSec float64, burst int) {
+	if ratePerSec > 0 {
+		s.rateLimiter = newRateLimiter(ratePerSec, burst)
+	}
+}
+
+// SetCORSOrigins configures allowed CORS origins.
+func (s *Server) SetCORSOrigins(origins []string) {
+	s.corsOrigins = origins
+}
+
+func (s *Server) buildHandlerChain() http.Handler {
+	// Middleware order: auth → rate limit → recovery → CORS → logging → handler
+	var h http.Handler = s.mux
+	h = loggingMiddleware(h)
+	h = corsMiddleware(s.corsOrigins)(h)
+	h = recoveryMiddleware(h)
+	if s.rateLimiter != nil {
+		h = rateLimitMiddleware(s.rateLimiter)(h)
+	}
+	h = authMiddleware(s.authKeys, s.authEnabled)(h)
+	return h
+}
+
+// Handler returns the full middleware chain as an http.Handler.
+// Useful for testing and embedding in custom servers.
+func (s *Server) Handler() http.Handler {
+	return s.buildHandlerChain()
+}
+
 func (s *Server) Start() error {
 	metrics.MustRegister()
 	log.Printf("[api] listening on %s", s.addr)
-	return http.ListenAndServe(s.addr, corsMiddleware(loggingMiddleware(s.mux)))
+	if s.authEnabled {
+		log.Printf("[api] authentication enabled (%d key(s))", len(s.authKeys))
+	}
+	if s.rateLimiter != nil {
+		log.Printf("[api] rate limiting enabled (%.0f req/s, burst %d)", s.rateLimiter.rate, s.rateLimiter.burst)
+	}
+	if len(s.corsOrigins) > 0 && s.corsOrigins[0] != "*" {
+		log.Printf("[api] CORS origins: %v", s.corsOrigins)
+	}
+	return http.ListenAndServe(s.addr, s.buildHandlerChain())
+}
+
+// StartTLS starts the server with HTTPS using the given certificate and key files.
+func (s *Server) StartTLS(certFile, keyFile string) error {
+	metrics.MustRegister()
+	log.Printf("[api] listening on %s (TLS)", s.addr)
+	return http.ListenAndServeTLS(s.addr, certFile, keyFile, s.buildHandlerChain())
 }
 
 func (s *Server) buildMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())
 	mux.HandleFunc("/health", s.jsonHandler(s.handleHealth))
+	mux.HandleFunc("/ready", s.jsonHandler(s.handleHealth))
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	mux.HandleFunc("/api/v1/status", s.jsonHandler(s.handleStatus))
 	mux.HandleFunc("/api/v1/graph/export", s.jsonHandler(s.handleExport))
 	mux.HandleFunc("/api/v1/graph/node/", s.jsonHandler(s.handleNode)) // parsed from path
 	mux.HandleFunc("/api/v1/alerts", s.jsonHandler(s.handleAlerts))
 	mux.HandleFunc("/api/v1/admin/reload", s.jsonHandler(s.handleReload))
+	mux.HandleFunc("/api/v1/events/search", s.jsonHandler(s.handleEventSearch))
+	mux.HandleFunc("/dashboard", s.handleDashboard)
+	mux.HandleFunc("/", s.handleDashboard)
+	mux.HandleFunc("/api/v1/events/recent", s.jsonHandler(s.handleEventRecent))
 	mux.HandleFunc("/api/v1/", s.notFound)
 	return mux
 }
@@ -300,19 +372,6 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) error {
 // ═══════════════════════════════════════════════════════════════
 // Middleware
 // ═══════════════════════════════════════════════════════════════
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

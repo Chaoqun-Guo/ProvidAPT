@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 //go:build integration
 
 package integration
@@ -137,7 +140,7 @@ func TestStreamStats(t *testing.T) {
 
 // ─── GUID compression tests ────────────────────────────────────
 
-func TestNewCompressor(t *testing.T) {
+func TestDistNewCompressor(t *testing.T) {
 	c := dist.NewCompressor()
 	if c == nil {
 		t.Fatal("NewCompressor returned nil")

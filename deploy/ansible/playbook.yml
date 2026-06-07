@@ -1,0 +1,51 @@
+# ── ProvidAPT Deployment Playbook ──────────────────────────────
+# Deploys and configures the ProvidAPT provenance monitor on
+# Ubuntu 24.04 hosts.
+#
+# Usage:
+#   ansible-playbook -i inventory.yml playbook.yml
+#   ansible-playbook -i inventory.yml playbook.yml --tags backup    # backup only
+#   ansible-playbook -i inventory.yml playbook.yml --skip-tags monitoring
+#
+- name: Provision all ProvidAPT nodes
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    - name: Include OS preparation tasks
+      ansible.builtin.import_tasks: tasks/os-prepare.yml
+      tags: [always, os]
+
+    - name: Include Docker installation tasks
+      ansible.builtin.import_tasks: tasks/docker.yml
+      tags: [always, docker]
+
+    - name: Include ProvidAPT deployment tasks
+      ansible.builtin.import_tasks: tasks/providapt.yml
+      tags: [providapt]
+
+    - name: Include backup configuration tasks
+      ansible.builtin.import_tasks: tasks/backup.yml
+      tags: [backup]
+      when: providapt_backup_enabled
+
+    - name: Include monitoring agent tasks
+      ansible.builtin.import_tasks: tasks/monitoring.yml
+      tags: [monitoring]
+      when: inventory_hostname in groups['monitoring']
+
+  handlers:
+    - name: restart providapt
+      community.docker.docker_container:
+        name: "{{ providapt_container_name }}"
+        restart: true
+
+    - name: restart node exporter
+      ansible.builtin.systemd_service:
+        name: prometheus-node-exporter
+        state: restarted
+        daemon_reload: true

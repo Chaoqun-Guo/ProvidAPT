@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package anonymize provides field-level anonymization for GDPR
 // compliance.  Sensitive fields (file paths, IP addresses, usernames)
 // are hashed with HMAC-SHA256 before entering RocksDB, while

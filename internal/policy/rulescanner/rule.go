@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package detect implements a streaming detection engine for
 // ProvidAPT v2.  It supports YAML-based custom detection rules
 // (Sigma-inspired) and real-time graph scanning.

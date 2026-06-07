@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package server implements scalable central server infrastructure for
 // ProvidAPT v2.2, featuring load distribution, priority queuing, and
 // self-healing backpressure.

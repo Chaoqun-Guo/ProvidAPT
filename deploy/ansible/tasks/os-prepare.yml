@@ -1,0 +1,77 @@
+# ── OS preparation tasks ───────────────────────────────────────
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - linux-tools-common
+      - linux-tools-generic
+      - bpfcc-tools
+      - iotop
+      - sysstat
+      - htop
+      - prometheus-node-exporter
+    state: present
+
+- name: Create ProvidAPT group
+  ansible.builtin.group:
+    name: providapt
+    gid: "{{ deploy_gid }}"
+    system: true
+    state: present
+
+- name: Create ProvidAPT user
+  ansible.builtin.user:
+    name: providapt
+    uid: "{{ deploy_uid }}"
+    group: providapt
+    system: true
+    shell: /usr/sbin/nologin
+    state: present
+
+- name: Create data directory
+  ansible.builtin.file:
+    path: "{{ providapt_data_dir }}"
+    state: directory
+    owner: providapt
+    group: providapt
+    mode: "0755"
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ providapt_config_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Load kernel modules
+  ansible.builtin.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ kernel_modules }}"
+
+- name: Set kernel parameters
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop: "{{ kernel_params }}"
+
+- name: Enable BTF mount for bpftool compatibility
+  ansible.builtin.mount:
+    path: /sys/kernel/btf
+    src: btf
+    fstype: bpf
+    opts: rw
+    state: mounted
+  when: ansible_kernel is version('5.10', '>=')

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store — RocksDB (Pebble) performance tuning
 //
 // Optimisations for high-throughput provenance data:

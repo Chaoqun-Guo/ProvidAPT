@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package schema
 
 import (
@@ -168,6 +171,13 @@ func FuzzParseEdgeKey(f *testing.F) {
 	f.Add("e:short")
 	f.Add("e:00000000000007d0|f:5000:8:3|p:100")
 	f.Add("e:gggggggggggggggg|p:1|f:2")
+	f.Add("e:")
+	f.Add("e:||")
+	f.Add("e:FFFFFFFFFFFFFFFF|p:4294967295|f:4294967295")
+	f.Add("e:0000000000000000|p:0|f:0")
+	f.Add("e:deadbeefdeadbeef|p:65535|f:65535")
+	f.Add("e:00000000000003e8|p:1|f:500|extra:stuff")
+	f.Add("e:\x00\x00\x00\x00\x00\x00\x00\x00|p:0|f:0")
 	f.Fuzz(func(t *testing.T, key string) {
 		src, tgt, ts, ok := ParseEdgeKey(key)
 		if ok {
@@ -185,6 +195,10 @@ func FuzzParseNodeKey(f *testing.F) {
 	f.Add("n:file:f:5000:8:3")
 	f.Add("invalid")
 	f.Add("n:")
+	f.Add("n::::")
+	f.Add("n:network:127.0.0.1:80")
+	f.Add("n::p:0")
+	f.Add("n:\x00:\x00:\x00")
 	f.Fuzz(func(t *testing.T, key string) {
 		typ, id, ok := ParseNodeKey(key)
 		_ = typ

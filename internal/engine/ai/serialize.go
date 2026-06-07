@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package ai provides an LLM-powered analysis interpreter for
 // ProvidAPT provenance graphs.  It converts complex graph structures
 // into natural language descriptions, attack path explanations,

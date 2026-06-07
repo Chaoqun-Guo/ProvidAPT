@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package schema defines the RocksDB key encoding for ProvidAPT v2.
 //
 // Key space design (all keys are lexicographically sortable strings):

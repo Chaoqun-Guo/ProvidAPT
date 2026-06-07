@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package container maps cgroup IDs to container metadata for
 // ProvidAPT v2.1 provenance enrichment.
 package container

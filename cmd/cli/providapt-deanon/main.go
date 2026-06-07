@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -92,7 +95,7 @@ func main() {
 				EntryCount: store.EntryCount(),
 			})
 		} else {
-			fmt.Printf("De-anonymization store: %s\n", clioutput.Infof(*storePath))
+			fmt.Printf("De-anonymization store: %s\n", clioutput.Infof("%s", *storePath))
 			t := clioutput.NewTable("Store", "Entries")
 			t.AddRow(*storePath, fmt.Sprintf("%d", store.EntryCount()))
 			t.Render()

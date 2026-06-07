@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store — storage lifecycle management for ProvidAPT v2.
 //
 // Provides:
