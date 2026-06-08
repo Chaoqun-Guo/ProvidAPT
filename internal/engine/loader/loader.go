@@ -11,20 +11,20 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/link"
-	"github.com/cilium/ebpf/ringbuf"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/control"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/ringbuf"
 )
 
 // AttachmentMode describes how eBPF programs are attached.
 type AttachmentMode int
 
 const (
-	ModeLSM    AttachmentMode = iota // LSM hooks (default, requires CONFIG_BPF_LSM)
-	ModeKprobeFallback               // Kprobe attachment (CO-RE load succeeded, LSM unavailable)
+	ModeLSM            AttachmentMode = iota // LSM hooks (default, requires CONFIG_BPF_LSM)
+	ModeKprobeFallback                       // Kprobe attachment (CO-RE load succeeded, LSM unavailable)
 )
 
 func (m AttachmentMode) String() string {
@@ -45,6 +45,7 @@ type Loader struct {
 	Mode       AttachmentMode
 	objs       *bpfObjects
 	links      []link.Link
+	hooks      HookConfig
 	pinDir     string
 	auditStore *audit.Store
 }
@@ -59,12 +60,28 @@ func (l *Loader) SetAuditStore(as *audit.Store) {
 // If LSM attachment fails (e.g. no CONFIG_BPF_LSM), it automatically
 // falls back to kprobe attachment when possible.
 func New(cfg *config.Config) (*Loader, error) {
+	return NewWithAudit(cfg, nil)
+}
+
+// NewWithAudit loads eBPF objects, attaches hooks, and returns a Loader.
+// When an audit store is provided, attachment mode transitions and fallback
+// behavior are recorded during initialization.
+func NewWithAudit(cfg *config.Config, auditStore *audit.Store) (*Loader, error) {
+	hooks, err := ParseHookConfig(cfg.Kernel.Hooks)
+	if err != nil {
+		return nil, err
+	}
+
 	var objs bpfObjects
-	if err := loadBpfObjects(&objs, nil); err != nil {
+	if err := loadBpf(&objs, nil); err != nil {
 		return nil, fmt.Errorf("load eBPF objects: %w", err)
 	}
 
-	l := &Loader{objs: &objs}
+	l := &Loader{
+		objs:       &objs,
+		hooks:      hooks,
+		auditStore: auditStore,
+	}
 
 	// Create runtime controller for whitelist/taint management
 	l.Ctrl = control.New(objs.PidWhitelist, objs.TaintMap, objs.SampleCounters, objs.HotPaths)
@@ -72,7 +89,7 @@ func New(cfg *config.Config) (*Loader, error) {
 	// Try LSM hooks first
 	lsmLinks, lsmErr := l.attachLSMHooks()
 	if lsmErr != nil {
-		log.Printf("[loader] LSM attach failed: %v — trying kprobe fallback", lsmErr)
+		log.Printf("[loader] LSM attach failed: %v; trying kprobe fallback", lsmErr)
 		if l.auditStore != nil {
 			l.auditStore.Log(audit.Entry{
 				Category: audit.CatSystem,
@@ -82,7 +99,6 @@ func New(cfg *config.Config) (*Loader, error) {
 			})
 		}
 
-		// Fallback to kprobe attachment
 		kprobeLinks, kpErr := l.attachKprobeFallback()
 		if kpErr != nil {
 			l.Close()
@@ -128,37 +144,29 @@ func New(cfg *config.Config) (*Loader, error) {
 }
 
 // attachKprobeFallback attaches eBPF programs via kprobes instead of
-// LSM hooks, using kallsyms for symbol resolution.
+// LSM hooks, using kernel symbols for fallback attachment.
 func (l *Loader) attachKprobeFallback() ([]link.Link, error) {
-	// Map of eBPF program → kernel symbols to probe.
-	type kprobeAttach struct {
-		prog   *ebpf.Program
-		symbol string
-	}
-
-	candidates := []kprobeAttach{
-		{l.objs.ProbeFileOpen, "do_sys_openat2"},
-		{l.objs.ProbeFileOpen, "do_sys_open"},
-		{l.objs.ProbeBprmCheck, "security_bprm_check"},
-		{l.objs.ProbeTaskAlloc, "copy_process"},
-		{l.objs.ProbeTaskFree, "do_exit"},
-		{l.objs.ProbeSocketConnect, "__sys_connect"},
-		{l.objs.ProbeFilePermission, "security_file_permission"},
-	}
-
-	// Attempt to read kallsyms for verification (non-fatal if unavailable).
-
 	var links []link.Link
-	for _, ca := range candidates {
-		if ca.prog == nil {
+	for _, spec := range l.kprobeSpecs() {
+		if spec.program == nil {
 			continue
 		}
-		lnk, err := link.Kprobe(ca.symbol, ca.prog, nil)
-		if err != nil {
-			log.Printf("[loader] kprobe fallback: %s attach failed: %v (skipping)", ca.symbol, err)
-			continue
+
+		attached := false
+		for _, symbol := range spec.symbols {
+			lnk, err := link.Kprobe(symbol, spec.program, nil)
+			if err != nil {
+				log.Printf("[loader] kprobe fallback: %s attach failed: %v (skipping)", symbol, err)
+				continue
+			}
+			links = append(links, lnk)
+			attached = true
+			break
 		}
-		links = append(links, lnk)
+
+		if !attached {
+			log.Printf("[loader] kprobe fallback: no symbol attached for hook %s", spec.hook)
+		}
 	}
 
 	if len(links) == 0 {
@@ -175,31 +183,27 @@ func (l *Loader) ModeName() string {
 	return l.Mode.String()
 }
 
-// attachLSMHooks attaches all LSM eBPF programs.
+// attachLSMHooks attaches all configured LSM eBPF programs.
 func (l *Loader) attachLSMHooks() ([]link.Link, error) {
 	var links []link.Link
 
-	attach := []struct {
-		prog *ebpf.Program
-		hook string
-	}{
-		{l.objs.ProbeTaskAlloc, "task_alloc"},
-		{l.objs.ProbeTaskFree, "task_free"},
-		{l.objs.ProbeFileOpen, "file_open"},
-		{l.objs.ProbeBprmCheck, "bprm_check_security"},
-		{l.objs.ProbeSocketConnect, "socket_connect"},
-		{l.objs.ProbeFilePermission, "file_permission"},
-	}
-
-	for _, a := range attach {
+	for _, spec := range l.lsmSpecs() {
+		if spec.program == nil {
+			continue
+		}
 		lnk, err := link.AttachLSM(link.LSMOptions{
-			Program: a.prog,
+			Program: spec.program,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("attach LSM %s: %w", a.hook, err)
+			return nil, fmt.Errorf("attach LSM %s: %w", spec.hook, err)
 		}
 		links = append(links, lnk)
 	}
+
+	if len(links) == 0 {
+		return nil, fmt.Errorf("no LSM hooks enabled")
+	}
+
 	return links, nil
 }
 
@@ -222,11 +226,11 @@ func (l *Loader) attachTracepoints() ([]link.Link, error) {
 func (l *Loader) PinMaps(pinPath string) error {
 	l.pinDir = pinPath
 	maps := map[string]*ebpf.Map{
-		"pid_whitelist":  l.objs.PidWhitelist,
-		"taint_map":      l.objs.TaintMap,
+		"pid_whitelist":   l.objs.PidWhitelist,
+		"taint_map":       l.objs.TaintMap,
 		"sample_counters": l.objs.SampleCounters,
-		"hot_paths":      l.objs.HotPaths,
-		"ring_buffer":    l.objs.Rb,
+		"hot_paths":       l.objs.HotPaths,
+		"ring_buffer":     l.objs.Rb,
 	}
 	for name, m := range maps {
 		if m != nil {
@@ -259,4 +263,76 @@ func (l *Loader) Close() {
 	if l.objs != nil {
 		l.objs.Close()
 	}
+}
+
+type lsmAttachSpec struct {
+	hook    HookID
+	program *ebpf.Program
+}
+
+type kprobeAttachSpec struct {
+	hook    HookID
+	program *ebpf.Program
+	symbols []string
+}
+
+func (l *Loader) activeHooks() []HookID {
+	if len(l.hooks.EnabledHooks) == 0 {
+		return DefaultHooks().EnabledHooks
+	}
+	return l.hooks.EnabledHooks
+}
+
+func (l *Loader) lsmSpecs() []lsmAttachSpec {
+	programs := map[HookID]*ebpf.Program{
+		HookTaskAlloc:      l.objs.ProbeTaskAlloc,
+		HookTaskFree:       l.objs.ProbeTaskFree,
+		HookFileOpen:       l.objs.ProbeFileOpen,
+		HookBprmCheck:      l.objs.ProbeBprmCheck,
+		HookSocketConnect:  l.objs.ProbeSocketConnect,
+		HookFilePermission: l.objs.ProbeFilePermission,
+	}
+
+	specs := make([]lsmAttachSpec, 0, len(l.activeHooks()))
+	for _, hook := range l.activeHooks() {
+		specs = append(specs, lsmAttachSpec{
+			hook:    hook,
+			program: programs[hook],
+		})
+	}
+	return specs
+}
+
+func (l *Loader) kprobeSpecs() []kprobeAttachSpec {
+	programs := map[HookID]*ebpf.Program{
+		HookTaskAlloc:      l.objs.ProbeTaskAlloc,
+		HookTaskFree:       l.objs.ProbeTaskFree,
+		HookFileOpen:       l.objs.ProbeFileOpen,
+		HookBprmCheck:      l.objs.ProbeBprmCheck,
+		HookSocketConnect:  l.objs.ProbeSocketConnect,
+		HookFilePermission: l.objs.ProbeFilePermission,
+	}
+
+	symbols := map[HookID][]string{
+		HookFileOpen:       {"do_sys_openat2", "do_sys_open"},
+		HookBprmCheck:      {"security_bprm_check"},
+		HookTaskAlloc:      {"copy_process"},
+		HookTaskFree:       {"do_exit"},
+		HookSocketConnect:  {"__sys_connect"},
+		HookFilePermission: {"security_file_permission"},
+	}
+
+	specs := make([]kprobeAttachSpec, 0, len(l.activeHooks()))
+	for _, hook := range l.activeHooks() {
+		hookSymbols, ok := symbols[hook]
+		if !ok {
+			continue
+		}
+		specs = append(specs, kprobeAttachSpec{
+			hook:    hook,
+			program: programs[hook],
+			symbols: hookSymbols,
+		})
+	}
+	return specs
 }

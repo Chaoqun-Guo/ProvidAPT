@@ -16,25 +16,35 @@ import (
 	"time"
 )
 
-const bundleDir = "/var/log/providapt/support-bundle"
+var bundleDir = "/var/log/providapt/support-bundle"
 
 // HandleCrash recovers from a panic and captures a support bundle before
 // re-panicking. Use as: defer supportbundle.HandleCrash()
 func HandleCrash() {
 	if r := recover(); r != nil {
-		Capture(fmt.Sprintf("panic: %v", r))
+		_, _ = Capture(fmt.Sprintf("panic: %v", r))
 		panic(r)
 	}
 }
 
 // Capture writes a full support bundle tree under bundleDir-<timestamp>.
 // reason is a short human-readable trigger description.
-func Capture(reason string) error {
+func Capture(reason string) (string, error) {
+	return CaptureTo(bundleDir, reason)
+}
+
+// CaptureTo writes a full support bundle tree under rootDir-<timestamp>.
+// It returns the full path to the created bundle directory.
+func CaptureTo(rootDir, reason string) (string, error) {
 	ts := time.Now().UTC().Format("20060102T150405Z")
-	dir := bundleDir + "-" + ts
+	baseDir := rootDir
+	if baseDir == "" {
+		baseDir = bundleDir
+	}
+	dir := baseDir + "-" + ts
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("mkdir bundle: %w", err)
+		return "", fmt.Errorf("mkdir bundle: %w", err)
 	}
 
 	writeFile(filepath.Join(dir, "timestamp.txt"), ts+"\n")
@@ -47,7 +57,7 @@ func Capture(reason string) error {
 	tryWriteFile(filepath.Join(dir, "system-info.txt"), collectSystemInfo())
 	tryWriteFile(filepath.Join(dir, "metrics.txt"), runCommand("curl", "-s", "http://localhost:8080/metrics"))
 
-	return nil
+	return dir, nil
 }
 
 func writeFile(path, content string) {

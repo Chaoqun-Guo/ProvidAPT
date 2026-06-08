@@ -41,13 +41,15 @@ type Config struct {
 	} `json:"capture" yaml:"capture"`
 
 	API struct {
-		GRPC           string   `json:"grpc" yaml:"grpc"`
-		REST           string   `json:"rest" yaml:"rest"`
-		AuthEnabled    bool     `json:"auth_enabled" yaml:"auth_enabled"`
-		AuthKeys       []string `json:"auth_keys" yaml:"auth_keys"`
-		RateLimitPerSec float64 `json:"rate_limit_per_sec" yaml:"rate_limit_per_sec"`
-		RateLimitBurst int      `json:"rate_limit_burst" yaml:"rate_limit_burst"`
-		CORSOrigins    []string `json:"cors_origins" yaml:"cors_origins"`
+		GRPC            string            `json:"grpc" yaml:"grpc"`
+		REST            string            `json:"rest" yaml:"rest"`
+		AuthEnabled     bool              `json:"auth_enabled" yaml:"auth_enabled"`
+		AuthKeys        []string          `json:"auth_keys" yaml:"auth_keys"`
+		AuthRoles       map[string]string `json:"auth_roles" yaml:"auth_roles"`
+		AuthIdentities  map[string]string `json:"auth_identities" yaml:"auth_identities"`
+		RateLimitPerSec float64           `json:"rate_limit_per_sec" yaml:"rate_limit_per_sec"`
+		RateLimitBurst  int               `json:"rate_limit_burst" yaml:"rate_limit_burst"`
+		CORSOrigins     []string          `json:"cors_origins" yaml:"cors_origins"`
 	} `json:"api" yaml:"api"`
 
 	TLS struct {
@@ -74,22 +76,70 @@ type Config struct {
 		NetworkTools   []string `json:"network_tools" yaml:"network_tools"`
 		SensitivePaths []string `json:"sensitive_paths" yaml:"sensitive_paths"`
 	} `json:"taint_secrets" yaml:"taint_secrets"`
-		Notify struct {
-			SlackWebhook  string   `json:"slack_webhook" yaml:"slack_webhook"`
-			SlackChannel  string   `json:"slack_channel" yaml:"slack_channel"`
-			SMTPAddr      string   `json:"smtp_addr" yaml:"smtp_addr"`
-			SMTPUser      string   `json:"smtp_user" yaml:"smtp_user"`
-			SMTPPass      string   `json:"smtp_pass" yaml:"smtp_pass"`
-			EmailFrom     string   `json:"email_from" yaml:"email_from"`
-			EmailTo       []string `json:"email_to" yaml:"email_to"`
-			WebhookURL    string   `json:"webhook_url" yaml:"webhook_url"`
-			WebhookSecret string   `json:"webhook_secret" yaml:"webhook_secret"`
-			MinInterval   string   `json:"min_interval" yaml:"min_interval"`
-		} `json:"notify" yaml:"notify"`
+
+	Notify struct {
+		SlackWebhook      string   `json:"slack_webhook" yaml:"slack_webhook"`
+		SlackChannel      string   `json:"slack_channel" yaml:"slack_channel"`
+		SMTPAddr          string   `json:"smtp_addr" yaml:"smtp_addr"`
+		SMTPUser          string   `json:"smtp_user" yaml:"smtp_user"`
+		SMTPPass          string   `json:"smtp_pass" yaml:"smtp_pass"`
+		EmailFrom         string   `json:"email_from" yaml:"email_from"`
+		EmailTo           []string `json:"email_to" yaml:"email_to"`
+		WebhookURL        string   `json:"webhook_url" yaml:"webhook_url"`
+		WebhookSecret     string   `json:"webhook_secret" yaml:"webhook_secret"`
+		MinInterval       string   `json:"min_interval" yaml:"min_interval"`
+		MaxAttempts       int      `json:"max_attempts" yaml:"max_attempts"`
+		RetryBackoff      string   `json:"retry_backoff" yaml:"retry_backoff"`
+		TicketProvider    string   `json:"ticket_provider" yaml:"ticket_provider"`
+		TicketWebhookURL  string   `json:"ticket_webhook_url" yaml:"ticket_webhook_url"`
+		TicketWebhookAuth string   `json:"ticket_webhook_auth" yaml:"ticket_webhook_auth"`
+		JiraBaseURL       string   `json:"jira_base_url" yaml:"jira_base_url"`
+		JiraEmail         string   `json:"jira_email" yaml:"jira_email"`
+		JiraAPIToken      string   `json:"jira_api_token" yaml:"jira_api_token"`
+		JiraProjectKey    string   `json:"jira_project_key" yaml:"jira_project_key"`
+		JiraIssueType     string   `json:"jira_issue_type" yaml:"jira_issue_type"`
+		ServiceNowBaseURL string   `json:"servicenow_base_url" yaml:"servicenow_base_url"`
+		ServiceNowUser    string   `json:"servicenow_user" yaml:"servicenow_user"`
+		ServiceNowPass    string   `json:"servicenow_pass" yaml:"servicenow_pass"`
+		ServiceNowTable   string   `json:"servicenow_table" yaml:"servicenow_table"`
+	} `json:"notify" yaml:"notify"`
+
+	Telemetry struct {
+		Endpoint   string `json:"endpoint" yaml:"endpoint"`
+		Interval   string `json:"interval" yaml:"interval"`
+		EnableTLS  bool   `json:"enable_tls" yaml:"enable_tls"`
+		CertFile   string `json:"cert_file" yaml:"cert_file"`
+		KeyFile    string `json:"key_file" yaml:"key_file"`
+		CAFile     string `json:"ca_file" yaml:"ca_file"`
+		ServerName string `json:"server_name" yaml:"server_name"`
+	} `json:"telemetry" yaml:"telemetry"`
+
+	SupportBundle struct {
+		RetainArchives int  `json:"retain_archives" yaml:"retain_archives"`
+		RedactArchives bool `json:"redact_archives" yaml:"redact_archives"`
+	} `json:"support_bundle" yaml:"support_bundle"`
 
 	License struct {
-		Path string `json:"path" yaml:"path"`
+		Path               string   `json:"path" yaml:"path"`
+		SigningKey         string   `json:"signing_key" yaml:"signing_key"`
+		PublicKeyPath      string   `json:"public_key_path" yaml:"public_key_path"`
+		RevokedIDs         []string `json:"revoked_ids" yaml:"revoked_ids"`
+		RevocationURL      string   `json:"revocation_url" yaml:"revocation_url"`
+		RevocationCache    string   `json:"revocation_cache" yaml:"revocation_cache"`
+		RevocationSigURL   string   `json:"revocation_sig_url" yaml:"revocation_sig_url"`
+		RevocationSigCache string   `json:"revocation_sig_cache" yaml:"revocation_sig_cache"`
+		GracePeriodDays    int      `json:"grace_period_days" yaml:"grace_period_days"`
 	} `json:"license" yaml:"license"`
+
+	Upgrade struct {
+		DownloadURL    string `json:"download_url" yaml:"download_url"`
+		PackagePath    string `json:"package_path" yaml:"package_path"`
+		ExpectedSHA256 string `json:"expected_sha256" yaml:"expected_sha256"`
+		SignaturePath  string `json:"signature_path" yaml:"signature_path"`
+		SigningKey     string `json:"signing_key" yaml:"signing_key"`
+		PublicKeyPath  string `json:"public_key_path" yaml:"public_key_path"`
+		RollbackPlan   string `json:"rollback_plan" yaml:"rollback_plan"`
+	} `json:"upgrade" yaml:"upgrade"`
 }
 
 // Duration is a wrapper for time.Duration that supports YAML/JSON parsing
@@ -150,6 +200,12 @@ func DefaultConfig() *Config {
 	c.API.RateLimitPerSec = 100
 	c.API.RateLimitBurst = 200
 	c.API.CORSOrigins = []string{"*"}
+	c.Notify.MaxAttempts = 3
+	c.Notify.RetryBackoff = "250ms"
+	c.Telemetry.Interval = "30s"
+	c.SupportBundle.RetainArchives = 5
+	c.SupportBundle.RedactArchives = true
+	c.License.GracePeriodDays = 0
 	return c
 }
 
@@ -191,20 +247,29 @@ func Load(path string) (*Config, error) {
 func resolveSecrets(cfg *Config) {
 	resolveSecretString(&cfg.Notify.SMTPPass, "PROVIDAPT_NOTIFY_SMTP_PASS")
 	resolveSecretString(&cfg.Notify.WebhookSecret, "PROVIDAPT_NOTIFY_WEBHOOK_SECRET")
+	resolveSecretString(&cfg.Notify.TicketWebhookAuth, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_AUTH")
+	resolveSecretString(&cfg.Notify.JiraAPIToken, "PROVIDAPT_NOTIFY_JIRA_API_TOKEN")
+	resolveSecretString(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
+	resolveSecretString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
+	resolveSecretString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
 }
 
 func resolveSecretString(field *string, envKey string) {
 	if field == nil {
 		return
 	}
+	resolved := false
 	// Check for env: prefix
 	if len(*field) > 4 && (*field)[:4] == "env:" {
 		envVar := (*field)[4:]
 		if val, ok := os.LookupEnv(envVar); ok {
 			*field = val
+			resolved = true
 		}
-		// Also check PROVIDAPT_ fallback for backward compat
-		if val, ok := os.LookupEnv(envKey); ok && *field != "" {
+	}
+	// Also check PROVIDAPT_ fallback for backward compat
+	if !resolved {
+		if val, ok := os.LookupEnv(envKey); ok && val != "" {
 			*field = val
 		}
 	}
@@ -224,6 +289,11 @@ func (c *Config) Validate() error {
 	if c.API.GRPC != "" && !strings.HasPrefix(c.API.GRPC, ":") {
 		return fmt.Errorf("gRPC address %q should be in format :port (e.g. :50051)", c.API.GRPC)
 	}
+	for key, role := range c.API.AuthRoles {
+		if role != "admin" && role != "analyst" && role != "auditor" {
+			return fmt.Errorf("unsupported API auth role %q for key %q", role, key)
+		}
+	}
 	if c.Storage.Encrypt && c.Storage.KeyFile == "" {
 		return fmt.Errorf("storage encryption enabled but no key_file specified")
 	}
@@ -232,6 +302,32 @@ func (c *Config) Validate() error {
 	}
 	if c.Analyzer.DeepTaintThreshold < 0 {
 		return fmt.Errorf("deep_taint_threshold must be non-negative")
+	}
+	if c.Notify.MaxAttempts < 1 {
+		return fmt.Errorf("notify.max_attempts must be at least 1")
+	}
+	if c.Notify.TicketProvider != "" {
+		switch strings.ToLower(strings.TrimSpace(c.Notify.TicketProvider)) {
+		case "webhook", "jira", "servicenow":
+		default:
+			return fmt.Errorf("unsupported notify.ticket_provider %q", c.Notify.TicketProvider)
+		}
+	}
+	if c.SupportBundle.RetainArchives < 0 {
+		return fmt.Errorf("support_bundle.retain_archives must be non-negative")
+	}
+	if c.License.GracePeriodDays < 0 {
+		return fmt.Errorf("license.grace_period_days must be non-negative")
+	}
+	if checksum := strings.TrimSpace(c.Upgrade.ExpectedSHA256); checksum != "" {
+		if len(checksum) != 64 {
+			return fmt.Errorf("upgrade.expected_sha256 must be a 64-character hex digest")
+		}
+		for _, ch := range checksum {
+			if (ch < '0' || ch > '9') && (ch < 'a' || ch > 'f') && (ch < 'A' || ch > 'F') {
+				return fmt.Errorf("upgrade.expected_sha256 must be hexadecimal")
+			}
+		}
 	}
 	return nil
 }
@@ -256,6 +352,40 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.API.GRPC, "PROVIDAPT_API_GRPC")
 	overrideString(&cfg.API.REST, "PROVIDAPT_API_REST")
 	overrideString(&cfg.Storage.KeyFile, "PROVIDAPT_STORAGE_KEY_FILE")
+	overrideString(&cfg.Telemetry.Endpoint, "PROVIDAPT_TELEMETRY_ENDPOINT")
+	overrideString(&cfg.Telemetry.Interval, "PROVIDAPT_TELEMETRY_INTERVAL")
+	overrideString(&cfg.Telemetry.CertFile, "PROVIDAPT_TELEMETRY_CERT_FILE")
+	overrideString(&cfg.Telemetry.KeyFile, "PROVIDAPT_TELEMETRY_KEY_FILE")
+	overrideString(&cfg.Telemetry.CAFile, "PROVIDAPT_TELEMETRY_CA_FILE")
+	overrideString(&cfg.Telemetry.ServerName, "PROVIDAPT_TELEMETRY_SERVER_NAME")
+	overrideString(&cfg.Notify.RetryBackoff, "PROVIDAPT_NOTIFY_RETRY_BACKOFF")
+	overrideString(&cfg.Notify.TicketProvider, "PROVIDAPT_NOTIFY_TICKET_PROVIDER")
+	overrideString(&cfg.Notify.TicketWebhookURL, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_URL")
+	overrideString(&cfg.Notify.TicketWebhookAuth, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_AUTH")
+	overrideString(&cfg.Notify.JiraBaseURL, "PROVIDAPT_NOTIFY_JIRA_BASE_URL")
+	overrideString(&cfg.Notify.JiraEmail, "PROVIDAPT_NOTIFY_JIRA_EMAIL")
+	overrideString(&cfg.Notify.JiraAPIToken, "PROVIDAPT_NOTIFY_JIRA_API_TOKEN")
+	overrideString(&cfg.Notify.JiraProjectKey, "PROVIDAPT_NOTIFY_JIRA_PROJECT_KEY")
+	overrideString(&cfg.Notify.JiraIssueType, "PROVIDAPT_NOTIFY_JIRA_ISSUE_TYPE")
+	overrideString(&cfg.Notify.ServiceNowBaseURL, "PROVIDAPT_NOTIFY_SERVICENOW_BASE_URL")
+	overrideString(&cfg.Notify.ServiceNowUser, "PROVIDAPT_NOTIFY_SERVICENOW_USER")
+	overrideString(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
+	overrideString(&cfg.Notify.ServiceNowTable, "PROVIDAPT_NOTIFY_SERVICENOW_TABLE")
+	overrideString(&cfg.License.Path, "PROVIDAPT_LICENSE_PATH")
+	overrideString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
+	overrideString(&cfg.License.PublicKeyPath, "PROVIDAPT_LICENSE_PUBLIC_KEY_PATH")
+	overrideStringSlice(&cfg.License.RevokedIDs, "PROVIDAPT_LICENSE_REVOKED_IDS")
+	overrideString(&cfg.License.RevocationURL, "PROVIDAPT_LICENSE_REVOCATION_URL")
+	overrideString(&cfg.License.RevocationCache, "PROVIDAPT_LICENSE_REVOCATION_CACHE")
+	overrideString(&cfg.License.RevocationSigURL, "PROVIDAPT_LICENSE_REVOCATION_SIG_URL")
+	overrideString(&cfg.License.RevocationSigCache, "PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE")
+	overrideString(&cfg.Upgrade.DownloadURL, "PROVIDAPT_UPGRADE_DOWNLOAD_URL")
+	overrideString(&cfg.Upgrade.PackagePath, "PROVIDAPT_UPGRADE_PACKAGE_PATH")
+	overrideString(&cfg.Upgrade.ExpectedSHA256, "PROVIDAPT_UPGRADE_EXPECTED_SHA256")
+	overrideString(&cfg.Upgrade.SignaturePath, "PROVIDAPT_UPGRADE_SIGNATURE_PATH")
+	overrideString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
+	overrideString(&cfg.Upgrade.PublicKeyPath, "PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH")
+	overrideString(&cfg.Upgrade.RollbackPlan, "PROVIDAPT_UPGRADE_ROLLBACK_PLAN")
 
 	overrideBool(&cfg.Kernel.Verbose, "PROVIDAPT_KERNEL_VERBOSE")
 	overrideBool(&cfg.Capture.EnableNet, "PROVIDAPT_CAPTURE_ENABLE_NET")
@@ -265,9 +395,14 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Storage.Encrypt, "PROVIDAPT_STORAGE_ENCRYPT")
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
 	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
+	overrideBool(&cfg.Telemetry.EnableTLS, "PROVIDAPT_TELEMETRY_ENABLE_TLS")
+	overrideBool(&cfg.SupportBundle.RedactArchives, "PROVIDAPT_SUPPORT_REDACT_ARCHIVES")
 
 	overrideInt(&cfg.Capture.MaxEvents, "PROVIDAPT_CAPTURE_MAX_EVENTS")
 	overrideInt(&cfg.API.RateLimitBurst, "PROVIDAPT_API_RATE_LIMIT_BURST")
+	overrideInt(&cfg.Notify.MaxAttempts, "PROVIDAPT_NOTIFY_MAX_ATTEMPTS")
+	overrideInt(&cfg.SupportBundle.RetainArchives, "PROVIDAPT_SUPPORT_RETAIN_ARCHIVES")
+	overrideInt(&cfg.License.GracePeriodDays, "PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
 
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
 }
@@ -275,6 +410,19 @@ func applyEnvOverrides(cfg *Config) {
 func overrideString(field *string, envKey string) {
 	if v, ok := os.LookupEnv(envKey); ok {
 		*field = v
+	}
+}
+
+func overrideStringSlice(field *[]string, envKey string) {
+	if v, ok := os.LookupEnv(envKey); ok {
+		parts := strings.Split(v, ",")
+		out := make([]string, 0, len(parts))
+		for _, part := range parts {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				out = append(out, trimmed)
+			}
+		}
+		*field = out
 	}
 }
 

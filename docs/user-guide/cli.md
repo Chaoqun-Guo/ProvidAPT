@@ -52,6 +52,40 @@ providaptctl -purge -purge-mode=capacity -purge-maxbytes=104857600
 providaptctl -purge -purge-mode=compliance -purge-dry-run
 ```
 
+`providaptctl -diagnose` is still useful for local shell-based collection, while the control plane now also supports:
+
+- `POST /api/v1/control/support` for remote export
+- `GET /api/v1/control/support/download` for the latest redacted archive
+- `GET /api/v1/control/audit?category=admin&source=supportbundle` for persisted support bundle audit
+
+Control-plane archives additionally support:
+
+- stable pseudonym redaction for common secrets, emails, IPs, and bearer tokens
+- archive retention cleanup via `PROVIDAPT_SUPPORT_RETAIN_ARCHIVES`
+- redaction toggle via `PROVIDAPT_SUPPORT_REDACT_ARCHIVES`
+
+Upgrade and license control-plane operations also support:
+
+- `GET /api/v1/control/license` for license presence, expiry, revocation, and signature status
+- `POST /api/v1/control/license` for manual validation and audit logging
+- `GET /api/v1/control/upgrade` for package, signature, rollback, and preflight status
+- `POST /api/v1/control/upgrade` with `download`, `check`, `preflight`, or `record`
+
+Key environment variables:
+
+- `PROVIDAPT_LICENSE_PUBLIC_KEY_PATH`
+- `PROVIDAPT_LICENSE_REVOCATION_URL`
+- `PROVIDAPT_LICENSE_REVOCATION_CACHE`
+- `PROVIDAPT_LICENSE_REVOCATION_SIG_URL`
+- `PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE`
+- `PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS`
+- `PROVIDAPT_UPGRADE_DOWNLOAD_URL`
+- `PROVIDAPT_UPGRADE_PACKAGE_PATH`
+- `PROVIDAPT_UPGRADE_EXPECTED_SHA256`
+- `PROVIDAPT_UPGRADE_SIGNATURE_PATH`
+- `PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH`
+- `PROVIDAPT_UPGRADE_ROLLBACK_PLAN`
+
 #### eBPF Inspection (`-bpf`)
 
 ```bash

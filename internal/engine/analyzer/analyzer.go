@@ -167,6 +167,17 @@ func (a *Analyzer) RemoveSigmaRule(id string) {
 	log.Printf("[analyzer] sigma rule removed: %s", id)
 }
 
+func (a *Analyzer) SigmaRuleIDs() []string {
+	a.sigmaMu.RLock()
+	defer a.sigmaMu.RUnlock()
+
+	ids := make([]string, 0, len(a.sigmaRules))
+	for id := range a.sigmaRules {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // sigmaLevelToSeverity maps a Sigma rule level string to an analyzer Severity.
 func sigmaLevelToSeverity(level string) Severity {
 	switch level {

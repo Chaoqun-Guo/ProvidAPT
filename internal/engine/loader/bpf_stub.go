@@ -1,15 +1,17 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build linux
+//go:build linux && !bpf
 
-// This is a build stub for environments without the bpf2go-generated
-// eBPF types (e.g., CI, Docker).  Remove this file once bpf2go
-// generated types are committed to the repository.
+// This file provides build-time stub types for environments without
+// real eBPF support (CI, Docker, cross-compilation).
 //
-// To generate the real types:
+// To load real eBPF objects:
+//   make v1-ebpf                    # compile .bpf.c → .bpf.o
+//   go build -tags bpf ./cmd/...    # use real loader
 //
-//	bpf2go -cc clang -cflags "-Icmd/bpf/headers" bpf cmd/bpf/probes/lsm/lsm_hooks.bpf.c
+// The bpf2go-generated file (bpf_bpfel.go / bpf_bpfeb.go) can also
+// be checked in directly.  See generate.go for generation commands.
 
 package loader
 
@@ -19,23 +21,36 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-type bpfObjects struct {
-	ProbeFileOpen        *ebpf.Program
-	ProbeBprmCheck       *ebpf.Program
-	ProbeTaskAlloc       *ebpf.Program
-	ProbeTaskFree        *ebpf.Program
-	ProbeSocketConnect   *ebpf.Program
-	ProbeFilePermission  *ebpf.Program
-	RawTpSchedProcessFork *ebpf.Program
-	PidWhitelist         *ebpf.Map
-	TaintMap             *ebpf.Map
-	SampleCounters       *ebpf.Map
-	HotPaths             *ebpf.Map
-	Rb                   *ebpf.Map
+func (o *bpfObjects) Close() error {
+	var errs []error
+	for _, prog := range []*ebpf.Program{
+		o.ProbeFileOpen, o.ProbeBprmCheck, o.ProbeTaskAlloc,
+		o.ProbeTaskFree, o.ProbeSocketConnect, o.ProbeFilePermission,
+		o.RawTpSchedProcessFork,
+	} {
+		if prog != nil {
+			if err := prog.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	for _, m := range []*ebpf.Map{
+		o.PidWhitelist, o.TaintMap, o.SampleCounters, o.HotPaths, o.Rb,
+	} {
+		if m != nil {
+			if err := m.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("close bpf objects: %v", errs)
+	}
+	return nil
 }
 
-func (o *bpfObjects) Close() error { return nil }
-
-func loadBpfObjects(objs *bpfObjects, opts *ebpf.CollectionOptions) error {
-	return fmt.Errorf("eBPF stub: no BPF device available")
+// loadBpf is a stub that returns an error.  Build with -tags bpf and
+// pre-compiled .bpf.o files to use the real loader.
+func loadBpf(objs *bpfObjects, opts *ebpf.CollectionOptions) error {
+	return fmt.Errorf("eBPF stub: no BPF device available (compile with -tags bpf to enable)")
 }

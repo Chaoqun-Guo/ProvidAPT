@@ -4,12 +4,8 @@
 package ai
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -83,20 +79,11 @@ type chatResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-// OllamaResponse for the Ollama API.
-type ollamaResponse struct {
-	Message struct {
-		Content string `json:"content"`
-	} `json:"message"`
-	Done bool `json:"done"`
-}
-
 // ── LLMClient ───────────────────────────────────────────────
 
 // LLMClient sends prompts to an LLM (OpenAI or Ollama).
 type LLMClient struct {
-	cfg    *LLMConfig
-	client *http.Client
+	cfg *LLMConfig
 }
 
 // NewLLMClient creates an LLM client.
@@ -105,8 +92,7 @@ func NewLLMClient(cfg *LLMConfig) *LLMClient {
 		cfg = DefaultConfig()
 	}
 	return &LLMClient{
-		cfg:    cfg,
-		client: &http.Client{Timeout: cfg.Timeout},
+		cfg: cfg,
 	}
 }
 
@@ -126,97 +112,23 @@ func (lc *LLMClient) Ask(graphJSON string, question string) (string, error) {
 	return lc.sendChat([]chatMessage{systemMsg, userMsg})
 }
 
-// sendChat sends a chat completion request.
+// sendChat sends a chat completion request via the registered provider.
 func (lc *LLMClient) sendChat(messages []chatMessage) (string, error) {
-	switch lc.cfg.Provider {
-	case "openai":
-		return lc.sendOpenAI(messages)
-	case "ollama":
-		return lc.sendOllama(messages)
-	default:
-		return "", fmt.Errorf("unknown provider: %s", lc.cfg.Provider)
+	p := resolveProvider(lc.cfg.Provider)
+	if p == nil {
+		return "", fmt.Errorf("ai: no provider available for %q (registered: %v)",
+			lc.cfg.Provider, ListProviders())
 	}
+	return p.SendChat(lc.cfg.Endpoint, lc.cfg.Model, lc.cfg.APIKey, messages)
 }
 
-func (lc *LLMClient) sendOpenAI(messages []chatMessage) (string, error) {
-	req := chatRequest{
-		Model:    lc.cfg.Model,
-		Messages: messages,
-	}
-
-	data, err := json.Marshal(req)
-	if err != nil {
-		return "", fmt.Errorf("openai marshal: %w", err)
-	}
-	httpReq, err := http.NewRequest("POST", lc.cfg.Endpoint, bytes.NewReader(data))
-	if err != nil {
-		return "", fmt.Errorf("openai new request: %w", err)
-	}
-	httpReq.Header.Set("Authorization", "Bearer "+lc.cfg.APIKey)
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := lc.client.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("openai request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("openai read body: %w", err)
-	}
-	var chatResp chatResponse
-	if err := json.Unmarshal(body, &chatResp); err != nil {
-		return "", fmt.Errorf("openai parse: %w (body: %s)", err, string(body))
-	}
-	if chatResp.Error != "" {
-		return "", fmt.Errorf("openai error: %s", chatResp.Error)
-	}
-	return chatResp.Message.Content, nil
-}
-
-func (lc *LLMClient) sendOllama(messages []chatMessage) (string, error) {
-	req := chatRequest{
-		Model:    lc.cfg.Model,
-		Messages: messages,
-		Stream:   false,
-	}
-
-	data, err := json.Marshal(req)
-	if err != nil {
-		return "", fmt.Errorf("ollama marshal: %w", err)
-	}
-	httpReq, err := http.NewRequest("POST", lc.cfg.Endpoint, bytes.NewReader(data))
-	if err != nil {
-		return "", fmt.Errorf("ollama new request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := lc.client.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("ollama request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("ollama read body: %w", err)
-	}
-	var ollamaResp ollamaResponse
-	if err := json.Unmarshal(body, &ollamaResp); err != nil {
-		return "", fmt.Errorf("ollama parse: %w (body: %s)", err, string(body))
-	}
-	return ollamaResp.Message.Content, nil
-}
-
-// IsAvailable checks if the LLM endpoint is reachable.
+// IsAvailable checks if the LLM endpoint is reachable via the registered provider.
 func (lc *LLMClient) IsAvailable() bool {
-	resp, err := lc.client.Get(lc.cfg.Endpoint)
-	if err != nil {
+	p := resolveProvider(lc.cfg.Provider)
+	if p == nil {
 		return false
 	}
-	resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
+	return p.IsAvailable(lc.cfg.Endpoint)
 }
 
 // ═══════════════════════════════════════════════════════════════

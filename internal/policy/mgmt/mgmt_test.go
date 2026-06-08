@@ -7,6 +7,7 @@ package mgmt
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/analyzer"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -23,12 +25,43 @@ type mockWatchAlertsStream struct {
 }
 
 func (m *mockWatchAlertsStream) Send(*mgmtpb.AlertEvent) error { return nil }
-func (m *mockWatchAlertsStream) Context() context.Context { return m.ctx }
-func (m *mockWatchAlertsStream) SetHeader(metadata.MD) error    { return nil }
-func (m *mockWatchAlertsStream) SendHeader(metadata.MD) error   { return nil }
-func (m *mockWatchAlertsStream) SetTrailer(metadata.MD)         {}
-func (m *mockWatchAlertsStream) SendMsg(interface{}) error      { return nil }
-func (m *mockWatchAlertsStream) RecvMsg(interface{}) error      { return nil }
+func (m *mockWatchAlertsStream) Context() context.Context      { return m.ctx }
+func (m *mockWatchAlertsStream) SetHeader(metadata.MD) error   { return nil }
+func (m *mockWatchAlertsStream) SendHeader(metadata.MD) error  { return nil }
+func (m *mockWatchAlertsStream) SetTrailer(metadata.MD)        {}
+func (m *mockWatchAlertsStream) SendMsg(interface{}) error     { return nil }
+func (m *mockWatchAlertsStream) RecvMsg(interface{}) error     { return nil }
+
+type mockReportEventsStream struct {
+	ctx    context.Context
+	events []*mgmtpb.CompressedEvent
+	index  int
+	ack    *mgmtpb.ReportAck
+}
+
+func (m *mockReportEventsStream) SendAndClose(ack *mgmtpb.ReportAck) error {
+	m.ack = ack
+	return nil
+}
+
+func (m *mockReportEventsStream) Recv() (*mgmtpb.CompressedEvent, error) {
+	if m.index >= len(m.events) {
+		return nil, io.EOF
+	}
+	event := m.events[m.index]
+	m.index++
+	return event, nil
+}
+
+func (m *mockReportEventsStream) Context() context.Context     { return m.ctx }
+func (m *mockReportEventsStream) SetHeader(metadata.MD) error  { return nil }
+func (m *mockReportEventsStream) SendHeader(metadata.MD) error { return nil }
+func (m *mockReportEventsStream) SetTrailer(metadata.MD)       {}
+func (m *mockReportEventsStream) SendMsg(interface{}) error    { return nil }
+func (m *mockReportEventsStream) RecvMsg(interface{}) error    { return nil }
+
+var _ mgmtpb.ProvidAPTTelemetry_ReportEventsServer = (*mockReportEventsStream)(nil)
+var _ grpc.ServerStream = (*mockReportEventsStream)(nil)
 
 // ─── Server tests ───────────────────────────────────────────
 
@@ -75,7 +108,7 @@ func TestQuery(t *testing.T) {
 	s, _ := NewServer(cfg)
 
 	req := &mgmtpb.QueryRequest{
-		Query: "MATCH (p:Process)-[:READ]->(f:File) RETURN p",
+		Query:      "MATCH (p:Process)-[:READ]->(f:File) RETURN p",
 		MaxResults: 100,
 	}
 	resp, err := s.Query(context.Background(), req)
@@ -168,9 +201,9 @@ func TestHealthCheck(t *testing.T) {
 	if !status.AgentRunning {
 		t.Error("agent should be running")
 	}
-		if status.Version == "" {
-			t.Error("version should not be empty")
-		}
+	if status.Version == "" {
+		t.Error("version should not be empty")
+	}
 	if status.Status != "HEALTHY" {
 		t.Errorf("status = %s", status.Status)
 	}
@@ -199,6 +232,141 @@ func TestWatchAlerts(t *testing.T) {
 	err := s.WatchAlerts(&mgmtpb.AlertFilter{MinSeverity: "HIGH"}, &mockWatchAlertsStream{ctx: ctx})
 	if err != nil {
 		t.Fatalf("WatchAlerts: %v", err)
+	}
+}
+
+func TestReportEventsSummary(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+
+	stream := &mockReportEventsStream{
+		ctx: context.Background(),
+		events: []*mgmtpb.CompressedEvent{
+			{
+				ContentType: "summary",
+				Payload:     []byte(`{"agent_id":"agent-01"}`),
+			},
+		},
+	}
+
+	if err := s.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	if stream.ack == nil || !stream.ack.Accepted {
+		t.Fatal("expected accepted telemetry ack")
+	}
+	if s.telemetry.Reports != 1 {
+		t.Fatalf("reports = %d, want 1", s.telemetry.Reports)
+	}
+	if s.telemetry.LastContentType != "summary" {
+		t.Fatalf("last content type = %q", s.telemetry.LastContentType)
+	}
+	if s.telemetry.LastAgentID != "agent-01" {
+		t.Fatalf("last agent id = %q", s.telemetry.LastAgentID)
+	}
+	overview := s.TelemetryOverview()
+	if len(overview) != 1 {
+		t.Fatalf("overview len = %d, want 1", len(overview))
+	}
+	if overview[0].AgentID != "agent-01" {
+		t.Fatalf("overview agent id = %q", overview[0].AgentID)
+	}
+}
+
+func TestFleetMetadata(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+
+	s.UpsertAgentMetadata("agent-01", "prod", []string{"linux", "db", "linux"})
+	all := s.FleetSnapshot(FleetFilter{})
+	if len(all) != 1 {
+		t.Fatalf("fleet size = %d, want 1", len(all))
+	}
+	if all[0].Group != "prod" {
+		t.Fatalf("group = %q", all[0].Group)
+	}
+	if len(all[0].Tags) != 2 {
+		t.Fatalf("tags = %#v", all[0].Tags)
+	}
+
+	filtered := s.FleetSnapshot(FleetFilter{Group: "prod", Tag: "linux"})
+	if len(filtered) != 1 {
+		t.Fatalf("filtered size = %d, want 1", len(filtered))
+	}
+	miss := s.FleetSnapshot(FleetFilter{Group: "dev"})
+	if len(miss) != 0 {
+		t.Fatalf("miss size = %d, want 0", len(miss))
+	}
+}
+
+func TestPolicyCenterPublishRollback(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+
+	g := provenance.NewGraph()
+	anz := analyzer.New(g, nil)
+	s.SetAnalyzer(anz)
+
+	update := &mgmtpb.PolicyUpdate{
+		Update: &mgmtpb.PolicyUpdate_Sigma{
+			Sigma: &mgmtpb.SigmaRule{
+				Action:   "add",
+				RuleId:   "rule-001",
+				RuleYaml: "title: Test Rule\ndetection:\n  selection:\n    EventType: \"10\"\n  condition: selection",
+			},
+		},
+	}
+	ack, err := s.UpdatePolicy(context.Background(), update)
+	if err != nil || !ack.Success {
+		t.Fatalf("UpdatePolicy: ack=%#v err=%v", ack, err)
+	}
+
+	center := s.PolicyCenter()
+	if center.Draft.ActiveRules == 0 {
+		t.Fatalf("draft active rules = %d", center.Draft.ActiveRules)
+	}
+
+	published := s.PublishPolicy("release candidate")
+	if published.Version != 2 {
+		t.Fatalf("published version = %d, want 2", published.Version)
+	}
+	if published.State != "published" {
+		t.Fatalf("published state = %q", published.State)
+	}
+
+	rolled, err := s.RollbackPolicy(1, "rollback")
+	if err != nil {
+		t.Fatalf("RollbackPolicy: %v", err)
+	}
+	if rolled.Version != 3 {
+		t.Fatalf("rolled version = %d, want 3", rolled.Version)
+	}
+	if rolled.State != "rolled_back" {
+		t.Fatalf("rolled state = %q", rolled.State)
+	}
+}
+
+func TestReportEventsEmptyStream(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+
+	stream := &mockReportEventsStream{
+		ctx:    context.Background(),
+		events: nil,
+	}
+
+	if err := s.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	if stream.ack == nil || !stream.ack.Accepted {
+		t.Fatal("expected accepted empty telemetry ack")
+	}
+	if stream.ack.Message != "no events received" {
+		t.Fatalf("ack message = %q", stream.ack.Message)
 	}
 }
 
@@ -289,7 +457,7 @@ func TestMgmtIntegration(t *testing.T) {
 
 	// 2. Query
 	qResp, _ := s.Query(context.Background(), &mgmtpb.QueryRequest{
-		Query:     "MATCH (p:Process)-[:READ]->(f:File) RETURN p",
+		Query:      "MATCH (p:Process)-[:READ]->(f:File) RETURN p",
 		MaxResults: 50,
 	})
 	t.Logf("Query: %d results", qResp.ResultCount)

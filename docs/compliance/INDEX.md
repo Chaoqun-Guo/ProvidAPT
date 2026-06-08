@@ -1,20 +1,20 @@
-# 合规与安全
+﻿# 合规与安全
 
-本节说明 ProvidAPT 在数据安全、隐私合规与审计完整性方面的设计与实践。
+本节说明 ProvidAPT 在安全、隐私、审计与数据处理方面的设计原则。
 
 ## 文档列表
 
 | 文档 | 说明 |
 | --- | --- |
-| [security-privacy.md](security-privacy.md) | 数据脱敏说明：敏感字段识别、脱敏策略、配置方法 |
+| [security-privacy.md](security-privacy.md) | 脱敏、隐私与安全设计说明 |
 
-## 合规设计原则
+## 设计原则
 
-- **数据最小化**：仅采集溯源所需的事件属性，支持按需过滤
-- **可配置脱敏**：文件路径、网络地址等敏感字段支持正则匹配与替换
-- **防篡改审计**：事件日志通过哈希链串联，支持完整性验证
-- **访问控制**：gRPC API 支持 mTLS 认证与 RBAC 权限管理
+- 数据最小化：只采集溯源与检测所需字段
+- 可配置脱敏：支持对路径、地址、令牌等敏感字段做规则化处理
+- 防篡改审计：审计记录支持完整性校验与长期留痕
+- 访问控制：管理面支持认证、RBAC 与审计跟踪
 
 ## 相关配置
 
-脱敏规则和审计策略通过 `/etc/providapt/providapt.toml` 配置，详见 [部署指南](../getting-started/deployment.md) 中的安全章节。
+安全与审计策略主要通过 `/etc/providapt/providapt.toml` 配置，部署细节可参考 `docs/getting-started/deployment.md`。

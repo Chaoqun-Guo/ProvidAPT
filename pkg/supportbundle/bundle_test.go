@@ -4,20 +4,34 @@
 package supportbundle
 
 import (
+	"archive/zip"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCaptureBasic(t *testing.T) {
-	// Override bundle dir to a temp location
 	tmpDir := t.TempDir()
-	origBundleDir := bundleDir
-	// We can't change const, but Capture writes to bundleDir-<ts>.
-	// Instead test the individual pieces.
-	_ = origBundleDir
-	_ = tmpDir
+	path, err := CaptureTo(filepath.Join(tmpDir, "support-bundle"), "manual export")
+	if err != nil {
+		t.Fatalf("CaptureTo: %v", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("bundle path stat: %v", err)
+	}
+	if !strings.Contains(path, filepath.Join(tmpDir, "support-bundle")) {
+		t.Fatalf("bundle path = %q", path)
+	}
+	reason, err := os.ReadFile(filepath.Join(path, "reason.txt"))
+	if err != nil {
+		t.Fatalf("read reason: %v", err)
+	}
+	if strings.TrimSpace(string(reason)) != "manual export" {
+		t.Fatalf("reason = %q", string(reason))
+	}
 }
 
 func TestWriteGoroutines(t *testing.T) {
@@ -142,6 +156,100 @@ func TestHandleCrashNoPanic(t *testing.T) {
 	func() {
 		defer HandleCrash()
 	}()
+}
+
+func TestCreateArchiveRedactsSensitiveFields(t *testing.T) {
+	dir := t.TempDir()
+	bundleDir := filepath.Join(dir, "bundle")
+	if err := os.MkdirAll(bundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	content := "email=alice@example.com\npassword=super-secret\napi_key=abc123\nip=10.0.0.8\nAuthorization: bearer tokenvalue\n"
+	if err := os.WriteFile(filepath.Join(bundleDir, "config.json"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	archivePath, err := CreateArchive(bundleDir, ArchiveOptions{RedactSensitive: true})
+	if err != nil {
+		t.Fatalf("CreateArchive: %v", err)
+	}
+
+	zr, err := zip.OpenReader(archivePath)
+	if err != nil {
+		t.Fatalf("open zip: %v", err)
+	}
+	defer zr.Close()
+	if len(zr.File) != 1 {
+		t.Fatalf("zip files = %d", len(zr.File))
+	}
+	rc, err := zr.File[0].Open()
+	if err != nil {
+		t.Fatalf("open zip file: %v", err)
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("read zip file: %v", err)
+	}
+	got := string(data)
+	if strings.Contains(got, "alice@example.com") || strings.Contains(got, "super-secret") || strings.Contains(got, "10.0.0.8") {
+		t.Fatalf("content not redacted: %q", got)
+	}
+	if !strings.Contains(got, "<redacted-email-") || !strings.Contains(got, "<redacted-secret-") || !strings.Contains(got, "<redacted-ip-") {
+		t.Fatalf("expected redaction markers, got %q", got)
+	}
+	if strings.Contains(got, "tokenvalue") {
+		t.Fatalf("bearer token tail leaked: %q", got)
+	}
+}
+
+func TestCleanupArchivesRetainsNewest(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "support-bundle")
+	olderDir := root + "-20260101T000000Z"
+	newerDir := root + "-20260102T000000Z"
+	olderZip := olderDir + ".zip"
+	newerZip := newerDir + ".zip"
+	for _, path := range []string{olderDir, newerDir} {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{olderZip, newerZip} {
+		if err := os.WriteFile(path, []byte("zip"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	newTime := oldTime.Add(time.Hour)
+	if err := os.Chtimes(olderDir, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(olderZip, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(newerDir, newTime, newTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(newerZip, newTime, newTime); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := CleanupArchives(root, 2); err != nil {
+		t.Fatalf("CleanupArchives: %v", err)
+	}
+	if _, err := os.Stat(newerDir); err != nil {
+		t.Fatalf("newer dir missing: %v", err)
+	}
+	if _, err := os.Stat(newerZip); err != nil {
+		t.Fatalf("newer zip missing: %v", err)
+	}
+	if _, err := os.Stat(olderDir); !os.IsNotExist(err) {
+		t.Fatalf("older dir should be removed, stat err=%v", err)
+	}
+	if _, err := os.Stat(olderZip); !os.IsNotExist(err) {
+		t.Fatalf("older zip should be removed, stat err=%v", err)
+	}
 }
 
 func TestWriteFileCreatesDirectories(t *testing.T) {

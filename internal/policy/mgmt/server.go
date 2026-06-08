@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +35,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/control"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/sigma"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/telemetry"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -41,14 +44,75 @@ import (
 
 // Server implements the ProvidAPTManagement gRPC service.
 type Server struct {
-	mu       sync.Mutex
-	addr     string
-	server   *grpc.Server
-	config   *ServerConfig
-	ctrl     *control.Controller
-	analyzer *analyzer.Analyzer
-	alertSub alertSubscription
-	started  time.Time
+	mu        sync.Mutex
+	addr      string
+	server    *grpc.Server
+	config    *ServerConfig
+	ctrl      *control.Controller
+	analyzer  *analyzer.Analyzer
+	alertSub  alertSubscription
+	started   time.Time
+	telemetry telemetryStatus
+	policy    policyState
+}
+
+type telemetryStatus struct {
+	mu              sync.Mutex
+	Reports         int
+	LastReportAt    time.Time
+	LastContentType string
+	LastAgentID     string
+	Agents          map[string]AgentTelemetrySnapshot
+}
+
+type AgentTelemetrySnapshot struct {
+	AgentID         string    `json:"agent_id"`
+	Group           string    `json:"group,omitempty"`
+	Tags            []string  `json:"tags,omitempty"`
+	Version         string    `json:"version,omitempty"`
+	Status          string    `json:"status"`
+	LastReportAt    time.Time `json:"last_report_at"`
+	EventsIngested  uint64    `json:"events_ingested,omitempty"`
+	EventsDropped   uint64    `json:"events_dropped,omitempty"`
+	MemoryBytes     uint64    `json:"memory_bytes,omitempty"`
+	UptimeSeconds   int64     `json:"uptime_seconds,omitempty"`
+	PipelineHealthy bool      `json:"pipeline_healthy"`
+	StoreHealthy    bool      `json:"store_healthy"`
+	AttachmentMode  string    `json:"attachment_mode,omitempty"`
+}
+
+type FleetFilter struct {
+	Group string
+	Tag   string
+}
+
+type PolicyRevision struct {
+	Version          int       `json:"version"`
+	State            string    `json:"state"`
+	Notes            string    `json:"notes,omitempty"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	PublishedAt      time.Time `json:"published_at,omitempty"`
+	ActiveRules      int       `json:"active_rules"`
+	SigmaRuleIDs     []string  `json:"sigma_rule_ids,omitempty"`
+	WhitelistCount   int       `json:"whitelist_count"`
+	TaintSourceCount int       `json:"taint_source_count"`
+}
+
+type PolicyCenterSnapshot struct {
+	UpdatedAt time.Time        `json:"updated_at"`
+	Current   PolicyRevision   `json:"current"`
+	Draft     PolicyRevision   `json:"draft"`
+	History   []PolicyRevision `json:"history"`
+}
+
+type policyState struct {
+	mu              sync.Mutex
+	current         PolicyRevision
+	draft           PolicyRevision
+	history         []PolicyRevision
+	nextVersion     int
+	whitelistKeys   map[string]struct{}
+	taintSourceKeys map[string]struct{}
 }
 
 // alertSubscription manages a dynamic list of WatchAlerts subscribers.
@@ -87,6 +151,7 @@ func (s *Server) SetController(ctrl *control.Controller) {
 // SetAnalyzer attaches the analyzer for alert streaming and config reload.
 func (s *Server) SetAnalyzer(anz *analyzer.Analyzer) {
 	s.analyzer = anz
+	s.refreshPolicyDraft("analyzer attached")
 }
 
 // StartAlertForwarder begins forwarding analyzer alerts to all gRPC subscribers.
@@ -180,7 +245,25 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		addr:    cfg.ListenAddr,
 		config:  cfg,
 		started: time.Now(),
+		telemetry: telemetryStatus{
+			Agents: make(map[string]AgentTelemetrySnapshot),
+		},
+		policy: policyState{
+			nextVersion:     2,
+			whitelistKeys:   make(map[string]struct{}),
+			taintSourceKeys: make(map[string]struct{}),
+		},
 	}
+	initialPolicy := PolicyRevision{
+		Version:     1,
+		State:       "published",
+		UpdatedAt:   s.started,
+		PublishedAt: s.started,
+	}
+	s.policy.current = initialPolicy
+	s.policy.draft = clonePolicyRevision(initialPolicy)
+	s.policy.draft.State = "draft"
+	s.policy.history = []PolicyRevision{clonePolicyRevision(initialPolicy)}
 
 	var opts []grpc.ServerOption
 
@@ -194,6 +277,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 
 	s.server = grpc.NewServer(opts...)
 	mgmtpb.RegisterProvidAPTManagementServer(s.server, s)
+	mgmtpb.RegisterProvidAPTTelemetryServer(s.server, s)
 
 	return s, nil
 }
@@ -311,15 +395,19 @@ func (s *Server) UpdatePolicy(ctx context.Context, update *mgmtpb.PolicyUpdate) 
 		case "add":
 			if u.TaintSource.Label != "" {
 				analyzer.AddUntrustedComm(u.TaintSource.Label)
+				s.recordTaintSourceKey(u.TaintSource.IpPrefix+"|"+u.TaintSource.Label, true)
 				ack.Message = fmt.Sprintf("taint source %s added (label=%s)", u.TaintSource.IpPrefix, u.TaintSource.Label)
 			} else {
+				s.recordTaintSourceKey(u.TaintSource.IpPrefix, true)
 				ack.Message = fmt.Sprintf("taint source %s added (no label)", u.TaintSource.IpPrefix)
 			}
 		case "remove":
 			if u.TaintSource.Label != "" {
 				analyzer.RemoveUntrustedComm(u.TaintSource.Label)
+				s.recordTaintSourceKey(u.TaintSource.IpPrefix+"|"+u.TaintSource.Label, false)
 				ack.Message = fmt.Sprintf("taint source %s removed (label=%s)", u.TaintSource.IpPrefix, u.TaintSource.Label)
 			} else {
+				s.recordTaintSourceKey(u.TaintSource.IpPrefix, false)
 				ack.Message = fmt.Sprintf("taint source %s removed", u.TaintSource.IpPrefix)
 			}
 		default:
@@ -329,6 +417,9 @@ func (s *Server) UpdatePolicy(ctx context.Context, update *mgmtpb.PolicyUpdate) 
 	default:
 		ack.Success = false
 		ack.Message = "unknown update type"
+	}
+	if ack.Success {
+		s.refreshPolicyDraft(ack.Message)
 	}
 
 	return ack, nil
@@ -354,11 +445,13 @@ func (s *Server) applyWhitelistUpdate(w *mgmtpb.WhitelistUpdate, clientInfo stri
 			if err := s.ctrl.ExcludePID(uint32(pid)); err != nil {
 				return fmt.Sprintf("exclude pid failed: %v", err)
 			}
+			s.recordWhitelistKey(fmt.Sprintf("pid:%d", pid), true)
 			return fmt.Sprintf("PID %d excluded", pid)
 		case "remove":
 			if err := s.ctrl.UnExcludePID(uint32(pid)); err != nil {
 				return fmt.Sprintf("unexclude pid failed: %v", err)
 			}
+			s.recordWhitelistKey(fmt.Sprintf("pid:%d", pid), false)
 			return fmt.Sprintf("PID %d unexcluded", pid)
 		}
 
@@ -372,16 +465,19 @@ func (s *Server) applyWhitelistUpdate(w *mgmtpb.WhitelistUpdate, clientInfo stri
 			if err := s.ctrl.AddHotPath(w.Value); err != nil {
 				return fmt.Sprintf("add hot path failed: %v", err)
 			}
+			s.recordWhitelistKey("path:"+w.Value, true)
 			return fmt.Sprintf("hot path %s added", w.Value)
 		case "remove":
 			if err := s.ctrl.RemoveHotPath(w.Value); err != nil {
 				return fmt.Sprintf("remove hot path failed: %v", err)
 			}
+			s.recordWhitelistKey("path:"+w.Value, false)
 			return fmt.Sprintf("hot path %s removed", w.Value)
 		case "clear":
 			if err := s.ctrl.ClearHotPaths(); err != nil {
 				return fmt.Sprintf("clear hot paths failed: %v", err)
 			}
+			s.clearWhitelistKeys()
 			return "all hot paths cleared"
 		}
 	}
@@ -393,9 +489,9 @@ func (s *Server) applyWhitelistUpdate(w *mgmtpb.WhitelistUpdate, clientInfo stri
 func (s *Server) Check(ctx context.Context, req *mgmtpb.HealthCheck) (*mgmtpb.HealthStatus, error) {
 	hs := &mgmtpb.HealthStatus{
 		AgentRunning: true,
-		Version:     version.String(),
-		UptimeNs:    time.Since(s.started).Nanoseconds(),
-		Status:      "HEALTHY",
+		Version:      version.String(),
+		UptimeNs:     time.Since(s.started).Nanoseconds(),
+		Status:       "HEALTHY",
 	}
 
 	if s.analyzer != nil {
@@ -403,6 +499,259 @@ func (s *Server) Check(ctx context.Context, req *mgmtpb.HealthCheck) (*mgmtpb.He
 	}
 
 	return hs, nil
+}
+
+func (s *Server) TelemetryOverview() []AgentTelemetrySnapshot {
+	s.telemetry.mu.Lock()
+	defer s.telemetry.mu.Unlock()
+
+	agents := make([]AgentTelemetrySnapshot, 0, len(s.telemetry.Agents))
+	for _, snapshot := range s.telemetry.Agents {
+		agents = append(agents, snapshot)
+	}
+	return agents
+}
+
+func (s *Server) UpsertAgentMetadata(agentID, group string, tags []string) {
+	s.telemetry.mu.Lock()
+	defer s.telemetry.mu.Unlock()
+
+	snapshot := s.telemetry.Agents[agentID]
+	snapshot.AgentID = agentID
+	if group != "" {
+		snapshot.Group = group
+	}
+	if tags != nil {
+		snapshot.Tags = dedupeTags(tags)
+	}
+	s.telemetry.Agents[agentID] = snapshot
+}
+
+func (s *Server) FleetSnapshot(filter FleetFilter) []AgentTelemetrySnapshot {
+	s.telemetry.mu.Lock()
+	defer s.telemetry.mu.Unlock()
+
+	agents := make([]AgentTelemetrySnapshot, 0, len(s.telemetry.Agents))
+	for _, snapshot := range s.telemetry.Agents {
+		if filter.Group != "" && !strings.EqualFold(snapshot.Group, filter.Group) {
+			continue
+		}
+		if filter.Tag != "" && !hasTag(snapshot.Tags, filter.Tag) {
+			continue
+		}
+		agents = append(agents, snapshot)
+	}
+	return agents
+}
+
+func (s *Server) PolicyCenter() PolicyCenterSnapshot {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+
+	history := make([]PolicyRevision, len(s.policy.history))
+	for index, item := range s.policy.history {
+		history[index] = clonePolicyRevision(item)
+	}
+
+	return PolicyCenterSnapshot{
+		UpdatedAt: s.policy.draft.UpdatedAt,
+		Current:   clonePolicyRevision(s.policy.current),
+		Draft:     clonePolicyRevision(s.policy.draft),
+		History:   history,
+	}
+}
+
+func (s *Server) PublishPolicy(notes string) PolicyRevision {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+
+	s.refreshPolicyDraftLocked(notes)
+	published := clonePolicyRevision(s.policy.draft)
+	published.Version = s.policy.nextVersion
+	published.State = "published"
+	published.Notes = strings.TrimSpace(notes)
+	published.UpdatedAt = time.Now()
+	published.PublishedAt = published.UpdatedAt
+	s.policy.nextVersion++
+
+	s.policy.current = clonePolicyRevision(published)
+	s.policy.history = append(s.policy.history, clonePolicyRevision(published))
+	s.policy.draft = clonePolicyRevision(published)
+	s.policy.draft.State = "draft"
+	return clonePolicyRevision(published)
+}
+
+func (s *Server) RollbackPolicy(version int, notes string) (PolicyRevision, error) {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+
+	var target *PolicyRevision
+	for index := range s.policy.history {
+		if s.policy.history[index].Version == version {
+			target = &s.policy.history[index]
+			break
+		}
+	}
+	if target == nil {
+		return PolicyRevision{}, fmt.Errorf("policy version %d not found", version)
+	}
+
+	rolled := clonePolicyRevision(*target)
+	rolled.Version = s.policy.nextVersion
+	rolled.State = "rolled_back"
+	rolled.Notes = strings.TrimSpace(notes)
+	rolled.UpdatedAt = time.Now()
+	rolled.PublishedAt = rolled.UpdatedAt
+	s.policy.nextVersion++
+
+	s.policy.current = clonePolicyRevision(rolled)
+	s.policy.history = append(s.policy.history, clonePolicyRevision(rolled))
+	s.policy.draft = clonePolicyRevision(rolled)
+	s.policy.draft.State = "draft"
+	return clonePolicyRevision(rolled), nil
+}
+
+// ReportEvents receives compressed or summarized telemetry batches from agents.
+func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServer) error {
+	var count int
+	var lastType string
+	var lastAgentID string
+	var lastSummary telemetry.Summary
+
+	for {
+		event, err := stream.Recv()
+		if err != nil {
+			if count == 0 {
+				return stream.SendAndClose(&mgmtpb.ReportAck{
+					Accepted:      true,
+					ThrottleLevel: 0,
+					Message:       "no events received",
+				})
+			}
+			s.telemetry.mu.Lock()
+			s.telemetry.Reports += count
+			s.telemetry.LastReportAt = time.Now()
+			s.telemetry.LastContentType = lastType
+			s.telemetry.LastAgentID = lastAgentID
+			if lastSummary.AgentID != "" {
+				s.telemetry.Agents[lastSummary.AgentID] = AgentTelemetrySnapshot{
+					AgentID:         lastSummary.AgentID,
+					Group:           s.telemetry.Agents[lastSummary.AgentID].Group,
+					Tags:            s.telemetry.Agents[lastSummary.AgentID].Tags,
+					Version:         lastSummary.Version,
+					Status:          lastSummary.Status,
+					LastReportAt:    s.telemetry.LastReportAt,
+					EventsIngested:  lastSummary.EventsIngested,
+					EventsDropped:   lastSummary.EventsDropped,
+					MemoryBytes:     lastSummary.MemoryBytes,
+					UptimeSeconds:   lastSummary.UptimeSeconds,
+					PipelineHealthy: lastSummary.PipelineHealthy,
+					StoreHealthy:    lastSummary.StoreHealthy,
+					AttachmentMode:  lastSummary.AttachmentMode,
+				}
+			}
+			s.telemetry.mu.Unlock()
+			return stream.SendAndClose(&mgmtpb.ReportAck{
+				Accepted:      true,
+				ThrottleLevel: 0,
+				Message:       fmt.Sprintf("accepted %d telemetry event(s)", count),
+			})
+		}
+		count++
+		lastType = event.ContentType
+		if event.ContentType == "summary" {
+			var summary telemetry.Summary
+			if json.Unmarshal(event.Payload, &summary) == nil && summary.AgentID != "" {
+				lastAgentID = summary.AgentID
+				lastSummary = summary
+			}
+		}
+	}
+}
+
+func (s *Server) refreshPolicyDraft(notes string) {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+	s.refreshPolicyDraftLocked(notes)
+}
+
+func (s *Server) refreshPolicyDraftLocked(notes string) {
+	draft := clonePolicyRevision(s.policy.current)
+	draft.State = "draft"
+	draft.UpdatedAt = time.Now()
+	if strings.TrimSpace(notes) != "" {
+		draft.Notes = strings.TrimSpace(notes)
+	}
+	draft.ActiveRules = 0
+	draft.SigmaRuleIDs = nil
+	if s.analyzer != nil {
+		draft.SigmaRuleIDs = s.analyzer.SigmaRuleIDs()
+		draft.ActiveRules = len(draft.SigmaRuleIDs)
+	}
+	draft.WhitelistCount = len(s.policy.whitelistKeys)
+	draft.TaintSourceCount = len(s.policy.taintSourceKeys)
+	s.policy.draft = draft
+}
+
+func (s *Server) recordWhitelistKey(key string, present bool) {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+	if present {
+		s.policy.whitelistKeys[key] = struct{}{}
+	} else {
+		delete(s.policy.whitelistKeys, key)
+	}
+}
+
+func (s *Server) clearWhitelistKeys() {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+	s.policy.whitelistKeys = make(map[string]struct{})
+}
+
+func (s *Server) recordTaintSourceKey(key string, present bool) {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+	if present {
+		s.policy.taintSourceKeys[key] = struct{}{}
+	} else {
+		delete(s.policy.taintSourceKeys, key)
+	}
+}
+
+func clonePolicyRevision(revision PolicyRevision) PolicyRevision {
+	revision.SigmaRuleIDs = append([]string(nil), revision.SigmaRuleIDs...)
+	return revision
+}
+
+func dedupeTags(tags []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(tags))
+	out := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		key := strings.ToLower(tag)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, tag)
+	}
+	return out
+}
+
+func hasTag(tags []string, want string) bool {
+	for _, tag := range tags {
+		if strings.EqualFold(tag, want) {
+			return true
+		}
+	}
+	return false
 }
 
 // ─── mTLS ────────────────────────────────────────────────────

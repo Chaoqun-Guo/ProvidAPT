@@ -60,6 +60,9 @@ make attack-sim
 # Verify provenance graph capture
 make verify-capture
 
+# Verify real eBPF loader startup and object override
+sudo make loader-smoke
+
 # Full end-to-end pipeline
 bash test/integration/attack-scenarios/run_e2e.sh
 ```
@@ -95,6 +98,7 @@ go test -bench=. -benchmem ./test/benchmark/...
 | Unit | `internal/...` | Go only | Individual packages |
 | Integration (Go) | `test/integration/*_test.go` | Go | Cross-package workflows |
 | Integration (Shell) | `test/integration/attack-scenarios/` | root, eBPF | APT attack chains |
+| Loader Smoke | `test/integration/loader_smoke.sh` | root, eBPF, clang | Real loader startup + path override |
 | Integration (Python) | `test/integration/*.py` | SSH VMs | Multi-host scenarios |
 | Kernel | `test/integration/kernel-test/` | Docker, BTF | Kernel compatibility |
 | Benchmark | `test/benchmark/` | Go | Performance metrics |
@@ -146,7 +150,10 @@ The test suite is designed for CI pipelines:
 1. **Fast path** (every commit): `make test` + `make ext-test`
 2. **Integration path** (nightly): Full integration suite in Docker
 3. **Kernel path** (weekly): Kernel compatibility matrix
-4. **Release path**: All tests + benchmarks + attack simulations
+4. **Manual loader path**: GitHub Actions `CI` workflow `loader smoke (manual)` job
+5. **Release path**: All tests + benchmarks + attack simulations
+
+The `loader smoke (manual)` job is exposed through `workflow_dispatch` so maintainers can validate the real eBPF loader on a Linux runner without making every PR depend on kernel/runtime support.
 
 ## Test Configuration
 

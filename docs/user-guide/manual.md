@@ -56,6 +56,20 @@ sudo providaptd -v
 # Daemon log output: /var/log/providapt/daemon.log
 ```
 
+Loader behavior:
+
+- `providaptd` prefers **BPF LSM** attachment for the core hooks.
+- If LSM attachment fails after `lsm_hooks.bpf.o` loads successfully, the daemon automatically switches to **kprobe fallback** mode.
+- The loader searches for the precompiled object in:
+  - `build/ebpf/lsm_hooks.bpf.o`
+  - `/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o`
+- To start from a non-standard object location, set `PROVIDAPT_BPF_OBJECT_PATH`:
+
+```bash
+export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
+sudo -E providaptd -config /etc/providapt/providapt.toml
+```
+
 ### 1.3 providapt-watchdog — High-Availability Monitor
 
 Monitors the main daemon and restarts it if it crashes.
@@ -742,6 +756,8 @@ sudo make uninstall
 ```
 
 ### 6.3 Unload eBPF Programs
+
+If startup fails with `no precompiled eBPF object found`, rebuild the object with `make v1-ebpf` or start the daemon with `PROVIDAPT_BPF_OBJECT_PATH` pointing to an existing `lsm_hooks.bpf.o`.
 
 ```bash
 # List all ProvidAPT eBPF programs

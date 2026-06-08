@@ -5,6 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
 
 env:
   GO_VERSION: "1.22"
@@ -154,3 +155,28 @@ jobs:
           go vet ./internal/engine/compact/...
           go vet ./internal/engine/query/...
           go vet ./internal/engine/control/...
+
+  loader-smoke:
+    name: loader smoke (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install loader smoke dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang llvm libbpf-dev linux-tools-common linux-tools-generic make
+
+      - name: Run kernel probe
+        run: |
+          bash build/kernel_probe.sh
+
+      - name: Run loader smoke validation
+        run: |
+          sudo make loader-smoke

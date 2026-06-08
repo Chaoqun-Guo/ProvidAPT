@@ -60,14 +60,33 @@ type Manager struct {
 	// throttling
 	minInterval time.Duration
 	lastSent    map[string]time.Time
+
+	maxAttempts     int
+	retryBackoff    time.Duration
+	deliveryHistory []DeliveryRecord
+	deadLetters     []DeliveryRecord
+	deadLetterItems map[string]deadLetterItem
+	maxHistory      int
+}
+
+type deadLetterItem struct {
+	Record   DeliveryRecord
+	Alert    Alert
+	Notifier string
 }
 
 // NewManager creates a notification manager with no notifiers attached.
 func NewManager() *Manager {
 	return &Manager{
-		notifiers:   make([]Notifier, 0, 4),
-		minInterval: 0,
-		lastSent:    make(map[string]time.Time),
+		notifiers:       make([]Notifier, 0, 4),
+		minInterval:     0,
+		lastSent:        make(map[string]time.Time),
+		maxAttempts:     3,
+		retryBackoff:    250 * time.Millisecond,
+		deliveryHistory: make([]DeliveryRecord, 0, 32),
+		deadLetters:     make([]DeliveryRecord, 0, 16),
+		deadLetterItems: make(map[string]deadLetterItem),
+		maxHistory:      200,
 	}
 }
 
@@ -109,12 +128,69 @@ func (m *Manager) Send(alert Alert) {
 	for _, n := range notifiers {
 		func(nn Notifier) {
 			start := time.Now()
-			if err := nn.Send(alert); err != nil {
-				log.Printf("[notify] %s: send error: %v (took %v)", nn.Name(), err, time.Since(start))
-			} else {
-				log.Printf("[notify] %s: sent in %v", nn.Name(), time.Since(start))
+			maxAttempts, retryBackoff := m.retryPolicy()
+			for attempt := 1; attempt <= maxAttempts; attempt++ {
+				err := nn.Send(alert)
+				status := DeliveryStatusDelivered
+				errText := ""
+				if err != nil {
+					errText = err.Error()
+					if attempt < maxAttempts {
+						status = DeliveryStatusRetrying
+					} else {
+						status = DeliveryStatusDeadLetter
+					}
+				}
+				record := DeliveryRecord{
+					ID:            buildDeliveryID(alert, nn.Name(), attempt, time.Now().UTC()),
+					Notifier:      nn.Name(),
+					AlertID:       alert.ID,
+					Pattern:       alert.Pattern,
+					Severity:      alert.Severity,
+					Status:        status,
+					Attempt:       attempt,
+					MaxAttempts:   maxAttempts,
+					LastAttemptAt: time.Now().UTC(),
+					Error:         errText,
+				}
+				m.recordDelivery(record, alert)
+				if err == nil {
+					log.Printf("[notify] %s: sent in %v", nn.Name(), time.Since(start))
+					return
+				}
+				log.Printf("[notify] %s: send error: %v (attempt %d/%d, took %v)", nn.Name(), err, attempt, maxAttempts, time.Since(start))
+				if attempt < maxAttempts && retryBackoff > 0 {
+					time.Sleep(retryBackoff)
+				}
 			}
 		}(n)
+	}
+}
+
+func (m *Manager) retryPolicy() (int, time.Duration) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.maxAttempts, m.retryBackoff
+}
+
+func (m *Manager) recordDelivery(record DeliveryRecord, alert Alert) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.deliveryHistory = append([]DeliveryRecord{record}, m.deliveryHistory...)
+	if len(m.deliveryHistory) > m.maxHistory {
+		m.deliveryHistory = m.deliveryHistory[:m.maxHistory]
+	}
+	if record.Status == DeliveryStatusDeadLetter {
+		m.deadLetters = append([]DeliveryRecord{record}, m.deadLetters...)
+		m.deadLetterItems[record.ID] = deadLetterItem{
+			Record:   record,
+			Alert:    alert,
+			Notifier: record.Notifier,
+		}
+		if len(m.deadLetters) > m.maxHistory {
+			m.deadLetters = m.deadLetters[:m.maxHistory]
+		}
 	}
 }
 

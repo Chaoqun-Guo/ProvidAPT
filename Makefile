@@ -1,6 +1,6 @@
 .PHONY: all build ebpf userspace install clean test
 .PHONY: verify-env install-deps deps
-.PHONY: run stop attack-sim verify-capture
+.PHONY: run stop attack-sim verify-capture loader-smoke
 .PHONY: v1 demo ext-test cluster-test graphsketch-test deception-test supplychain-test
 SHELL := /bin/bash
 
@@ -54,6 +54,12 @@ v1-ebpf:
 		-c $(BPF_SRC)/lsm/deception.bpf.c -o $(EBPF_OUT)/deception.bpf.o
 	$(LLVM_STRIP) -g $(EBPF_OUT)/*.bpf.o 2>/dev/null || true
 	@echo "✓ v1 eBPF: lsm_hooks + defense + memory + network"
+
+# ── v1-gen: compile eBPF + generate bpf2go Go types ─────
+.PHONY: v1-gen
+v1-gen: v1-ebpf
+	$(GO) generate ./internal/engine/loader/
+	@echo "✓ v1 bpf2go types generated"
 
 v1-userspace:
 	@mkdir -p $(BIN_OUT)
@@ -243,6 +249,9 @@ attack-sim:
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 
+loader-smoke:
+	@bash test/integration/loader_smoke.sh
+
 docker-build:
 	docker build -t providapt:latest -f build/docker/Dockerfile.ubuntu .
 
@@ -260,7 +269,9 @@ help:
 	@echo ''
 	@echo 'Build:'
 	@echo '  make v1              Build production — eBPF + userspace'
-	@echo '  make v1-ebpf         Compile eBPF bytecode only'
+	@echo '  make v1-ebpf         Compile eBPF bytecode only
+	@echo '  make v1-gen          Compile eBPF + generate bpf2go Go types (requires clang)'
+	@echo '  make TAGS=bpf v1     Build with real eBPF loader (needs pre-compiled .o files)''
 	@echo '  make v1-userspace    Compile Go binaries only'
 	@echo '  make v1-install      Build & install to system'
 	@echo '  make demo            Build collector demo'
@@ -274,6 +285,7 @@ help:
 	@echo '  make supplychain-test'
 	@echo '  make attack-sim      Simulate APT attack scenario'
 	@echo '  make verify-capture  Verify provenance chain capture'
+	@echo '  make loader-smoke    Linux loader smoke test (root + eBPF)'
 	@echo ''
 	@echo 'Code quality:'
 	@echo '  make fmt             Format all Go source'

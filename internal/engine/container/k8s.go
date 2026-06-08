@@ -11,9 +11,11 @@ package container
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -303,37 +305,77 @@ func (kl *K8sListener) parseAndMap(pid, cgroupData string) {
 	}
 }
 
-// resolvePodName attempts to resolve pod name from UID via K8s API.
+// resolvePodName attempts to resolve pod name from UID via K8s API
+// using in-cluster service account credentials with proper TLS.
 func (kl *K8sListener) resolvePodName(podUID string) string {
-	// Try the K8s API server (in-cluster)
-	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
-		token := string(data)
-		apiServer := os.Getenv("KUBERNETES_SERVICE_HOST")
-		if apiServer != "" {
-			url := fmt.Sprintf("https://%s/api/v1/pods?fieldSelector=metadata.uid%%3D%s",
-				apiServer, podUID)
-			req, err := http.NewRequest("GET", url, nil)
-			if err == nil {
-				req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(token))
-				// Use the default transport (skip TLS verify in dev; use InClusterConfig in prod)
-				tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec
-				cli := &http.Client{Transport: tr, Timeout: 5 * time.Second}
-				if resp, err := cli.Do(req); err == nil {
-					defer resp.Body.Close()
-					var podList struct {
-						Items []struct {
-							Metadata struct {
-								Name string `json:"name"`
-							} `json:"metadata"`
-						} `json:"items"`
-					}
-					if err := json.NewDecoder(resp.Body).Decode(&podList); err == nil && len(podList.Items) > 0 {
-						return podList.Items[0].Metadata.Name
-					}
-				}
-			}
-		}
+	tokenData, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+	if err != nil {
+		return syntheticPodName(podUID)
 	}
+	token := strings.TrimSpace(string(tokenData))
+
+	apiServer := os.Getenv("KUBERNETES_SERVICE_HOST")
+	apiPort := os.Getenv("KUBERNETES_SERVICE_PORT")
+	if apiServer == "" {
+		return syntheticPodName(podUID)
+	}
+	if apiPort == "" {
+		apiPort = "443"
+	}
+
+	// Load CA cert for proper TLS verification
+	caCert, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+	if err != nil {
+		return syntheticPodName(podUID)
+	}
+	caCertPool := x509.NewCertPool()
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		return syntheticPodName(podUID)
+	}
+
+	url := fmt.Sprintf("https://%s/api/v1/pods?fieldSelector=metadata.uid%%3D%s",
+		net.JoinHostPort(apiServer, apiPort), podUID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return syntheticPodName(podUID)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs:    caCertPool,
+			ServerName: fmt.Sprintf("kubernetes.default.svc.%s", os.Getenv("KUBERNETES_SERVICE_HOST")),
+		},
+	}
+	// Override ServerName when the env is a hostname
+	if host := os.Getenv("KUBERNETES_SERVICE_HOST"); net.ParseIP(host) != nil {
+		tr.TLSClientConfig.ServerName = "kubernetes.default.svc"
+	} else {
+		tr.TLSClientConfig.ServerName = host
+	}
+
+	cli := &http.Client{Transport: tr, Timeout: 5 * time.Second}
+	resp, err := cli.Do(req)
+	if err != nil {
+		return syntheticPodName(podUID)
+	}
+	defer resp.Body.Close()
+
+	var podList struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&podList); err == nil && len(podList.Items) > 0 {
+		return podList.Items[0].Metadata.Name
+	}
+	return syntheticPodName(podUID)
+}
+
+// syntheticPodName returns a placeholder pod name derived from the UID.
+func syntheticPodName(podUID string) string {
 	if len(podUID) > 8 {
 		podUID = podUID[:8]
 	}

@@ -282,6 +282,7 @@ grep "event_type" /var/log/providapt/providapt.log | sort | uniq -c
 | Symptom | Cause | Solution |
 |---------|-------|----------|
 | eBPF load failed | BTF not available | Install `linux-image-$(uname -r)-dbg` |
+| `no precompiled eBPF object found` | `.bpf.o` not built or not installed | Run `make v1-ebpf` or set `PROVIDAPT_BPF_OBJECT_PATH` |
 | No events ingested | LSM not configured | Add `bpf` to kernel cmdline LSM list |
 | High memory usage | Cache too large | Reduce `max_cache_size` in config |
 | Ring buffer drops | Event overload | Increase `RINGBUF_SIZE` or enable dedup |
@@ -293,6 +294,9 @@ grep "event_type" /var/log/providapt/providapt.log | sort | uniq -c
 ```bash
 # Check eBPF program status
 bpftool prog list | grep -E "providapt|lsm|tracepoint"
+
+# Check whether the loader is using a custom object path
+echo "$PROVIDAPT_BPF_OBJECT_PATH"
 
 # Check ring buffer usage
 bpftool map list | grep ringbuf

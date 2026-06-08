@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
-	"github.com/Chaoqun-Guo/ProvidAPT/pkg/notify"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/logx"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/notify"
 )
 
 // initNotifier builds a notification Manager from the daemon config.
@@ -30,6 +30,20 @@ func initNotifier(cfg *config.Config) *notify.Manager {
 			mgr.SetMinInterval(d)
 			logx.System().Info("notify throttle interval", "interval", d)
 		}
+	}
+	if nc.MaxAttempts > 0 || nc.RetryBackoff != "" {
+		maxAttempts := nc.MaxAttempts
+		if maxAttempts <= 0 {
+			maxAttempts = 3
+		}
+		retryBackoff := 250 * time.Millisecond
+		if nc.RetryBackoff != "" {
+			if d, err := time.ParseDuration(nc.RetryBackoff); err == nil && d >= 0 {
+				retryBackoff = d
+			}
+		}
+		mgr.SetRetryPolicy(maxAttempts, retryBackoff)
+		logx.System().Info("notify retry policy", "max_attempts", maxAttempts, "backoff", retryBackoff)
 	}
 
 	// Slack

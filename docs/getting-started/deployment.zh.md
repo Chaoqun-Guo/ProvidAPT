@@ -1,4 +1,4 @@
-# 部署指南
+﻿# 部署指南
 
 **单机部署 & Kubernetes** | 环境准备、安装步骤、分布式配置
 
@@ -56,11 +56,25 @@ make v1
 sudo make v1-install
 ```
 
+补充说明：
+
+- ProvidAPT 默认优先使用 **BPF LSM**。
+- 如果 LSM attach 失败，但对象文件已正确加载，系统会自动切换到 **kprobe fallback** 模式。
+- 如果 `.bpf.o` 文件不在默认目录，可在启动前指定：
+
+```bash
+export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
+sudo -E providaptd -config /etc/providapt/providapt.toml
+```
+
 ### 2.2 安装后配置
 
 ```bash
 mkdir -p /var/lib/providapt/store
 chmod 0700 /var/lib/providapt
+
+# 检查 eBPF 对象文件
+ls /usr/local/lib/providapt/ebpf/
 
 # 启动守护进程
 sudo providaptd

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -11,12 +11,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 header { background: #161b22; border-bottom: 1px solid #30363d; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
 header h1 { color: #58a6ff; font-size: 20px; }
 header .subtitle { color: #8b949e; font-size: 12px; margin-top: 2px; }
+.role-info { color: #8b949e; font-size: 11px; margin-top: 4px; }
 header .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
 .status-badge.healthy { background: #1a3a2a; color: #3fb950; border: 1px solid #238636; }
+.status-badge.degraded { background: #3a2a1a; color: #d29922; border: 1px solid #9e6a03; }
 .status-badge.unhealthy { background: #3a1a1a; color: #f85149; border: 1px solid #da3633; }
 .status-badge.unknown { background: #1a1a2a; color: #d29922; border: 1px solid #9e6a03; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .healthy .status-dot { background: #3fb950; }
+.degraded .status-dot { background: #d29922; }
 .unhealthy .status-dot { background: #f85149; }
 .unknown .status-dot { background: #d29922; }
 .refresh-info { color: #8b949e; font-size: 10px; }
@@ -29,6 +32,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 
 .content { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 24px 24px; }
 @media (max-width: 900px) { .content { grid-template-columns: 1fr; } }
+.overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 24px 16px; }
+@media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } }
 
 .panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
 .panel h2 { font-size: 13px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; border-bottom: 1px solid #21262d; }
@@ -49,6 +54,33 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 
 .loading { color: #8b949e; text-align: center; padding: 24px; font-size: 13px; }
 .error { color: #f85149; text-align: center; padding: 12px; font-size: 13px; }
+.mini-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mini-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
+.mini-card .value { font-size: 22px; font-weight: 700; color: #58a6ff; }
+.mini-card .label { margin-top: 4px; font-size: 11px; color: #8b949e; text-transform: uppercase; }
+.agents-list { display: grid; gap: 10px; }
+.agent-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
+.agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.agent-name { font-weight: 600; color: #c9d1d9; }
+.agent-meta { margin-top: 8px; font-size: 12px; color: #8b949e; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
+.fleet-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+.fleet-toolbar input { flex: 1; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; }
+.fleet-toolbar button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+.tag-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tag-chip { background: #1a1f27; border: 1px solid #30363d; color: #8b949e; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
+.policy-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.policy-item { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
+.policy-item .value { font-size: 20px; font-weight: 700; color: #58a6ff; }
+.policy-item .label { margin-top: 4px; font-size: 11px; color: #8b949e; text-transform: uppercase; }
+.action-row { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.action-row button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 12px; }
+.action-row button.secondary { background: #30363d; }
+.action-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+.ticket-link { color: #58a6ff; text-decoration: none; }
+.ticket-link:hover { text-decoration: underline; }
+.delivery-inline-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.delivery-inline-actions button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
+.delivery-inline-actions button.secondary { background: #30363d; }
 </style>
 </head>
 <body>
@@ -57,6 +89,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
   <div>
     <h1>ProvidAPT</h1>
     <div class="subtitle">Provenance-driven APT Detection</div>
+    <div class="role-info" id="roleInfo">Role: --</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
     <span class="status-badge unknown" id="statusBadge">
@@ -76,7 +109,147 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
   <div class="card"><div class="value" id="mUptime">--</div><div class="label">Uptime</div></div>
 </div>
 
+<div class="overview-grid">
+  <div class="panel">
+    <h2>Control Plane Summary</h2>
+    <div class="panel-body">
+      <div class="mini-metrics">
+        <div class="mini-card"><div class="value" id="mAgents">--</div><div class="label">Agents</div></div>
+        <div class="mini-card"><div class="value" id="mHealthyAgents">--</div><div class="label">Healthy</div></div>
+        <div class="mini-card"><div class="value" id="mDegradedAgents">--</div><div class="label">Degraded</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Agent Overview</h2>
+    <div class="panel-body">
+      <div class="fleet-toolbar">
+        <input id="fleetGroup" placeholder="Filter by group" />
+        <input id="fleetTag" placeholder="Filter by tag" />
+        <button onclick="loadControlOverview()">Apply</button>
+      </div>
+      <div class="agents-list" id="agentsList">
+        <div class="loading">Loading agents...</div>
+      </div>
+      <div class="loading" style="margin-top:12px;">Recent Fleet Actions</div>
+      <div class="alerts-list" id="fleetHistoryList">
+        <div class="loading">Loading fleet actions...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overview-grid" style="padding-top:0;">
+  <div class="panel">
+    <h2>Support Bundle</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item"><div class="value" id="sbStatus">--</div><div class="label">Last Status</div></div>
+        <div class="policy-item"><div class="value" id="sbTime">--</div><div class="label">Last Export</div></div>
+        <div class="policy-item"><div class="value" id="sbActor">--</div><div class="label">Last Actor</div></div>
+        <div class="policy-item"><div class="value" id="sbHistoryCount">--</div><div class="label">History</div></div>
+      </div>
+      <div class="action-row">
+        <button id="exportSupportBundleBtn" onclick="prepareSupportBundleAction()">Export Support Bundle</button>
+        <button id="downloadSupportBundleBtn" class="secondary" onclick="downloadSupportBundle()">Download Latest Archive</button>
+      </div>
+      <div class="loading" id="supportBundleStatus"></div>
+      <div class="alerts-list" id="supportBundleDetails">
+        <div class="loading">Loading support bundle state...</div>
+      </div>
+      <div class="loading" style="margin-top:12px;">Recent Persisted Audit</div>
+      <div class="alerts-list" id="supportBundleAuditList">
+        <div class="loading">Loading persisted support bundle audit...</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>License & Upgrade</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item"><div class="value" id="licensePresent">--</div><div class="label">License File</div></div>
+        <div class="policy-item"><div class="value" id="licenseChecked">--</div><div class="label">License Expiry</div></div>
+        <div class="policy-item"><div class="value" id="upgradeVersion">--</div><div class="label">Current Version</div></div>
+        <div class="policy-item"><div class="value" id="upgradeAction">--</div><div class="label">Package Verify</div></div>
+      </div>
+      <div class="action-row">
+        <button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate License</button>
+        <button id="checkUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('check')">Record Upgrade Check</button>
+        <button id="preflightUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('preflight')">Run Upgrade Preflight</button>
+        <button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download Upgrade Artifact</button>
+        <button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Upgrade Note</button>
+      </div>
+      <div class="loading" id="licenseUpgradeStatus"></div>
+      <div class="alerts-list" id="licenseUpgradeList">
+        <div class="loading">Loading license and upgrade state...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="content">
+  <div class="panel">
+    <h2>Policy Center</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item"><div class="value" id="pCurrentVersion">--</div><div class="label">Current Version</div></div>
+        <div class="policy-item"><div class="value" id="pDraftState">--</div><div class="label">Draft State</div></div>
+        <div class="policy-item"><div class="value" id="pActiveRules">--</div><div class="label">Active Rules</div></div>
+        <div class="policy-item"><div class="value" id="pHistoryCount">--</div><div class="label">History</div></div>
+      </div>
+      <div class="action-row">
+        <button id="publishPolicyBtn" onclick="preparePolicyAction('publish')">Publish Policy</button>
+        <button id="rollbackPolicyBtn" class="secondary" onclick="preparePolicyAction('rollback')">Rollback Policy</button>
+      </div>
+      <div class="loading" id="policyActionStatus"></div>
+      <div class="loading" style="margin-top:12px;">Recent Policy Actions</div>
+      <div class="alerts-list" id="policyHistoryList">
+        <div class="loading">Loading policy actions...</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Alert Workflow</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item"><div class="value" id="awOpen">--</div><div class="label">Open</div></div>
+        <div class="policy-item"><div class="value" id="awAssigned">--</div><div class="label">Assigned</div></div>
+        <div class="policy-item"><div class="value" id="awSuppressed">--</div><div class="label">Suppressed</div></div>
+        <div class="policy-item"><div class="value" id="awClosed">--</div><div class="label">Closed</div></div>
+      </div>
+      <div class="alerts-list" id="workflowAlertsList">
+        <div class="loading">Loading workflow alerts...</div>
+      </div>
+      <div class="loading" style="margin-top:12px;">Recent Workflow Actions</div>
+      <div class="alerts-list" id="workflowHistoryList">
+        <div class="loading">Loading workflow actions...</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Delivery Health</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item"><div class="value" id="dDelivered">--</div><div class="label">Delivered</div></div>
+        <div class="policy-item"><div class="value" id="dRetrying">--</div><div class="label">Retrying</div></div>
+        <div class="policy-item"><div class="value" id="dDeadLetters">--</div><div class="label">Dead Letters</div></div>
+        <div class="policy-item"><div class="value" id="dRecentCount">--</div><div class="label">Recent Attempts</div></div>
+      </div>
+      <div class="action-row">
+        <button id="replayAllBtn" onclick="prepareDeliveryAction('replay_all')">Replay All Dead Letters</button>
+        <button id="createAllTicketsBtn" onclick="prepareDeliveryAction('create_ticket_all')">Create Tickets for All</button>
+        <button id="refreshDeliveryBtn" class="secondary" onclick="loadDeliveries()">Refresh Delivery View</button>
+      </div>
+      <div class="loading" id="deliveryActionStatus"></div>
+      <div class="alerts-list" id="deliveryList">
+        <div class="loading">Loading deliveries...</div>
+      </div>
+      <div class="loading" style="margin-top:12px;">Recent Delivery Actions</div>
+      <div class="alerts-list" id="deliveryHistoryList">
+        <div class="loading">Loading delivery actions...</div>
+      </div>
+    </div>
+  </div>
   <div class="panel">
     <h2>Provenance Graph</h2>
     <div id="graph-container"></div>
@@ -92,6 +265,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 <script>
 let cy = null;
 let lastStatus = 'unknown';
+let currentRole = 'admin';
 
 async function fetchJSON(url) {
   const r = await fetch(url);
@@ -149,6 +323,31 @@ function updateStatus(status) {
 async function loadStatus() {
   try {
     const data = await fetchJSON('/api/v1/status');
+    currentRole = (data.role || 'admin').toLowerCase();
+    document.getElementById('roleInfo').textContent = 'Role: ' + currentRole;
+    const deliveryAdmin = currentRole === 'admin';
+    const replayAllBtn = document.getElementById('replayAllBtn');
+    const createAllTicketsBtn = document.getElementById('createAllTicketsBtn');
+    const publishPolicyBtn = document.getElementById('publishPolicyBtn');
+    const rollbackPolicyBtn = document.getElementById('rollbackPolicyBtn');
+    const exportSupportBundleBtn = document.getElementById('exportSupportBundleBtn');
+    const downloadSupportBundleBtn = document.getElementById('downloadSupportBundleBtn');
+    const validateLicenseBtn = document.getElementById('validateLicenseBtn');
+    const checkUpgradeBtn = document.getElementById('checkUpgradeBtn');
+    const preflightUpgradeBtn = document.getElementById('preflightUpgradeBtn');
+    const downloadUpgradeBtn = document.getElementById('downloadUpgradeBtn');
+    const recordUpgradeBtn = document.getElementById('recordUpgradeBtn');
+    if (replayAllBtn) replayAllBtn.disabled = !deliveryAdmin;
+    if (createAllTicketsBtn) createAllTicketsBtn.disabled = !deliveryAdmin;
+    if (publishPolicyBtn) publishPolicyBtn.disabled = !deliveryAdmin;
+    if (rollbackPolicyBtn) rollbackPolicyBtn.disabled = !deliveryAdmin;
+    if (exportSupportBundleBtn) exportSupportBundleBtn.disabled = !deliveryAdmin;
+    if (downloadSupportBundleBtn) downloadSupportBundleBtn.disabled = currentRole === 'analyst';
+    if (validateLicenseBtn) validateLicenseBtn.disabled = !deliveryAdmin;
+    if (checkUpgradeBtn) checkUpgradeBtn.disabled = !deliveryAdmin;
+    if (preflightUpgradeBtn) preflightUpgradeBtn.disabled = !deliveryAdmin;
+    if (downloadUpgradeBtn) downloadUpgradeBtn.disabled = !deliveryAdmin;
+    if (recordUpgradeBtn) recordUpgradeBtn.disabled = !deliveryAdmin;
     document.getElementById('mNodes').textContent = data.nodes || 0;
     document.getElementById('mEdges').textContent = data.edges || 0;
     if (data.health) updateStatus(data.health);
@@ -168,7 +367,564 @@ async function loadHealth() {
   } catch(e) { /* ignore */ }
 }
 
+async function loadControlOverview() {
+  try {
+    const group = document.getElementById('fleetGroup').value.trim();
+    const tag = document.getElementById('fleetTag').value.trim();
+    const params = new URLSearchParams();
+    if (group) params.set('group', group);
+    if (tag) params.set('tag', tag);
+    const fleet = await fetchJSON('/api/v1/control/fleet' + (params.toString() ? '?' + params.toString() : ''));
+    const data = await fetchJSON('/api/v1/control/overview');
+    document.getElementById('mAgents').textContent = data.total_agents || 0;
+    document.getElementById('mHealthyAgents').textContent = data.healthy_agents || 0;
+    document.getElementById('mDegradedAgents').textContent = data.degraded_agents || 0;
+
+    const list = document.getElementById('agentsList');
+    const historyList = document.getElementById('fleetHistoryList');
+    const agents = fleet.agents || [];
+    const history = fleet.history || [];
+    if (agents.length === 0) {
+      list.innerHTML = '<div class="loading">No agents reporting yet</div>';
+    } else {
+      list.innerHTML = agents.map(a => {
+        const status = (a.status || 'unknown').toLowerCase();
+        return '<div class="agent-card">' +
+          '<div class="agent-head">' +
+            '<span class="agent-name">' + (a.agent_id || 'unknown') + '</span>' +
+            '<span class="status-badge ' + status + '"><span class="status-dot"></span><span>' + (a.status || 'UNKNOWN') + '</span></span>' +
+          '</div>' +
+          '<div class="agent-meta">' +
+            '<span>Group: ' + (a.group || '--') + '</span>' +
+            '<span>Version: ' + (a.version || '--') + '</span>' +
+            '<span>Mode: ' + (a.attachment_mode || '--') + '</span>' +
+            '<span>Events: ' + ((a.events_ingested || 0).toLocaleString()) + '</span>' +
+            '<span>Dropped: ' + ((a.events_dropped || 0).toLocaleString()) + '</span>' +
+            '<span>Memory: ' + formatBytes(a.memory_bytes || 0) + '</span>' +
+            '<span>Last report: ' + formatTime(a.last_report_at) + '</span>' +
+          '</div>' +
+          (((a.tags || []).length > 0) ? ('<div class="tag-list">' + a.tags.map(t => '<span class="tag-chip">' + t + '</span>').join('') + '</div>') : '') +
+        '</div>';
+      }).join('');
+    }
+    if (historyList) {
+      if (history.length === 0) {
+        historyList.innerHTML = '<div class="loading">No fleet actions recorded yet</div>';
+      } else {
+        historyList.innerHTML = history.slice(0, 8).map(item => {
+          const actor = item.actor ? ' · ' + item.actor : '';
+          const note = item.note ? ' · note: ' + item.note : '';
+          const target = item.target_id ? ' · ' + item.target_id : '';
+          return '<div class="alert-item">' +
+            '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'action') + '</span>' +
+            '<span class="alert-msg">' + (item.message || item.status || 'done') + actor + target + note + '</span>' +
+            '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+            '</div>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    document.getElementById('agentsList').innerHTML = '<div class="loading">Control plane overview unavailable</div>';
+    const historyList = document.getElementById('fleetHistoryList');
+    if (historyList) {
+      historyList.innerHTML = '<div class="loading">Fleet action history unavailable</div>';
+    }
+  }
+}
+
+async function loadPolicies() {
+  try {
+    const data = await fetchJSON('/api/v1/control/policies');
+    document.getElementById('pCurrentVersion').textContent = (data.current && data.current.version) || '--';
+    document.getElementById('pDraftState').textContent = (data.draft && data.draft.state) || '--';
+    document.getElementById('pActiveRules').textContent = (data.current && data.current.active_rules) || 0;
+    document.getElementById('pHistoryCount').textContent = (data.history || []).length;
+    const historyList = document.getElementById('policyHistoryList');
+    const actions = data.actions || [];
+    if (historyList) {
+      if (actions.length === 0) {
+        historyList.innerHTML = '<div class="loading">No policy actions recorded yet</div>';
+      } else {
+        historyList.innerHTML = actions.slice(0, 8).map(item => {
+          const actor = item.actor ? ' · ' + item.actor : '';
+          const note = item.note ? ' · note: ' + item.note : '';
+          const target = item.target_id ? ' · ' + item.target_id : '';
+          return '<div class="alert-item">' +
+            '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'action') + '</span>' +
+            '<span class="alert-msg">' + (item.message || item.status || 'done') + actor + target + note + '</span>' +
+            '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+            '</div>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    document.getElementById('pCurrentVersion').textContent = 'err';
+  }
+}
+
+async function loadSupportBundles() {
+  try {
+    const data = await fetchJSON('/api/v1/control/support');
+    const auditData = await fetchJSON('/api/v1/control/audit?category=admin&source=supportbundle&limit=8');
+    const history = data.history || [];
+    document.getElementById('sbStatus').textContent = data.last_status || '--';
+    document.getElementById('sbTime').textContent = data.last_bundle_at ? formatTime(data.last_bundle_at) : '--';
+    document.getElementById('sbActor').textContent = data.last_actor || '--';
+    document.getElementById('sbHistoryCount').textContent = history.length;
+    const downloadBtn = document.getElementById('downloadSupportBundleBtn');
+    if (downloadBtn) {
+      downloadBtn.disabled = currentRole === 'analyst' || !data.download_url;
+    }
+
+    const details = document.getElementById('supportBundleDetails');
+    if (!data.last_bundle_path && history.length === 0) {
+      details.innerHTML = '<div class="loading">No support bundles exported yet</div>';
+      return;
+    }
+
+    const items = [];
+    if (data.last_bundle_path) {
+      items.push('<div class="alert-item">' +
+        '<span class="alert-sev sev-medium">latest</span>' +
+        '<span class="alert-msg">' + (data.last_archive_path || data.last_bundle_path || '--') + (data.redacted ? ' · redacted zip' : '') + (data.last_reason ? (' · ' + data.last_reason) : '') + '</span>' +
+        '<span class="alert-time">' + formatTime(data.last_bundle_at) + '</span>' +
+        '</div>');
+    }
+    items.push(...history.slice(0, 8).map(item => {
+      const actor = item.actor ? ' · ' + item.actor : '';
+      const note = item.note ? ' · note: ' + item.note : '';
+      const target = item.target_id ? ' · ' + item.target_id : '';
+      return '<div class="alert-item">' +
+        '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'action') + '</span>' +
+        '<span class="alert-msg">' + (item.message || item.status || 'done') + actor + target + note + '</span>' +
+        '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+        '</div>';
+    }));
+    details.innerHTML = items.join('');
+
+    const auditList = document.getElementById('supportBundleAuditList');
+    const auditEntries = (auditData && auditData.entries) || [];
+    if (auditList) {
+      if (auditEntries.length === 0) {
+        auditList.innerHTML = '<div class="loading">No persisted support bundle audit entries yet</div>';
+      } else {
+        auditList.innerHTML = auditEntries.map(item => {
+          const actor = item.details && item.details.actor ? (' · ' + item.details.actor) : '';
+          const path = item.details && (item.details.archive_path || item.details.bundle_path) ? (' · ' + (item.details.archive_path || item.details.bundle_path)) : '';
+          return '<div class="alert-item">' +
+            '<span class="alert-sev ' + ((item.severity || '') === 'WARNING' ? 'sev-high' : 'sev-low') + '">' + (item.category || 'audit') + '</span>' +
+            '<span class="alert-msg">' + (item.message || 'audit event') + actor + path + '</span>' +
+            '<span class="alert-time">' + formatTime(item.timestamp) + '</span>' +
+            '</div>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    document.getElementById('supportBundleDetails').innerHTML = '<div class="loading">Support bundle state unavailable</div>';
+    const auditList = document.getElementById('supportBundleAuditList');
+    if (auditList) {
+      auditList.innerHTML = '<div class="loading">Persisted support bundle audit unavailable</div>';
+    }
+  }
+}
+
+async function runSupportBundleAction(payload) {
+  const status = document.getElementById('supportBundleStatus');
+  const exportBtn = document.getElementById('exportSupportBundleBtn');
+  if (status) {
+    status.textContent = 'Exporting support bundle...';
+  }
+  if (exportBtn) exportBtn.disabled = true;
+  try {
+    const response = await fetch('/api/v1/control/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    if (status) {
+      status.textContent = (data.message || 'Support bundle exported') + (data.bundle_path ? (': ' + data.bundle_path) : '');
+    }
+    await loadSupportBundles();
+  } catch (e) {
+    if (status) {
+      status.textContent = 'Support bundle export failed: ' + e.message;
+    }
+  } finally {
+    if (exportBtn) exportBtn.disabled = currentRole !== 'admin';
+  }
+}
+
+function prepareSupportBundleAction() {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const reason = window.prompt('Optional reason for exporting a support bundle:', '') || '';
+  const note = window.prompt('Optional operator note for this support bundle export:', '') || '';
+  runSupportBundleAction({ reason: reason, note: note });
+}
+
+function downloadSupportBundle() {
+  if (currentRole === 'analyst') {
+    return;
+  }
+  window.location.href = '/api/v1/control/support/download';
+}
+
+async function loadLicenseAndUpgrade() {
+  try {
+    const license = await fetchJSON('/api/v1/control/license');
+    const upgrade = await fetchJSON('/api/v1/control/upgrade');
+    document.getElementById('licensePresent').textContent = license.present ? 'Present' : 'Missing';
+    document.getElementById('licenseChecked').textContent = license.expires_at ? (license.expired ? 'Expired' : formatTime(license.expires_at)) : '--';
+    document.getElementById('upgradeVersion').textContent = upgrade.current_version || '--';
+    document.getElementById('upgradeAction').textContent = upgrade.preflight_ready ? 'Ready' : (upgrade.package_verified ? 'Verified' : (upgrade.expected_sha256 ? 'Mismatch' : '--'));
+
+    const list = document.getElementById('licenseUpgradeList');
+    const items = [];
+    items.push('<div class="alert-item">' +
+      '<span class="alert-sev ' + (license.present ? 'sev-medium' : 'sev-high') + '">license</span>' +
+      '<span class="alert-msg">' + (license.path || 'license path not configured') + (license.license_id ? (' · ' + license.license_id) : '') + (license.customer ? (' · ' + license.customer) : '') + (license.edition ? (' · ' + license.edition) : '') + (license.revoked ? ' · revoked' : '') + (license.revocation_source ? (' · ' + license.revocation_source) : '') + (license.revocation_verified ? ' · revocation sig ok' : '') + (license.in_grace_period ? (' · grace ' + (license.grace_period_days || 0) + 'd') : '') + (license.signature_present ? (license.signature_verified ? ' · signature ok' : ' · signature mismatch') : '') + (license.last_error ? (' · ' + license.last_error) : '') + '</span>' +
+      '<span class="alert-time">' + formatTime(license.modified_at || license.updated_at) + '</span>' +
+      '</div>');
+    items.push('<div class="alert-item">' +
+      '<span class="alert-sev sev-low">upgrade</span>' +
+      '<span class="alert-msg">' + (upgrade.package_path || upgrade.guide_path || '--') + (upgrade.download_url ? (' · source ' + upgrade.download_url) : '') + (upgrade.package_sha256 ? (' · sha256 ' + upgrade.package_sha256.slice(0, 12)) : '') + (upgrade.signature_path ? (' · sig ' + upgrade.signature_path) : '') + (upgrade.signature_present ? (upgrade.signature_verified ? ' · signature ok' : ' · signature mismatch') : '') + (upgrade.rollback_plan ? (' · rollback: ' + upgrade.rollback_plan) : '') + (upgrade.preflight_ready ? ' · preflight ready' : '') + (upgrade.last_note ? (' · note: ' + upgrade.last_note) : '') + (upgrade.last_actor ? (' · ' + upgrade.last_actor) : '') + (upgrade.last_error ? (' · ' + upgrade.last_error) : '') + '</span>' +
+      '<span class="alert-time">' + formatTime(upgrade.last_action_at || upgrade.updated_at) + '</span>' +
+      '</div>');
+    (license.history || []).slice(0, 3).forEach(item => {
+      items.push('<div class="alert-item">' +
+        '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'license') + '</span>' +
+        '<span class="alert-msg">' + (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : '') + (item.note ? (' · note: ' + item.note) : '') + '</span>' +
+        '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+        '</div>');
+    });
+    (upgrade.history || []).slice(0, 3).forEach(item => {
+      items.push('<div class="alert-item">' +
+        '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'upgrade') + '</span>' +
+        '<span class="alert-msg">' + (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : '') + (item.note ? (' · note: ' + item.note) : '') + '</span>' +
+        '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+        '</div>');
+    });
+    list.innerHTML = items.join('');
+  } catch (e) {
+    document.getElementById('licenseUpgradeList').innerHTML = '<div class="loading">License and upgrade state unavailable</div>';
+  }
+}
+
+async function runLicenseAction(payload) {
+  const status = document.getElementById('licenseUpgradeStatus');
+  if (status) {
+    status.textContent = 'Validating license...';
+  }
+  try {
+    const response = await fetch('/api/v1/control/license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    if (status) {
+      status.textContent = data.message || 'License validation recorded';
+    }
+    await loadLicenseAndUpgrade();
+  } catch (e) {
+    if (status) {
+      status.textContent = 'License validation failed: ' + e.message;
+    }
+  }
+}
+
+function prepareLicenseAction() {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const note = window.prompt('Optional note for this license validation:', '') || '';
+  runLicenseAction({ action: 'validate', note: note });
+}
+
+async function runUpgradeAction(payload) {
+  const status = document.getElementById('licenseUpgradeStatus');
+  if (status) {
+    status.textContent = 'Recording upgrade action...';
+  }
+  try {
+    const response = await fetch('/api/v1/control/upgrade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    if (status) {
+      status.textContent = data.message || 'Upgrade action recorded';
+    }
+    await loadLicenseAndUpgrade();
+  } catch (e) {
+    if (status) {
+      status.textContent = 'Upgrade action failed: ' + e.message;
+    }
+  }
+}
+
+function prepareUpgradeAction(action) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const notePrompt = action === 'record' ? 'Record upgrade note:' : 'Optional note for this readiness check:';
+  const note = window.prompt(notePrompt, '') || '';
+  const payload = { action: action, note: note };
+  const packagePath = window.prompt('Optional upgrade package path override:', '') || '';
+  if (packagePath) {
+    payload.package_path = packagePath;
+  }
+  const downloadURL = window.prompt('Optional upgrade download URL override:', '') || '';
+  if (downloadURL) {
+    payload.download_url = downloadURL;
+  }
+  const expectedSHA256 = window.prompt('Optional expected SHA256 override:', '') || '';
+  if (expectedSHA256) {
+    payload.expected_sha256 = expectedSHA256;
+  }
+  const signaturePath = window.prompt('Optional upgrade signature path override:', '') || '';
+  if (signaturePath) {
+    payload.signature_path = signaturePath;
+  }
+  if (action === 'record') {
+    const rollbackPlan = window.prompt('Optional rollback plan:', '') || '';
+    if (rollbackPlan) {
+      payload.rollback_plan = rollbackPlan;
+    }
+  }
+  runUpgradeAction(payload);
+}
+
+async function loadAlertWorkflow() {
+  try {
+    const data = await fetchJSON('/api/v1/control/alerts');
+    const summary = data.summary || {};
+    document.getElementById('awOpen').textContent = summary.open || 0;
+    document.getElementById('awAssigned').textContent = summary.assigned || 0;
+    document.getElementById('awSuppressed').textContent = summary.suppressed || 0;
+    document.getElementById('awClosed').textContent = summary.closed || 0;
+
+    const list = document.getElementById('workflowAlertsList');
+    const historyList = document.getElementById('workflowHistoryList');
+    const alerts = data.alerts || [];
+    const history = data.history || [];
+    if (alerts.length === 0) {
+      list.innerHTML = '<div class="loading">No workflow alerts</div>';
+    } else {
+      list.innerHTML = alerts.slice(0, 8).map(a => {
+        const sev = a.severity || 'info';
+        return '<div class="alert-item">' +
+          '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
+          '<span class="alert-msg">' + (a.headline || a.pattern || 'Alert') + ' 路 ' + (a.status || 'open') + (a.assignee ? (' 路 ' + a.assignee) : '') + ' 路 x' + (a.count || 1) + '</span>' +
+          '<span class="alert-time">' + formatTime(a.last_seen || a.last_notified_at) + '</span>' +
+          '</div>';
+      }).join('');
+    }
+    if (historyList) {
+      if (history.length === 0) {
+        historyList.innerHTML = '<div class="loading">No workflow actions recorded yet</div>';
+      } else {
+        historyList.innerHTML = history.slice(0, 8).map(item => {
+          const actor = item.actor ? ' · ' + item.actor : '';
+          const note = item.note ? ' · note: ' + item.note : '';
+          const target = item.target_id ? ' · ' + item.target_id : '';
+          return '<div class="alert-item">' +
+            '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'action') + '</span>' +
+            '<span class="alert-msg">' + (item.message || item.status || 'done') + actor + target + note + '</span>' +
+            '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+            '</div>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    document.getElementById('workflowAlertsList').innerHTML = '<div class="loading">Workflow alerts unavailable</div>';
+    const historyList = document.getElementById('workflowHistoryList');
+    if (historyList) {
+      historyList.innerHTML = '<div class="loading">Workflow action history unavailable</div>';
+    }
+  }
+}
+
+async function runPolicyAction(payload) {
+  const status = document.getElementById('policyActionStatus');
+  if (status) {
+    status.textContent = 'Running ' + payload.action + '...';
+  }
+  try {
+    const response = await fetch('/api/v1/control/policies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    if (status) {
+      status.textContent = 'Policy action completed';
+    }
+    await loadPolicies();
+  } catch (e) {
+    if (status) {
+      status.textContent = 'Policy action failed: ' + e.message;
+    }
+  }
+}
+
+function preparePolicyAction(action) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const payload = { action: action };
+  const note = window.prompt('Optional operator note for this policy action:', '') || '';
+  if (note) {
+    payload.notes = note;
+  }
+  if (action === 'rollback') {
+    const version = window.prompt('Rollback to which policy version?', '');
+    if (!version) {
+      return;
+    }
+    payload.target_version = Number(version);
+    if (!payload.target_version) {
+      return;
+    }
+  }
+  runPolicyAction(payload);
+}
+
+async function loadDeliveries() {
+  try {
+    const data = await fetchJSON('/api/v1/control/deliveries');
+    const summary = data.summary || {};
+    document.getElementById('dDelivered').textContent = summary.delivered || 0;
+    document.getElementById('dRetrying').textContent = summary.retrying || 0;
+    document.getElementById('dDeadLetters').textContent = summary.dead_letter || 0;
+    document.getElementById('dRecentCount').textContent = (data.recent || []).length;
+    const list = document.getElementById('deliveryList');
+    const historyList = document.getElementById('deliveryHistoryList');
+    const deadLetters = data.dead_letters || [];
+    const recent = data.recent || [];
+    const history = data.history || [];
+    const source = deadLetters.length > 0 ? deadLetters : recent;
+    if (source.length === 0) {
+      list.innerHTML = '<div class="loading">No delivery attempts yet</div>';
+    } else {
+      list.innerHTML = source.slice(0, 8).map(item => {
+        const ticket = item.ticket_key
+          ? '<a class="ticket-link" href="' + (item.ticket_url || '#') + '" target="_blank" rel="noreferrer">' + item.ticket_key + '</a>'
+          : '';
+        const actions = currentRole === 'admin' && item.status === 'dead_letter'
+          ? '<span class="delivery-inline-actions">' +
+            "<button onclick=\"prepareDeliveryAction('replay', '" + (item.id || '') + "')\">Replay</button>" +
+            "<button class=\"secondary\" onclick=\"prepareDeliveryAction('create_ticket', '" + (item.id || '') + "')\">Create Ticket</button>" +
+            '</span>'
+          : '';
+        return '<div class="alert-item">' +
+          '<span class="alert-sev ' + (item.status === 'dead_letter' ? 'sev-critical' : 'sev-medium') + '">' + (item.status || 'delivered') + '</span>' +
+          '<span class="alert-msg">' + (item.notifier || 'notifier') + ' · ' + (item.pattern || 'alert') + ' · attempt ' + (item.attempt || 1) + '/' + (item.max_attempts || 1) + (item.error ? (' · ' + item.error) : '') + (ticket ? (' · ' + ticket) : '') + '</span>' +
+          '<span class="alert-time">' + formatTime(item.last_attempt_at) + '</span>' +
+          actions +
+          '</div>';
+      }).join('');
+    }
+    if (historyList) {
+      if (history.length === 0) {
+        historyList.innerHTML = '<div class="loading">No delivery actions recorded yet</div>';
+      } else {
+        historyList.innerHTML = history.slice(0, 10).map(item => {
+          const ticket = item.ticket_key
+            ? '<a class="ticket-link" href="' + (item.ticket_url || '#') + '" target="_blank" rel="noreferrer">' + item.ticket_key + '</a>'
+            : '';
+          const actor = item.actor ? ' · ' + item.actor : '';
+          const note = item.note ? ' · note: ' + item.note : '';
+          const counts = item.processed
+            ? ' · ' + (item.succeeded || 0) + ' ok / ' + (item.skipped || 0) + ' skipped / ' + (item.failed || 0) + ' failed'
+            : '';
+          return '<div class="alert-item">' +
+            '<span class="alert-sev ' + (String(item.status || '').indexOf('failed') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'action') + '</span>' +
+            '<span class="alert-msg">' + (item.message || item.status || 'done') + actor + (item.delivery_id ? (' · ' + item.delivery_id) : '') + note + counts + (ticket ? (' · ' + ticket) : '') + '</span>' +
+            '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+            '</div>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    document.getElementById('deliveryList').innerHTML = '<div class="loading">Delivery health unavailable</div>';
+    const historyList = document.getElementById('deliveryHistoryList');
+    if (historyList) {
+      historyList.innerHTML = '<div class="loading">Delivery action history unavailable</div>';
+    }
+  }
+}
+
+async function runDeliveryAction(payload) {
+  const status = document.getElementById('deliveryActionStatus');
+  const replayAllBtn = document.getElementById('replayAllBtn');
+  const createAllTicketsBtn = document.getElementById('createAllTicketsBtn');
+  const refreshBtn = document.getElementById('refreshDeliveryBtn');
+  if (status) {
+    status.textContent = 'Running ' + payload.action + '...';
+  }
+  if (replayAllBtn) replayAllBtn.disabled = true;
+  if (createAllTicketsBtn) createAllTicketsBtn.disabled = true;
+  if (refreshBtn) refreshBtn.disabled = true;
+  try {
+    const response = await fetch('/api/v1/control/deliveries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    if (status) {
+      status.textContent = data.message || data.status || 'Action completed';
+    }
+    await loadDeliveries();
+  } catch (e) {
+    if (status) {
+      status.textContent = 'Action failed: ' + e.message;
+    }
+  } finally {
+    if (replayAllBtn) replayAllBtn.disabled = currentRole !== 'admin';
+    if (createAllTicketsBtn) createAllTicketsBtn.disabled = currentRole !== 'admin';
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
+}
+
+function prepareDeliveryAction(action, deliveryID) {
+  let note = '';
+  if (action === 'replay' || action === 'create_ticket' || action === 'replay_all' || action === 'create_ticket_all') {
+    note = window.prompt('Optional operator note for this action:', '') || '';
+  }
+  const payload = {
+    action: action,
+    note: note,
+  };
+  if (deliveryID) {
+    payload.delivery_id = deliveryID;
+  }
+  runDeliveryAction(payload);
+}
 async function loadGraph() {
+  if (currentRole === 'auditor') {
+    document.getElementById('graph-container').innerHTML = '<div class="loading">Graph view is hidden for auditor role</div>';
+    return;
+  }
   try {
     const data = await fetchJSON('/api/v1/graph/export');
     if (!data.elements || data.elements.length === 0) return;
@@ -214,7 +970,7 @@ async function loadAlerts() {
 async function refresh() {
   const now = new Date();
   document.getElementById('refreshInfo').textContent = 'Updated: ' + now.toLocaleTimeString();
-  await Promise.all([loadStatus(), loadHealth(), loadAlerts(), loadGraph()]);
+  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadAlerts(), loadGraph()]);
 }
 
 refresh();
@@ -222,3 +978,6 @@ setInterval(refresh, 5000);
 </script>
 </body>
 </html>
+
+
+

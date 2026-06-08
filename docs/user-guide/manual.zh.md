@@ -51,6 +51,20 @@ sudo providaptd -config /etc/providapt/custom.toml
 sudo providaptd -v
 ```
 
+Loader 行为说明：
+
+- `providaptd` 会优先使用 **BPF LSM** 挂载核心 Hook。
+- 如果 `lsm_hooks.bpf.o` 已成功加载，但 LSM attach 失败，守护进程会自动切换到 **kprobe fallback** 模式。
+- Loader 默认搜索以下对象文件位置：
+  - `build/ebpf/lsm_hooks.bpf.o`
+  - `/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o`
+- 如果对象文件位于非默认位置，可在启动前设置 `PROVIDAPT_BPF_OBJECT_PATH`：
+
+```bash
+export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
+sudo -E providaptd -config /etc/providapt/providapt.toml
+```
+
 ### 1.3 providapt-watchdog — 高可用监控器
 
 监控主守护进程，在崩溃时自动重启。
@@ -234,6 +248,8 @@ cfg.MergeWindow = 5 * time.Second   // 默认
 ---
 
 ## 6. 卸载与清理
+
+如果启动时报错 `no precompiled eBPF object found`，可先执行 `make v1-ebpf` 重新生成对象文件，或通过 `PROVIDAPT_BPF_OBJECT_PATH` 指向已有的 `lsm_hooks.bpf.o` 后再启动。
 
 ```bash
 # 优雅停止守护进程

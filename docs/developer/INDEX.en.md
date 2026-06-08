@@ -11,6 +11,7 @@ This section is intended for developers who wish to extend or integrate ProvidAP
 | [changelog.md](changelog.md) | Version changelog |
 | [upgrade-guide.md](upgrade-guide.md) | Version upgrade notes, schema migration, API compatibility |
 | [testing.md](testing.md) | Testing guide: unit tests, integration tests, performance benchmarks |
+| [release-readiness.md](release-readiness.md) | Final pre-release validation checklist |
 
 ## Quick Development
 

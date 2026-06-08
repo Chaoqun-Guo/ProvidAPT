@@ -4,6 +4,7 @@
 package notify
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/smtp"
 	"strings"
@@ -12,14 +13,13 @@ import (
 
 // EmailNotifier sends alerts via SMTP email.
 type EmailNotifier struct {
-	smtpHost   string
-	smtpPort   string
-	username   string
-	password   string
-	fromAddr   string
-	toAddrs    []string
-	useTLS     bool
-	client     *smtp.Client
+	smtpHost string
+	smtpPort string
+	username string
+	password string
+	fromAddr string
+	toAddrs  []string
+	useTLS   bool
 }
 
 // NewEmailNotifier creates a notifier that sends alerts via SMTP.
@@ -28,6 +28,10 @@ type EmailNotifier struct {
 //	username/password: SMTP auth credentials
 //	fromAddr: sender address (e.g. "providapt@example.com")
 //	toAddrs: recipient addresses
+//
+// Security: Port 587 uses STARTTLS (upgraded from plain); port 465
+// uses direct TLS.  smtp.PlainAuth only transmits credentials after
+// TLS is established, so password is never sent in cleartext.
 func NewEmailNotifier(smtpAddr, username, password, fromAddr string, toAddrs []string) *EmailNotifier {
 	host := smtpAddr
 	port := "587"
@@ -36,6 +40,9 @@ func NewEmailNotifier(smtpAddr, username, password, fromAddr string, toAddrs []s
 		port = parts[1]
 	}
 
+	// Port 465 historically uses direct TLS; 587/25 use STARTTLS.
+	useTLS := port == "465"
+
 	return &EmailNotifier{
 		smtpHost: host,
 		smtpPort: port,
@@ -43,6 +50,7 @@ func NewEmailNotifier(smtpAddr, username, password, fromAddr string, toAddrs []s
 		password: password,
 		fromAddr: fromAddr,
 		toAddrs:  toAddrs,
+		useTLS:   useTLS,
 	}
 }
 
@@ -97,11 +105,54 @@ Time:     %s
 	}
 
 	addr := fmt.Sprintf("%s:%s", e.smtpHost, e.smtpPort)
-	auth := smtp.PlainAuth("", e.username, e.password, e.smtpHost)
 
+	if e.useTLS {
+		// Direct TLS (port 465) — dial encrypted connection first
+		tlsCfg := &tls.Config{
+			ServerName: e.smtpHost,
+			MinVersion: tls.VersionTLS12,
+		}
+		conn, err := tls.Dial("tcp", addr, tlsCfg)
+		if err != nil {
+			return fmt.Errorf("tls dial: %w", err)
+		}
+		client, err := smtp.NewClient(conn, e.smtpHost)
+		if err != nil {
+			conn.Close()
+			return fmt.Errorf("smtp client: %w", err)
+		}
+		defer client.Close()
+
+		auth := smtp.PlainAuth("", e.username, e.password, e.smtpHost)
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("smtp auth: %w", err)
+		}
+		if err := client.Mail(e.fromAddr); err != nil {
+			return fmt.Errorf("smtp mail from: %w", err)
+		}
+		for _, addr := range e.toAddrs {
+			if err := client.Rcpt(addr); err != nil {
+				return fmt.Errorf("smtp rcpt %s: %w", addr, err)
+			}
+		}
+		w, err := client.Data()
+		if err != nil {
+			return fmt.Errorf("smtp data: %w", err)
+		}
+		if _, err := w.Write([]byte(body)); err != nil {
+			return fmt.Errorf("smtp write: %w", err)
+		}
+		if err := w.Close(); err != nil {
+			return fmt.Errorf("smtp close: %w", err)
+		}
+		return client.Quit()
+	}
+
+	// STARTTLS (port 587) — smtp.SendMail handles STARTTLS negotiation.
+	// PlainAuth only transmits credentials after TLS is established.
+	auth := smtp.PlainAuth("", e.username, e.password, e.smtpHost)
 	msg := []byte(body)
-	err := smtp.SendMail(addr, auth, e.fromAddr, e.toAddrs, msg)
-	if err != nil {
+	if err := smtp.SendMail(addr, auth, e.fromAddr, e.toAddrs, msg); err != nil {
 		return fmt.Errorf("smtp send: %w", err)
 	}
 	return nil

@@ -125,3 +125,37 @@ New configuration required when upgrading to v2.2:
 - `[supplychain]` section for SBOM monitoring
 - `[deception]` section for honeytoken injection
 - `[transport]` section for distributed features
+
+## 5. Control-Plane Upgrade Preflight
+
+ProvidAPT now supports a release-oriented upgrade validation path from the control plane.
+
+Recommended sequence:
+
+1. Configure:
+   - `upgrade.download_url`
+   - `upgrade.package_path`
+   - `upgrade.expected_sha256`
+   - `upgrade.signature_path`
+   - `upgrade.public_key_path` or `upgrade.signing_key`
+   - `upgrade.rollback_plan`
+2. Run control-plane `download`
+3. Run control-plane `preflight`
+4. Confirm:
+   - `package_verified=true`
+   - `signature_verified=true` when signature verification is enabled
+   - `rollback_ready=true`
+   - `preflight_ready=true`
+
+If remote license revocation is enabled for the same deployment, confirm:
+
+- `revocation_verified=true`
+- cached revocation data is available for offline fallback
+
+## 6. Rollback Skeleton
+
+An example rollback entry point is available at:
+
+- `scripts/upgrade/rollback-example.sh`
+
+This script is intentionally a skeleton and should be adapted per packaging model, service manager, and backup layout before a production rollout.

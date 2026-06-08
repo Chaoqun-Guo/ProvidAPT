@@ -205,6 +205,20 @@ make ebpf
 #   network.bpf.o       — Enhanced network events
 ```
 
+Loader behavior:
+
+- ProvidAPT first attempts to attach the core hooks through **BPF LSM**.
+- If LSM attachment fails but the core object loads successfully, the daemon falls back to **kprobe** attachment for supported hooks.
+- The loader searches for `lsm_hooks.bpf.o` in:
+  - `build/ebpf/lsm_hooks.bpf.o`
+  - `/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o`
+- To use a non-standard location, set `PROVIDAPT_BPF_OBJECT_PATH`:
+
+```bash
+export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
+sudo -E providaptd -config /etc/providapt/providapt.toml
+```
+
 ### 3.4 Compile Userspace Agent
 
 ```bash
@@ -535,6 +549,8 @@ sudo update-grub
 sudo reboot
 ```
 
+**Fallback behavior:** ProvidAPT will attempt to continue in `kprobe` fallback mode when the eBPF object loads successfully but LSM attachment is unavailable. This preserves partial visibility, but LSM-only coverage will be reduced.
+
 ### 7.3 Permission Denied (CAP_BPF)
 
 **Symptom:** `operation not permitted` when loading eBPF programs.
@@ -549,7 +565,22 @@ sudo providaptd
 sudo setcap cap_bpf,cap_sys_admin,cap_net_admin=ep /usr/local/sbin/providaptd
 ```
 
-### 7.4 kptr_restrict Prevents Kallsyms Access
+### 7.4 eBPF Object File Not Found
+
+**Symptom:** startup fails with a `no precompiled eBPF object found` error.
+
+**Solution:**
+
+```bash
+# Build the object locally
+make v1-ebpf
+
+# Or point the loader at an existing object
+export PROVIDAPT_BPF_OBJECT_PATH=/path/to/lsm_hooks.bpf.o
+sudo -E providaptd -config /etc/providapt/providapt.toml
+```
+
+### 7.5 kptr_restrict Prevents Kallsyms Access
 
 **Symptom:** `/proc/kallsyms` shows `0000000000000000` for all addresses.
 
@@ -564,7 +595,7 @@ echo "kernel.kptr_restrict = 0" | sudo tee /etc/sysctl.d/99-provident.conf
 sudo sysctl -p /etc/sysctl.d/99-provident.conf
 ```
 
-### 7.5 Ring Buffer Overrun
+### 7.6 Ring Buffer Overrun
 
 **Symptom:** Event loss at high throughput.
 
@@ -662,6 +693,66 @@ tail -50 /var/log/providapt/daemon.log 2>/dev/null || echo "No daemon log"
 echo "=== Memory ==="
 cat /proc/$(pidof providaptd 2>/dev/null)/status 2>/dev/null | grep VmRSS || echo "Agent not running"
 ```
+
+#### Support Bundle Controls
+
+ProvidAPT also exposes support bundle operations from the control plane:
+
+- `POST /api/v1/control/support` exports a fresh support bundle
+- `GET /api/v1/control/support` returns latest bundle/archive metadata
+- `GET /api/v1/control/support/download` downloads the latest redacted zip archive
+- `GET /api/v1/control/audit?category=admin&source=supportbundle&limit=20` queries persisted support bundle audit records
+
+Useful environment variables:
+
+```bash
+# Keep only the newest 8 support bundle directories/archives
+export PROVIDAPT_SUPPORT_RETAIN_ARCHIVES=8
+
+# Disable redaction only for trusted internal debugging
+export PROVIDAPT_SUPPORT_REDACT_ARCHIVES=false
+```
+
+Default behavior:
+
+- archives redact common secrets, emails, IPs, and bearer tokens using stable pseudonyms
+- only the most recent 5 bundle directories/zip archives are retained
+- archive downloads still pass through existing control-plane auth/RBAC checks
+
+#### License and Upgrade Controls
+
+Operator-facing control-plane endpoints now include:
+
+- `GET /api/v1/control/license`
+- `POST /api/v1/control/license`
+- `GET /api/v1/control/upgrade`
+- `POST /api/v1/control/upgrade`
+
+Recommended environment variables for commercial deployments:
+
+```bash
+export PROVIDAPT_LICENSE_PUBLIC_KEY_PATH=/etc/providapt/license.pub
+export PROVIDAPT_LICENSE_REVOCATION_URL=https://licenses.example.com/revocations.json
+export PROVIDAPT_LICENSE_REVOCATION_CACHE=/var/lib/providapt/revocations.json
+export PROVIDAPT_LICENSE_REVOCATION_SIG_URL=https://licenses.example.com/revocations.json.sig
+export PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE=/var/lib/providapt/revocations.json.sig
+export PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS=14
+
+export PROVIDAPT_UPGRADE_DOWNLOAD_URL=https://downloads.example.com/providapt.tar.gz
+export PROVIDAPT_UPGRADE_PACKAGE_PATH=/var/lib/providapt/releases/providapt.tar.gz
+export PROVIDAPT_UPGRADE_EXPECTED_SHA256=<64-char-hex>
+export PROVIDAPT_UPGRADE_SIGNATURE_PATH=/var/lib/providapt/releases/providapt.tar.gz.sig
+export PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH=/etc/providapt/upgrade.pub
+export PROVIDAPT_UPGRADE_ROLLBACK_PLAN="snapshot VM before rollout"
+```
+
+Recommended operator flow:
+
+1. Validate license status from the control plane
+2. Confirm `revocation_verified=true` when remote revocation is enabled
+3. Trigger upgrade `download`
+4. Trigger upgrade `preflight`
+5. Approve rollout only when `preflight_ready=true`
 
 ---
 

@@ -1,4 +1,4 @@
-# ProvidAPT 安装指南
+﻿# ProvidAPT 安装指南
 
 **版本 1.0** | Linux 系统溯源监控工具
 
@@ -150,6 +150,20 @@ bash build/verify.sh
 make ebpf
 ```
 
+Loader 行为说明：
+
+- ProvidAPT 会优先使用 **BPF LSM** 挂载核心 Hook。
+- 如果 LSM 挂载失败，但 `lsm_hooks.bpf.o` 已成功加载，守护进程会自动降级到 **kprobe fallback** 模式继续运行。
+- Loader 默认会依次搜索：
+  - `build/ebpf/lsm_hooks.bpf.o`
+  - `/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o`
+- 如果对象文件放在自定义位置，可通过 `PROVIDAPT_BPF_OBJECT_PATH` 指定：
+
+```bash
+export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
+sudo -E providaptd -config /etc/providapt/providapt.toml
+```
+
 ### 3.4 编译用户空间代理
 
 ```bash
@@ -243,6 +257,20 @@ curl -s http://localhost:8080/api/v1/status
 | 问题 | 原因 | 解决方案 |
 |------|------|---------|
 | eBPF 加载失败 | BTF 不可用 | 安装 `linux-image-$(uname -r)-dbg` |
+| 找不到预编译 eBPF 对象文件 | `.bpf.o` 未编译或未安装 | 运行 `make v1-ebpf`，或设置 `PROVIDAPT_BPF_OBJECT_PATH` |
 | 无事件摄入 | LSM 未配置 | 在内核命令行中添加 `bpf` 到 LSM 列表 |
 | 内存使用过高 | 缓存过大 | 减少配置中的 `max_cache_size` |
 | Ring Buffer 溢出 | 事件过载 | 增大 `RINGBUF_SIZE` 或启用去重 |
+
+如果内核未启用 BPF LSM，但对象文件已经成功加载，ProvidAPT 会尝试以 **kprobe fallback** 模式启动。此时仍可保留部分观测能力，但依赖 LSM 的覆盖面会下降。
+
+当出现 “`no precompiled eBPF object found`” 或类似错误时，可执行：
+
+```bash
+# 本地重新编译 eBPF 对象
+make v1-ebpf
+
+# 或使用已有对象文件路径
+export PROVIDAPT_BPF_OBJECT_PATH=/path/to/lsm_hooks.bpf.o
+sudo -E providaptd -config /etc/providapt/providapt.toml
+```
