@@ -2,7 +2,7 @@
 
 Date: 2026-06-08
 Status: Ready for GA / release candidate packaging
-Version: v1.2.0
+Version: v1.2.1
 
 ## Summary
 

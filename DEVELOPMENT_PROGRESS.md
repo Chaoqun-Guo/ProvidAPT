@@ -465,3 +465,5 @@ $ make fmt                                     →  通过
 - 2026-06-08: Rewrote Chinese documentation index entry points (docs/getting-started/INDEX.md, docs/user-guide/INDEX.md, docs/architecture/INDEX.md, docs/benchmarks/INDEX.md, docs/compliance/INDEX.md) to clean UTF-8 for GA release review.
 
 - 2026-06-08: Added docs/developer/release-notes-draft.md and rewrote CHANGELOG.md / docs/developer/changelog.md into clean release-oriented summaries for final release handoff.
+
+- 2026-06-08: Updated GitHub Actions workflows for Node 24 compatibility (`actions/checkout@v5`, `actions/setup-go@v6`, `goreleaser/goreleaser-action@v7`, plus `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`).

@@ -4,7 +4,7 @@ All notable changes to ProvidAPT are documented here.
 
 This changelog follows a curated, release-oriented format inspired by Keep a Changelog.
 
-## v1.2.0 (2026-06-08)
+## v1.2.1 (2026-06-08)
 
 ### Added
 
@@ -31,7 +31,7 @@ This changelog follows a curated, release-oriented format inspired by Keep a Cha
 
 - Use `docs/developer/release-readiness.md` as the final release gate
 - Use `docs/DOCUMENTATION_AUDIT.md` as the documentation navigation index during release review
-- Artifact names and packaged outputs follow the `v1.2.0` release tag
+- Artifact names and packaged outputs follow the `v1.2.1` release tag
 
 ## v1.1.0 (2026-06-03)
 

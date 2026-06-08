@@ -445,3 +445,5 @@
 - 2026-06-08: Chinese documentation index pages normalized to clean UTF-8, reducing release review friction for GA packaging.
 
 - 2026-06-08: Release notes draft and curated changelog summaries prepared for final GA/RC packaging.
+
+- 2026-06-08: Release and CI workflows upgraded for Node 24 action compatibility to unblock GitHub-hosted releases.
