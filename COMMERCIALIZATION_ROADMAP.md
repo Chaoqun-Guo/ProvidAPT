@@ -447,3 +447,5 @@
 - 2026-06-08: Release notes draft and curated changelog summaries prepared for final GA/RC packaging.
 
 - 2026-06-08: Release and CI workflows upgraded for Node 24 action compatibility to unblock GitHub-hosted releases.
+
+- 2026-06-08: Release pipeline cache configuration hardened for setup-go@v6 to avoid dependency-file auto-detection failures on GitHub-hosted runners.

@@ -21,6 +21,9 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.mod
+            go.sum
 
       - name: Install system dependencies
         run: |
@@ -168,6 +171,9 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.mod
+            go.sum
 
       - name: Install loader smoke dependencies
         run: |
