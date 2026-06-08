@@ -469,3 +469,5 @@ $ make fmt                                     →  通过
 - 2026-06-08: Updated GitHub Actions workflows for Node 24 compatibility (`actions/checkout@v5`, `actions/setup-go@v6`, `goreleaser/goreleaser-action@v7`, plus `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`).
 
 - 2026-06-08: Fixed `actions/setup-go@v6` cache restore failure by disabling cache in release workflow and pinning `cache-dependency-path` to `go.mod` / `go.sum` in CI workflows.
+
+- 2026-06-09: Upgraded `.github/workflows/lint.yml` to `actions/checkout@v5`, `actions/setup-go@v6`, and `golangci/golangci-lint-action@v7` so `golangci-lint v2` remains supported on Node 24 runners.

@@ -449,3 +449,5 @@
 - 2026-06-08: Release and CI workflows upgraded for Node 24 action compatibility to unblock GitHub-hosted releases.
 
 - 2026-06-08: Release pipeline cache configuration hardened for setup-go@v6 to avoid dependency-file auto-detection failures on GitHub-hosted runners.
+
+- 2026-06-09: Lint workflow aligned with Node 24 and golangci-lint v2 by moving to golangci-lint-action@v7.
