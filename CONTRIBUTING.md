@@ -2,76 +2,79 @@
 
 ## Code Organization
 
-The codebase follows a single Go module layout with version namespaces under `internal/`:
+ProvidAPT uses a single Go module with capability-based package boundaries:
 
-- `internal/engine/v2/` — v2.0 features
-- `internal/engine/v21/` — v2.1 features  
-- `internal/engine/v22/` — v2.2 features
-- `internal/storage/v2/`, `internal/policy/v2/`, etc.
+- `cmd/` - executable entry points
+- `internal/engine/` - event collection, graph construction, analysis, loader logic
+- `internal/policy/` - alerting, response, supply-chain, self-heal, management logic
+- `internal/storage/` - cache, schema, Pebble-backed storage, export paths
+- `internal/stitcher/` - multi-host graph stitching and distributed analysis
+- `pkg/` - reusable public packages such as API, config, notify, support bundle, telemetry
 
-New features should be added in the appropriate version namespace or create a new one.
+Avoid introducing version-namespaced directories. Extend the current package tree unless a new bounded context is required.
 
 ## Development Workflow
 
 1. Fork the repository
 2. Create a feature branch from `main`
-3. Make changes following the coding standards
-4. Add tests for new functionality
-5. Run `make test` to verify
-6. Submit a pull request
+3. Make focused changes
+4. Add or update tests
+5. Run local validation
+6. Open a pull request with context and test results
 
-## Coding Standards
-
-- **Go**: Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments) and run `go fmt` before committing
-- **eBPF C**: Use `clang -target bpf` with `-Wall -Werror`. Keep programs under 4096 BPF instructions
-- **Documentation**: Update docs/ when adding or changing features
-- **Tests**: New features require unit tests. Integration tests for end-to-end scenarios
-
-## Testing
+## Core Commands
 
 ```bash
-# Unit tests
-make test
+# Build
+make build-core
+make build-ebpf
+make build-userspace
 
-# Version-specific tests
+# Test
+make test-core
 make ext-test
 make cluster-test
 
-# Integration tests (requires root + eBPF)
-sudo make attack-sim
-sudo make verify-capture
-
-# Docker-based testing
-make docker-test
+# Quality
+make fmt
+make vet
 ```
+
+## Coding Standards
+
+- **Go**: follow Go Code Review Comments and run `gofmt`
+- **eBPF C**: compile with `clang -target bpf -Wall -Werror`
+- **Documentation**: update the relevant page in `docs/`
+- **Tests**: cover new behavior with unit tests, and add integration coverage when appropriate
 
 ## Pull Request Guidelines
 
-1. Keep PRs focused on a single concern
-2. Include test coverage for new code
-3. Update relevant documentation
-4. Ensure all existing tests pass
-5. Reference related issues in the PR description
+1. Keep the change set focused
+2. Include validation steps in the PR description
+3. Update user-facing or developer-facing docs when behavior changes
+4. Preserve backward compatibility unless the change explicitly removes deprecated behavior
+5. Reference related issues or operational context
 
 ## Commit Messages
 
-Follow conventional commits format: `type(scope): description`
+Use concise conventional messages such as:
 
-- `feat(engine): add new provenance query type`
-- `fix(storage): correct batch write race condition`
-- `docs(architecture): update data flow diagram`
-- `test(stitcher): add cross-host merge test`
+- `feat(api): add fleet overview endpoint`
+- `fix(loader): handle missing precompiled ebpf objects`
+- `docs(project): normalize release documentation`
+- `test(ticketing): cover servicenow comment updates`
 
-## Code Review
+## Review Focus
 
-All submissions require review. Reviewers should check for:
-- Correctness of logic
-- Test coverage
-- Performance considerations (eBPF instruction count, memory allocation)
-- Security implications
-- Documentation completeness
+Reviewers should check:
+
+- correctness and safety
+- test coverage
+- performance implications
+- security impact
+- documentation completeness
 
 ## Getting Help
 
 - Open an issue for bugs or feature requests
-- Submit a discussion for questions
+- Start a discussion for design or usage questions

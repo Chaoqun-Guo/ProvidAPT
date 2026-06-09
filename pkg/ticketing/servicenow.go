@@ -5,6 +5,7 @@ package ticketing
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -71,7 +72,7 @@ func (c *ServiceNowClient) CreateIssue(req CreateRequest) (Issue, error) {
 		var comments strings.Builder
 		comments.WriteString("ProvidAPT metadata:\n")
 		for key, value := range req.Metadata {
-			comments.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+			fmt.Fprintf(&comments, "%s=%s\n", key, value)
 		}
 		payload.Comments = comments.String()
 	}
@@ -81,7 +82,7 @@ func (c *ServiceNowClient) CreateIssue(req CreateRequest) (Issue, error) {
 		return Issue{}, fmt.Errorf("marshal servicenow payload: %w", err)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/now/v1/table/"+c.table, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.baseURL+"/api/now/v1/table/"+c.table, bytes.NewReader(body))
 	if err != nil {
 		return Issue{}, fmt.Errorf("build servicenow request: %w", err)
 	}
@@ -93,7 +94,7 @@ func (c *ServiceNowClient) CreateIssue(req CreateRequest) (Issue, error) {
 	if err != nil {
 		return Issue{}, fmt.Errorf("servicenow create record: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return Issue{}, fmt.Errorf("servicenow create record returned %d", resp.StatusCode)
 	}
@@ -135,7 +136,7 @@ func (c *ServiceNowClient) AddComment(issue Issue, comment string) error {
 	if err != nil {
 		return fmt.Errorf("marshal servicenow comment payload: %w", err)
 	}
-	httpReq, err := http.NewRequest(http.MethodPatch, c.baseURL+"/api/now/v1/table/"+c.table+"/"+sysID, bytes.NewReader(payload))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, c.baseURL+"/api/now/v1/table/"+c.table+"/"+sysID, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("build servicenow comment request: %w", err)
 	}
@@ -146,7 +147,7 @@ func (c *ServiceNowClient) AddComment(issue Issue, comment string) error {
 	if err != nil {
 		return fmt.Errorf("servicenow add comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("servicenow add comment returned %d", resp.StatusCode)
 	}

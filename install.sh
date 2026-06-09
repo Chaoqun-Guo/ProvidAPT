@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# ProvidAPT — One-Click Installer
+# ProvidAPT One-Click Installer
 #
 # Automatically detects the operating system, kernel
 # capabilities, architecture, and installs the ProvidAPT
@@ -9,37 +9,37 @@
 # Usage:
 #   curl -fsSL https://providapt.io/install.sh | sudo bash
 #   sudo bash install.sh
-#   sudo bash install.sh --version v1.0.2
+#   sudo bash install.sh --version v1.2.1
 #   sudo bash install.sh --build           # Build from source
 #   sudo bash install.sh --help
 # =============================================================
 set -euo pipefail
 
-# ── Constants ──────────────────────────────────────────────
+# Constants
 REPO="Chaoqun-Guo/ProvidAPT"
 RELEASE_BASE="https://github.com/${REPO}/releases/download"
 VERSION=""
 SKIP_VERIFY=false
 BUILD_FROM_SOURCE=false
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+CYAN='[0;36m'
+BOLD='[1m'
+NC='[0m'
 
-# ── Banner ─────────────────────────────────────────────────
+# Banner
 print_banner() {
     echo ""
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║              ProvidAPT — One-Click Installer             ║"
-    echo "║    Provenance-driven Advanced Persistent Threat Detection ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
+    echo "============================================================="
+    echo "             ProvidAPT One-Click Installer"
+    echo "   Provenance-driven Advanced Persistent Threat Detection"
+    echo "============================================================="
     echo ""
 }
 
-# ── Help ───────────────────────────────────────────────────
+# Help
 usage() {
     echo "Usage: sudo bash install.sh [OPTIONS]"
     echo ""
@@ -51,13 +51,13 @@ usage() {
     echo ""
     echo "Examples:"
     echo "  sudo bash install.sh"
-    echo "  sudo bash install.sh --version v1.0.2"
+    echo "  sudo bash install.sh --version v1.2.1"
     echo "  sudo bash install.sh --build"
     echo ""
     exit 0
 }
 
-# ── Parse arguments ────────────────────────────────────────
+# Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version)    VERSION="$2"; shift 2 ;;
@@ -68,10 +68,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── Prerequisites ──────────────────────────────────────────
+# Prerequisites
 check_root() {
     if [[ "$(id -u)" -ne 0 ]]; then
-        echo -e "  ${RED}✗${NC} This script must be run as root (sudo)."
+        echo -e "  ${RED}閴-{NC} This script must be run as root (sudo)."
         exit 1
     fi
 }
@@ -98,7 +98,7 @@ detect_arch() {
     case "$ARCH" in
         x86_64)  PKG_ARCH="amd64" ;;
         aarch64) PKG_ARCH="arm64" ;;
-        *) echo -e "  ${RED}✗${NC} Unsupported architecture: $ARCH"; exit 1 ;;
+        *) echo -e "  ${RED}閴-{NC} Unsupported architecture: $ARCH"; exit 1 ;;
     esac
     echo -e "  ${CYAN}Arch:${NC} $ARCH"
 }
@@ -119,7 +119,7 @@ check_deps() {
     local missing=false
     for cmd in curl systemctl; do
         if ! command -v "$cmd" &>/dev/null; then
-            echo -e "  ${RED}✗${NC} Required dependency not found: $cmd"
+            echo -e "  ${RED}閴-{NC} Required dependency not found: $cmd"
             missing=true
         fi
     done
@@ -129,7 +129,7 @@ check_deps() {
     echo -e "  ${CYAN}Deps:${NC} ${GREEN}OK${NC}"
 }
 
-# ── Resolve version ────────────────────────────────────────
+# Resolve version
 resolve_version() {
     if [[ -z "$VERSION" ]]; then
         echo -ne "  Fetching latest release..."
@@ -137,7 +137,7 @@ resolve_version() {
             | grep '"tag_name":' \
             | sed 's/.*"tag_name": "\(.*\)".*/\1/' 2>/dev/null || echo "")
         if [[ -z "$VERSION" ]]; then
-            VERSION="v1.0.2"
+            VERSION="v1.2.1"
             echo -e " ${YELLOW}fallback ${VERSION}${NC}"
         else
             echo -e " ${GREEN}${VERSION}${NC}"
@@ -145,7 +145,7 @@ resolve_version() {
     fi
 }
 
-# ── Install from package ───────────────────────────────────
+# Install from package
 install_from_package() {
     local pkg_url="$1"
     local pkg_file="$2"
@@ -153,10 +153,10 @@ install_from_package() {
     echo ""
     echo -e "  ${BOLD}Downloading package...${NC}"
     curl -fsSL "$pkg_url" -o "/tmp/$pkg_file" || {
-        echo -e "  ${RED}✗${NC} Download failed"
+        echo -e "  ${RED}閴-{NC} Download failed"
         return 1
     }
-    echo -e "  ${GREEN}✓${NC} Downloaded: $pkg_file"
+    echo -e "  ${GREEN}閴-{NC} Downloaded: $pkg_file"
 
     case "$pkg_file" in
         *.deb)
@@ -177,10 +177,10 @@ install_from_package() {
             ;;
     esac
 
-    echo -e "  ${GREEN}✓${NC} Package installed"
+    echo -e "  ${GREEN}閴-{NC} Package installed"
 }
 
-# ── Build from source ──────────────────────────────────────
+# Build from source
 build_from_source() {
     echo ""
     echo -e "  ${BOLD}Building from source...${NC}"
@@ -206,34 +206,34 @@ build_from_source() {
     echo -e "  Cloning repository..."
     git clone --depth 1 --branch "${VERSION:-main}" \
         "https://github.com/${REPO}.git" .
-    echo -e "  ${GREEN}✓${NC} Source cloned"
+    echo -e "  ${GREEN}閴-{NC} Source cloned"
 
-    echo -e "  Running make v1..."
-    make v1 2>&1 | sed 's/^/    /'
-    echo -e "  ${GREEN}✓${NC} Build complete"
+    echo -e "  Running make build-core..."
+    make build-core 2>&1 | sed 's/^/    /'
+    echo -e "  ${GREEN}閴-{NC} Build complete"
 
     echo -e "  Installing to system..."
-    make v1-install 2>&1 | sed 's/^/    /'
+    make install-local 2>&1 | sed 's/^/    /'
 
     cd /
     rm -rf "$tmpdir"
 
-    echo -e "  ${GREEN}✓${NC} Built and installed from source"
+    echo -e "  ${GREEN}閴-{NC} Built and installed from source"
     return 0
 }
 
-# ── Create providapt system user ──────────────────────────
+# Create providapt system user
 setup_providapt_user() {
 	if id -u providapt &>/dev/null; then
-		echo -e "  ${GREEN}✓${NC} User 'providapt' already exists"
+		echo -e "  ${GREEN}閴-{NC} User 'providapt' already exists"
 	else
 		useradd --system --no-create-home --uid 950 \
 			--shell /usr/sbin/nologin \
 			--comment "ProvidAPT daemon user" providapt 2>/dev/null || {
-			echo -e "  ${YELLOW}⚠ Failed to create user 'providapt'; continuing anyway${NC}"
+			echo -e "  ${YELLOW}WARN:${NC} Failed to create user 'providapt'; continuing anyway"
 			return
 		}
-		echo -e "  ${GREEN}✓${NC} Created system user 'providapt' (UID 950)"
+		echo -e "  ${GREEN}閴-{NC} Created system user 'providapt' (UID 950)"
 	fi
 
 	# Ensure data directory exists with correct ownership
@@ -243,7 +243,7 @@ setup_providapt_user() {
 	fi
 }
 
-# ── Systemd setup ──────────────────────────────────────────
+# Systemd setup
 setup_systemd() {
     echo ""
     echo -e "  ${BOLD}Configuring systemd...${NC}"
@@ -252,43 +252,43 @@ setup_systemd() {
     systemctl daemon-reload 2>/dev/null || true
 
     if systemctl is-enabled providapt.service &>/dev/null; then
-        echo -e "  ${GREEN}✓${NC} Service already enabled"
+        echo -e "  ${GREEN}閴-{NC} Service already enabled"
     else
         systemctl enable providapt.service 2>/dev/null || {
             # Manual service install if package didn't do it
             if [[ ! -f /lib/systemd/system/providapt.service ]] && \
                [[ ! -f /etc/systemd/system/providapt.service ]]; then
-                echo -e "  ${YELLOW}⚠ Installing systemd service manually...${NC}"
+                echo -e "  ${YELLOW}WARN:${NC} Installing systemd service manually..."
                 install -m 0644 /usr/local/lib/providapt/systemd/providapt.service \
                     /etc/systemd/system/providapt.service 2>/dev/null || true
                 systemctl daemon-reload
             fi
             systemctl enable providapt.service
         }
-        echo -e "  ${GREEN}✓${NC} Service enabled"
+        echo -e "  ${GREEN}閴-{NC} Service enabled"
     fi
 
     echo -e "  Starting providapt.service..."
     systemctl start providapt.service || {
-        echo -e "  ${YELLOW}⚠ Service start failed, check: journalctl -xu providapt${NC}"
+        echo -e "  ${YELLOW}WARN:${NC} Service start failed, check: journalctl -xu providapt"
     }
 
     # Verify
     sleep 1
     if systemctl is-active providapt.service &>/dev/null; then
-        echo -e "  ${GREEN}✓${NC} Service running"
+        echo -e "  ${GREEN}閴-{NC} Service running"
     else
-        echo -e "  ${RED}✗${NC} Service not running"
+        echo -e "  ${RED}閴-{NC} Service not running"
         echo "  Run: journalctl -xu providapt --no-pager"
     fi
 }
 
-# ── Post-install summary ───────────────────────────────────
+# Post-install summary
 print_summary() {
     echo ""
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║  ${GREEN}ProvidAPT installation complete${NC}                          ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
+    echo "============================================================="
+    echo " ${GREEN}ProvidAPT installation complete${NC}"
+    echo "============================================================="
     echo ""
     echo "  ${BOLD}Commands:${NC}"
     echo "    systemctl status providapt    Daemon status"
@@ -315,7 +315,7 @@ print_summary() {
     fi
 }
 
-# ── Main ───────────────────────────────────────────────────
+# Main
 main() {
     print_banner
     check_root
@@ -368,9 +368,9 @@ main() {
 
         if ! install_from_package "$pkg_url" "$pkg_file"; then
             echo ""
-            echo -e "  ${YELLOW}⚠ Package download failed. Building from source...${NC}"
+            echo -e "  ${YELLOW}WARN:${NC} Package download failed. Building from source..."
             build_from_source || {
-                echo -e "  ${RED}✗${NC} Installation failed."
+                echo -e "  ${RED}閴-{NC} Installation failed."
                 echo "  Please see: https://github.com/${REPO}#installation"
                 exit 1
             }

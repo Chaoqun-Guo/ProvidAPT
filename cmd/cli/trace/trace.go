@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package cli — container-aware provenance tracing for v2.1.
+// Package trace provides container-aware provenance tracing helpers.
 //
 // Features:
-//   provid-cli trace --container web_server
-//   provid-cli trace --pid 1234 --container
-//   provid-cli trace --image nginx:latest
+//
+//	provid-cli trace --container web_server
+//	provid-cli trace --pid 1234 --container
+//	provid-cli trace --image nginx:latest
 package trace
 
 import (
@@ -14,10 +15,7 @@ import (
 	"strings"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// TraceRequest
-// ═══════════════════════════════════════════════════════════════
-
+// TraceRequest describes a provenance trace query.
 // TraceRequest describes a provenance trace query.
 type TraceRequest struct {
 	// PID to trace (optional)
@@ -47,10 +45,7 @@ func DefaultTraceRequest() *TraceRequest {
 	}
 }
 
-// ═══════════════════════════════════════════════════════════════
-// TraceResult
-// ═══════════════════════════════════════════════════════════════
-
+// TraceNode is a single step in the trace chain with container context.
 // TraceNode is a single step in the trace chain with container context.
 type TraceNode struct {
 	PID           uint32 `json:"pid"`
@@ -70,7 +65,7 @@ type TraceResult struct {
 	Total   int          `json:"total"`
 }
 
-// ─── Container filter logic ─────────────────────────────────
+// MatchContainer applies container, image, and orchestrator filters.
 
 // MatchContainer checks if a container matches the trace filter.
 func (req *TraceRequest) MatchContainer(containerID, containerName, image, orchestrator string) bool {
@@ -93,7 +88,7 @@ func (req *TraceRequest) MatchContainer(containerID, containerName, image, orche
 	return true
 }
 
-// ─── Chain formatting ───────────────────────────────────────
+// FormatText returns a human-readable trace chain.
 
 // FormatText returns a human-readable trace chain.
 func (tr *TraceResult) FormatText() string {
@@ -111,13 +106,13 @@ func (tr *TraceResult) FormatText() string {
 		for j := 0; j < node.Depth; j++ {
 			prefix += "  "
 		}
-		marker := "├─"
+		marker := "->"
 		if i == 0 {
-			marker = "●"
+			marker = "*"
 		}
 		line := fmt.Sprintf("%s%s [%s] %s", prefix, marker, node.Action, node.Comm)
 		if node.Target != "" {
-			line += fmt.Sprintf(" → %s", node.Target)
+			line += fmt.Sprintf(" -> %s", node.Target)
 		}
 		if node.ContainerName != "" {
 			line += fmt.Sprintf(" (container: %s)", node.ContainerName)

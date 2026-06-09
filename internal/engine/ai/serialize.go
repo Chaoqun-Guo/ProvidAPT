@@ -24,19 +24,19 @@ import (
 // It converts provenance nodes and edges into a lightweight,
 // semantically clear format.
 type LLMGraph struct {
-	Title       string       `json:"title"`
-	Description string       `json:"description"`
-	AlertInfo   *AlertInfo   `json:"alert_info,omitempty"`
-	Nodes       []LLMNode    `json:"nodes"`
-	Edges       []LLMEdge    `json:"edges"`
-	Timeline    []LLMEvent   `json:"timeline,omitempty"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	AlertInfo   *AlertInfo `json:"alert_info,omitempty"`
+	Nodes       []LLMNode  `json:"nodes"`
+	Edges       []LLMEdge  `json:"edges"`
+	Timeline    []LLMEvent `json:"timeline,omitempty"`
 }
 
 // LLMNode is a simplified node for LLM consumption.
 type LLMNode struct {
 	ID      string `json:"id"`
-	Type    string `json:"type"`    // process, file, network, etc.
-	Label   string `json:"label"`   // comm name, file path, IP
+	Type    string `json:"type"`              // process, file, network, etc.
+	Label   string `json:"label"`             // comm name, file path, IP
 	Details string `json:"details,omitempty"` // extra info
 }
 
@@ -44,7 +44,7 @@ type LLMNode struct {
 type LLMEdge struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
-	Action string `json:"action"` // READ, WROTE, FORKED, CONNECTED
+	Action string `json:"action"`          // READ, WROTE, FORKED, CONNECTED
 	Count  int    `json:"count,omitempty"` // how many times
 }
 

@@ -23,8 +23,8 @@ import (
 
 // QAEngine answers questions by searching the provenance graph.
 type QAEngine struct {
-	graph   *provenance.Graph
-	client  *LLMClient
+	graph  *provenance.Graph
+	client *LLMClient
 }
 
 // NewQAEngine creates a Q&A engine.

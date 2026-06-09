@@ -19,22 +19,22 @@ import (
 
 // EventRecord is a minimal search result from the event log.
 type EventRecord struct {
-	Timestamp   string                 `json:"timestamp,omitempty"`
-	PID         uint32                 `json:"pid,omitempty"`
-	Comm        string                 `json:"comm,omitempty"`
-	Type        string                 `json:"type,omitempty"`
-	Subtype     string                 `json:"subtype,omitempty"`
-	Label       string                 `json:"label,omitempty"`
-	Raw         map[string]interface{} `json:"raw,omitempty"`
+	Timestamp string                 `json:"timestamp,omitempty"`
+	PID       uint32                 `json:"pid,omitempty"`
+	Comm      string                 `json:"comm,omitempty"`
+	Type      string                 `json:"type,omitempty"`
+	Subtype   string                 `json:"subtype,omitempty"`
+	Label     string                 `json:"label,omitempty"`
+	Raw       map[string]interface{} `json:"raw,omitempty"`
 }
 
 // SearchResult wraps paginated search results.
 type SearchResult struct {
-	Total   int            `json:"total"`
-	Results []EventRecord  `json:"results"`
-	Limit   int            `json:"limit"`
-	Offset  int            `json:"offset"`
-	Time    string         `json:"time,omitempty"`
+	Total   int           `json:"total"`
+	Results []EventRecord `json:"results"`
+	Limit   int           `json:"limit"`
+	Offset  int           `json:"offset"`
+	Time    string        `json:"time,omitempty"`
 }
 
 // SearchParams captures filters from the HTTP query string.
@@ -187,7 +187,7 @@ func searchFile(path string, p SearchParams) ([]EventRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var results []EventRecord
 	scanner := bufio.NewScanner(f)
@@ -227,7 +227,7 @@ func tailFile(path string, n int) ([]EventRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var lines [][]byte
 	scanner := bufio.NewScanner(f)

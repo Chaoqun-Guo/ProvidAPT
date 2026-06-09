@@ -4,6 +4,7 @@
 package notify
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/smtp"
@@ -112,16 +113,22 @@ Time:     %s
 			ServerName: e.smtpHost,
 			MinVersion: tls.VersionTLS12,
 		}
-		conn, err := tls.Dial("tcp", addr, tlsCfg)
+		dialer := &tls.Dialer{Config: tlsCfg}
+		conn, err := dialer.DialContext(context.Background(), "tcp", addr)
 		if err != nil {
 			return fmt.Errorf("tls dial: %w", err)
 		}
-		client, err := smtp.NewClient(conn, e.smtpHost)
+		tlsConn, ok := conn.(*tls.Conn)
+		if !ok {
+			_ = conn.Close()
+			return fmt.Errorf("unexpected TLS connection type %T", conn)
+		}
+		client, err := smtp.NewClient(tlsConn, e.smtpHost)
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return fmt.Errorf("smtp client: %w", err)
 		}
-		defer client.Close()
+		defer func() { _ = client.Close() }()
 
 		auth := smtp.PlainAuth("", e.username, e.password, e.smtpHost)
 		if err := client.Auth(auth); err != nil {

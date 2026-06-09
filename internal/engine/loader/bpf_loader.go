@@ -3,9 +3,9 @@
 
 //go:build linux && bpf
 
-// Real eBPF loader — loads pre-compiled .bpf.o files from the
+// Real eBPF loader 鈥-loads pre-compiled .bpf.o files from the
 // filesystem at runtime.  Requires:
-//   make v1-ebpf                    # compile .bpf.c → .bpf.o
+//   make build-ebpf                    # compile .bpf.c 鈫-.bpf.o
 //   go build -tags bpf ./cmd/...    # enable real eBPF loading
 //
 // The .o files are searched at well-known paths:

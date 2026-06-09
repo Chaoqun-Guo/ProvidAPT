@@ -28,7 +28,7 @@ cat /sys/kernel/security/lsm | grep bpf
 
 # Check kernel version
 uname -r
-# Expected: ≥ 5.11
+# Expected: 鈮?5.11
 
 # Check eBPF features
 bpftool feature probe
@@ -73,10 +73,10 @@ git clone https://github.com/Chaoqun-Guo/ProvidAPT
 cd ProvidAPT
 
 # Full build (eBPF + userspace)
-make v1
+make build-core
 
 # Install to system
-sudo make v1-install
+sudo make install-local
 ```
 
 ### 2.2 Post-Install Configuration

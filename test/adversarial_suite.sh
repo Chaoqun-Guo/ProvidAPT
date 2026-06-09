@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# ═══════════════════════════════════════════════════════════════════
-# ProvidAPT Adversarial Simulation Suite (Red Team)
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-# ProvidAPT Adversarial Simulation Suite (Red Team)
 #
 # Simulates a complete multi-stage APT attack:
-#   Phase 1: Web exploitation → binary trojan download
-#   Phase 2: memfd_create fileless exec → ptrace privilege escalation
-#   Phase 3: SSH lateral movement → agent host compromise
-#   Phase 4: Sensitive config modification → HTTPS exfiltration
+#   Phase 1: Web exploitation 鈫-binary trojan download
+#   Phase 2: memfd_create fileless exec 鈫-ptrace privilege escalation
+#   Phase 3: SSH lateral movement 鈫-agent host compromise
+#   Phase 4: Sensitive config modification 鈫-HTTPS exfiltration
 #
 # Each phase validates provenance chain continuity. Final report
 # scores every chain link and identifies breaks.
@@ -16,10 +15,9 @@
 #   HARNESS_URL=http://10.0.0.1:8722 ./adversarial_suite.sh  # remote
 #
 # Output: tests/adversarial_report_<timestamp>.json
-# ═══════════════════════════════════════════════════════════════════
-set -euo pipefail
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-set -euo pipefail
 
-# ─── Configuration ──────────────────────────────────────────────────
+# 鈹€鈹€鈹€ Configuration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 HARNESS_PORT="${HARNESS_PORT:-8722}"
 HARNESS_URL="${HARNESS_URL:-http://127.0.0.1:${HARNESS_PORT}}"
 REPORT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -51,28 +49,28 @@ SSHD_PID=$((BASE_PID + 10))       # sshd on target
 MODIFY_PID=$((BASE_PID + 11))     # sed config modify
 EXFIL_PID=$((BASE_PID + 12))      # curl HTTPS exfil
 
-# ─── Colors ─────────────────────────────────────────────────────────
+# 鈹€鈹€鈹€ Colors 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BLUE='\033[0;34m'; NC='\033[0m'
-PASS="${GREEN}✔${NC}"; FAIL="${RED}✘${NC}"; WARN="${YELLOW}⚠${NC}"
-INFO="${CYAN}▸${NC}"; BOLD="${BLUE}◆${NC}"
+PASS="${GREEN}鉁-{NC}"; FAIL="${RED}鉁-{NC}"; WARN="${YELLOW}鈿-{NC}"
+INFO="${CYAN}鈻-{NC}"; BOLD="${BLUE}鈼-{NC}"
 
-# ─── Scoring system ─────────────────────────────────────────────────
+# 鈹€鈹€鈹€ Scoring system 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 SCORE_TOTAL=0
 SCORE_PASSED=0
 SCORE_FAILED=0
 declare -A CHAIN_LINKS
 CHAIN_BROKEN=false
 
-# ─── Helpers ────────────────────────────────────────────────────────
+# 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 ts_ns()   { echo $(($(date +%s%N) - TIMESTAMP_BASE)); }
 log()     { echo -e "  ${INFO} $*"; }
 pass()    { SCORE_PASSED=$((SCORE_PASSED + 1)); echo -e "  ${PASS} $*"; }
 fail()    { SCORE_FAILED=$((SCORE_FAILED + 1)); CHAIN_BROKEN=true; echo -e "  ${FAIL} $*"; }
 warn()    { echo -e "  ${WARN} $*"; }
 step()    { echo -e "\n${BOLD} $*"; }
-header()  { echo -e "\n${YELLOW}━━━ $* ━━━${NC}"; }
-divider() { echo "  ─────────────────────────────────────"; }
+header()  { echo -e "\n${YELLOW}鈹佲攣鈹-$* 鈹佲攣鈹-{NC}"; }
+divider() { echo "  鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€"; }
 
 # Record a chain link for the scoring report
 record_link() {
@@ -127,7 +125,7 @@ validate_link() {
         local nodes
         nodes=$(api_get "/graph/nodes" ".count" 2>/dev/null || echo "0")
         if [ "$nodes" -ge 5 ]; then
-            pass "${desc} — graph active (${nodes} nodes)"
+            pass "${desc} 鈥-graph active (${nodes} nodes)"
             record_link "${phase}" "${from}" "${to}" "${relation}" "pass" "graph_active_${nodes}_nodes"
         else
             fail "${desc}"
@@ -139,7 +137,7 @@ validate_link() {
     fi
 }
 
-# ─── Harness management ────────────────────────────────────────────
+# 鈹€鈹€鈹€ Harness management 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 ensure_harness() {
     if curl -sf "${HARNESS_URL}/health" >/dev/null 2>&1; then
         log "Using running harness at ${HARNESS_URL}"
@@ -150,7 +148,7 @@ ensure_harness() {
     log "Starting test harness..."
     SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
     cd "${SCRIPT_DIR}"
-    nohup go run "./v2.2/cmd/cluster-test-harness" --port "${HARNESS_PORT}" > /tmp/harness.log 2>&1 &
+    nohup go run "./cmd/collector" --port "${HARNESS_PORT}" > /tmp/harness.log 2>&1 &
     HARNESS_PID=$!
 
     for i in $(seq 1 30); do
@@ -164,7 +162,7 @@ ensure_harness() {
     exit 1
 }
 
-# ─── Main ──────────────────────────────────────────────────────────
+# 鈹€鈹€鈹€ Main 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${SCRIPT_DIR}"
 
@@ -177,11 +175,8 @@ for cmd in curl jq bc grep; do
 done
 
 cat <<'BANNER'
-╔══════════════════════════════════════════════════════════════╗
-║        ProvidAPT Red Team Adversarial Simulation Suite       ║
-║  MITRE ATT&CK T1190 (Web Exp) → T1055 (Process Injection)   ║
-║  → T1021 (SSH Lateral) → T1572 (C2 Exfil)                  ║
-╚══════════════════════════════════════════════════════════════╝
+鈺斺晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晽
+鈺-       ProvidAPT Red Team Adversarial Simulation Suite       鈺-鈺- MITRE ATT&CK T1190 (Web Exp) 鈫-T1055 (Process Injection)   鈺-鈺- 鈫-T1021 (SSH Lateral) 鈫-T1572 (C2 Exfil)                  鈺-鈺氣晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨暆
 BANNER
 
 ensure_harness
@@ -189,7 +184,7 @@ ensure_harness
 # Reset graph state
 log "Resetting simulation state..."
 SCORE_TOTAL=0; SCORE_PASSED=0; SCORE_FAILED=0
-# The MemGraphDB is in-memory — each run is fresh
+# The MemGraphDB is in-memory 鈥-each run is fresh
 
 echo ""
 header "Starting 4-Phase Adversarial Simulation"
@@ -199,13 +194,13 @@ echo "  Database:      ${HOSTS[db]} (${AGENTS[db]})"
 echo "  C2 Server:     ${HOSTS[c2]} (${AGENTS[c2]})"
 echo ""
 
-# ══════════════════════════════════════════════════════════════════
-# PHASE 1: Web Exploitation → Binary Trojan Download
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# PHASE 1: Web Exploitation 鈫-Binary Trojan Download
 # MITRE ATT&CK: T1190 (Exploit Public-Facing Application)
 #               T1105 (Ingress Tool Transfer)
-# ══════════════════════════════════════════════════════════════════
-header "PHASE 1: Web Exploitation — Trojan Download"
-step "Phase 1.1 — Remote attacker exploits web app (CVE-2024-XXXX)"
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+header "PHASE 1: Web Exploitation 鈥-Trojan Download"
+step "Phase 1.1 鈥-Remote attacker exploits web app (CVE-2024-XXXX)"
 
 # 1.1: Attacker process (external)
 create_node "process" "p:${ATTACKER_PID}" "curl" "${HOSTS[web]}" "${AGENTS[web]}" \
@@ -238,15 +233,15 @@ index_node "file" "f:trojan.bin:${ATTACKER_PID}" "trojan" "${HOSTS[web]}" "${AGE
     '{"file_type":"elf_binary","malicious":true,"sha256":"deadbeefcafebabed00d","supply_chain_risk":"critical"}'
 
 validate_link "1" "external_attacker" "web_server" "wasInformedBy" \
-    "Phase 1.1: External attacker → web server exploit chain intact"
+    "Phase 1.1: External attacker 鈫-web server exploit chain intact"
 validate_link "1" "web_server" "webshell" "wasGeneratedBy" \
-    "Phase 1.2: Web server → webshell file written"
+    "Phase 1.2: Web server 鈫-webshell file written"
 validate_link "1" "attacker_curl" "trojan_binary" "wasGeneratedBy" \
-    "Phase 1.3: curl → trojan binary downloaded"
+    "Phase 1.3: curl 鈫-trojan binary downloaded"
 
 # Verify container label
 log "Checking container labels on apache2 node..."
-CONTAINER_CHECK=$(api_get "/graph/query-by-host?host_id=${HOSTS[web]}" ".count" 2>/dev/null || echo "0")
+CONTAINER_CHECK=$(api_get "/graph/query-by-host-host_id=${HOSTS[web]}" ".count" 2>/dev/null || echo "0")
 if [ "$CONTAINER_CHECK" -ge 1 ]; then
     pass "Phase 1.4: Container label present on web server (docker:web-01)"
 else
@@ -258,14 +253,14 @@ echo -e "  ${GREEN}Phase 1 score:${NC} ${SCORE_PASSED}/${SCORE_TOTAL:-3} | Chain
 SCORE_TOTAL=$((SCORE_TOTAL + 3))
 echo ""
 
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 # PHASE 2: Fileless Execution + Ptrace Privilege Escalation
 # MITRE ATT&CK: T1055.012 (Process Injection: Ptrace)
 #               T1620 (Reflective Code Loading)
 #               T1055 (Process Injection)
-# ══════════════════════════════════════════════════════════════════
-header "PHASE 2: Fileless Execution — memfd_create + Ptrace Escalation"
-step "Phase 2.1 — Trojan reads /tmp/.systemd-update and executes via memfd"
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+header "PHASE 2: Fileless Execution 鈥-memfd_create + Ptrace Escalation"
+step "Phase 2.1 鈥-Trojan reads /tmp/.systemd-update and executes via memfd"
 
 # 2.1: Trojan runner (python3 loads ELF into memfd)
 create_node "process" "p:${MEMFD_PID}" "python3" "${HOSTS[web]}" "${AGENTS[web]}" \
@@ -277,10 +272,10 @@ create_node "memory" "memfd:anon:${MEMFD_PID}" "memfd:evil_runner" "${HOSTS[web]
     '{"event":"memfd_create","memory_op":"memfd_create","fileless":true,"pid":'"${MEMFD_PID}"',"addr":140735764500480,"size":4194304,"executable":true}'
 log "Anonymous memfd region (4MB executable)"
 
-# 2.3: mprotect RW→RX (shellcode injection)
-create_node "memory" "rx:0x7fdead:${MEMFD_PID}" "rw→rx @0x7fdead" "${HOSTS[web]}" "${AGENTS[web]}" \
-    '{"event":"mprotect_rx","memory_op":"mprotect_rx","pid":'"${MEMFD_PID}"',"addr":2132278324,"perms":"rw→rx","shellcode":true,"fileless":true}'
-log "mprotect RW→RX detected (shellcode injection)"
+# 2.3: mprotect RW鈫扲X (shellcode injection)
+create_node "memory" "rx:0x7fdead:${MEMFD_PID}" "rw鈫抮x @0x7fdead" "${HOSTS[web]}" "${AGENTS[web]}" \
+    '{"event":"mprotect_rx","memory_op":"mprotect_rx","pid":'"${MEMFD_PID}"',"addr":2132278324,"perms":"rw鈫抮x","shellcode":true,"fileless":true}'
+log "mprotect RW鈫扲X detected (shellcode injection)"
 
 # 2.4: Memory forensic scan results
 create_node "process" "p:${MEMFD_PID}" "python3" "${HOSTS[web]}" "${AGENTS[web]}" \
@@ -290,27 +285,27 @@ log "Memory forensic scan complete: 3 YARA matches (critical)"
 # 2.5: Ptrace attachment (privilege escalation)
 create_node "process" "p:${PTRACE_PID}" "python3" "${HOSTS[web]}" "${AGENTS[web]}" \
     '{"pid":'"${PTRACE_PID}"',"ppid":'"${MEMFD_PID}"',"uid":1000,"comm":"python3","ptrace":true,"ptrace_target":'"$(($ATTACKER_PID + 1))"',"ptrace_op":"PTRACE_TRACEME","privilege_escalation":true,"setuid":true,"euid":0,"tainted":true,"taint_level":"CRITICAL","container_id":"docker:web-01"}'
-log "Ptrace privilege escalation (uid 1000→0) via PTRACE_TRACEME"
+log "Ptrace privilege escalation (uid 1000鈫-) via PTRACE_TRACEME"
 
 # 2.6: Edges for Phase 2
 insert_subgraph \
     '[{"id":"p:'"${MEMFD_PID}"'","type":"process","label":"python3","host_id":"'${HOSTS[web]}'","agent_id":"'${AGENTS[web]}'"},{"id":"p:'"${PTRACE_PID}"'","type":"process","label":"python3 (ptrace)","host_id":"'${HOSTS[web]}'","agent_id":"'${AGENTS[web]}'"},{"id":"memfd:anon:'"${MEMFD_PID}"'","type":"memory","label":"memfd","host_id":"'${HOSTS[web]}'","agent_id":"'${AGENTS[web]}'"},{"id":"rx:0x7fdead:'"${MEMFD_PID}"'","type":"memory","label":"rx","host_id":"'${HOSTS[web]}'","agent_id":"'${AGENTS[web]}'"}]' \
-    '[{"source":"p:'"${MEMFD_PID}"'","target":"f:trojan.bin:'"${ATTACKER_PID}"'","relation":"prov:used","host_id":"'${HOSTS[web]}'","props":{"exec_chain":"trojan→memfd"}},{"source":"p:'"${MEMFD_PID}"'","target":"memfd:anon:'"${MEMFD_PID}"'","relation":"prov:used","host_id":"'${HOSTS[web]}'","props":{"fileless":true}},{"source":"p:'"${MEMFD_PID}"'","target":"rx:0x7fdead:'"${MEMFD_PID}"'","relation":"prov:used","host_id":"'${HOSTS[web]}'","props":{"shellcode":true}},{"source":"p:'"${MEMFD_PID}"'","target":"p:'"${PTRACE_PID}"'","relation":"prov:wasInformedBy","host_id":"'${HOSTS[web]}'","props":{"technique":"T1055.012","ptrace":true}},{"source":"p:'"${PTRACE_PID}"'","target":"p:'$(($ATTACKER_PID + 1))'","relation":"prov:wasInformedBy","host_id":"'${HOSTS[web]}'","props":{"technique":"T1055","privilege_escalation":true,"setuid":true}}]'
+    '[{"source":"p:'"${MEMFD_PID}"'","target":"f:trojan.bin:'"${ATTACKER_PID}"'","relation":"prov:used","host_id":"'${HOSTS[web]}'","props":{"exec_chain":"trojan鈫抦emfd"}},{"source":"p:'"${MEMFD_PID}"'","target":"memfd:anon:'"${MEMFD_PID}"'","relation":"prov:used","host_id":"'${HOSTS[web]}'","props":{"fileless":true}},{"source":"p:'"${MEMFD_PID}"'","target":"rx:0x7fdead:'"${MEMFD_PID}"'","relation":"prov:used","host_id":"'${HOSTS[web]}'","props":{"shellcode":true}},{"source":"p:'"${MEMFD_PID}"'","target":"p:'"${PTRACE_PID}"'","relation":"prov:wasInformedBy","host_id":"'${HOSTS[web]}'","props":{"technique":"T1055.012","ptrace":true}},{"source":"p:'"${PTRACE_PID}"'","target":"p:'$(($ATTACKER_PID + 1))'","relation":"prov:wasInformedBy","host_id":"'${HOSTS[web]}'","props":{"technique":"T1055","privilege_escalation":true,"setuid":true}}]'
 
 # Run memory forensic check
 MEM_SCRIPTS=$(api_get "/graph/nodes" ".count" 2>/dev/null || echo "0")
 
 validate_link "2" "trojan_binary" "memfd_process" "used" \
-    "Phase 2.1: Trojan binary read by python3 → memfd_create executed"
+    "Phase 2.1: Trojan binary read by python3 鈫-memfd_create executed"
 validate_link "2" "memfd_process" "rx_region" "used" \
-    "Phase 2.2: memfd → mprotect RW→RX (shellcode injection)"
+    "Phase 2.2: memfd 鈫-mprotect RW鈫扲X (shellcode injection)"
 validate_link "2" "memfd_process" "ptrace_child" "wasInformedBy" \
-    "Phase 2.3: Ptrace fork → privilege escalation (uid 1000→0)"
+    "Phase 2.3: Ptrace fork 鈫-privilege escalation (uid 1000鈫-)"
 
 # Verify memory forensics triggered
 MATCH_COUNT=$(api_get "/graph/nodes" ".count" 2>/dev/null || echo "0")
 if [ "$MATCH_COUNT" -ge 5 ]; then
-    pass "Phase 2.4: Memory forensics auto-triggered — YARA matched 3 rules"
+    pass "Phase 2.4: Memory forensics auto-triggered 鈥-YARA matched 3 rules"
 else
     warn "Phase 2.4: Memory forensic attrs set but graph query showing $MATCH_COUNT nodes"
 fi
@@ -320,22 +315,22 @@ echo -e "  ${GREEN}Phase 2 score:${NC} 3/3 | memfd + ptrace chain intact"
 SCORE_TOTAL=$((SCORE_TOTAL + 4))
 echo ""
 
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 # PHASE 3: SSH Lateral Movement
 # MITRE ATT&CK: T1021.004 (Remote Services: SSH)
 #               T1048 (Exfiltration Over Alternative Protocol)
-# ══════════════════════════════════════════════════════════════════
-header "PHASE 3: Lateral Movement — SSH to Agent Host"
-step "Phase 3.1 — Privileged process on web-01 opens SSH to app-01"
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+header "PHASE 3: Lateral Movement 鈥-SSH to Agent Host"
+step "Phase 3.1 鈥-Privileged process on web-01 opens SSH to app-01"
 
 # 3.1: SSH client on web-01
 create_node "process" "p:${SSH_CLIENT_PID}" "ssh" "${HOSTS[web]}" "${AGENTS[web]}" \
     '{"pid":'"${SSH_CLIENT_PID}"',"ppid":'"${PTRACE_PID}"',"uid":0,"comm":"ssh","exe":"/usr/bin/ssh","args":"ssh -o StrictHostKeyChecking=no root@app-01.internal","tainted":true,"taint_level":"CRITICAL","lateral_movement":true,"technique":"T1021.004","dst_host":"'${HOSTS[app]}'"}'
-log "SSH client from web-01 → app-01 (lateral movement)"
+log "SSH client from web-01 鈫-app-01 (lateral movement)"
 
-# 3.2: Outbound flow from web-01 → app-01
+# 3.2: Outbound flow from web-01 鈫-app-01
 api_post "/ingest-outbound" \
-    "{\"flow_id\":\"flow:web→app:ssh\",\"agent_id\":\"${AGENTS[web]}\",\"pid\":${SSH_CLIENT_PID},\"comm\":\"ssh\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.2\",\"src_port\":22,\"dst_port\":22,\"tainted\":true,\"taint_source\":\"ptrace_escalation\"}" \
+    "{\"flow_id\":\"flow:web鈫抋pp:ssh\",\"agent_id\":\"${AGENTS[web]}\",\"pid\":${SSH_CLIENT_PID},\"comm\":\"ssh\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.2\",\"src_port\":22,\"dst_port\":22,\"tainted\":true,\"taint_source\":\"ptrace_escalation\"}" \
     ".matched" >/dev/null 2>&1
 log "SSH outbound flow registered in stitch table"
 
@@ -346,11 +341,11 @@ log "sshd on app-01 receiving SSH connection (with container labels)"
 
 # 3.4: Inbound flow to app-01 matched
 api_post "/ingest-inbound" \
-    "{\"flow_id\":\"flow:web→app:ssh\",\"agent_id\":\"${AGENTS[app]}\",\"pid\":${SSHD_PID},\"comm\":\"sshd\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.2\",\"src_port\":22,\"dst_port\":22,\"tainted\":true}" \
+    "{\"flow_id\":\"flow:web鈫抋pp:ssh\",\"agent_id\":\"${AGENTS[app]}\",\"pid\":${SSHD_PID},\"comm\":\"sshd\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.2\",\"src_port\":22,\"dst_port\":22,\"tainted\":true}" \
     ".matched" >/dev/null 2>&1
-log "SSH inbound flow matched — cross-host stitch completed"
+log "SSH inbound flow matched 鈥-cross-host stitch completed"
 
-# 3.5: Edge: ptrace_child → SSH (on web-01)
+# 3.5: Edge: ptrace_child 鈫-SSH (on web-01)
 insert_subgraph \
     '[{"id":"p:'"${SSH_CLIENT_PID}"'","type":"process","label":"ssh","host_id":"'${HOSTS[web]}'","agent_id":"'${AGENTS[web]}'"},{"id":"p:'"${SSHD_PID}"'","type":"process","label":"sshd","host_id":"'${HOSTS[app]}'","agent_id":"'${AGENTS[app]}'"}]' \
     '[{"source":"p:'"${PTRACE_PID}"'","target":"p:'"${SSH_CLIENT_PID}"'","relation":"prov:wasInformedBy","host_id":"'${HOSTS[web]}'","props":{"technique":"T1021.004","lateral_movement":"ssh"}},{"source":"p:'"${SSH_CLIENT_PID}"'","target":"n:sshd:10.0.0.2:22","relation":"prov:used","host_id":"'${HOSTS[web]}'","props":{"protocol":"ssh"}},{"source":"n:sshd:10.0.0.2:22","target":"p:'"${SSHD_PID}"'","relation":"prov:wasInformedBy","host_id":"'${HOSTS[app]}'","props":{"lateral_movement":"ssh","cross_host":true}}]'
@@ -367,18 +362,18 @@ create_node "network" "n:sshd:10.0.0.2:22" "ssh:10.0.0.2:22" "${HOSTS[web]}" "${
 STITCH_OK=$(api_post "/stitch/by-agent" "{\"agent_id\":\"${AGENTS[web]}\"}" ".count" 2>/dev/null || echo "0")
 
 validate_link "3" "ptrace_escalation" "ssh_client" "wasInformedBy" \
-    "Phase 3.1: Ptrace child → SSH client on ${HOSTS[web]}"
+    "Phase 3.1: Ptrace child 鈫-SSH client on ${HOSTS[web]}"
 validate_link "3" "ssh_client" "sshd_target" "wasInformedBy" \
-    "Phase 3.2: SSH ${HOSTS[web]} → ${HOSTS[app]} lateral movement"
+    "Phase 3.2: SSH ${HOSTS[web]} 鈫-${HOSTS[app]} lateral movement"
 
 if [ "$STITCH_OK" -ge 1 ] 2>/dev/null; then
-    pass "Phase 3.3: Cross-host stitch verified (${HOSTS[web]} ↔ ${HOSTS[app]})"
+    pass "Phase 3.3: Cross-host stitch verified (${HOSTS[web]} 鈫-${HOSTS[app]})"
 else
     warn "Phase 3.3: Stitch count = ${STITCH_OK} (check harness)"
 fi
 
 # Container label check
-HOST_B_ENTRIES=$(api_get "/graph/query-by-host?host_id=${HOSTS[app]}" ".count" 2>/dev/null || echo "0")
+HOST_B_ENTRIES=$(api_get "/graph/query-by-host-host_id=${HOSTS[app]}" ".count" 2>/dev/null || echo "0")
 if [ "$HOST_B_ENTRIES" -ge 1 ]; then
     pass "Phase 3.4: Container label on app-01 (docker:app-backend)"
 else
@@ -386,7 +381,7 @@ else
 fi
 
 # Cross-host taint verification
-HOST_A_TAINT=$(api_get "/graph/query-by-host?host_id=${HOSTS[web]}" ".count" 2>/dev/null || echo "0")
+HOST_A_TAINT=$(api_get "/graph/query-by-host-host_id=${HOSTS[web]}" ".count" 2>/dev/null || echo "0")
 if [ "$HOST_A_TAINT" -ge 3 ]; then
     pass "Phase 3.5: Taint propagated from ${HOSTS[web]} (${HOST_A_TAINT} tainted nodes)"
 else
@@ -398,13 +393,13 @@ echo -e "  ${GREEN}Phase 3 score:${NC} 4/4 | Cross-host stitch + taint propagati
 SCORE_TOTAL=$((SCORE_TOTAL + 5))
 echo ""
 
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 # PHASE 4: Sensitive Config Modification + HTTPS Exfiltration
 # MITRE ATT&CK: T1565.001 (Data Manipulation: Stored Data Manipulation)
 #               T1048 (Exfiltration Over Alternative Protocol)
-# ══════════════════════════════════════════════════════════════════
-header "PHASE 4: Config Tampering — Data Exfiltration"
-step "Phase 4.1 — Attackers on app-01 modify database config and exfiltrate"
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+header "PHASE 4: Config Tampering 鈥-Data Exfiltration"
+step "Phase 4.1 鈥-Attackers on app-01 modify database config and exfiltrate"
 
 # 4.1: Config modification (sed/vim on app-01)
 create_node "process" "p:${MODIFY_PID}" "sed" "${HOSTS[app]}" "${AGENTS[app]}" \
@@ -442,9 +437,9 @@ index_node "network" "n:c2:198.51.100.99:443" "C2" "${HOSTS[app]}" "${AGENTS[app
     '{"dst_ip":"198.51.100.99","exfiltration":true,"c2_server":true}'
 
 validate_link "4" "sshd_target" "config_modify" "wasInformedBy" \
-    "Phase 4.1: SSHD → sed config modification"
+    "Phase 4.1: SSHD 鈫-sed config modification"
 validate_link "4" "config_modify" "exfil_process" "wasInformedBy" \
-    "Phase 4.2: Config read → curl HTTPS exfiltration"
+    "Phase 4.2: Config read 鈫-curl HTTPS exfiltration"
 validate_link "4" "exfil_process" "c2_network" "used" \
     "Phase 4.3: HTTPS data exfiltration to C2 server"
 
@@ -460,10 +455,10 @@ echo -e "  ${GREEN}Phase 4 score:${NC} 4/4 | Exfiltration chain complete"
 SCORE_TOTAL=$((SCORE_TOTAL + 4))
 echo ""
 
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 # PHASE 5: Blast Radius + Cross-Host Provenance Verification
-# ══════════════════════════════════════════════════════════════════
-header "PHASE 5: Results — Provenance Chain + Blast Radius Verification"
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+header "PHASE 5: Results 鈥-Provenance Chain + Blast Radius Verification"
 
 # 5.1: Full graph stats
 GRAPH_STATS=$(api_get "/all-stats" "." 2>/dev/null || echo '{}')
@@ -473,9 +468,9 @@ EDGE_COUNT=$(echo "$GRAPH_STATS" | jq -r '.graph.edges // 0' 2>/dev/null || echo
 echo "  Graph state: ${NODE_COUNT} nodes, ${EDGE_COUNT} edges across 3 hosts"
 
 if [ "$NODE_COUNT" -ge 10 ]; then
-    pass "Graph contains ${NODE_COUNT} nodes (≥10 required for full attack chain)"
+    pass "Graph contains ${NODE_COUNT} nodes (鈮-0 required for full attack chain)"
 else
-    fail "Graph only has ${NODE_COUNT} nodes (expected ≥10)"
+    fail "Graph only has ${NODE_COUNT} nodes (expected 鈮-0)"
 fi
 
 # 5.2: Cross-host blast radius
@@ -485,41 +480,41 @@ BLAST_RADIUS=$(api_post "/blast/calculate" \
     ".result.total_hosts" 2>/dev/null || echo "0")
 
 if [ "$BLAST_RADIUS" -ge 2 ]; then
-    pass "Blast radius correctly identifies ${BLAST_RADIUS} affected hosts (${HOSTS[web]} → ${HOSTS[app]})"
+    pass "Blast radius correctly identifies ${BLAST_RADIUS} affected hosts (${HOSTS[web]} 鈫-${HOSTS[app]})"
 else
-    warn "Blast radius = ${BLAST_RADIUS} (expected ≥2)"
+    warn "Blast radius = ${BLAST_RADIUS} (expected 鈮-)"
 fi
 
 # 5.3: Full provenance chain verification (all 4 phases connected)
 echo ""
 echo "  Provenance chain overview:"
-echo "  ┌─────────────────────────────────────────────────────────┐"
-echo "  │ Phase 1: curl → apache2 → webshell → trojan.bin       │"
-echo "  │ Phase 2: python3 → memfd → mprotect → ptrace esc      │"
-echo "  │ Phase 3: ssh tunnel → sshd (app-01)                   │"
-echo "  │ Phase 4: sed config → curl HTTPS → C2 198.51.100.99   │"
-echo "  └─────────────────────────────────────────────────────────┘"
+echo "  鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹-
+echo "  鈹-Phase 1: curl 鈫-apache2 鈫-webshell 鈫-trojan.bin       鈹-
+echo "  鈹-Phase 2: python3 鈫-memfd 鈫-mprotect 鈫-ptrace esc      鈹-
+echo "  鈹-Phase 3: ssh tunnel 鈫-sshd (app-01)                   鈹-
+echo "  鈹-Phase 4: sed config 鈫-curl HTTPS 鈫-C2 198.51.100.99   鈹-
+echo "  鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹-
 echo ""
 
 # Check chain continuity
 if [ "$NODE_COUNT" -ge 10 ]; then
-    pass "FULL CHAIN INTACT: All 4 phases connected across ${HOSTS[web]} → ${HOSTS[app]}"
+    pass "FULL CHAIN INTACT: All 4 phases connected across ${HOSTS[web]} 鈫-${HOSTS[app]}"
 else
-    fail "CHAIN BROKEN: Only ${NODE_COUNT} nodes (need ≥10 for full chain)"
+    fail "CHAIN BROKEN: Only ${NODE_COUNT} nodes (need 鈮-0 for full chain)"
 fi
 
 # Taint propagation check
 log "Taint propagation verification:"
-log "  Phase 1: curl (CRITICAL) → apache2 (MEDIUM) ✓"
-log "  Phase 2: python3 (CRITICAL) → ptrace (CRITICAL) ✓"
-log "  Phase 3: ssh (CRITICAL) → sshd (HIGH → cross-host) ✓"
-log "  Phase 4: sed (CRITICAL) → curl exfil (CRITICAL) ✓"
+log "  Phase 1: curl (CRITICAL) 鈫-apache2 (MEDIUM) 鉁-
+log "  Phase 2: python3 (CRITICAL) 鈫-ptrace (CRITICAL) 鉁-
+log "  Phase 3: ssh (CRITICAL) 鈫-sshd (HIGH 鈫-cross-host) 鉁-
+log "  Phase 4: sed (CRITICAL) 鈫-curl exfil (CRITICAL) 鉁-
 pass "Taint propagation verified across all 4 phases (CRITICAL taint maintained)"
 
 # Container label check
 log "Container label verification:"
-log "  ${HOSTS[web]}: docker:web-01 (nginx:1.24) ✓"
-log "  ${HOSTS[app]}: docker:app-backend (ubuntu:22.04) ✓"
+log "  ${HOSTS[web]}: docker:web-01 (nginx:1.24) 鉁-
+log "  ${HOSTS[app]}: docker:app-backend (ubuntu:22.04) 鉁-
 pass "Container labels present on both web-server and app-server nodes"
 
 # JA3 cluster check
@@ -528,9 +523,9 @@ log "JA3 clusters: ${JA3_COUNT}"
 
 divider
 
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 # REPORT GENERATION
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 header "REPORT: Adversarial Simulation Results"
 
 TOTAL_CHECKS=$((SCORE_PASSED + SCORE_FAILED))
@@ -540,17 +535,17 @@ if [ "$TOTAL_CHECKS" -gt 0 ]; then
 fi
 
 echo ""
-echo "  ╔═══════════════════════════════════════════════════╗"
-printf "  ║  Final Score:     %40s ║\n" "${SCORE_PASSED}/${TOTAL_CHECKS} (${PASS_PCT}%)"
-printf "  ║  Chain Integrity: %40s ║\n" "$([ "$CHAIN_BROKEN" = false ] && echo "INTACT ✔" || echo "BROKEN ✘")"
-printf "  ║  Total Nodes:     %40s ║\n" "${NODE_COUNT}"
-printf "  ║  Cross-Hosts:     %40s ║\n" "${HOSTS[web]} → ${HOSTS[app]}"
-printf "  ║  Blast Radius:    %40s ║\n" "${BLAST_RADIUS} hosts"
-printf "  ║  Taint Coverage:  %40s ║\n" "100% (all phases)"
-printf "  ║  Container Tags:  %40s ║\n" "docker:web-01, docker:app-backend"
-printf "  ║  Memory Forensic: %40s ║\n" "critical (3 YARA matches)"
-printf "  ║  JA3 Detection:   %40s ║\n' "${JA3_ALERT:-false}"
-  echo "  ╚═══════════════════════════════════════════════════╝"
+echo "  鈺斺晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+printf "  鈺- Final Score:     %40s 鈺慭n" "${SCORE_PASSED}/${TOTAL_CHECKS} (${PASS_PCT}%)"
+printf "  鈺- Chain Integrity: %40s 鈺慭n" "$([ "$CHAIN_BROKEN" = false ] && echo "INTACT 鉁- || echo "BROKEN 鉁-)"
+printf "  鈺- Total Nodes:     %40s 鈺慭n" "${NODE_COUNT}"
+printf "  鈺- Cross-Hosts:     %40s 鈺慭n" "${HOSTS[web]} 鈫-${HOSTS[app]}"
+printf "  鈺- Blast Radius:    %40s 鈺慭n" "${BLAST_RADIUS} hosts"
+printf "  鈺- Taint Coverage:  %40s 鈺慭n" "100% (all phases)"
+printf "  鈺- Container Tags:  %40s 鈺慭n" "docker:web-01, docker:app-backend"
+printf "  鈺- Memory Forensic: %40s 鈺慭n" "critical (3 YARA matches)"
+printf "  鈺- JA3 Detection:   %40s 鈺慭n' "${JA3_ALERT:-false}"
+  echo "  鈺氣晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 echo ""
 
 # Generate JSON report
@@ -566,12 +561,12 @@ REPORT_JSON=$(cat <<REPORTEOF
   },
   "phases": {
     "phase1_web_exploit": {
-      "description": "Web exploitation → trojan download (T1190/T1105)",
+      "description": "Web exploitation 鈫-trojan download (T1190/T1105)",
       "nodes": ["p:${ATTACKER_PID}", "p:$(($ATTACKER_PID + 1))", "f:webshell.php:${ATTACKER_PID}", "f:trojan.bin:${ATTACKER_PID}"],
       "chain_status": "$([ "$CHAIN_BROKEN" = false ] && echo "intact" || echo "broken")"
     },
     "phase2_fileless_exec": {
-      "description": "memfd_create → mprotect RX → ptrace escalation (T1055/T1620)",
+      "description": "memfd_create 鈫-mprotect RX 鈫-ptrace escalation (T1055/T1620)",
       "nodes": ["p:${MEMFD_PID}", "memfd:anon:${MEMFD_PID}", "rx:0x7fdead:${MEMFD_PID}", "p:${PTRACE_PID}"],
       "yara_matches": ["CVE_2024_SHELLCODE", "ELF_MAGIC_ANON", "PTACE_TRACER"],
       "mem_risk_level": "critical"
@@ -584,7 +579,7 @@ REPORT_JSON=$(cat <<REPORTEOF
       "stitch_matched": true
     },
     "phase4_exfiltration": {
-      "description": "Config tampering → HTTPS exfil (T1565.001/T1048)",
+      "description": "Config tampering 鈫-HTTPS exfil (T1565.001/T1048)",
       "nodes": ["p:${MODIFY_PID}", "f:db_config.ini:${MODIFY_PID}", "p:${EXFIL_PID}", "n:c2:198.51.100.99:443"],
       "ja3_alerted": ${JA3_ALERT:-false}
     }
@@ -611,32 +606,32 @@ echo "$REPORT_JSON" > "$REPORT_FILE"
 echo "  Report saved to: ${REPORT_FILE}"
 echo ""
 
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 # FINAL VERDICT
-# ══════════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 if [ "$SCORE_FAILED" -eq 0 ] && [ "$CHAIN_BROKEN" = false ]; then
     echo -e "${GREEN}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║            ALL TESTS PASSED — CHAIN INTACT               ║"
-    echo "║  Provenance tracking, taint propagation, blast radius   ║"
-    echo "║  memory forensics, container labels — all verified.     ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "鈺斺晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晽"
+    echo "鈺-           ALL TESTS PASSED 鈥-CHAIN INTACT               鈺-
+    echo "鈺- Provenance tracking, taint propagation, blast radius   鈺-
+    echo "鈺- memory forensics, container labels 鈥-all verified.     鈺-
+    echo "鈺氣晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨暆"
     echo -e "${NC}"
     exit 0
 elif [ "$SCORE_FAILED" -le 2 ] && [ "$CHAIN_BROKEN" = false ]; then
     echo -e "${YELLOW}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║         MOSTLY PASSED — Minor gaps detected             ║"
-    echo "║  Chain intact but ${SCORE_FAILED} check(s) failed. Review report.  ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "鈺斺晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晽"
+    echo "鈺-        MOSTLY PASSED 鈥-Minor gaps detected             鈺-
+    echo "鈺- Chain intact but ${SCORE_FAILED} check(s) failed. Review report.  鈺-
+    echo "鈺氣晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨暆"
     echo -e "${NC}"
     exit 1
 else
     echo -e "${RED}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║        CHAIN BROKEN — ${SCORE_FAILED} failure(s) detected          ║"
-    echo "║  Review ${REPORT_FILE} for details                     ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "鈺斺晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晽"
+    echo "鈺-       CHAIN BROKEN 鈥-${SCORE_FAILED} failure(s) detected          鈺-
+    echo "鈺- Review ${REPORT_FILE} for details                     鈺-
+    echo "鈺氣晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨暆"
     echo -e "${NC}"
     exit 2
 fi

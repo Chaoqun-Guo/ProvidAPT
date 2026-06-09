@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package server implements scalable central server infrastructure for
-// ProvidAPT v2.2, featuring load distribution, priority queuing, and
+// ProvidAPT, featuring load distribution, priority queuing, and
 // self-healing backpressure.
 package server
 
@@ -14,10 +14,8 @@ import (
 	"sync"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Consistent hash router — ensures host→collector affinity
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Consistent hash router 鈥-ensures host鈫抍ollector affinity
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // ConsistentHashRouter maps host IDs to collector instances using
 // consistent hashing, ensuring events from the same host always
 // go to the same collector (maintaining temporal ordering).
@@ -107,13 +105,13 @@ func (chr *ConsistentHashRouter) Stats() map[string]interface{} {
 	}
 }
 
-// ─── Collector instance ─────────────────────────────────────
+// 鈹€鈹€鈹€ Collector instance 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // Collector processes events for a subset of hosts.
 type Collector struct {
-	ID     string
-	hosts  map[string]bool // assigned host IDs
-	mu     sync.Mutex
+	ID        string
+	hosts     map[string]bool // assigned host IDs
+	mu        sync.Mutex
 	processed int64
 }
 
@@ -144,13 +142,13 @@ func (c *Collector) Stats() map[string]interface{} {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return map[string]interface{}{
-		"id":         c.ID,
-		"hosts":      len(c.hosts),
-		"processed":  c.processed,
+		"id":        c.ID,
+		"hosts":     len(c.hosts),
+		"processed": c.processed,
 	}
 }
 
-// ─── Helpers ────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func hashString(s string) uint64 {
 	h := fnv.New64a()

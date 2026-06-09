@@ -5,6 +5,7 @@ package ai
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,7 +50,7 @@ func (p *OllamaProvider) SendChat(endpoint, model, apiKey string, messages []cha
 	if err != nil {
 		return "", fmt.Errorf("ollama marshal: %w", err)
 	}
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewReader(data))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {
 		return "", fmt.Errorf("ollama new request: %w", err)
 	}
@@ -59,7 +60,7 @@ func (p *OllamaProvider) SendChat(endpoint, model, apiKey string, messages []cha
 	if err != nil {
 		return "", fmt.Errorf("ollama request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -73,10 +74,14 @@ func (p *OllamaProvider) SendChat(endpoint, model, apiKey string, messages []cha
 }
 
 func (p *OllamaProvider) IsAvailable(endpoint string) bool {
-	resp, err := p.clientInstance().Get(endpoint)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, endpoint, nil)
 	if err != nil {
 		return false
 	}
-	resp.Body.Close()
+	resp, err := p.clientInstance().Do(req)
+	if err != nil {
+		return false
+	}
+	_ = resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
 }

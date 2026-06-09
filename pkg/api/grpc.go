@@ -4,6 +4,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -26,7 +27,7 @@ func NewGRPCServer(addr string) *GRPCServer {
 
 // Start begins listening on the configured address.
 func (s *GRPCServer) Start() error {
-	lis, err := net.Listen("tcp", s.addr)
+	lis, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", s.addr)
 	if err != nil {
 		return fmt.Errorf("grpc listen: %w", err)
 	}

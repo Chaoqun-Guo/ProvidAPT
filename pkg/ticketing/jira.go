@@ -5,6 +5,7 @@ package ticketing
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -96,7 +97,7 @@ func (c *JiraClient) CreateIssue(req CreateRequest) (Issue, error) {
 		return Issue{}, fmt.Errorf("marshal jira issue payload: %w", err)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/rest/api/3/issue", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.baseURL+"/rest/api/3/issue", bytes.NewReader(body))
 	if err != nil {
 		return Issue{}, fmt.Errorf("build jira request: %w", err)
 	}
@@ -108,7 +109,7 @@ func (c *JiraClient) CreateIssue(req CreateRequest) (Issue, error) {
 	if err != nil {
 		return Issue{}, fmt.Errorf("jira create issue: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return Issue{}, fmt.Errorf("jira create issue returned %d", resp.StatusCode)
 	}
@@ -142,7 +143,7 @@ func (c *JiraClient) AddComment(issue Issue, comment string) error {
 	if err != nil {
 		return fmt.Errorf("marshal jira comment payload: %w", err)
 	}
-	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/rest/api/3/issue/"+issueKey+"/comment", bytes.NewReader(payload))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.baseURL+"/rest/api/3/issue/"+issueKey+"/comment", bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("build jira comment request: %w", err)
 	}
@@ -153,7 +154,7 @@ func (c *JiraClient) AddComment(issue Issue, comment string) error {
 	if err != nil {
 		return fmt.Errorf("jira add comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("jira add comment returned %d", resp.StatusCode)
 	}

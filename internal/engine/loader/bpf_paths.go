@@ -48,7 +48,7 @@ func formatBpfLoadError(paths []string, errs []error) error {
 	}
 
 	if allMissing {
-		return fmt.Errorf("loadBpf: no precompiled eBPF object found; searched %s; run `make v1-ebpf` or set %s; details: %s",
+		return fmt.Errorf("loadBpf: no precompiled eBPF object found; searched %s; run `make build-ebpf` or set %s; details: %s",
 			strings.Join(paths, ", "),
 			bpfObjectEnvVar,
 			strings.Join(details, "; "),

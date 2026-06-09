@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package opt provides graph query performance optimizations for
-// ProvidAPT v2.1: graph sketching, hot-path caching, parallel traversal.
+// ProvidAPT: graph sketching, hot-path caching, parallel traversal.
 package opt
 
 import (
@@ -13,42 +13,40 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Graph sketching — background summary node
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Graph sketching 鈥-background summary node
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // SketchNode is a compressed representation of a no-risk subgraph.
 type SketchNode struct {
-	OriginalID    string   `json:"original_id"`    // e.g., "p:1" for systemd
-	Label         string   `json:"label"`           // "systemd"
-	MergedNodes   int      `json:"merged_nodes"`    // how many nodes collapsed
-	MergedEdges   int      `json:"merged_edges"`    // how many edges collapsed
-	LastActivity  time.Time `json:"last_activity"`
-	KeyStats      string   `json:"key_stats"`       // e.g., "forks=42, reads=156"
+	OriginalID   string    `json:"original_id"`  // e.g., "p:1" for systemd
+	Label        string    `json:"label"`        // "systemd"
+	MergedNodes  int       `json:"merged_nodes"` // how many nodes collapsed
+	MergedEdges  int       `json:"merged_edges"` // how many edges collapsed
+	LastActivity time.Time `json:"last_activity"`
+	KeyStats     string    `json:"key_stats"` // e.g., "forks=42, reads=156"
 }
 
 // SketchConfig controls which processes get sketched.
 type SketchConfig struct {
-	// MinAge — process must be older than this to qualify (default 1h).
+	// MinAge 鈥-process must be older than this to qualify (default 1h).
 	MinAge time.Duration
 
-	// NoRiskLabels — labels that indicate no risk.
+	// NoRiskLabels 鈥-labels that indicate no risk.
 	NoRiskLabels []string
 
-	// BackgroundPrefixes — process comm prefixes to auto-sketch.
+	// BackgroundPrefixes 鈥-process comm prefixes to auto-sketch.
 	BackgroundPrefixes []string
 
-	// EnableSketching — master switch.
+	// EnableSketching 鈥-master switch.
 	EnableSketching bool
 
-	// DryRun — if true, log what would be sketched but don't merge.
+	// DryRun 鈥-if true, log what would be sketched but don't merge.
 	DryRun bool
 }
 
 // DefaultSketchConfig returns sensible defaults.
 func DefaultSketchConfig() *SketchConfig {
 	return &SketchConfig{
-		MinAge:     1 * time.Hour,
+		MinAge:       1 * time.Hour,
 		NoRiskLabels: []string{"CLEAN", "system", "kernel"},
 		BackgroundPrefixes: []string{
 			"systemd", "kernel", "kworker", "kthread",
@@ -61,9 +59,9 @@ func DefaultSketchConfig() *SketchConfig {
 
 // SketchEngine manages graph sketching.
 type SketchEngine struct {
-	cfg     *SketchConfig
-	mu      sync.Mutex
-	sketches map[string]*SketchNode // originalID → sketch
+	cfg      *SketchConfig
+	mu       sync.Mutex
+	sketches map[string]*SketchNode // originalID 鈫-sketch
 }
 
 // NewSketchEngine creates a graph sketching engine.
@@ -143,7 +141,7 @@ func (se *SketchEngine) Stats() map[string]interface{} {
 	se.mu.Lock()
 	defer se.mu.Unlock()
 	return map[string]interface{}{
-		"sketches":        len(se.sketches),
+		"sketches": len(se.sketches),
 		"total_merged_nodes": func() int {
 			n := 0
 			for _, s := range se.sketches {

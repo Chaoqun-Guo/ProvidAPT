@@ -82,3 +82,8 @@ target/
 *.pid
 *.lock
 /tmp/
+.tmp-bin/
+.tmp-gocache/
+.tmp-gomodcache/
+.tmp-golangci-cache/
+testlogs/

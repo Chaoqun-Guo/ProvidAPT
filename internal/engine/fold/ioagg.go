@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package fold implements kernel-side event folding for ProvidAPT v2.1.
+// Package fold implements kernel-side event folding for ProvidAPT.
 //
 // Reduces ring buffer pressure by aggregating high-frequency I/O events
 // in kernel BPF maps and only emitting summary events at close() or
@@ -15,10 +15,8 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// IO aggregation
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// IO aggregation
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 // AggKey is the composite key for the IO aggregation map.
 // Matches the kernel-side BPF map key: (pid, fd, op_type).
 type AggKey struct {
@@ -45,25 +43,25 @@ type AggValue struct {
 
 // AggregateEvent is emitted when a folded IO summary is flushed.
 type AggregateEvent struct {
-	PID        uint32    `json:"pid"`
-	Comm       string    `json:"comm"`
-	FD         int32     `json:"fd"`
-	OpType     uint32    `json:"op_type"`
-	Count      uint64    `json:"count"`
-	TotalBytes uint64    `json:"total_bytes"`
-	Duration   string    `json:"duration"` // aggregation window
+	PID        uint32 `json:"pid"`
+	Comm       string `json:"comm"`
+	FD         int32  `json:"fd"`
+	OpType     uint32 `json:"op_type"`
+	Count      uint64 `json:"count"`
+	TotalBytes uint64 `json:"total_bytes"`
+	Duration   string `json:"duration"` // aggregation window
 }
 
 // IOAggregator folds small IO events into aggregated summaries.
 // In production, the counters live in a BPF_MAP_TYPE_HASH on the
 // kernel side.  This userspace component manages the flush lifecycle.
 type IOAggregator struct {
-	mu         sync.Mutex
-	agg        map[AggKey]*AggValue
-	flushInt   time.Duration   // default 1 second
-	batchSize  int             // flush if count exceeds this
-	lastFlush  time.Time
-	flushed    []*AggregateEvent
+	mu          sync.Mutex
+	agg         map[AggKey]*AggValue
+	flushInt    time.Duration // default 1 second
+	batchSize   int           // flush if count exceeds this
+	lastFlush   time.Time
+	flushed     []*AggregateEvent
 	totalFolded int64
 	totalEvents int64 // would have been without folding
 }
@@ -206,11 +204,11 @@ func (ia *IOAggregator) Stats() map[string]interface{} {
 		foldRatio = float64(ia.totalFolded) / float64(ia.totalEvents) * 100.0
 	}
 	return map[string]interface{}{
-		"active_entries":  len(ia.agg),
-		"total_events":    ia.totalEvents,
-		"total_folded":    ia.totalFolded,
-		"fold_ratio":      fmt.Sprintf("%.1f%%", foldRatio),
-		"flush_interval":  ia.flushInt.String(),
-		"batch_size":      ia.batchSize,
+		"active_entries": len(ia.agg),
+		"total_events":   ia.totalEvents,
+		"total_folded":   ia.totalFolded,
+		"fold_ratio":     fmt.Sprintf("%.1f%%", foldRatio),
+		"flush_interval": ia.flushInt.String(),
+		"batch_size":     ia.batchSize,
 	}
 }

@@ -5,6 +5,7 @@ package ticketing
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -50,7 +51,7 @@ func (c *WebhookClient) CreateIssue(req CreateRequest) (Issue, error) {
 		return Issue{}, fmt.Errorf("marshal ticket webhook payload: %w", err)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, c.url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
 		return Issue{}, fmt.Errorf("build ticket webhook request: %w", err)
 	}
@@ -64,7 +65,7 @@ func (c *WebhookClient) CreateIssue(req CreateRequest) (Issue, error) {
 	if err != nil {
 		return Issue{}, fmt.Errorf("ticket webhook post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return Issue{}, fmt.Errorf("ticket webhook returned %d", resp.StatusCode)
 	}
@@ -87,7 +88,7 @@ func (c *WebhookClient) AddComment(issue Issue, comment string) error {
 		return fmt.Errorf("marshal ticket webhook comment payload: %w", err)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, c.url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("build ticket webhook comment request: %w", err)
 	}
@@ -101,7 +102,7 @@ func (c *WebhookClient) AddComment(issue Issue, comment string) error {
 	if err != nil {
 		return fmt.Errorf("ticket webhook comment post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("ticket webhook comment returned %d", resp.StatusCode)
 	}

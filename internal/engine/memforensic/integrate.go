@@ -8,23 +8,23 @@ import (
 	"log"
 )
 
-// ─────────────────────────────────────────────────────────────────
+// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 // Provenance graph integration
 //
 // Updates provenance graph nodes with memory forensic findings.
 // Supports both:
 //   - v1 Node (map[string]interface{} Attributes)
-//   - v2.2 GlobalNode (map[string]interface{} Props)
-// ─────────────────────────────────────────────────────────────────
+//   - GlobalNode (map[string]interface{} Props)
+// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // GraphNode is a minimal interface for updating provenance node attributes.
-// Both v1 *provenance.Node and v2.2 *store.GlobalNode satisfy this.
+// Both *provenance.Node and *store.GlobalNode satisfy this.
 type GraphNode interface {
 	// Attrs returns the mutable attribute map of the node.
 	Attrs() map[string]interface{}
 }
 
-// ── Adapter types for graph integration ─────────────────────────
+// 鈹€鈹€ Adapter types for graph integration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // NodeAttrsAdapter wraps a map for use as GraphNode.
 type NodeAttrsAdapter struct {
@@ -41,26 +41,26 @@ func NewNodeAttrsAdapter(attrs map[string]interface{}) *NodeAttrsAdapter {
 	return &NodeAttrsAdapter{attrs: attrs}
 }
 
-// ── Integration functions ───────────────────────────────────────
+// 鈹€鈹€ Integration functions 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // ApplyToNode writes the forensic result attributes to a provenance
 // graph node's attribute map.
 //
 // The following attributes are set:
 //
-//	mem_forensic        — "scanned" (marker)
-//	mem_trigger          — trigger reason string
-//	mem_risk_score      — numeric score (0-100)
-//	mem_risk_level      — "low"/"medium"/"high"/"critical"
-//	mem_stack_hash      — SHA256 of stack dump
-//	mem_exec_hash       — SHA256 of executable segments
-//	mem_heap_hash       — SHA256 of heap dump
-//	mem_match_count     — total YARA+hex matches
-//	mem_top_match       — highest severity match name
-//	mem_matches         — comma-separated list of matched rules
-//	mem_regions         — total parsed memory regions
-//	mem_anon_exec       — count of anonymous executable regions
-//	mem_wx_regions      — true if any W+X region found
+//	mem_forensic        鈥-"scanned" (marker)
+//	mem_trigger          鈥-trigger reason string
+//	mem_risk_score      鈥-numeric score (0-100)
+//	mem_risk_level      鈥-"low"/"medium"/"high"/"critical"
+//	mem_stack_hash      鈥-SHA256 of stack dump
+//	mem_exec_hash       鈥-SHA256 of executable segments
+//	mem_heap_hash       鈥-SHA256 of heap dump
+//	mem_match_count     鈥-total YARA+hex matches
+//	mem_top_match       鈥-highest severity match name
+//	mem_matches         鈥-comma-separated list of matched rules
+//	mem_regions         鈥-total parsed memory regions
+//	mem_anon_exec       鈥-count of anonymous executable regions
+//	mem_wx_regions      鈥-true if any W+X region found
 //
 // Returns the number of attributes set.
 func ApplyToNode(node GraphNode, result *MemForensicResult) int {
@@ -199,9 +199,9 @@ func ApplyToStringAttrs(attrs map[string]string, result *MemForensicResult) int 
 	return count
 }
 
-// ── High-level orchestration ────────────────────────────────────
+// 鈹€鈹€ High-level orchestration 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-// AcquireAndScan runs the full acquisition→scan→result pipeline.
+// AcquireAndScan runs the full acquisition鈫抯can鈫抮esult pipeline.
 // It is the main entry point for forensic operations.
 //
 // Parameters:
@@ -241,7 +241,7 @@ func AcquireAndScan(
 	return result
 }
 
-// ── Orchestration hook for the analyzer ─────────────────────────
+// 鈹€鈹€ Orchestration hook for the analyzer 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // HandleTrigger is called when a trigger event fires. It performs the
 // acquisition and scan, then returns attributes ready for graph update.
@@ -272,4 +272,3 @@ func HandleTrigger(
 
 	return result, attrsMap
 }
-

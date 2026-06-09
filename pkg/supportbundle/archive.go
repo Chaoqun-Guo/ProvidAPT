@@ -44,10 +44,10 @@ func CreateArchive(bundlePath string, opts ArchiveOptions) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create archive: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	zw := zip.NewWriter(file)
-	defer zw.Close()
+	defer func() { _ = zw.Close() }()
 
 	err = filepath.WalkDir(bundlePath, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -65,7 +65,7 @@ func CreateArchive(bundlePath string, opts ArchiveOptions) (string, error) {
 		if err != nil {
 			return err
 		}
-		defer src.Close()
+		defer func() { _ = src.Close() }()
 
 		w, err := zw.Create(rel)
 		if err != nil {

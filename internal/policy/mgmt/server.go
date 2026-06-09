@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package mgmt implements the ProvidAPT v2.1 remote management
+// Package mgmt implements the ProvidAPT remote management
 // architecture with gRPC, dynamic policy delivery, and mTLS.
 package mgmt
 
@@ -38,13 +38,10 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/telemetry"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Server
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Server
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // Server implements the ProvidAPTManagement gRPC service.
 type Server struct {
-	mu        sync.Mutex
 	addr      string
 	server    *grpc.Server
 	config    *ServerConfig
@@ -124,22 +121,22 @@ type alertSubscription struct {
 
 // ServerConfig for the gRPC management server.
 type ServerConfig struct {
-	// ListenAddr — gRPC listen address (default ":50051").
+	// ListenAddr 鈥-gRPC listen address (default ":50051").
 	ListenAddr string
 
-	// CertFile — TLS certificate file path.
+	// CertFile 鈥-TLS certificate file path.
 	CertFile string
 
-	// KeyFile — TLS private key file path.
+	// KeyFile 鈥-TLS private key file path.
 	KeyFile string
 
-	// CAFile — CA certificate file for client verification.
+	// CAFile 鈥-CA certificate file for client verification.
 	CAFile string
 
-	// RequireClientCert — if true, clients must present a valid cert.
+	// RequireClientCert 鈥-if true, clients must present a valid cert.
 	RequireClientCert bool
 
-	// EnableTLS — if true, use TLS (mTLS if RequireClientCert).
+	// EnableTLS 鈥-if true, use TLS (mTLS if RequireClientCert).
 	EnableTLS bool
 }
 
@@ -284,7 +281,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 
 // Start begins listening for gRPC connections.
 func (s *Server) Start() error {
-	lis, err := net.Listen("tcp", s.addr)
+	lis, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", s.addr)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
@@ -307,7 +304,7 @@ func (s *Server) Stop() {
 	log.Printf("[mgmt] server stopped")
 }
 
-// ─── gRPC handler implementations ────────────────────────────
+// 鈹€鈹€鈹€ gRPC handler implementations 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // Query handles provenance data queries.
 func (s *Server) Query(ctx context.Context, req *mgmtpb.QueryRequest) (*mgmtpb.QueryResponse, error) {
@@ -456,7 +453,7 @@ func (s *Server) applyWhitelistUpdate(w *mgmtpb.WhitelistUpdate, clientInfo stri
 		}
 
 	case "comm":
-		// Comm-based whitelist — currently unsupported via gRPC
+		// Comm-based whitelist 鈥-currently unsupported via gRPC
 		return "comm-based whitelist requires /proc scan, use pid instead"
 
 	case "path":
@@ -754,7 +751,7 @@ func hasTag(tags []string, want string) bool {
 	return false
 }
 
-// ─── mTLS ────────────────────────────────────────────────────
+// 鈹€鈹€鈹€ mTLS 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // loadTLSConfig loads TLS configuration with optional mutual auth.
 func loadTLSConfig(cfg *ServerConfig) (*tls.Config, error) {
@@ -802,14 +799,14 @@ func clientIdentity(ctx context.Context) string {
 	return "unknown"
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Self-signed certificate generator (development only)
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Self-signed certificate generator (development only)
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 func generateSelfSignedCert() (tls.Certificate, error) {
 	// Try persistent certauth (production use)
 	certDir := filepath.Join(os.TempDir(), "providapt-certs")
-	os.MkdirAll(certDir, 0700)
+	if err := os.MkdirAll(certDir, 0700); err != nil {
+		return tls.Certificate{}, fmt.Errorf("create cert dir: %w", err)
+	}
 
 	caDir := filepath.Join(certDir, "ca")
 	srvDir := filepath.Join(certDir, "server")
@@ -867,10 +864,8 @@ func generateEphemeralCert() (tls.Certificate, error) {
 	}, nil
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Client (for management center)
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Client (for management center)
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // ClientConfig for connecting to the proviAPT management server.
 type ClientConfig struct {
 	ServerAddr string

@@ -1,4 +1,4 @@
-﻿# 快速入门
+# 快速入门
 
 本节帮助你在不同环境中安装、部署并启动 ProvidAPT。
 
@@ -27,7 +27,7 @@ make verify-env
 make install-deps
 
 # 构建并安装
-make v1-install
+make install-local
 
 # 启动 daemon
 sudo providaptd -config /etc/providapt/providapt.toml

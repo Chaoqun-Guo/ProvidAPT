@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # =============================================================
-# ProvidAPT v2.1 — Final Validation Check
+# ProvidAPT 閳-Final Validation Check
 #
 # Tests:
 #   1. K8s pod attack simulation (Minikube)
 #   2. Data quality: Namespace, ContainerID, Taint labels
-#   3. Self-healing: kill -9 → watchdog restart < 5s
+#   3. Self-healing: kill -9 閳-watchdog restart < 5s
 #   4. Resource: memory growth under 10,000 TPS load
 #
 # Usage:
@@ -13,14 +13,14 @@
 #   sudo bash test/integration/final_check.sh --skip-build
 #
 # Exit codes:
-#   0 — All tests passed
-#   1 — One or more checks failed
+#   0 閳-All tests passed
+#   1 閳-One or more checks failed
 # =============================================================
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 PROJECT_ROOT=$(pwd)
-OUTPUT_DIR="$PROJECT_ROOT/build/v2.1-validation"
+OUTPUT_DIR="$PROJECT_ROOT/build/release-validation"
 mkdir -p "$OUTPUT_DIR"
 
 RED='\033[0;31m'
@@ -38,10 +38,10 @@ check() {
     local result="$2"
     shift 2
     if [ "$result" = "true" ] || [ "$result" = "0" ] || [ "$result" = "ok" ]; then
-        echo -e "  ${GREEN}✓${NC} $name"
+        echo -e "  ${GREEN}閴-{NC} $name"
         PASS=$((PASS + 1))
     else
-        echo -e "  ${RED}✗${NC} $name"
+        echo -e "  ${RED}閴-{NC} $name"
         [ $# -gt 0 ] && echo "    $*"
         FAIL=$((FAIL + 1))
     fi
@@ -57,32 +57,28 @@ cleanup() {
 trap cleanup EXIT
 
 echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║     ProvidAPT v2.1 — Final Validation Check                 ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧"
+echo "閳-    ProvidAPT 閳-Final Validation Check                 閳-
+echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕"
 echo ""
 
-# ═══════════════════════════════════════════════════════════════
-# Phase 0: Build
-# ═══════════════════════════════════════════════════════════════
-echo "[0/5] Building ProvidAPT v2.1..."
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-# Phase 0: Build
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-echo "[0/5] Building ProvidAPT..."
 if [ "${1:-}" != "--skip-build" ]; then
     make v2 2>&1 | tail -3
-    check "v2.1 build" "$(test -f build/bin/providapt-v2 && echo true || echo false)" "Binary not found"
+    check "release build" "$(test -f build/bin/providaptd && echo true || echo false)" "Binary not found"
 else
     echo "  (skip-build flag set)"
 fi
 
-# ═══════════════════════════════════════════════════════════════
-# Phase 1: Attack Simulation
-# ═══════════════════════════════════════════════════════════════
-echo ""
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-# Phase 1: Attack Simulation
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-echo ""
 echo "[1/5] Attack simulation (K8s pod scenario)..."
 SIM_LOG="$OUTPUT_DIR/attack.log"
 
 echo "  [Stage 1] Starting agent..." | tee -a "$SIM_LOG"
-STORE_DIR=$(mktemp -d /tmp/providapt-v2store-XXXXX)
-./build/bin/providapt-v2 > "$OUTPUT_DIR/agent.log" 2>&1 &
+STORE_DIR=$(mktemp -d /tmp/providapt-store-XXXXX)
+./build/bin/providaptd > "$OUTPUT_DIR/agent.log" 2>&1 &
 AGENT_PID=$!
 sleep 2
 
@@ -111,17 +107,15 @@ check "agent survived attack" \
     "$(kill -0 "$AGENT_PID" 2>/dev/null && echo true || echo false)" \
     "Agent crashed during attack"
 
-# ═══════════════════════════════════════════════════════════════
-# Phase 2: Data Quality
-# ═══════════════════════════════════════════════════════════════
-echo ""
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-# Phase 2: Data Quality
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-echo ""
 echo "[2/5] Data quality validation..."
 
 # Check RocksDB store
 check "RocksDB store created" \
     "$(test -d "$STORE_DIR" && echo true || echo false)" "Store at $STORE_DIR"
 
-# Check agent log for key v2.1 features
+# Check agent log for key release features
 AGENT_LOG="$OUTPUT_DIR/agent.log"
 
 check "Dedup events in log" \
@@ -139,15 +133,13 @@ check "Socket tracking in log" \
 DATA_SCORE=$((PASS * 100 / TOTAL))
 echo "  Data quality score: $DATA_SCORE%"
 
-# ═══════════════════════════════════════════════════════════════
-# Phase 3: Self-Healing
-# ═══════════════════════════════════════════════════════════════
-echo ""
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-# Phase 3: Self-Healing
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-echo ""
 echo "[3/5] Self-healing test..."
 
 # Start watchdog
 WATCHDOG_LOG="$OUTPUT_DIR/watchdog.log"
-./build/bin/providapt-v2 > "$WATCHDOG_LOG" 2>&1 &
+./build/bin/providaptd > "$WATCHDOG_LOG" 2>&1 &
 MT_PID=$!
 sleep 1
 
@@ -167,10 +159,8 @@ else
     check "agent auto-restarted" "false" "Agent did not restart"
 fi
 
-# ═══════════════════════════════════════════════════════════════
-# Phase 4: Resource Accounting
-# ═══════════════════════════════════════════════════════════════
-echo ""
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-# Phase 4: Resource Accounting
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-echo ""
 echo "[4/5] Resource accounting (10,000 TPS pressure)..."
 
 # Generate sustained load
@@ -245,15 +235,13 @@ check "CPU within limit (< 50%)" \
 
 echo "  Peak CPU: ${MAX_CPU}%"
 
-# ═══════════════════════════════════════════════════════════════
-# Phase 5: Report
-# ═══════════════════════════════════════════════════════════════
-echo ""
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-# Phase 5: Report
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-echo ""
 echo "[5/5] Generating validation report..."
-REPORT="$OUTPUT_DIR/v2.1_final_report.txt"
+REPORT="$OUTPUT_DIR/release_final_report.txt"
 
 cat > "$REPORT" << REPORT
-ProvidAPT v2.1 — Final Validation Report
+ProvidAPT 閳-Final Validation Report
 ===========================================
 Date:       $(date -Iseconds)
 Kernel:     $(uname -r)
@@ -288,15 +276,15 @@ Resources:
 REPORT
 
 if [ "$FAIL" -eq 0 ]; then
-    echo "╔══════════════════════════════════════════════════════════════╗" >> "$REPORT"
-    echo "║  ✅ v2.1 VALIDATION PASSED — All checks passed               ║" >> "$REPORT"
-    echo "╚══════════════════════════════════════════════════════════════╝" >> "$REPORT"
+    echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧" >> "$REPORT"
+    echo "閳- 閴-RELEASE VALIDATION PASSED 閳-All checks passed               閳- >> "$REPORT"
+    echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕" >> "$REPORT"
 fi
 
 echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  Validation Complete                                         ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧"
+echo "閳- Validation Complete                                         閳-
+echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕"
 echo ""
 echo "  Report: $REPORT"
 echo "  Passed: $PASS / $TOTAL"
@@ -311,9 +299,9 @@ echo "    CPU data:      $CPU_SAMPLES"
 echo ""
 
 if [ "$FAIL" -eq 0 ]; then
-    echo -e "  ${GREEN}✓ v2.1 VALIDATION PASSED${NC}"
+    echo -e "  ${GREEN}閴-RELEASE VALIDATION PASSED${NC}"
     exit 0
 else
-    echo -e "  ${YELLOW}⚠ $FAIL checks failed (see report)${NC}"
+    echo -e "  ${YELLOW}閳-$FAIL checks failed (see report)${NC}"
     exit 1
 fi

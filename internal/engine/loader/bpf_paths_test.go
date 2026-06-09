@@ -45,7 +45,7 @@ func TestFormatBpfLoadErrorMissingObjects(t *testing.T) {
 	if !strings.Contains(msg, "no precompiled eBPF object found") {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(msg, "make v1-ebpf") || !strings.Contains(msg, bpfObjectEnvVar) {
+	if !strings.Contains(msg, "make build-ebpf") || !strings.Contains(msg, bpfObjectEnvVar) {
 		t.Fatalf("expected remediation guidance in error: %v", err)
 	}
 }

@@ -1383,10 +1383,7 @@ func TestCytoFormat(t *testing.T) {
 
 func TestSVGGeneration(t *testing.T) {
 	g := testGraph(t)
-	svg, err := generateAlertSVG("test-1", g)
-	if err != nil {
-		t.Fatalf("generateAlertSVG: %v", err)
-	}
+	svg := generateAlertSVG("test-1", g)
 	if len(svg) == 0 {
 		t.Error("empty SVG")
 	}
@@ -1401,10 +1398,7 @@ func TestSVGGeneration(t *testing.T) {
 
 func TestSVGEmptyGraph(t *testing.T) {
 	g := provenance.NewGraph()
-	svg, err := generateAlertSVG("empty", g)
-	if err != nil {
-		t.Fatalf("generateAlertSVG: %v", err)
-	}
+	svg := generateAlertSVG("empty", g)
 	if len(svg) == 0 {
 		t.Error("empty SVG for empty graph")
 	}
@@ -1412,7 +1406,7 @@ func TestSVGEmptyGraph(t *testing.T) {
 
 func TestSVGContentType(t *testing.T) {
 	g := testGraph(t)
-	svg, _ := generateAlertSVG("test", g)
+	svg := generateAlertSVG("test", g)
 	if !strings.HasPrefix(string(svg), "<svg") {
 		t.Error("SVG should start with <svg")
 	}

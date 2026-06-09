@@ -13,18 +13,18 @@ import (
 func buildClientHello(cipherIDs []uint16, extTypes []uint16, curves []uint16, ecFormats []byte) []byte {
 	var data []byte
 	// TLS Record header (5 bytes)
-	data = append(data, 0x16)                         // ContentType: Handshake
-	data = append(data, 0x03, 0x03)                   // Version: TLS 1.2
-	data = append(data, 0, 0)                         // Record length (filled later)
+	data = append(data, 0x16)       // ContentType: Handshake
+	data = append(data, 0x03, 0x03) // Version: TLS 1.2
+	data = append(data, 0, 0)       // Record length (filled later)
 	// Handshake header (4 bytes)
-	data = append(data, 0x01)                         // HandshakeType: Client Hello
+	data = append(data, 0x01) // HandshakeType: Client Hello
 	hsLenPos := len(data)
-	data = append(data, 0, 0, 0)                      // Handshake length (filled later)
-	chStart := len(data)                              // ClientHello starts here
-	data = append(data, 0x03, 0x03)                   // Client Version
+	data = append(data, 0, 0, 0)    // Handshake length (filled later)
+	chStart := len(data)            // ClientHello starts here
+	data = append(data, 0x03, 0x03) // Client Version
 	random := make([]byte, 32)
-	data = append(data, random...)                     // Random
-	data = append(data, 0)                             // Session ID Length
+	data = append(data, random...) // Random
+	data = append(data, 0)         // Session ID Length
 	// Cipher Suites
 	cipherData := make([]byte, len(cipherIDs)*2)
 	for i, id := range cipherIDs {
@@ -35,14 +35,14 @@ func buildClientHello(cipherIDs []uint16, extTypes []uint16, curves []uint16, ec
 	data = append(data, cipherLen...)
 	data = append(data, cipherData...)
 	// Compression Methods
-	data = append(data, 1, 0)                          // Length 1, null compression
+	data = append(data, 1, 0) // Length 1, null compression
 	// Extensions
 	var extData []byte
 	for i, typ := range extTypes {
 		extType := make([]byte, 2)
 		binary.BigEndian.PutUint16(extType, typ)
 		extData = append(extData, extType...)
-		if typ == 10 && i < len(curves) {             // supported_groups
+		if typ == 10 && i < len(curves) { // supported_groups
 			curveData := make([]byte, len(curves)*2)
 			for j, c := range curves {
 				binary.BigEndian.PutUint16(curveData[j*2:], c)
@@ -54,7 +54,7 @@ func buildClientHello(cipherIDs []uint16, extTypes []uint16, curves []uint16, ec
 			binary.BigEndian.PutUint16(extLen, uint16(len(extPayload)))
 			extData = append(extData, extLen...)
 			extData = append(extData, extPayload...)
-		} else if typ == 11 {                         // EC Point Formats
+		} else if typ == 11 { // EC Point Formats
 			extPayload := []byte{byte(len(ecFormats))}
 			extPayload = append(extPayload, ecFormats...)
 			extLen := make([]byte, 2)
@@ -62,7 +62,7 @@ func buildClientHello(cipherIDs []uint16, extTypes []uint16, curves []uint16, ec
 			extData = append(extData, extLen...)
 			extData = append(extData, extPayload...)
 		} else {
-			extData = append(extData, 0, 0)           // Length 0
+			extData = append(extData, 0, 0) // Length 0
 		}
 	}
 	extLen := make([]byte, 2)
@@ -82,10 +82,10 @@ func buildClientHello(cipherIDs []uint16, extTypes []uint16, curves []uint16, ec
 
 func TestParseClientHelloValid(t *testing.T) {
 	data := buildClientHello(
-		[]uint16{0x002F, 0xC02B},              // TLS_RSA_AES_128_SHA, ECDHE
-		[]uint16{10, 11},                       // supported_groups, EC point formats
-		[]uint16{0x0017, 0x0018},              // x25519, secp256r1
-		[]byte{0},                              // uncompressed
+		[]uint16{0x002F, 0xC02B}, // TLS_RSA_AES_128_SHA, ECDHE
+		[]uint16{10, 11},         // supported_groups, EC point formats
+		[]uint16{0x0017, 0x0018}, // x25519, secp256r1
+		[]byte{0},                // uncompressed
 	)
 	rec := ParseClientHello(data, "10.0.0.1", 100, "curl", "10.0.0.5", 443)
 	if rec == nil {
@@ -215,15 +215,15 @@ func TestIsAtypicalJA3(t *testing.T) {
 
 func TestJA3RecordString(t *testing.T) {
 	rec := &JA3Record{
-		JA3:     "abc123def456abc123def456abc123de",
+		JA3:        "abc123def456abc123def456abc123de",
 		SourceHost: "10.0.0.1",
-		DestIP:  "10.0.0.5",
-		DestPort: 443,
-		Comm:    "curl",
-		PID:     100,
+		DestIP:     "10.0.0.5",
+		DestPort:   443,
+		Comm:       "curl",
+		PID:        100,
 	}
 	s := rec.String()
-	if s != "JA3=abc123def456abc1 10.0.0.1→10.0.0.5:443 (curl PID 100)" {
+	if s != "JA3=abc123def456abc1 10.0.0.1 -> 10.0.0.5:443 (curl PID 100)" {
 		t.Errorf("String = %q", s)
 	}
 }
@@ -238,10 +238,10 @@ func TestNewJA3Store(t *testing.T) {
 func TestJA3StoreRecord(t *testing.T) {
 	js := NewJA3Store()
 	rec := &JA3Record{
-		JA3:   "6734f37431670b3ab4292b8f60f29984",
+		JA3:        "6734f37431670b3ab4292b8f60f29984",
 		SourceHost: "host1",
-		PID:   100,
-		Comm:  "curl",
+		PID:        100,
+		Comm:       "curl",
 	}
 	js.Record(rec)
 	if len(js.records) != 1 {
@@ -317,7 +317,7 @@ func TestParseECFormatsShort(t *testing.T) {
 	}
 }
 
-// ── CentralCorrelator tests ────────────────────────────
+// 鈹€鈹€ CentralCorrelator tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestNewCentralCorrelator(t *testing.T) {
 	cc := NewCentralCorrelator()
@@ -329,11 +329,11 @@ func TestNewCentralCorrelator(t *testing.T) {
 func TestCentralCorrelatorIngest(t *testing.T) {
 	cc := NewCentralCorrelator()
 	rec := &JA3Record{
-		JA3:       "00000000000000000000000000000001",
+		JA3:        "00000000000000000000000000000001",
 		SourceHost: "host1",
-		PID:       100,
-		Comm:      "unknown",
-		Timestamp: time.Now(),
+		PID:        100,
+		Comm:       "unknown",
+		Timestamp:  time.Now(),
 	}
 	// First ingest: atypical, count=1, no alert yet
 	alert := cc.Ingest(rec)
@@ -345,22 +345,22 @@ func TestCentralCorrelatorIngest(t *testing.T) {
 func TestCentralCorrelatorAlert(t *testing.T) {
 	cc := NewCentralCorrelator()
 	rec := &JA3Record{
-		JA3:       "00000000000000000000000000000002",
+		JA3:        "00000000000000000000000000000002",
 		SourceHost: "host1",
-		PID:       100,
-		Comm:      "unknown",
-		DestPort:  8443,
-		Timestamp: time.Now(),
+		PID:        100,
+		Comm:       "unknown",
+		DestPort:   8443,
+		Timestamp:  time.Now(),
 	}
 	cc.Ingest(rec)
-	// Second ingest from same host → cluster.Count=2, atypical=true, risk > 50
+	// Second ingest from same host 鈫?cluster.Count=2, atypical=true, risk > 50
 	rec2 := &JA3Record{
-		JA3:       "00000000000000000000000000000002",
+		JA3:        "00000000000000000000000000000002",
 		SourceHost: "host2",
-		PID:       200,
-		Comm:      "unknown",
-		DestPort:  8443,
-		Timestamp: time.Now(),
+		PID:        200,
+		Comm:       "unknown",
+		DestPort:   8443,
+		Timestamp:  time.Now(),
 	}
 	alert := cc.Ingest(rec2)
 	if alert == nil {

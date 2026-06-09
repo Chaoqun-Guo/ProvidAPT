@@ -1,10 +1,10 @@
 apiVersion: v2
 name: providapt
 description: |
-  ProvidAPT — Provenance-driven APT Detection Platform.
+  ProvidAPT - Provenance-driven APT Detection Platform.
 
   Deploys the ProvidAPT eBPF-based provenance monitor as a DaemonSet
-  on every Kubernetes node.  Each pod captures system events, builds
+  on every Kubernetes node. Each pod captures system events, builds
   process-lineage graphs, and performs automated threat detection.
 
 type: application
@@ -12,8 +12,8 @@ type: application
 # Chart version (independent of app version, bump on chart changes)
 version: 0.1.0
 
-# App version — correlates to the ProvidAPT release tag
-appVersion: v1.0.2
+# App version correlates to the ProvidAPT release tag
+appVersion: v1.2.1
 
 keywords:
   - security

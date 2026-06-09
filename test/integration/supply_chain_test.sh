@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# ═══════════════════════════════════════════════════════════════════
-# ProvidAPT v2.2 Supply Chain Attack — Ultimate Integration Test
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-# ProvidAPT Supply Chain Attack 閳-Ultimate Integration Test
 #
 # Simulates a supply chain attack:
 #   pip install evil-package (malicious dependency)
-#   → memfd_create fileless execution
-#   → YARA pattern match in memory
-#   → Cross-host lateral movement via network
+#   閳-memfd_create fileless execution
+#   閳-YARA pattern match in memory
+#   閳-Cross-host lateral movement via network
 #
 # Verifies:
-#   1. Complete provenance chain (install → exec → network)
+#   1. Complete provenance chain (install 閳-exec 閳-network)
 #   2. Supply chain metadata (package_name, version, sbom)
 #   3. Memory forensics auto-trigger + YARA scan
 #   4. Blast radius calculation
@@ -18,14 +17,13 @@
 # Usage:
 #   sudo ./test/integration/supply_chain_test.sh
 #   # or against a running harness:
-#   HARNESS_URL=http://10.0.0.1:8722 ./test/v2.2_supply_chain_test.sh
-# ═══════════════════════════════════════════════════════════════════
-set -euo pipefail
+#   HARNESS_URL=http://10.0.0.1:8722 ./test/integration/supply_chain_test.sh
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡-set -euo pipefail
 
-# ─── Configuration ──────────────────────────────────────────────────
+# 閳光偓閳光偓閳光偓 Configuration 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 HARNESS_PORT="${HARNESS_PORT:-8722}"
 HARNESS_URL="${HARNESS_URL:-http://127.0.0.1:${HARNESS_PORT}}"
-HARNESS_BIN="${HARNESS_BIN:-v2.2/cmd/cluster-test-harness}"
+HARNESS_BIN="${HARNESS_BIN:-cmd/collector}"
 
 # Attack parameters
 ATTACK_HOST="host-a"
@@ -40,7 +38,7 @@ C2_AGENT="agent-003"
 # Colors
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; NC='\033[0m'
-PASS="${GREEN}✓${NC}"; FAIL="${RED}✗${NC}"; INFO="${CYAN}→${NC}"
+PASS="${GREEN}閴-{NC}"; FAIL="${RED}閴-{NC}"; INFO="${CYAN}閳-{NC}"
 
 # Test counters
 TESTS_PASSED=0
@@ -51,13 +49,13 @@ TIMESTAMP_BASE=$(date +%s%N)
 CPU_BASELINE=0.0
 CPU_PEAK=0.0
 
-# ─── Helpers ────────────────────────────────────────────────────────
+# 閳光偓閳光偓閳光偓 Helpers 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 
 log()    { echo -e "${INFO} $*"; }
 pass()   { echo -e "  ${PASS} $*"; TESTS_PASSED=$((TESTS_PASSED + 1)); }
 fail()   { echo -e "  ${FAIL} $*"; TESTS_FAILED=$((TESTS_FAILED + 1)); }
-step()   { echo -e "\n${CYAN}═══ $* ═══${NC}"; }
-header() { echo -e "\n${YELLOW}━━━ $* ━━━${NC}"; }
+step()   { echo -e "\n${CYAN}閳烘劏鏅查埡-$* 閳烘劏鏅查埡-{NC}"; }
+header() { echo -e "\n${YELLOW}閳逛讲鏀ｉ埞-$* 閳逛讲鏀ｉ埞-{NC}"; }
 
 ts_ns()  { echo $(($(date +%s%N) - TIMESTAMP_BASE)); }
 
@@ -184,18 +182,18 @@ index_node() {
         ".status"
 }
 
-# ─── Main ──────────────────────────────────────────────────────────
+# 閳光偓閳光偓閳光偓 Main 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${SCRIPT_DIR}"
 
-header "ProvidAPT v2.2 — Supply Chain Attack Integration Test"
+header "ProvidAPT 閳-Supply Chain Attack Integration Test"
 echo "  Harness: ${HARNESS_URL}"
-echo "  Attack:  ${ATTACK_HOST} → ${LATERAL_HOST} → ${C2_HOST}"
+echo "  Attack:  ${ATTACK_HOST} 閳-${LATERAL_HOST} 閳-${C2_HOST}"
 echo "  Started: $(date)"
 echo ""
 
-# ─── Phase 0: Setup ────────────────────────────────────────────────
-step "Phase 0: Setup — Starting test harness"
+# 閳光偓閳光偓閳光偓 Phase 0: Setup 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+step "Phase 0: Setup 閳-Starting test harness"
 
 ensure_harness
 
@@ -207,8 +205,8 @@ log "CPU baseline: ${CPU_BASELINE}%"
 log "Environment ready"
 echo ""
 
-# ─── Phase 1: pip install malicious dependency ─────────────────────
-step "Phase 1: Supply Chain Attack — pip install evil-package"
+# 閳光偓閳光偓閳光偓 Phase 1: pip install malicious dependency 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+step "Phase 1: Supply Chain Attack 閳-pip install evil-package"
 
 log "Simulating pip3 install evil-package==1.0.0 on ${ATTACK_HOST}..."
 
@@ -227,16 +225,16 @@ NODE_FILE=$(create_node "file" "f:evil_runner.py:${ATTACK_PID}" "/usr/local/lib/
     '{"package_name":"evil-package","package_version":"1.0.0","package_manager":"pip","sbom_ref":"pkg:pypi/evil-package@1.0.0","supply_chain_risk":"critical","artifact_hash":"sha256:deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678"}')
 log "Created runner file node: ${NODE_FILE}"
 
-# 1D: Edge: pip → wasGeneratedBy → evil_runner.py
+# 1D: Edge: pip 閳-wasGeneratedBy 閳-evil_runner.py
 create_edge "p:${ATTACK_PID}" "f:evil_runner.py:${ATTACK_PID}" "prov:wasGeneratedBy" "${ATTACK_HOST}" \
     '{"package_manager":"pip","install_type":"dependency","host_id":"'"${ATTACK_HOST}"'"}'
 log "Edge: pip3 wasGeneratedBy evil_runner.py"
 
-# 1E: Edge: package → wasAttributedTo → file
+# 1E: Edge: package 閳-wasAttributedTo 閳-file
 create_edge "pkg:evil-package@1.0.0" "f:evil_runner.py:${ATTACK_PID}" "prov:wasAttributedTo" "${ATTACK_HOST}"
 log "Edge: package wasAttributedTo evil_runner.py"
 
-# 1F: Edge: pip3 → used → package
+# 1F: Edge: pip3 閳-used 閳-package
 create_edge "p:${ATTACK_PID}" "pkg:evil-package@1.0.0" "prov:used" "${ATTACK_HOST}"
 log "Edge: pip3 used evil-package"
 
@@ -249,10 +247,10 @@ index_node "file" "f:evil_runner.py:${ATTACK_PID}" "evil_package/runner.py" "${A
 log "Phase 1 complete (3 nodes, 3 edges)"
 echo ""
 
-# ─── Phase 2: Fileless execution ──────────────────────────────────
-step "Phase 2: Fileless Execution — memfd_create shellcode injection"
+# 閳光偓閳光偓閳光偓 Phase 2: Fileless execution 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+step "Phase 2: Fileless Execution 閳-memfd_create shellcode injection"
 
-log "Simulating python3 executing evil_runner.py → memfd_create → mprotect RW→RX..."
+log "Simulating python3 executing evil_runner.py 閳-memfd_create 閳-mprotect RW閳壊X..."
 
 # 2A: python3 process (runs the malicious runner)
 NODE_PYTHON=$(create_node "process" "p:$((ATTACK_PID + 1))" "python3" "${ATTACK_HOST}" "${ATTACK_AGENT}" \
@@ -265,21 +263,21 @@ NODE_MEMFD=$(create_node "memory" "memfd:anon:$((ATTACK_PID + 1))" "memfd:evil_r
 log "Created anonymous memfd node: ${NODE_MEMFD}"
 
 # 2C: RX memory region (executable after mprotect)
-NODE_RX=$(create_node "memory" "rx:0x7f1234:$((ATTACK_PID + 1))" "rw→rx @0x7f1234" "${ATTACK_HOST}" "${ATTACK_AGENT}" \
+NODE_RX=$(create_node "memory" "rx:0x7f1234:$((ATTACK_PID + 1))" "rw閳姰x @0x7f1234" "${ATTACK_HOST}" "${ATTACK_AGENT}" \
     '{"event":"mprotect_rx","memory_op":"mprotect_rx","addr":2132278324,"fileless":true,"shellcode":true}')
 log "Created RX memory region node: ${NODE_RX}"
 
-# 2D: Edges: python3 → used → evil_runner.py
+# 2D: Edges: python3 閳-used 閳-evil_runner.py
 create_edge "p:$((ATTACK_PID + 1))" "f:evil_runner.py:${ATTACK_PID}" "prov:used" "${ATTACK_HOST}" \
-    '{"host_id":"'"${ATTACK_HOST}"'","exec_chain":"pip_install→memfd_exec"}'
+    '{"host_id":"'"${ATTACK_HOST}"'","exec_chain":"pip_install閳姦emfd_exec"}'
 log "Edge: python3 used evil_runner.py"
 
-# 2E: Edge: python3 → used → memfd
+# 2E: Edge: python3 閳-used 閳-memfd
 create_edge "p:$((ATTACK_PID + 1))" "memfd:anon:$((ATTACK_PID + 1))" "prov:used" "${ATTACK_HOST}" \
     '{"event":"memfd_create","fileless":true}'
 log "Edge: python3 used memfd"
 
-# 2F: Edge: python3 → used → rx
+# 2F: Edge: python3 閳-used 閳-rx
 create_edge "p:$((ATTACK_PID + 1))" "rx:0x7f1234:$((ATTACK_PID + 1))" "prov:used" "${ATTACK_HOST}" \
     '{"event":"mprotect_rx","shellcode":true}'
 log "Edge: python3 used RX region"
@@ -298,24 +296,24 @@ log "Memory forensic attributes attached to python3 node"
 log "Phase 2 complete (3 nodes, 3 edges, memory forensic scan)"
 echo ""
 
-# ─── Phase 3: Cross-host lateral movement via C2 ──────────────────
-step "Phase 3: Lateral Movement — C2 network connection to ${LATERAL_HOST}"
+# 閳光偓閳光偓閳光偓 Phase 3: Cross-host lateral movement via C2 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+step "Phase 3: Lateral Movement 閳-C2 network connection to ${LATERAL_HOST}"
 
-log "Simulating C2 network connection from ${ATTACK_HOST} → ${LATERAL_HOST}:4444..."
+log "Simulating C2 network connection from ${ATTACK_HOST} 閳-${LATERAL_HOST}:4444..."
 
 # 3A: Network connection from compromised process
 NODE_NET=$(create_node "network" "n:10.0.0.5:4444" "10.0.0.5:4444" "${ATTACK_HOST}" "${ATTACK_AGENT}" \
     '{"src_ip":"10.0.0.1","dst_ip":"10.0.0.5","dst_port":4444,"protocol":6,"tainted":true,"c2_connection":true}')
 log "Created C2 network node: ${NODE_NET}"
 
-# 3B: Edge: python3 → used → network (C2)
+# 3B: Edge: python3 閳-used 閳-network (C2)
 create_edge "p:$((ATTACK_PID + 1))" "n:10.0.0.5:4444" "prov:used" "${ATTACK_HOST}" \
     '{"dst_ip":"10.0.0.5","dst_port":4444,"protocol":6,"c2_connection":true,"tainted":true,"host_id":"'"${ATTACK_HOST}"'"}'
 log "Edge: python3 used C2 connection"
 
 # 3C: Stitch: outbound from ATTACK_HOST
 api_post "/ingest-outbound" \
-    "{\"flow_id\":\"flow:${ATTACK_HOST}→${LATERAL_HOST}:4444\",\"agent_id\":\"${ATTACK_AGENT}\",\"pid\":$((ATTACK_PID + 1)),\"comm\":\"python3\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.5\",\"src_port\":45678,\"dst_port\":4444,\"tainted\":true,\"taint_source\":\"evil-package@1.0.0\"}" \
+    "{\"flow_id\":\"flow:${ATTACK_HOST}閳-{LATERAL_HOST}:4444\",\"agent_id\":\"${ATTACK_AGENT}\",\"pid\":$((ATTACK_PID + 1)),\"comm\":\"python3\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.5\",\"src_port\":45678,\"dst_port\":4444,\"tainted\":true,\"taint_source\":\"evil-package@1.0.0\"}" \
     ".matched"
 log "Stitch: outbound flow registered"
 
@@ -326,11 +324,11 @@ log "Created sshd node on ${LATERAL_HOST}: ${NODE_SSH}"
 
 # 3E: Inbound stitch on LATERAL_HOST
 api_post "/ingest-inbound" \
-    "{\"flow_id\":\"flow:${ATTACK_HOST}→${LATERAL_HOST}:4444\",\"agent_id\":\"${LATERAL_AGENT}\",\"pid\":${LATERAL_PID},\"comm\":\"sshd\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.5\",\"src_port\":4444,\"dst_port\":45678,\"tainted\":true}" \
+    "{\"flow_id\":\"flow:${ATTACK_HOST}閳-{LATERAL_HOST}:4444\",\"agent_id\":\"${LATERAL_AGENT}\",\"pid\":${LATERAL_PID},\"comm\":\"sshd\",\"src_ip\":\"10.0.0.1\",\"dst_ip\":\"10.0.0.5\",\"src_port\":4444,\"dst_port\":45678,\"tainted\":true}" \
     ".matched"
 log "Stitch: inbound flow matched"
 
-# 3F: Edge: sshd → lateral movement → network
+# 3F: Edge: sshd 閳-lateral movement 閳-network
 create_edge "p:${LATERAL_PID}" "n:10.0.0.5:4444" "prov:wasInformedBy" "${LATERAL_HOST}" \
     '{"lateral_movement":"ssh","source_host":"'"${ATTACK_HOST}"'","host_id":"'"${LATERAL_HOST}"'"}'
 log "Edge: sshd wasInformedBy C2 connection (lateral movement)"
@@ -351,8 +349,8 @@ index_node "network" "n:10.0.0.5:4444" "C2:10.0.0.5:4444" "${ATTACK_HOST}" "${AT
 log "Phase 3 complete (3 nodes, 3 edges, 2 stitch flows)"
 echo ""
 
-# ─── Phase 4: Supply Chain & Memory Verification ──────────────────
-step "Phase 4: Verification — Provenance Chain & Attributes"
+# 閳光偓閳光偓閳光偓 Phase 4: Supply Chain & Memory Verification 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+step "Phase 4: Verification 閳-Provenance Chain & Attributes"
 
 # 4A: Verify graph nodes exist
 log "Verifying graph state..."
@@ -360,22 +358,22 @@ GRAPH_COUNT=$(api_get "/graph/nodes" ".count")
 log "Total graph nodes: ${GRAPH_COUNT}"
 
 if [ "${GRAPH_COUNT}" -ge 5 ]; then
-    pass "Graph has ${GRAPH_COUNT} nodes (≥5 required)"
+    pass "Graph has ${GRAPH_COUNT} nodes (閳- required)"
 else
-    fail "Graph only has ${GRAPH_COUNT} nodes (expected ≥5)"
+    fail "Graph only has ${GRAPH_COUNT} nodes (expected 閳-)"
 fi
 
 # 4B: Query host index
-HOST_A_ENTRIES=$(api_get "/graph/query-by-host?host_id=${ATTACK_HOST}" ".count")
-HOST_B_ENTRIES=$(api_get "/graph/query-by-host?host_id=${LATERAL_HOST}" ".count")
-HOST_C_ENTRIES=$(api_get "/graph/query-by-host?host_id=${C2_HOST}" ".count")
+HOST_A_ENTRIES=$(api_get "/graph/query-by-host-host_id=${ATTACK_HOST}" ".count")
+HOST_B_ENTRIES=$(api_get "/graph/query-by-host-host_id=${LATERAL_HOST}" ".count")
+HOST_C_ENTRIES=$(api_get "/graph/query-by-host-host_id=${C2_HOST}" ".count")
 
 log "Host-a entries: ${HOST_A_ENTRIES}"
 log "Host-b entries: ${HOST_B_ENTRIES}"
 log "Host-c entries: ${HOST_C_ENTRIES}"
 
 if [ "${HOST_A_ENTRIES}" -ge 3 ]; then
-    pass "Host-a has ${HOST_A_ENTRIES} indexed entries (≥3: pip, python3, network)"
+    pass "Host-a has ${HOST_A_ENTRIES} indexed entries (閳-: pip, python3, network)"
 else
     fail "Host-a only has ${HOST_A_ENTRIES} entries"
 fi
@@ -411,23 +409,23 @@ log "  mem_match_count=3"
 log "  mem_anon_exec=2"
 log "  mem_wx_regions=true"
 
-pass "Memory forensics auto-triggered on mprotect RW→RX"
+pass "Memory forensics auto-triggered on mprotect RW閳壊X"
 pass "YARA rules matched: Cobalt Strike beacon + shellcode + ELF"
 pass "Anonymous executable regions confirmed (W+X memory)"
 
 # 4E: Cross-host provenance chain
 log "Verifying cross-host provenance chain..."
 log "Chain: pip3 (PID ${ATTACK_PID})"
-log "   → wasGeneratedBy → evil_runner.py"
-log "   → used → python3 (PID $((ATTACK_PID + 1)))"
-log "   → used → memfd (fileless exec)"
-log "   → used → RX (shellcode)"
-log "   → used → C2 network (10.0.0.5:4444)"
-log "   → Stitch → ${LATERAL_HOST}:sshd (lateral)"
-log "   → wasInformedBy → ${C2_HOST}:scp (further lateral)"
+log "   閳-wasGeneratedBy 閳-evil_runner.py"
+log "   閳-used 閳-python3 (PID $((ATTACK_PID + 1)))"
+log "   閳-used 閳-memfd (fileless exec)"
+log "   閳-used 閳-RX (shellcode)"
+log "   閳-used 閳-C2 network (10.0.0.5:4444)"
+log "   閳-Stitch 閳-${LATERAL_HOST}:sshd (lateral)"
+log "   閳-wasInformedBy 閳-${C2_HOST}:scp (further lateral)"
 
-pass "Complete provenance chain: pip → memfd → C2 → lateral (5 hops)"
-pass "Cross-host stitching verified: ${ATTACK_HOST} → ${LATERAL_HOST} → ${C2_HOST}"
+pass "Complete provenance chain: pip 閳-memfd 閳-C2 閳-lateral (5 hops)"
+pass "Cross-host stitching verified: ${ATTACK_HOST} 閳-${LATERAL_HOST} 閳-${C2_HOST}"
 
 # 4F: Stitch verification
 log "Verifying stitch table..."
@@ -444,7 +442,7 @@ log "Blast radius covers ${BLAST_RESULT} hosts"
 if [ "${BLAST_RESULT}" -ge 2 ]; then
     pass "Blast radius correctly identifies ${BLAST_RESULT} affected hosts"
 else
-    fail "Blast radius only covers ${BLAST_RESULT} hosts (expected ≥2)"
+    fail "Blast radius only covers ${BLAST_RESULT} hosts (expected 閳-)"
 fi
 
 # 4H: JA3 fingerprint check
@@ -462,8 +460,8 @@ fi
 
 echo ""
 
-# ─── Phase 5: Performance Audit ───────────────────────────────────
-step "Phase 5: Performance Audit — CPU Load Measurement"
+# 閳光偓閳光偓閳光偓 Phase 5: Performance Audit 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+step "Phase 5: Performance Audit 閳-CPU Load Measurement"
 
 log "Measuring CPU during active attack simulation..."
 
@@ -493,30 +491,30 @@ log "Memory: ${MEM_MB}MB"
 CPU_PEAK=$(echo "$CPU_AFTER" | awk '{if($1>prev) prev=$1} END{print prev}')
 
 if [ "$(echo "$CPU_AFTER < 15.0" | bc)" -eq 1 ]; then
-    pass "CPU load ${CPU_AFTER}% — below 15% threshold"
+    pass "CPU load ${CPU_AFTER}% 閳-below 15% threshold"
 else
-    fail "CPU load ${CPU_AFTER}% — EXCEEDS 15% threshold"
+    fail "CPU load ${CPU_AFTER}% 閳-EXCEEDS 15% threshold"
 fi
 
 if [ "$RPS" -ge 100 ]; then
-    pass "Event throughput ${RPS} events/sec — above 100 eps threshold"
+    pass "Event throughput ${RPS} events/sec 閳-above 100 eps threshold"
 else
     fail "Low throughput: ${RPS} eps"
 fi
 
 echo ""
 
-# ─── Phase 6: Summary ─────────────────────────────────────────────
-step "Phase 6: Summary — Test Results"
+# 閳光偓閳光偓閳光偓 Phase 6: Summary 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
+step "Phase 6: Summary 閳-Test Results"
 
 echo ""
-echo -e "${YELLOW}━━━ Overall Results ━━━${NC}"
+echo -e "${YELLOW}閳逛讲鏀ｉ埞-Overall Results 閳逛讲鏀ｉ埞-{NC}"
 echo "  Passed: ${TESTS_PASSED}"
 echo "  Failed: ${TESTS_FAILED}"
 echo "  Total:  $((TESTS_PASSED + TESTS_FAILED))"
 echo ""
 
-echo -e "${YELLOW}━━━ Performance Summary ━━━${NC}"
+echo -e "${YELLOW}閳逛讲鏀ｉ埞-Performance Summary 閳逛讲鏀ｉ埞-{NC}"
 echo "  CPU baseline:  ${CPU_BASELINE}%"
 echo "  CPU peak:      ${CPU_PEAK}%"
 echo "  CPU threshold: 15%"
@@ -524,28 +522,28 @@ echo "  Events/sec:    ${RPS}"
 echo "  Memory:        ${MEM_MB}MB"
 echo ""
 
-echo -e "${YELLOW}━━━ Attack Chain Summary ━━━${NC}"
-echo "  Phase 1 — Supply Chain: pip3 install evil-package==1.0.0"
-echo "  Phase 2 — Fileless:     memfd_create + mprotect RW→RX"
-echo "  Phase 3 — C2 Lateral:   ${ATTACK_HOST} → ${LATERAL_HOST} → ${C2_HOST}"
-echo "  Phase 4 — Forensics:    YARA hit CS_BEACON_MUTEX (critical)"
-echo "  Phase 5 — Stitch:       Cross-host flow matched"
-echo "  Phase 6 — Blast Radius: ${BLAST_RESULT} hosts affected"
+echo -e "${YELLOW}閳逛讲鏀ｉ埞-Attack Chain Summary 閳逛讲鏀ｉ埞-{NC}"
+echo "  Phase 1 閳-Supply Chain: pip3 install evil-package==1.0.0"
+echo "  Phase 2 閳-Fileless:     memfd_create + mprotect RW閳壊X"
+echo "  Phase 3 閳-C2 Lateral:   ${ATTACK_HOST} 閳-${LATERAL_HOST} 閳-${C2_HOST}"
+echo "  Phase 4 閳-Forensics:    YARA hit CS_BEACON_MUTEX (critical)"
+echo "  Phase 5 閳-Stitch:       Cross-host flow matched"
+echo "  Phase 6 閳-Blast Radius: ${BLAST_RESULT} hosts affected"
 echo ""
 
-echo -e "${YELLOW}━━━ Graph State ━━━${NC}"
+echo -e "${YELLOW}閳逛讲鏀ｉ埞-Graph State 閳逛讲鏀ｉ埞-{NC}"
 api_get "/all-stats" "." | jq '.' 2>/dev/null || echo "(stats unavailable)"
 
 echo ""
 
 if [ "${TESTS_FAILED}" -eq 0 ]; then
-    echo -e "${GREEN}══════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}  ALL TESTS PASSED — Supply chain defense validated${NC}"
-    echo -e "${GREEN}══════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅-{NC}"
+    echo -e "${GREEN}  ALL TESTS PASSED 閳-Supply chain defense validated${NC}"
+    echo -e "${GREEN}閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅-{NC}"
     exit 0
 else
-    echo -e "${RED}══════════════════════════════════════════════════════════${NC}"
-    echo -e "${RED}  ${TESTS_FAILED} TEST(S) FAILED — Review output above${NC}"
-    echo -e "${RED}══════════════════════════════════════════════════════════${NC}"
+    echo -e "${RED}閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅-{NC}"
+    echo -e "${RED}  ${TESTS_FAILED} TEST(S) FAILED 閳-Review output above${NC}"
+    echo -e "${RED}閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅-{NC}"
     exit 1
 fi

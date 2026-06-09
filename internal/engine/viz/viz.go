@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package viz provides a lightweight visualization backend for ProvidAPT v2.1.
+// Package viz provides a lightweight visualization backend for ProvidAPT.
 //
 // Features:
-//   1. Subgraph slice — extract 3-hop neighbourhood by alert ID
-//   2. Cytoscape.js/D3.js JSON output
-//   3. Timeline replay — timestamp-filtered attack path reconstruction
+//  1. Subgraph slice 鈥-extract 3-hop neighbourhood by alert ID
+//  2. Cytoscape.js/D3.js JSON output
+//  3. Timeline replay 鈥-timestamp-filtered attack path reconstruction
 package viz
 
 import (
@@ -16,10 +16,8 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Cytoscape.js graph format
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Cytoscape.js graph format
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // CytoGraph is the top-level graph structure for Cytoscape.js.
 type CytoGraph struct {
 	Data     CytoMeta      `json:"data"`
@@ -37,37 +35,37 @@ type CytoMeta struct {
 
 // CytoElement is a node or edge in Cytoscape.js format.
 type CytoElement struct {
-	Group string      `json:"group"` // "nodes" or "edges"
+	Group string       `json:"group"` // "nodes" or "edges"
 	Data  CytoElemData `json:"data"`
 }
 
 // CytoElemData holds the element's data fields.
 type CytoElemData struct {
-	ID       string `json:"id,omitempty"`
-	Source   string `json:"source,omitempty"`
-	Target   string `json:"target,omitempty"`
-	Label    string `json:"label,omitempty"`
-	NodeType string `json:"type,omitempty"`
-	Class    string `json:"class,omitempty"` // CSS class for styling
-	Time     int64  `json:"time,omitempty"`  // timestamp for animation
+	ID       string  `json:"id,omitempty"`
+	Source   string  `json:"source,omitempty"`
+	Target   string  `json:"target,omitempty"`
+	Label    string  `json:"label,omitempty"`
+	NodeType string  `json:"type,omitempty"`
+	Class    string  `json:"class,omitempty"` // CSS class for styling
+	Time     int64   `json:"time,omitempty"`  // timestamp for animation
 	Score    float64 `json:"score,omitempty"`
 }
 
-// ─── VizEngine ──────────────────────────────────────────────
+// 鈹€鈹€鈹€ VizEngine 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // VizEngine builds visualisation data from the provenance graph.
 type VizEngine struct {
-	mu       sync.Mutex
-	nodes    map[string]*NodeInfo
-	edges    []*EdgeInfo
+	mu    sync.Mutex
+	nodes map[string]*NodeInfo
+	edges []*EdgeInfo
 }
 
 // NodeInfo holds a node for visualization.
 type NodeInfo struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	Label   string `json:"label"`
-	Score   float64 `json:"score,omitempty"`
+	ID    string  `json:"id"`
+	Type  string  `json:"type"`
+	Label string  `json:"label"`
+	Score float64 `json:"score,omitempty"`
 }
 
 // EdgeInfo holds an edge for visualization.
@@ -101,7 +99,7 @@ func (ve *VizEngine) AddEdge(source, target, relation string, timestamp int64) {
 	})
 }
 
-// ─── 3-hop subgraph extraction ──────────────────────────────
+// 鈹€鈹€鈹€ 3-hop subgraph extraction 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // ExtractSubgraph returns a Cytoscape.js graph containing all nodes
 // and edges within `maxHops` of the given seed nodes.
@@ -117,7 +115,7 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 	}
 
 	// BFS to find reachable nodes
-	visited := make(map[string]int) // nodeID → depth
+	visited := make(map[string]int) // nodeID 鈫-depth
 	queue := make([]string, 0)
 
 	for _, seed := range seedIDs {
@@ -216,11 +214,11 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 		graph.Elements = append(graph.Elements, CytoElement{
 			Group: "edges",
 			Data: CytoElemData{
-				Source:   edge.Source,
-				Target:   edge.Target,
-				Label:    truncateLabel(edge.Relation),
-				Class:    "edge-" + edge.Relation,
-				Time:     edge.Time,
+				Source: edge.Source,
+				Target: edge.Target,
+				Label:  truncateLabel(edge.Relation),
+				Class:  "edge-" + edge.Relation,
+				Time:   edge.Time,
 			},
 		})
 	}
@@ -231,14 +229,14 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 	return graph
 }
 
-// ─── Timeline replay ────────────────────────────────────────
+// 鈹€鈹€鈹€ Timeline replay 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // TimelineFrame represents a single frame in the attack replay.
 type TimelineFrame struct {
-	Time     int64        `json:"time"`
-	TimeLabel string      `json:"time_label"`
-	Nodes    []CytoElement `json:"nodes"`
-	Edges    []CytoElement `json:"edges"`
+	Time      int64         `json:"time"`
+	TimeLabel string        `json:"time_label"`
+	Nodes     []CytoElement `json:"nodes"`
+	Edges     []CytoElement `json:"edges"`
 }
 
 // GenerateTimeline creates a sequence of timeline frames showing
@@ -265,7 +263,7 @@ func (ve *VizEngine) GenerateTimeline(seedIDs []string, maxHops int, frameCount 
 		return timestamps[i] < timestamps[j]
 	})
 
-	// Build frames — each frame adds a slice of edges
+	// Build frames 鈥-each frame adds a slice of edges
 	frames := make([]*TimelineFrame, 0, frameCount)
 	stepSize := len(timestamps) / frameCount
 	if stepSize < 1 {
@@ -314,7 +312,7 @@ func (ve *VizEngine) GenerateTimeline(seedIDs []string, maxHops int, frameCount 
 	return frames
 }
 
-// ─── Helpers ────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func countNodes(elements []CytoElement) int {
 	n := 0

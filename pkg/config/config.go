@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
+// Package config loads, validates, and overrides ProvidAPT runtime
+// configuration from files and environment variables.
 package config
 
 import (
@@ -148,6 +150,7 @@ type Duration struct {
 	Duration int64 `json:"-" yaml:"-"` // nanoseconds
 }
 
+// UnmarshalYAML parses duration strings such as "30s", "5m", and "1h".
 func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
 	var s string
 	if err := value.Decode(&s); err != nil {

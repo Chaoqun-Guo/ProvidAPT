@@ -63,7 +63,7 @@ func DefaultOpenAIConfig(apiKey string) *LLMConfig {
 // ── Chat message structures ─────────────────────────────────
 
 type chatMessage struct {
-	Role    string `json:"role"`    // "system", "user", "assistant"
+	Role    string `json:"role"` // "system", "user", "assistant"
 	Content string `json:"content"`
 }
 
@@ -149,10 +149,10 @@ func NewInterpreter(cfg *LLMConfig) *Interpreter {
 
 // AnalysisResult holds the full LLM analysis output.
 type AnalysisResult struct {
-	RawOutput string `json:"raw_output"`
-	GraphJSON string `json:"graph_json"`
+	RawOutput string    `json:"raw_output"`
+	GraphJSON string    `json:"graph_json"`
 	Graph     *LLMGraph `json:"graph"`
-	Error     string   `json:"error,omitempty"`
+	Error     string    `json:"error,omitempty"`
 }
 
 // AnalyseAlert runs the full AI analysis pipeline.

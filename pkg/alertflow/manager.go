@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
+// Package alertflow manages alert deduplication, assignment, silence windows,
+// and status transitions for control-plane workflows.
 package alertflow
 
 import (
@@ -13,15 +15,21 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/notify"
 )
 
+// Status is the current workflow state of an alert.
 type Status string
 
 const (
-	StatusOpen       Status = "open"
-	StatusAssigned   Status = "assigned"
+	// StatusOpen means the alert is unassigned and active.
+	StatusOpen Status = "open"
+	// StatusAssigned means the alert is assigned to an operator.
+	StatusAssigned Status = "assigned"
+	// StatusSuppressed means the alert is temporarily silenced.
 	StatusSuppressed Status = "suppressed"
-	StatusClosed     Status = "closed"
+	// StatusClosed means the alert has been explicitly closed.
+	StatusClosed Status = "closed"
 )
 
+// Alert is the workflow-facing representation of a deduplicated alert.
 type Alert struct {
 	ID             string            `json:"id"`
 	DedupKey       string            `json:"dedup_key,omitempty"`
@@ -41,6 +49,7 @@ type Alert struct {
 	Details        map[string]string `json:"details,omitempty"`
 }
 
+// Summary contains aggregate counts for alert workflow states.
 type Summary struct {
 	Total      int `json:"total"`
 	Open       int `json:"open"`
@@ -49,12 +58,14 @@ type Summary struct {
 	Closed     int `json:"closed"`
 }
 
+// Snapshot is a point-in-time view of alert workflow state.
 type Snapshot struct {
 	UpdatedAt string  `json:"updated_at"`
 	Summary   Summary `json:"summary"`
 	Alerts    []Alert `json:"alerts"`
 }
 
+// UpdateRequest describes a workflow action applied to a single alert.
 type UpdateRequest struct {
 	Action   string `json:"action"`
 	AlertID  string `json:"alert_id,omitempty"`
@@ -63,6 +74,7 @@ type UpdateRequest struct {
 	Note     string `json:"note,omitempty"`
 }
 
+// Manager stores deduplicated alerts and applies workflow transitions.
 type Manager struct {
 	mu          sync.Mutex
 	alerts      map[string]*Alert
@@ -72,6 +84,7 @@ type Manager struct {
 	maxAlerts   int
 }
 
+// NewManager creates a new in-memory alert workflow manager.
 func NewManager() *Manager {
 	return &Manager{
 		alerts:      make(map[string]*Alert),
@@ -81,6 +94,7 @@ func NewManager() *Manager {
 	}
 }
 
+// SetDedupWindow changes the minimum notification interval for duplicates.
 func (m *Manager) SetDedupWindow(window time.Duration) {
 	if window <= 0 {
 		return
@@ -90,6 +104,7 @@ func (m *Manager) SetDedupWindow(window time.Duration) {
 	m.dedupWindow = window
 }
 
+// Ingest inserts or updates an alert and reports whether it should notify.
 func (m *Manager) Ingest(input notify.Alert) (Alert, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -147,6 +162,7 @@ func (m *Manager) Ingest(input notify.Alert) (Alert, bool) {
 	return cloneAlert(*record), true
 }
 
+// Snapshot returns the current filtered workflow view.
 func (m *Manager) Snapshot(status, assignee string) Snapshot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -190,6 +206,7 @@ func (m *Manager) Snapshot(status, assignee string) Snapshot {
 	}
 }
 
+// Update applies a workflow action to an existing alert.
 func (m *Manager) Update(req UpdateRequest) (Alert, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

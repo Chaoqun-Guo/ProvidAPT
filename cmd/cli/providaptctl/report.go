@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Chaoqun-Guo
+﻿// Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -203,7 +203,7 @@ func generateHeatmapHTML(entries []*mitreEntry, totalAlerts int) string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ProvidAPT — MITRE ATT&CK Heatmap</title>
+<title>ProvidAPT 鈥-MITRE ATT&CK Heatmap</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; padding: 40px; }
@@ -226,7 +226,7 @@ func generateHeatmapHTML(entries []*mitreEntry, totalAlerts int) string {
 </style>
 </head>
 <body>
-<h1>ProvidAPT — MITRE ATT&CK Heatmap</h1>
+<h1>ProvidAPT 鈥-MITRE ATT&CK Heatmap</h1>
 <p class="subtitle">Generated ` + time.Now().Format("2006-01-02 15:04:05") + `</p>
 
 <div class="summary-cards">
@@ -282,7 +282,7 @@ func generateHeatmapHTML(entries []*mitreEntry, totalAlerts int) string {
 	b.WriteString(`</table>
 <div class="footer">
   <p>Legend: severity bar shows CRITICAL (red) | HIGH (yellow) | MEDIUM (blue)</p>
-  <p>ProvidAPT v1 — Provenance-driven APT Detection</p>
+  <p>ProvidAPT - Provenance-driven APT Detection</p>
 </div>
 </body>
 </html>`)

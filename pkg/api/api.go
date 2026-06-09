@@ -667,7 +667,9 @@ func (s *Server) jsonHandler(fn func(w http.ResponseWriter, r *http.Request) err
 		if err := fn(w, r); err != nil {
 			log.Printf("[api] error: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			if encodeErr := json.NewEncoder(w).Encode(map[string]string{"error": err.Error()}); encodeErr != nil {
+				log.Printf("[api] encode error response failed: %v", encodeErr)
+			}
 		}
 	}
 }
@@ -1184,7 +1186,7 @@ func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) error {
 	})
 }
 
-func (s *Server) handleAlertSVG(w http.ResponseWriter, r *http.Request, path string) error {
+func (s *Server) handleAlertSVG(w http.ResponseWriter, _ *http.Request, path string) error {
 	// Parse: <id>/svg
 	parts := strings.SplitN(path, "/", 2)
 	if len(parts) < 2 || parts[1] != "svg" {
@@ -1192,13 +1194,10 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, r *http.Request, path str
 	}
 	alertID := parts[0]
 
-	svg, err := generateAlertSVG(alertID, s.graph)
-	if err != nil {
-		return err
-	}
+	svg := generateAlertSVG(alertID, s.graph)
 	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Write(svg)
-	return nil
+	_, err := w.Write(svg)
+	return err
 }
 
 // ── Admin: /api/v1/admin/reload ──────────────────────────────

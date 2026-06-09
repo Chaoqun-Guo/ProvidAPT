@@ -10,8 +10,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// SVG generation for provenance attack paths
+// SVG generation for provenance attack paths.
 //
 // Generates a simple top-down tree SVG showing the attack path:
 //   - Process nodes in blue
@@ -19,13 +18,11 @@ import (
 //   - Network nodes in red
 //   - Credential nodes in orange
 //   - Edges as directed arrows with labels
-// ═══════════════════════════════════════════════════════════════
-
 type svgLayout struct {
-	nodes   []svgNode
-	edges   []svgEdge
-	width   int
-	height  int
+	nodes  []svgNode
+	edges  []svgEdge
+	width  int
+	height int
 }
 
 type svgNode struct {
@@ -51,37 +48,25 @@ const (
 )
 
 // generateAlertSVG creates an SVG representation of the attack path.
-func generateAlertSVG(alertID string, graph *provenance.Graph) ([]byte, error) {
-	// Collect a subgraph relevant to this alert
+func generateAlertSVG(_ string, graph *provenance.Graph) []byte {
 	allNodes := graph.Nodes()
 	allEdges := graph.Edges()
 
 	if len(allNodes) == 0 {
-		return defaultSVG("No data available"), nil
+		return defaultSVG("No data available")
 	}
 
-	// Build layout
 	layout := layoutGraph(allNodes, allEdges)
-	return renderSVG(layout), nil
+	return renderSVG(layout)
 }
 
 // layoutGraph positions nodes in a top-down tree.
 func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout {
 	lay := &svgLayout{}
 
-	// Build adjacency for topo sort
-	outDegree := make(map[string]int)
-	inDegree := make(map[string]int)
-	for _, e := range edges {
-		outDegree[e.Source]++
-		inDegree[e.Target]++
-	}
-
-	// Simple layout: layer nodes by depth (BFS from roots)
 	roots := findRoots(nodes, edges)
 	layers := bfsLayers(roots, edges)
 
-	// Position nodes
 	y := topY
 	for _, layer := range layers {
 		x := xPad
@@ -91,20 +76,28 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 				continue
 			}
 			lay.nodes = append(lay.nodes, svgNode{
-				id: n.ID, label: truncate(n.Label, 18),
-				typ: n.Subtype, x: x, y: y,
+				id:    n.ID,
+				label: truncate(n.Label, 18),
+				typ:   n.Subtype,
+				x:     x,
+				y:     y,
 			})
 			x += nodeW + xPad
 		}
 		y += nodeH + yPad
 	}
 	lay.height = y
-	lay.width = maxInt(xPad+nodeW, len(layers[0])*(nodeW+xPad)+xPad)
+	if len(layers) == 0 {
+		lay.width = xPad + nodeW + xPad
+	} else {
+		lay.width = maxInt(xPad+nodeW, len(layers[0])*(nodeW+xPad)+xPad)
+	}
 
-	// Collect edges for rendering
 	for _, e := range edges {
 		lay.edges = append(lay.edges, svgEdge{
-			src: e.Source, dst: e.Target, rel: shortRel(e.Relation),
+			src: e.Source,
+			dst: e.Target,
+			rel: shortRel(e.Relation),
 		})
 	}
 	return lay
@@ -152,11 +145,9 @@ func bfsLayers(roots []string, edges []*provenance.Edge) [][]string {
 	return layers
 }
 
-// ── SVG rendering ───────────────────────────────────────────
-
 func renderSVG(lay *svgLayout) []byte {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">
 <style>
   .node-process rect { fill: #4A90D9; rx: 6; }
   .node-file rect    { fill: #50B86C; rx: 6; }
@@ -177,15 +168,13 @@ func renderSVG(lay *svgLayout) []byte {
   </marker>
 </defs>
 <text x="15" y="20" class="title">ProvidAPT — Attack Path</text>
-`, lay.width, lay.height, lay.width, lay.height))
+`, lay.width, lay.height, lay.width, lay.height)
 
-	// Build node lookup for edge rendering
 	nodeMap := make(map[string]svgNode)
 	for _, n := range lay.nodes {
 		nodeMap[n.id] = n
 	}
 
-	// Render edges
 	for _, e := range lay.edges {
 		src, ok := nodeMap[e.src]
 		if !ok {
@@ -201,14 +190,13 @@ func renderSVG(lay *svgLayout) []byte {
 		y2 := dst.y
 		midY := (y1 + y2) / 2
 
-		b.WriteString(fmt.Sprintf(`<g class="edge edge-%s">
+		fmt.Fprintf(&b, `<g class="edge edge-%s">
   <line x1="%d" y1="%d" x2="%d" y2="%d"/>
   <text x="%d" y="%d">%s</text>
 </g>
-`, e.rel, x1, y1, x2, y2, x1, midY-4, e.rel))
+`, e.rel, x1, y1, x2, y2, x1, midY-4, e.rel)
 	}
 
-	// Render nodes
 	for _, n := range lay.nodes {
 		class := "node-default"
 		switch n.typ {
@@ -221,11 +209,11 @@ func renderSVG(lay *svgLayout) []byte {
 		case "credential":
 			class = "node-credential"
 		}
-		b.WriteString(fmt.Sprintf(`<g class="node %s">
+		fmt.Fprintf(&b, `<g class="node %s">
   <rect x="%d" y="%d" width="%d" height="%d"/>
   <text x="%d" y="%d">%s</text>
 </g>
-`, class, n.x, n.y, nodeW, nodeH, n.x+nodeW/2, n.y+nodeH/2, escapeXML(n.label)))
+`, class, n.x, n.y, nodeW, nodeH, n.x+nodeW/2, n.y+nodeH/2, escapeXML(n.label))
 	}
 
 	b.WriteString("</svg>\n")
@@ -244,8 +232,6 @@ func escapeXML(s string) string {
 	s = strings.ReplaceAll(s, ">", "&gt;")
 	return s
 }
-
-// ── Helpers ─────────────────────────────────────────────────
 
 func findNodeByID(nodes []*provenance.Node, id string) *provenance.Node {
 	for _, n := range nodes {

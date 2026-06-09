@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package memtrack implements memory execution tracing for ProvidAPT v2.1.
+// Package memtrack implements memory execution tracing for ProvidAPT.
 //
 // Tracks:
-//   1. memfd_create — anonymous memory-backed file descriptors
-//   2. mmap PROT_EXEC — executable memory mappings
-//   3. fexecve — execution from memory file descriptors
+//  1. memfd_create 鈥-anonymous memory-backed file descriptors
+//  2. mmap PROT_EXEC 鈥-executable memory mappings
+//  3. fexecve 鈥-execution from memory file descriptors
 //
-// Enables complete "memory download → memory execution" provenance chains.
+// Enables complete "memory download 鈫-memory execution" provenance chains.
 package memtrack
 
 import (
@@ -18,27 +18,25 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Memory file tracking
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Memory file tracking
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // MemfdEntry represents an anonymous memory file created via memfd_create.
 type MemfdEntry struct {
-	FD          int       `json:"fd"`
-	Name        string    `json:"name"`        // name passed to memfd_create
-	PID         uint32    `json:"pid"`         // creating process
-	Comm        string    `json:"comm"`        // creating process name
-	CreatedAt   time.Time `json:"created_at"`
-	Written     bool      `json:"written"`     // has data been written?
-	WriteSize   int64     `json:"write_size"`  // total bytes written
-	ExecPID     uint32    `json:"exec_pid,omitempty"`  // PID that executed it
-	ExecComm    string    `json:"exec_comm,omitempty"`  // process that executed it
+	FD        int       `json:"fd"`
+	Name      string    `json:"name"` // name passed to memfd_create
+	PID       uint32    `json:"pid"`  // creating process
+	Comm      string    `json:"comm"` // creating process name
+	CreatedAt time.Time `json:"created_at"`
+	Written   bool      `json:"written"`             // has data been written-
+	WriteSize int64     `json:"write_size"`          // total bytes written
+	ExecPID   uint32    `json:"exec_pid,omitempty"`  // PID that executed it
+	ExecComm  string    `json:"exec_comm,omitempty"` // process that executed it
 }
 
 // MemfdTracker monitors anonymous memory file operations.
 type MemfdTracker struct {
 	mu      sync.Mutex
-	entries map[int]*MemfdEntry // fd → entry
+	entries map[int]*MemfdEntry // fd 鈫-entry
 	history []*MemfdEntry       // completed entries
 }
 
@@ -88,7 +86,7 @@ func (mt *MemfdTracker) OnExec(fd int, pid uint32, comm string) *MemfdEntry {
 		// Move to history
 		delete(mt.entries, fd)
 		mt.history = append(mt.history, entry)
-		log.Printf("[memfd] EXEC fd=%d (%s) by pid=%d comm=%s — chain complete", fd, entry.Name, pid, comm)
+		log.Printf("[memfd] EXEC fd=%d (%s) by pid=%d comm=%s 鈥-chain complete", fd, entry.Name, pid, comm)
 		return entry
 	}
 	return nil
@@ -119,7 +117,7 @@ func (mt *MemfdTracker) ActiveCount() int {
 	return len(mt.entries)
 }
 
-// CompletedChains returns all completed memfd→exec chains.
+// CompletedChains returns all completed memfd鈫抏xec chains.
 func (mt *MemfdTracker) CompletedChains() []*MemfdEntry {
 	mt.mu.Lock()
 	defer mt.mu.Unlock()

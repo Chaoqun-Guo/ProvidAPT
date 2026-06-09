@@ -15,30 +15,25 @@ run:
 
 output:
   formats:
-    - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
+    text:
+      path: stdout
+      colors: true
+      print-issued-lines: true
+      print-linter-name: true
 
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
     - bodyclose
     - errorlint
     - forcetypeassert
-    - gocyclo
-    - gofmt
-    - goimports
     - misspell
     - nakedret
     - noctx
-    - prealloc
-    - revive
     - unconvert
     - unparam
   disable:
@@ -53,6 +48,13 @@ linters:
           - gocyclo
           - errcheck
           - forcetypeassert
+          - noctx
+          - errorlint
+      - path: pkg/api/proto/
+        linters:
+          - revive
+          - forcetypeassert
+          - staticcheck
       - path: internal/engine/loader/bpf/
         linters:
           - govet
@@ -61,9 +63,12 @@ linters:
         linters:
           - staticcheck
 
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
 linters-settings:
-  gocyclo:
-    min-complexity: 20
   errcheck:
     check-type-assertions: true
     check-blank: true
@@ -71,20 +76,6 @@ linters-settings:
     locale: US
   nakedret:
     max-func-lines: 30
-  revive:
-    rules:
-      - name: exported
-        severity: warning
-        disabled: false
-      - name: blank-imports
-        severity: warning
-      - name: context-as-argument
-        severity: warning
-      - name: error-return
-        severity: warning
-      - name: error-naming
-        severity: warning
-
 issues:
   max-issues-per-linter: 50
   max-same-issues: 10

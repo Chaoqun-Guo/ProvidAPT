@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package container maps cgroup IDs to container metadata for
-// ProvidAPT v2.1 provenance enrichment.
+// ProvidAPT provenance enrichment.
 package container
 
 import (
@@ -17,35 +17,31 @@ import (
 	containerpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/container"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// ContainerInfo — cached container metadata
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// ContainerInfo 鈥-cached container metadata
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // ResolvedInfo contains the resolved container metadata for a cgroup.
 type ResolvedInfo struct {
-	CgroupID    uint64
-	ContainerID string
-	Name        string
-	Image       string
+	CgroupID     uint64
+	ContainerID  string
+	Name         string
+	Image        string
 	Orchestrator string
-	PodName     string
+	PodName      string
 	PodNamespace string
-	LastSeen    time.Time
+	LastSeen     time.Time
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Container Monitor
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Container Monitor
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // Monitor resolves cgroup IDs to container metadata by scanning
 // /proc/<pid>/cgroup and /sys/fs/cgroup/ paths, and optionally
 // querying the Docker/Containerd API.
 type Monitor struct {
-	mu       sync.RWMutex
-	cache    map[uint64]*ResolvedInfo // cgroup_id → info
-	resolveCh chan uint64             // cgroup IDs needing resolution
-	stopCh   chan struct{}
-	wg       sync.WaitGroup
+	mu        sync.RWMutex
+	cache     map[uint64]*ResolvedInfo // cgroup_id 鈫-info
+	resolveCh chan uint64              // cgroup IDs needing resolution
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
 }
 
 // New creates a container monitor.
@@ -114,7 +110,7 @@ func (m *Monitor) resolve(cgroupID uint64) {
 		m.mu.Lock()
 		m.cache[cgroupID] = info
 		m.mu.Unlock()
-		log.Printf("[container] resolved cgroup %d → container %s (%s)",
+		log.Printf("[container] resolved cgroup %d 鈫-container %s (%s)",
 			cgroupID, info.ContainerID, info.Name)
 		return
 	}
@@ -128,10 +124,8 @@ func (m *Monitor) resolve(cgroupID uint64) {
 	}
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Resolution methods
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Resolution methods
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // scanProc scans /proc/<pid>/cgroup for matching cgroup ID.
 // This is a simplified approach; in production it finds the process
 // by scanning /proc/*/cgroup for the matching cgroup hierarchy ID.
@@ -187,7 +181,7 @@ func (m *Monitor) parseProcCgroup(pid string, targetCgroupID uint64) *ResolvedIn
 		// docker: /docker/<container_id>
 		// k8s: /kubepods/.../<container_id>
 		for _, pattern := range []struct {
-			prefix string
+			prefix       string
 			orchestrator string
 		}{
 			{"/docker/", "docker"},
@@ -223,7 +217,7 @@ func (m *Monitor) scanSysFSCgroup(cgroupID uint64) *ResolvedInfo {
 	return nil
 }
 
-// ─── Stats ──────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Stats 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // Stats returns monitor statistics.
 func (m *Monitor) Stats() map[string]interface{} {

@@ -5,6 +5,7 @@ package notify
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -46,9 +47,9 @@ func (s *SlackNotifier) Name() string {
 
 // slackPayload is the Slack message attachment format.
 type slackPayload struct {
-	Channel   string          `json:"channel,omitempty"`
-	Username  string          `json:"username,omitempty"`
-	Text      string          `json:"text"`
+	Channel     string            `json:"channel,omitempty"`
+	Username    string            `json:"username,omitempty"`
+	Text        string            `json:"text"`
 	Attachments []slackAttachment `json:"attachments,omitempty"`
 }
 
@@ -101,11 +102,17 @@ func (s *SlackNotifier) Send(alert Alert) error {
 		return fmt.Errorf("slack marshal: %w", err)
 	}
 
-	resp, err := s.client.Post(s.webhookURL, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, s.webhookURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("slack build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("slack post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("slack returned %d", resp.StatusCode)

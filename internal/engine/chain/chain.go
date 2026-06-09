@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package chain provides forensic-grade data integrity for ProvidAPT v2.1.
+// Package chain provides forensic-grade data integrity for ProvidAPT.
 //
 // Features:
-//   1. Hash chaining — each event includes the hash of the previous event
-//   2. Merkle tree — periodic root hash computation
-//   3. Anchoring — root hash written to /dev/kmsg and remote server
-//   4. Verification — CLI tool to detect tampering
+//  1. Hash chaining 鈥-each event includes the hash of the previous event
+//  2. Merkle tree 鈥-periodic root hash computation
+//  3. Anchoring 鈥-root hash written to /dev/kmsg and remote server
+//  4. Verification 鈥-CLI tool to detect tampering
 package chain
 
 import (
@@ -20,19 +20,17 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Hash chain
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Hash chain
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // ChainRecord is a single entry in the hash chain.
 type ChainRecord struct {
-	Index      int64  `json:"index"`
-	Timestamp  int64  `json:"timestamp_ns"`
-	EventType  uint32 `json:"event_type"`
-	DataHash   string `json:"data_hash"`   // SHA256 of the event payload
-	PrevHash   string `json:"prev_hash"`   // hash of previous ChainRecord
-	ChainHash  string `json:"chain_hash"`  // SHA256(this record)
-	HMAC       string `json:"hmac"`        // HMAC-SHA256 of chain_hash
+	Index     int64  `json:"index"`
+	Timestamp int64  `json:"timestamp_ns"`
+	EventType uint32 `json:"event_type"`
+	DataHash  string `json:"data_hash"`  // SHA256 of the event payload
+	PrevHash  string `json:"prev_hash"`  // hash of previous ChainRecord
+	ChainHash string `json:"chain_hash"` // SHA256(this record)
+	HMAC      string `json:"hmac"`       // HMAC-SHA256 of chain_hash
 }
 
 // ChainStore manages the hash chain.

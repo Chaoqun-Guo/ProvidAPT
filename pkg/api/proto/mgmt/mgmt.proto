@@ -1,9 +1,9 @@
-// ProvidAPT v2.1 — Remote Management Protocol
+// ProvidAPT 鈥-Remote Management Protocol
 syntax = "proto3";
 package providapt.mgmt;
 option go_package = "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt";
 
-// ─── Management Service ─────────────────────────────────
+// 鈹€鈹€鈹€ Management Service 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 service ProvidAPTManagement {
     // Query historical provenance data
@@ -19,7 +19,7 @@ service ProvidAPTManagement {
     rpc Check(HealthCheck) returns (HealthStatus);
 }
 
-// ─── Query ──────────────────────────────────────────────
+// 鈹€鈹€鈹€ Query 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 message QueryRequest {
     string query = 1;        // ProvQL query string
@@ -35,7 +35,7 @@ message QueryResponse {
     int64 query_time_ns = 3;
 }
 
-// ─── Alert streaming ────────────────────────────────────
+// 鈹€鈹€鈹€ Alert streaming 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 message AlertFilter {
     string min_severity = 1; // "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"
@@ -52,7 +52,7 @@ message AlertEvent {
     map<string,string> metadata = 7;
 }
 
-// ─── Policy management ──────────────────────────────────
+// 鈹€鈹€鈹€ Policy management 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 message PolicyUpdate {
     oneof update {
@@ -96,10 +96,10 @@ message PolicyAck {
     int64 applied_at_ns = 3;
 }
 
-// ─── Telemetry (gRPC transport optimisation) ────────────
+// 鈹€鈹€鈹€ Telemetry (gRPC transport optimisation) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 service ProvidAPTTelemetry {
-    // Agent → Server: stream compressed provenance events.
+    // Agent 鈫-Server: stream compressed provenance events.
     // The server can use the Response for backpressure signals.
     rpc ReportEvents(stream CompressedEvent) returns (ReportAck);
 }
@@ -117,7 +117,7 @@ message ReportAck {
     string message = 3;
 }
 
-// ─── Health ─────────────────────────────────────────────
+// 鈹€鈹€鈹€ Health 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 message HealthCheck {
     string requesting_agent = 1;

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package detect implements lateral movement detection on the global
-// provenance graph for ProvidAPT v2.2.
+// provenance graph for ProvidAPT.
 //
 // Detection algorithms:
-//   1. Anomalous path identification — non-typical cross-host jumps
-//   2. Credential theft correlation — LSASS + remote login linking
-//   3. Global blast radius — datacenter-wide impact analysis
+//  1. Anomalous path identification 鈥-non-typical cross-host jumps
+//  2. Credential theft correlation 鈥-LSASS + remote login linking
+//  3. Global blast radius 鈥-datacenter-wide impact analysis
 package blastradius
 
 import (
@@ -18,10 +18,8 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Path templates — known good paths
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Path templates 鈥-known good paths
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // PathTemplate defines a known legitimate cross-host path.
 type PathTemplate struct {
 	Name     string   `json:"name"`
@@ -30,10 +28,10 @@ type PathTemplate struct {
 
 // DefaultPathTemplates are known good paths in an enterprise network.
 var DefaultPathTemplates = []PathTemplate{
-	{Name: "user→web→api→db", Segments: []string{"user-pc", "web-server", "api-server", "database"}},
-	{Name: "dev→test→prod", Segments: []string{"developer-pc", "test-server", "production-server"}},
-	{Name: "admin→jump→target", Segments: []string{"admin-pc", "jump-server", "target-server"}},
-	{Name: "monitoring→target", Segments: []string{"monitoring-server", "target-server"}},
+	{Name: "user鈫抴eb鈫抋pi鈫抎b", Segments: []string{"user-pc", "web-server", "api-server", "database"}},
+	{Name: "dev鈫抰est鈫抪rod", Segments: []string{"developer-pc", "test-server", "production-server"}},
+	{Name: "admin鈫抝ump鈫抰arget", Segments: []string{"admin-pc", "jump-server", "target-server"}},
+	{Name: "monitoring鈫抰arget", Segments: []string{"monitoring-server", "target-server"}},
 }
 
 // AnomalousPathDetector finds lateral movement via non-typical paths.
@@ -46,7 +44,7 @@ type AnomalousPathDetector struct {
 // PathAlert is emitted when an anomalous path is detected.
 type PathAlert struct {
 	ID          string    `json:"id"`
-	Path        []string  `json:"path"`    // host1 → host2 → host3
+	Path        []string  `json:"path"` // host1 鈫-host2 鈫-host3
 	Description string    `json:"description"`
 	Suspected   string    `json:"suspected"` // "jump", "escalation"
 	Severity    string    `json:"severity"`
@@ -87,7 +85,7 @@ func (apd *AnomalousPathDetector) CheckPath(path []string, roles []string) *Path
 	alert := &PathAlert{
 		ID:          fmt.Sprintf("PATH-%d", time.Now().UnixNano()),
 		Path:        path,
-		Description: fmt.Sprintf("Anomalous path: %s", strings.Join(jumps, " → ")),
+		Description: fmt.Sprintf("Anomalous path: %s", strings.Join(jumps, " 鈫-")),
 		Suspected:   classifyAnomaly(roles),
 		Severity:    "HIGH",
 		Timestamp:   time.Now(),

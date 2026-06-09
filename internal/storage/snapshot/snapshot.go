@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package snapshot provides snapshot and differential analysis for
-// ProvidAPT v2.1 storage layer.
+// ProvidAPT storage layer.
 //
 // Features:
-//   1. RocksDB Checkpoint snapshots — every 10 minutes
-//   2. Active entity table — PIDs/inodes changed in last 5 minutes
-//   3. GetDiff(t1, t2) — efficient delta extraction for AI engine
+//  1. RocksDB Checkpoint snapshots 鈥-every 10 minutes
+//  2. Active entity table 鈥-PIDs/inodes changed in last 5 minutes
+//  3. GetDiff(t1, t2) 鈥-efficient delta extraction for AI engine
 package snapshot
 
 import (
@@ -22,43 +22,41 @@ import (
 	"github.com/cockroachdb/pebble/vfs"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Snapshot manager
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Snapshot manager
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // SnapshotConfig controls the snapshot behaviour.
 type SnapshotConfig struct {
-	// SnapDir — directory for checkpoint snapshots.
+	// SnapDir 鈥-directory for checkpoint snapshots.
 	SnapDir string
 
-	// SnapInterval — how often to create snapshots (default 10m).
+	// SnapInterval 鈥-how often to create snapshots (default 10m).
 	SnapInterval time.Duration
 
-	// Retention — how many snapshots to keep (default 72 = 12h).
+	// Retention 鈥-how many snapshots to keep (default 72 = 12h).
 	Retention int
 
-	// EnableSnapshots — master switch.
+	// EnableSnapshots 鈥-master switch.
 	EnableSnapshots bool
 }
 
 // DefaultSnapshotConfig returns sensible defaults.
 func DefaultSnapshotConfig() *SnapshotConfig {
 	return &SnapshotConfig{
-		SnapDir:        "/var/lib/providapt/snapshots",
-		SnapInterval:   10 * time.Minute,
-		Retention:      72,
+		SnapDir:         "/var/lib/providapt/snapshots",
+		SnapInterval:    10 * time.Minute,
+		Retention:       72,
 		EnableSnapshots: true,
 	}
 }
 
 // SnapManager manages RocksDB checkpoint snapshots.
 type SnapManager struct {
-	cfg      *SnapshotConfig
-	db       *pebble.DB
-	mu       sync.Mutex
+	cfg       *SnapshotConfig
+	db        *pebble.DB
+	mu        sync.Mutex
 	snapshots []*SnapshotMeta
-	stopCh   chan struct{}
-	wg       sync.WaitGroup
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
 }
 
 // SnapshotMeta holds metadata about a checkpoint.
@@ -76,8 +74,8 @@ func NewSnapManager(db *pebble.DB, cfg *SnapshotConfig) *SnapManager {
 	}
 	os.MkdirAll(cfg.SnapDir, 0755)
 	return &SnapManager{
-		cfg: cfg,
-		db:  db,
+		cfg:    cfg,
+		db:     db,
 		stopCh: make(chan struct{}),
 	}
 }

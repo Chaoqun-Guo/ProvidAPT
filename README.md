@@ -1,50 +1,61 @@
-﻿# ProvidAPT
+# ProvidAPT
 
-ProvidAPT is a Linux provenance-based threat detection platform built on eBPF and BPF LSM. It captures kernel-level activity, constructs a provenance graph, and supports detection, investigation, and operational control workflows for advanced threats.
+ProvidAPT is a Linux provenance-based threat detection platform built on eBPF and BPF LSM. It captures kernel-level activity, builds a provenance graph, and supports detection, investigation, audit, support, ticketing, license, and upgrade workflows for production operations.
 
 [![Go Version](https://img.shields.io/badge/Go-1.22+-blue)](https://golang.org)
+[![Release](https://img.shields.io/badge/Release-v1.2.1-brightgreen)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache--2.0-green)](LICENSE)
 
 ## Overview
 
-ProvidAPT combines kernel telemetry, provenance graph construction, policy evaluation, audit logging, support bundle collection, and commercial control-plane workflows such as fleet management, ticketing, license validation, and upgrade preflight.
+ProvidAPT combines:
 
-## Project Structure
+- eBPF kernel telemetry collection
+- provenance graph construction and query
+- threat scoring, alerting, and response
+- fleet and control-plane operations
+- audit logging, support bundle export, and release governance
+
+## Project Layout
 
 ```text
 ProvidAPT/
 ├── cmd/                # binaries and entry points
-├── internal/           # core engine, policy, storage, stitching
-├── pkg/                # public libraries, API, config, audit, support bundle
-├── docs/               # user, developer, architecture, compliance docs
+├── internal/           # engine, policy, storage, and stitching internals
+├── pkg/                # public packages: API, config, notify, support, telemetry
+├── docs/               # product, developer, architecture, and project docs
+├── deploy/             # Helm, Terraform, Ansible, and deployment assets
 ├── scripts/            # operational helper scripts
-├── test/               # integration, benchmark, and fuzz coverage
-├── build/              # packaging and build assets
-└── deploy/             # deployment manifests and examples
+├── test/               # integration, benchmark, and validation assets
+├── build/              # packaging, docker, and build-time assets
+└── examples/           # example configurations and usage samples
 ```
+
+Detailed documentation for the repository layout is available in `docs/project/project-layout.md`.
 
 ## Quick Start
 
 ```bash
-# Build core components
-make v1
+# Build the full product
+make build-core
 
-# Run tests
-make test
+# Run core tests
+make test-core
 
 # Run Linux loader smoke validation on a suitable host
 sudo make loader-smoke
 ```
+
 ## eBPF Loader Notes
 
-- ProvidAPT prefers **BPF LSM** hooks and automatically falls back to **kprobe mode** when LSM attachment fails at runtime.
-- The loader searches precompiled objects in `build/ebpf/lsm_hooks.bpf.o` and `/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o`.
+- ProvidAPT prefers BPF LSM hooks and falls back to kprobe mode when LSM attachment fails at runtime.
+- The loader searches for precompiled objects in `build/ebpf/lsm_hooks.bpf.o` and `/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o`.
 - You can override the object path with `PROVIDAPT_BPF_OBJECT_PATH=/path/to/lsm_hooks.bpf.o`.
-- If the object file is missing, run `make v1-ebpf` before starting `providaptd`.
+- If the object file is missing, run `make build-ebpf` before starting `providaptd`.
 
 ## Build Outputs
 
-```
+```text
 build/bin/providaptd          # Main daemon
 build/bin/providaptctl        # CLI control
 build/bin/providapt-watchdog  # Watchdog
@@ -58,17 +69,24 @@ build/ebpf/*.bpf.o            # Compiled eBPF programs
 
 | Section | Description |
 | ------- | ----------- |
-| [Getting Started](docs/getting-started/INDEX.md) | Installation, deployment |
-| [Architecture](docs/architecture/INDEX.md) | System design, data flow |
-| [User Guide](docs/user-guide/INDEX.md) | CLI, ProvQL, detection rules |
-| [Developer Guide](docs/developer/INDEX.md) | API, schema, changelog, release notes |
-| [Benchmarks](docs/benchmarks/INDEX.md) | Performance data |
-| [Compliance](docs/compliance/INDEX.md) | Security, privacy |
-| [Documentation Audit](docs/DOCUMENTATION_AUDIT.md) | Audience-based document classification |
+| [Getting Started](docs/getting-started/INDEX.md) | Installation, deployment, and first-run guidance |
+| [Architecture](docs/architecture/INDEX.md) | System design, data flow, provenance model |
+| [User Guide](docs/user-guide/INDEX.md) | CLI, operations, ProvQL, detection rules |
+| [Developer Guide](docs/developer/INDEX.md) | API, schema, testing, upgrade, release notes |
+| [Project Docs](docs/project/INDEX.md) | Documentation audit, project layout, release consistency checks |
+| [Benchmarks](docs/benchmarks/INDEX.md) | Performance and benchmark material |
+| [Compliance](docs/compliance/INDEX.md) | Security, privacy, and governance posture |
+
+## Release Status
+
+- Current release target: `v1.2.1`
+- Release notes: `docs/developer/release-notes-v1.2.1.md`
+- Release checklist: `docs/developer/release-readiness.md`
+- Product changelog: `CHANGELOG.md`
 
 ## Requirements
 
-- Linux kernel 5.8+ (5.11+ for LSM BPF)
+- Linux kernel 5.8+ (5.11+ recommended for BPF LSM)
 - BTF support (`CONFIG_DEBUG_INFO_BTF=y`)
 - clang 12+, llvm-strip
 - libbpf 1.0+
@@ -77,5 +95,3 @@ build/ebpf/*.bpf.o            # Compiled eBPF programs
 ## License
 
 Apache 2.0
-
-

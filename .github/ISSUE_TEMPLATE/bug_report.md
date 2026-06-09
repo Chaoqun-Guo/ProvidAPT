@@ -19,7 +19,7 @@ Steps to reproduce the behavior:
 A clear and concise description of what you expected to happen.
 
 ## Environment
-- ProvidAPT version: [e.g. v1.0.2]
+- ProvidAPT version: [e.g. v1.2.1]
 - OS: [e.g. Ubuntu 24.04, Amazon Linux 2023]
 - Kernel: [e.g. 6.2.0, 5.15.0]
 - Deployment: [e.g. Docker, Kubernetes DaemonSet, bare-metal]

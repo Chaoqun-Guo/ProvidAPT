@@ -1,41 +1,36 @@
-.PHONY: all build ebpf userspace install clean test
-.PHONY: verify-env install-deps deps
-.PHONY: run stop attack-sim verify-capture loader-smoke
-.PHONY: v1 demo ext-test cluster-test graphsketch-test deception-test supplychain-test
+.PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
+.PHONY: clean test test-core fmt fmt-check vet lint staticcheck
+.PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
+.PHONY: attack-sim verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
+.PHONY: fuzz fuzz-short dist dist-deb dist-rpm dist-tar dist-all create-user docker-build docker-run help
+
 SHELL := /bin/bash
 
-# --- Toolchain -------------------------------------------------
-CLANG      ?= clang
+CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
-BPFTOOL    ?= bpftool
-GO         ?= go
+BPFTOOL ?= bpftool
+GO ?= go
 
-# --- Version info (injected via ldflags) -----------------------
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "dev")
-COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
-DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
 LDFLAGS := -ldflags "-X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version=$(VERSION) -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit=$(COMMIT) -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date=$(DATE)"
 
-# --- Version paths --------------------------------------------
-OUTPUT   := build
+OUTPUT := build
 EBPF_OUT := $(OUTPUT)/ebpf
-BIN_OUT  := $(OUTPUT)/bin
-CONFIG   := /etc/providapt
-
-# ==============================================================
-# Versioned builds
-# ==============================================================
-
-all: v1
-
-# ── v1 (production) ──────────────────────────────────────────
-
+BIN_OUT := $(OUTPUT)/bin
+CONFIG := /etc/providapt
 BPF_SRC := cmd/bpf/probes
+SBOM_OUT ?= build
+FUZZ_TIME ?= 15s
 
-v1: v1-ebpf v1-userspace
-	@echo "✓ v1 build: $(BIN_OUT)/providaptd"
+all: build-core
 
-v1-ebpf:
+build-core: build-ebpf build-userspace
+	@echo "Built core product into $(BIN_OUT)"
+
+build-ebpf:
 	@mkdir -p $(EBPF_OUT)
 	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -O2 -g -target bpf \
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
@@ -53,87 +48,69 @@ v1-ebpf:
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
 		-c $(BPF_SRC)/lsm/deception.bpf.c -o $(EBPF_OUT)/deception.bpf.o
 	$(LLVM_STRIP) -g $(EBPF_OUT)/*.bpf.o 2>/dev/null || true
-	@echo "✓ v1 eBPF: lsm_hooks + defense + memory + network"
+	@echo "Built eBPF objects into $(EBPF_OUT)"
 
-# ── v1-gen: compile eBPF + generate bpf2go Go types ─────
-.PHONY: v1-gen
-v1-gen: v1-ebpf
+generate-ebpf: build-ebpf
 	$(GO) generate ./internal/engine/loader/
-	@echo "✓ v1 bpf2go types generated"
+	@echo "Generated bpf2go bindings"
 
-v1-userspace:
+build-userspace:
 	@mkdir -p $(BIN_OUT)
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providaptd        ./cmd/agent/daemon
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providaptctl      ./cmd/cli/providaptctl
+	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providaptd ./cmd/agent/daemon
+	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providaptctl ./cmd/cli/providaptctl
 	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-watchdog ./cmd/agent/watchdog
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-verify   ./cmd/cli/providapt-verify
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-deanon   ./cmd/cli/providapt-deanon
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-heal     ./cmd/cli/providapt-heal
-	@echo "✓ v1 userspace: 6 binaries (version $(VERSION))"
+	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-verify ./cmd/cli/providapt-verify
+	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-deanon ./cmd/cli/providapt-deanon
+	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-heal ./cmd/cli/providapt-heal
+	@echo "Built userspace binaries into $(BIN_OUT)"
 
-v1-install: create-user v1
+install-local: create-user build-core
 	install -d $(CONFIG)
 	install -d /usr/local/lib/providapt/ebpf
-	install -m 0755 $(BIN_OUT)/providaptd        /usr/local/sbin/providaptd
-	install -m 0755 $(BIN_OUT)/providaptctl      /usr/local/bin/providaptctl
+	install -m 0755 $(BIN_OUT)/providaptd /usr/local/sbin/providaptd
+	install -m 0755 $(BIN_OUT)/providaptctl /usr/local/bin/providaptctl
 	install -m 0755 $(BIN_OUT)/providapt-watchdog /usr/local/sbin/providapt-watchdog
-	install -m 0644 $(EBPF_OUT)/*.bpf.o          /usr/local/lib/providapt/ebpf/
+	install -m 0644 $(EBPF_OUT)/*.bpf.o /usr/local/lib/providapt/ebpf/
 	@test -f $(CONFIG)/providapt.toml || install -m 0644 build/providapt.toml $(CONFIG)/
-	@echo "✓ v1 installed.  Start:  sudo providaptd"
+	@echo "Installed ProvidAPT locally"
 
-v1-test:
+test-core:
 	$(GO) test -v -count=1 ./internal/... ./pkg/... ./cmd/...
 
-# ── Demo / Extended tests ────────────────────────────
+build: build-core
+install: install-local
+test: test-core
+ebpf: build-ebpf
+userspace: build-userspace
 
 demo:
 	$(GO) build -o $(BIN_OUT)/providapt-demo ./cmd/collector/demo
-	@echo "✓ demo build: $(BIN_OUT)/providapt-demo"
-
-# ── Code quality ─────────────────────────────────────────
+	@echo "Built collector demo"
 
 fmt:
 	$(GO) fmt ./cmd/... ./internal/... ./pkg/...
-	@echo "✓ go fmt passed"
 
 fmt-check:
-	@test -z "$(shell $(GO) fmt ./cmd/... ./internal/... ./pkg/...)" || (echo "✗ go fmt: unformatted files"; exit 1)
-	@echo "✓ go fmt check passed"
+	@test -z "$(shell $(GO) fmt ./cmd/... ./internal/... ./pkg/...)" || (echo "go fmt found unformatted files"; exit 1)
 
 vet:
 	$(GO) vet ./cmd/... ./internal/... ./pkg/...
-	@echo "✓ go vet passed"
 
 lint: vet fmt-check
-	@echo "✓ lint passed"
 
-# Requires: go install honnef.co/go/tools/cmd/staticcheck@latest
 staticcheck:
 	staticcheck ./cmd/... ./internal/... ./pkg/...
-	@echo "✓ staticcheck passed"
-
-# ── SBOM generation ──────────────────────────────────────
-.PHONY: sbom sbom-syft
-
-SBOM_OUT ?= build
 
 sbom: sbom-syft
-	@echo "✓ SBOM generated in $(SBOM_OUT)/"
 
 sbom-syft:
 	@if command -v syft &>/dev/null; then \
 		syft dir:. --output spdx-json=$(SBOM_OUT)/providapt-source.spdx.json; \
 		syft dir:. --output cyclonedx-json=$(SBOM_OUT)/providapt-source.cdx.json; \
-		echo "✓ syft SBOM: $(SBOM_OUT)/providapt-source.spdx.json"; \
 	else \
 		echo "syft not installed. Install from https://github.com/anchore/syft"; \
 		exit 1; \
 	fi
-
-# ── Fuzz testing ──────────────────────────────────────────
-.PHONY: fuzz fuzz-short
-
-FUZZ_TIME ?= 15s
 
 fuzz-short:
 	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=10s ./internal/engine/collector/
@@ -142,7 +119,6 @@ fuzz-short:
 	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=10s ./pkg/config/
 	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=10s ./internal/engine/taint/
 	$(GO) test -fuzz=FuzzParseQuery -fuzztime=10s ./internal/engine/query/
-	@echo "✓ Fuzz testing passed"
 
 fuzz:
 	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=$(FUZZ_TIME) ./internal/engine/collector/
@@ -151,12 +127,9 @@ fuzz:
 	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) ./pkg/config/
 	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=$(FUZZ_TIME) ./internal/engine/taint/
 	$(GO) test -fuzz=FuzzParseQuery -fuzztime=$(FUZZ_TIME) ./internal/engine/query/
-	@echo "✓ Fuzz testing passed"
 
 ext-test:
 	$(GO) test -v -count=1 ./internal/engine/edgereduce/... ./internal/engine/graphquery/... ./internal/engine/profile/... ./internal/engine/ratelimit/... ./internal/storage/schema/... ./internal/storage/pebblestore/... ./internal/storage/grpcexport/... ./internal/policy/rulescanner/... ./internal/policy/selfheal/...
-
-# ── Cluster / Stitcher tests ─────────────────────────
 
 cluster-test:
 	$(GO) test -v -count=1 ./internal/stitcher/... ./internal/policy/blastradius/... ./internal/policy/deception/... ./internal/policy/supplychain/... ./internal/engine/ja3/... ./internal/engine/memforensic/... ./internal/storage/graphdb/...
@@ -170,54 +143,30 @@ deception-test:
 supplychain-test:
 	$(GO) test -v -count=1 ./internal/policy/supplychain/...
 
-# ── Legacy aliases (default to v1) ───────────────────────────
-
-build: v1
-ebpf: v1-ebpf
-userspace: v1-userspace
-install: v1-install
-test: v1-test
-
-# ── Distribution packages ────────────────────────────────────
-
-.PHONY: dist-deb dist-rpm dist-tar dist-all
-
-dist-deb: v1-userspace
+dist-deb: build-userspace
 	bash build/packages/build_deb.sh "$(VERSION)"
-	@echo "✓ .deb package: build/dist/"
 
-dist-rpm: v1-userspace
+dist-rpm: build-userspace
 	bash build/packages/build_rpm.sh "$(VERSION)"
-	@echo "✓ .rpm package: build/dist/"
 
-dist-tar: v1-userspace
+dist-tar: build-userspace
 	bash build/packages/build_tar.sh "$(VERSION)"
-	@echo "✓ tarball: build/dist/"
 
-dist-all: v1-userspace
+dist-all: build-userspace
 	bash build/packages/build_all.sh all
-	@echo "✓ All packages: build/dist/"
 
 dist: dist-all
 
-# ── Create providapt system user ──────────────────────────
-
-.PHONY: create-user
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
-		echo "Creating 'providapt' system user (UID 950)..."; \
-		useradd --system --no-create-home --uid 950 \
-			--shell /usr/sbin/nologin \
-			--comment "ProvidAPT daemon user" providapt; \
+		echo "Creating providapt system user (UID 950)..."; \
+		useradd --system --no-create-home --uid 950 --shell /usr/sbin/nologin --comment "ProvidAPT daemon user" providapt; \
 	else \
-		echo "User 'providapt' already exists."; \
+		echo "User providapt already exists."; \
 	fi
-
-# ── Common ───────────────────────────────────────────────────
 
 clean:
 	rm -rf $(OUTPUT)
-	@echo "✓ Cleaned"
 
 verify-env:
 	@bash build/verify.sh
@@ -225,12 +174,11 @@ verify-env:
 install-deps deps:
 	@bash build/install_deps.sh
 
-run: v1
+run: build-core
 	sudo $(BIN_OUT)/providaptd -config $(CONFIG)/providapt.toml
 
 stop:
 	sudo providaptctl -stop 2>/dev/null || sudo pkill providaptd 2>/dev/null || true
-	@echo "✓ Stopped"
 
 restart: stop run
 
@@ -256,59 +204,49 @@ docker-build:
 	docker build -t providapt:latest -f build/docker/Dockerfile.ubuntu .
 
 docker-run: docker-build
-	docker run --rm -it --privileged \
-		-v /sys/kernel/btf:/sys/kernel/btf:ro \
-		providapt:latest
-
-# ==============================================================
-# Help
-# ==============================================================
+	docker run --rm -it --privileged -v /sys/kernel/btf:/sys/kernel/btf:ro providapt:latest
 
 help:
-	@echo 'ProvidAPT — Makefile'
+	@echo 'ProvidAPT Makefile'
 	@echo ''
 	@echo 'Build:'
-	@echo '  make v1              Build production — eBPF + userspace'
-	@echo '  make v1-ebpf         Compile eBPF bytecode only
-	@echo '  make v1-gen          Compile eBPF + generate bpf2go Go types (requires clang)'
-	@echo '  make TAGS=bpf v1     Build with real eBPF loader (needs pre-compiled .o files)''
-	@echo '  make v1-userspace    Compile Go binaries only'
-	@echo '  make v1-install      Build & install to system'
-	@echo '  make demo            Build collector demo'
+	@echo '  make build-core       Build the full product (eBPF + userspace)'
+	@echo '  make build-ebpf       Compile eBPF bytecode only'
+	@echo '  make generate-ebpf    Compile eBPF and generate bpf2go bindings'
+	@echo '  make build-userspace  Compile Go binaries only'
+	@echo '  make install-local    Build and install to the local system'
+	@echo '  make demo             Build collector demo'
 	@echo ''
 	@echo 'Test:'
-	@echo '  make v1-test         Run core unit tests'
-	@echo '  make ext-test        Run extended engine/storage/policy tests'
-	@echo '  make cluster-test    Run stitcher/cluster tests'
-	@echo '  make graphsketch-test'
-	@echo '  make deception-test'
-	@echo '  make supplychain-test'
-	@echo '  make attack-sim      Simulate APT attack scenario'
-	@echo '  make verify-capture  Verify provenance chain capture'
-	@echo '  make loader-smoke    Linux loader smoke test (root + eBPF)'
+	@echo '  make test-core        Run core unit tests'
+	@echo '  make ext-test         Run extended engine/storage/policy tests'
+	@echo '  make cluster-test     Run stitcher and cluster tests'
+	@echo '  make graphsketch-test Run graph sketch tests'
+	@echo '  make deception-test   Run deception tests'
+	@echo '  make supplychain-test Run supply-chain tests'
+	@echo '  make attack-sim       Simulate an APT attack scenario'
+	@echo '  make verify-capture   Verify provenance chain capture'
+	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''
-	@echo 'Code quality:'
-	@echo '  make fmt             Format all Go source'
-	@echo '  make fmt-check       Check formatting (fails if unformatted)'
-	@echo '  make vet             Run go vet'
-	@echo '  make lint            = make vet + make fmt-check'
-	@echo '  make staticcheck     Run staticcheck (install separately)'
+	@echo 'Quality:'
+	@echo '  make fmt              Format all Go source'
+	@echo '  make fmt-check        Check formatting'
+	@echo '  make vet              Run go vet'
+	@echo '  make lint             Run vet and format checks'
+	@echo '  make staticcheck      Run staticcheck'
 	@echo ''
-	@echo 'Aliases (default v1):'
-	@echo '  make build           = make v1'
-	@echo '  make install         = make v1-install'
-	@echo '  make test            = make v1-test'
-	@echo '  make run             Build & run daemon'
-	@echo '  make stop            Stop daemon'
+	@echo 'Aliases:'
+	@echo '  make build            = make build-core'
+	@echo '  make install          = make install-local'
+	@echo '  make test             = make test-core'
 	@echo ''
 	@echo 'System:'
-	@echo '  make verify-env      Check kernel config & dependencies'
-	@echo '  make install-deps    Install libbpf/clang/kernel-headers'
-	@echo '  make deploy-prod     Full production deployment'
+	@echo '  make verify-env       Check kernel config and dependencies'
+	@echo '  make install-deps     Install build dependencies'
+	@echo '  make deploy-prod      Run the production deployment helper'
 	@echo ''
 	@echo 'Distribution:'
-	@echo '  make dist            Build all package formats (.deb/.rpm/.tar.gz)'
-	@echo '  make dist-deb        Build .deb package only'
-	@echo '  make dist-rpm        Build .rpm package only'
-	@echo '  make dist-tar        Build portable tarball only'
-	@echo ''
+	@echo '  make dist             Build all package formats (.deb/.rpm/.tar.gz)'
+	@echo '  make dist-deb         Build the .deb package'
+	@echo '  make dist-rpm         Build the .rpm package'
+	@echo '  make dist-tar         Build the portable tarball'

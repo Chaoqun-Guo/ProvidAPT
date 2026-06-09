@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// cluster-test-harness — HTTP/JSON API wrapping all v2.2 components
+// cluster-test-harness 鈥-HTTP/JSON API wrapping all current release components
 // for the Python integration test script.
 //
 // Usage: go run . [--port 8722]
@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	detect "github.com/Chaoqun-Guo/ProvidAPT/internal/policy/blastradius"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/ja3"
+	detect "github.com/Chaoqun-Guo/ProvidAPT/internal/policy/blastradius"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/stitcher/server"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/stitcher/stitch"
 	store "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/graphdb"
@@ -92,7 +92,7 @@ func main() {
 	}
 }
 
-// ─── JSON helpers ──────────────────────────────────────────────
+// 鈹€鈹€鈹€ JSON helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -110,11 +110,12 @@ func readJSON(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
-// ─── Stitch handlers ──────────────────────────────────────────
+// 鈹€鈹€鈹€ Stitch handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func handleIngestOutbound(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
 		FlowID      string `json:"flow_id"`
@@ -129,7 +130,8 @@ func handleIngestOutbound(w http.ResponseWriter, r *http.Request) {
 		TaintSource string `json:"taint_source,omitempty"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	edge := centralServer.IngestOutbound(req.FlowID, req.AgentID, req.PID, req.Comm,
 		req.SrcIP, req.DstIP, req.SrcPort, req.DstPort, req.Tainted, req.TaintSource)
@@ -141,7 +143,8 @@ func handleIngestOutbound(w http.ResponseWriter, r *http.Request) {
 
 func handleIngestInbound(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
 		FlowID  string `json:"flow_id"`
@@ -155,7 +158,8 @@ func handleIngestInbound(w http.ResponseWriter, r *http.Request) {
 		Tainted bool   `json:"tainted"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	edge := centralServer.IngestInbound(req.FlowID, req.AgentID, req.PID, req.Comm,
 		req.SrcIP, req.DstIP, req.SrcPort, req.DstPort, req.Tainted)
@@ -168,7 +172,8 @@ func handleIngestInbound(w http.ResponseWriter, r *http.Request) {
 func handleStitchByAgent(w http.ResponseWriter, r *http.Request) {
 	agentID := r.URL.Query().Get("agent_id")
 	if agentID == "" {
-		writeError(w, "agent_id required", 400); return
+		writeError(w, "agent_id required", 400)
+		return
 	}
 	edges := centralServer.QueryStitchByAgent(agentID)
 	writeJSON(w, map[string]interface{}{
@@ -189,11 +194,12 @@ func handleStitchStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, centralServer.Stats())
 }
 
-// ─── JA3 handlers ─────────────────────────────────────────────
+// 鈹€鈹€鈹€ JA3 handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func handleJA3Ingest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
 		JA3        string `json:"ja3"`
@@ -206,7 +212,8 @@ func handleJA3Ingest(w http.ResponseWriter, r *http.Request) {
 		IsAtypical bool   `json:"is_atypical"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 
 	record := &ja3.JA3Record{
@@ -222,7 +229,7 @@ func handleJA3Ingest(w http.ResponseWriter, r *http.Request) {
 	}
 	alert := correlator.Ingest(record)
 	writeJSON(w, map[string]interface{}{
-		"alert": alert,
+		"alert":   alert,
 		"alerted": alert != nil,
 	})
 }
@@ -247,11 +254,12 @@ func handleJA3Stats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, correlator.Stats())
 }
 
-// ─── Graph handlers ───────────────────────────────────────────
+// 鈹€鈹€鈹€ Graph handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func handleGraphCreateNode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
 		NodeType string                 `json:"node_type"`
@@ -262,7 +270,8 @@ func handleGraphCreateNode(w http.ResponseWriter, r *http.Request) {
 		Props    map[string]interface{} `json:"props,omitempty"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	if req.Props == nil {
 		req.Props = make(map[string]interface{})
@@ -272,24 +281,28 @@ func handleGraphCreateNode(w http.ResponseWriter, r *http.Request) {
 
 	id, err := graphDB.CreateNode(req.NodeType, req.ID, req.Label, req.Props)
 	if err != nil {
-		writeError(w, err.Error(), 500); return
+		writeError(w, err.Error(), 500)
+		return
 	}
 	writeJSON(w, map[string]string{"id": id})
 }
 
 func handleGraphSubgraph(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
 		Nodes []store.GlobalNode `json:"nodes"`
 		Edges []store.GlobalEdge `json:"edges"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	if err := store.InsertSubgraph(graphDB, req.Nodes, req.Edges); err != nil {
-		writeError(w, err.Error(), 500); return
+		writeError(w, err.Error(), 500)
+		return
 	}
 	writeJSON(w, map[string]int{"nodes": len(req.Nodes), "edges": len(req.Edges)})
 }
@@ -297,7 +310,8 @@ func handleGraphSubgraph(w http.ResponseWriter, r *http.Request) {
 func handleGraphNodes(w http.ResponseWriter, r *http.Request) {
 	nodes, err := graphDB.QueryNodes("", nil)
 	if err != nil {
-		writeError(w, err.Error(), 500); return
+		writeError(w, err.Error(), 500)
+		return
 	}
 	writeJSON(w, map[string]interface{}{
 		"nodes": nodes,
@@ -313,11 +327,13 @@ func handleGraphEdges(w http.ResponseWriter, r *http.Request) {
 
 func handleGraphIndex(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	node, err := parseGraphNode(r)
 	if err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	globalIndex.IndexNode(node)
 	writeJSON(w, map[string]string{"status": "indexed"})
@@ -326,7 +342,8 @@ func handleGraphIndex(w http.ResponseWriter, r *http.Request) {
 func handleGraphQueryByHost(w http.ResponseWriter, r *http.Request) {
 	hostID := r.URL.Query().Get("host_id")
 	if hostID == "" {
-		writeError(w, "host_id required", 400); return
+		writeError(w, "host_id required", 400)
+		return
 	}
 	entries := globalIndex.QueryByHostID(hostID)
 	writeJSON(w, map[string]interface{}{
@@ -339,7 +356,8 @@ func handleGraphQueryByHost(w http.ResponseWriter, r *http.Request) {
 func handleGraphBacktrack(w http.ResponseWriter, r *http.Request) {
 	nodeID := r.URL.Query().Get("node_id")
 	if nodeID == "" {
-		writeError(w, "node_id required", 400); return
+		writeError(w, "node_id required", 400)
+		return
 	}
 	hosts := globalIndex.GlobalBacktrack(nodeID)
 	writeJSON(w, map[string]interface{}{
@@ -374,32 +392,35 @@ func parseGraphNode(r *http.Request) (*store.GlobalNode, error) {
 	}, nil
 }
 
-// ─── Blast radius handler ─────────────────────────────────────
+// 鈹€鈹€鈹€ Blast radius handler 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func handleBlastCalculate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
-		RootNode     string                `json:"root_node"`
-		RootHost     string                `json:"root_host"`
-		LateralEdges []detect.LateralEdge  `json:"lateral_edges"`
+		RootNode     string               `json:"root_node"`
+		RootHost     string               `json:"root_host"`
+		LateralEdges []detect.LateralEdge `json:"lateral_edges"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	result := blastEngine.Calculate(req.RootNode, req.RootHost, req.LateralEdges)
 	writeJSON(w, map[string]interface{}{
-		"result": result,
+		"result":  result,
 		"summary": result.Summary(),
 	})
 }
 
-// ─── Queue (performance) handlers ─────────────────────────────
+// 鈹€鈹€鈹€ Queue (performance) handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func handleQueueEnqueue(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
 		ID        string  `json:"id"`
@@ -409,7 +430,8 @@ func handleQueueEnqueue(w http.ResponseWriter, r *http.Request) {
 		Tainted   bool    `json:"tainted"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	queueMgr.Enqueue(&server.QueueEvent{
 		ID:        req.ID,
@@ -424,17 +446,23 @@ func handleQueueEnqueue(w http.ResponseWriter, r *http.Request) {
 
 func handleQueueEnqueueBatch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
-		NAgents  int `json:"n_agents"`
+		NAgents   int `json:"n_agents"`
 		NPerAgent int `json:"n_per_agent"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
-	if req.NAgents <= 0 { req.NAgents = 100 }
-	if req.NPerAgent <= 0 { req.NPerAgent = 100 }
+	if req.NAgents <= 0 {
+		req.NAgents = 100
+	}
+	if req.NPerAgent <= 0 {
+		req.NPerAgent = 100
+	}
 
 	start := time.Now()
 	total := req.NAgents * req.NPerAgent
@@ -481,29 +509,32 @@ func handleQueueStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, queueMgr.Stats())
 }
 
-// ─── Router handlers ──────────────────────────────────────────
+// 鈹€鈹€鈹€ Router handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func handleRouterRoute(w http.ResponseWriter, r *http.Request) {
 	hostID := r.URL.Query().Get("host_id")
 	if hostID == "" {
-		writeError(w, "host_id required", 400); return
+		writeError(w, "host_id required", 400)
+		return
 	}
 	collector := router.Route(hostID)
 	writeJSON(w, map[string]string{
-		"host_id":    hostID,
-		"collector":  collector,
+		"host_id":   hostID,
+		"collector": collector,
 	})
 }
 
 func handleRouterAddCollector(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeError(w, "POST required", 405); return
+		writeError(w, "POST required", 405)
+		return
 	}
 	var req struct {
 		ID string `json:"id"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, err.Error(), 400); return
+		writeError(w, err.Error(), 400)
+		return
 	}
 	router.AddCollector(req.ID)
 	writeJSON(w, map[string]string{"status": "added"})
@@ -513,22 +544,21 @@ func handleRouterStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, router.Stats())
 }
 
-// ─── Combined stats handler ───────────────────────────────────
+// 鈹€鈹€鈹€ Combined stats handler 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func handleAllStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
-		"stitch":  centralServer.Stats(),
-		"ja3":     correlator.Stats(),
-		"graph":   graphDB.Stats(),
-		"queue":   queueMgr.Stats(),
-		"router":  router.Stats(),
+		"stitch": centralServer.Stats(),
+		"ja3":    correlator.Stats(),
+		"graph":  graphDB.Stats(),
+		"queue":  queueMgr.Stats(),
+		"router": router.Stats(),
 	})
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
-		"status":  "healthy",
-		"uptime":  time.Now().String(),
+		"status": "healthy",
+		"uptime": time.Now().String(),
 	})
 }
-

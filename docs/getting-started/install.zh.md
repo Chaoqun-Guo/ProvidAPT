@@ -1,4 +1,4 @@
-﻿# ProvidAPT 安装指南
+# ProvidAPT 安装指南
 
 **版本 1.0** | Linux 系统溯源监控工具
 
@@ -257,7 +257,7 @@ curl -s http://localhost:8080/api/v1/status
 | 问题 | 原因 | 解决方案 |
 |------|------|---------|
 | eBPF 加载失败 | BTF 不可用 | 安装 `linux-image-$(uname -r)-dbg` |
-| 找不到预编译 eBPF 对象文件 | `.bpf.o` 未编译或未安装 | 运行 `make v1-ebpf`，或设置 `PROVIDAPT_BPF_OBJECT_PATH` |
+| 找不到预编译 eBPF 对象文件 | `.bpf.o` 未编译或未安装 | 运行 `make build-ebpf`，或设置 `PROVIDAPT_BPF_OBJECT_PATH` |
 | 无事件摄入 | LSM 未配置 | 在内核命令行中添加 `bpf` 到 LSM 列表 |
 | 内存使用过高 | 缓存过大 | 减少配置中的 `max_cache_size` |
 | Ring Buffer 溢出 | 事件过载 | 增大 `RINGBUF_SIZE` 或启用去重 |
@@ -268,7 +268,7 @@ curl -s http://localhost:8080/api/v1/status
 
 ```bash
 # 本地重新编译 eBPF 对象
-make v1-ebpf
+make build-ebpf
 
 # 或使用已有对象文件路径
 export PROVIDAPT_BPF_OBJECT_PATH=/path/to/lsm_hooks.bpf.o

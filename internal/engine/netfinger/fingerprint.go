@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package netfinger implements TCP fingerprinting for ProvidAPT v2.1.
+// Package netfinger implements TCP fingerprinting for ProvidAPT.
 //
 // Extracts TCP initial sequence numbers (ISN) and timestamp options
 // from eBPF hooks at tcp_v4_connect and tcp_v4_do_rcv, and generates
@@ -17,26 +17,24 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// TCP fingerprint
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// TCP fingerprint
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 // TCPFingerprint uniquely identifies a TCP connection across machines.
 type TCPFingerprint struct {
 	// Flow key (5-tuple)
-	SrcIP   string `json:"src_ip"`
-	SrcPort uint32 `json:"src_port"`
-	DstIP   string `json:"dst_ip"`
-	DstPort uint32 `json:"dst_port"`
+	SrcIP    string `json:"src_ip"`
+	SrcPort  uint32 `json:"src_port"`
+	DstIP    string `json:"dst_ip"`
+	DstPort  uint32 `json:"dst_port"`
 	Protocol uint32 `json:"protocol"` // 6=TCP
 
 	// Fingerprint fields (from eBPF)
-	ISN         uint32 `json:"isn"`          // Initial Sequence Number
-	Timestamp   uint32 `json:"timestamp"`    // TCP TSval from SYN
+	ISN          uint32 `json:"isn"`           // Initial Sequence Number
+	Timestamp    uint32 `json:"timestamp"`     // TCP TSval from SYN
 	TimestampECR uint32 `json:"timestamp_ecr"` // TSecr from SYN-ACK
 
 	// Derived
-	FlowID    string `json:"flow_id"`    // SHA256 of (5-tuple + ISN + TS)
+	FlowID    string    `json:"flow_id"` // SHA256 of (5-tuple + ISN + TS)
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -74,31 +72,29 @@ func NewFingerprint(srcIP string, srcPort uint32, dstIP string, dstPort uint32,
 
 // String returns a human-readable fingerprint summary.
 func (fp *TCPFingerprint) String() string {
-	return fmt.Sprintf("[TCP] %s:%d → %s:%d | ISN=%d TS=%d | FlowID=%s",
+	return fmt.Sprintf("[TCP] %s:%d 鈫?%s:%d | ISN=%d TS=%d | FlowID=%s",
 		fp.SrcIP, fp.SrcPort, fp.DstIP, fp.DstPort,
 		fp.ISN, fp.Timestamp, fp.FlowID[:16])
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Fingerprint store (in-memory)
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Fingerprint store (in-memory)
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 // FingerprintStore maintains TCP fingerprints for stitching.
 type FingerprintStore struct {
-	mu        sync.Mutex
-	outbound  map[string]*TCPFingerprint // FlowID → fingerprint (outgoing)
-	inbound   map[string]*TCPFingerprint // FlowID → fingerprint (incoming)
-	matched   []*StitchedFlow
+	mu       sync.Mutex
+	outbound map[string]*TCPFingerprint // FlowID 鈫?fingerprint (outgoing)
+	inbound  map[string]*TCPFingerprint // FlowID 鈫?fingerprint (incoming)
+	matched  []*StitchedFlow
 }
 
 // StitchedFlow represents a cross-machine connection.
 type StitchedFlow struct {
-	FlowID       string `json:"flow_id"`
-	Outbound     *TCPFingerprint `json:"outbound,omitempty"` // client side
-	Inbound      *TCPFingerprint `json:"inbound,omitempty"`  // server side
-	MatchedAt    time.Time `json:"matched_at"`
-	MachineA     string `json:"machine_a,omitempty"`
-	MachineB     string `json:"machine_b,omitempty"`
+	FlowID    string          `json:"flow_id"`
+	Outbound  *TCPFingerprint `json:"outbound,omitempty"` // client side
+	Inbound   *TCPFingerprint `json:"inbound,omitempty"`  // server side
+	MatchedAt time.Time       `json:"matched_at"`
+	MachineA  string          `json:"machine_a,omitempty"`
+	MachineB  string          `json:"machine_b,omitempty"`
 }
 
 // NewFingerprintStore creates a fingerprint store.
@@ -129,7 +125,7 @@ func (fs *FingerprintStore) RecordOutbound(fp *TCPFingerprint, agentID string) {
 			MachineB:  "remote",
 		}
 		fs.matched = append(fs.matched, stitch)
-		log.Printf("[finger] STITCHED %s (outbound %s → inbound remote)", fp.FlowID[:16], fp.DstIP)
+		log.Printf("[finger] STITCHED %s (outbound %s 鈫?inbound remote)", fp.FlowID[:16], fp.DstIP)
 	}
 }
 
@@ -153,7 +149,7 @@ func (fs *FingerprintStore) RecordInbound(fp *TCPFingerprint, agentID string) {
 			MachineB:  agentID,
 		}
 		fs.matched = append(fs.matched, stitch)
-		log.Printf("[finger] STITCHED %s (remote → inbound %s)", fp.FlowID[:16], fp.SrcIP)
+		log.Printf("[finger] STITCHED %s (remote 鈫?inbound %s)", fp.FlowID[:16], fp.SrcIP)
 	}
 }
 

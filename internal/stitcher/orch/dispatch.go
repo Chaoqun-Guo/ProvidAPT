@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package orch implements global response orchestration for ProvidAPT v2.2.
+// Package orch implements global response orchestration for ProvidAPT.
 //
 // Features:
-//   1. Policy dispatcher — central broadcast of blocking commands
-//   2. Multi-dimensional isolation — UID block, file hash lock
-//   3. Local policy cache — offline execution during network partitions
+//  1. Policy dispatcher 鈥-central broadcast of blocking commands
+//  2. Multi-dimensional isolation 鈥-UID block, file hash lock
+//  3. Local policy cache 鈥-offline execution during network partitions
 package orch
 
 import (
@@ -16,10 +16,8 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Policy dispatcher
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Policy dispatcher
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // CommandType defines the type of isolation command.
 type CommandType string
 
@@ -34,14 +32,14 @@ const (
 
 // PolicyCommand is a single isolation command broadcast to agents.
 type PolicyCommand struct {
-	ID          string      `json:"id"`
-	Type        CommandType `json:"type"`
-	Target      string      `json:"target"`     // UID, PID, file hash, IP
-	Description string      `json:"description"`
-	RiskScore   float64     `json:"risk_score"`
-	Issuer      string      `json:"issuer"`     // triggering host/agent
-	Timestamp   time.Time   `json:"timestamp"`
-	TTL         time.Duration `json:"ttl"`      // how long the command is active
+	ID          string        `json:"id"`
+	Type        CommandType   `json:"type"`
+	Target      string        `json:"target"` // UID, PID, file hash, IP
+	Description string        `json:"description"`
+	RiskScore   float64       `json:"risk_score"`
+	Issuer      string        `json:"issuer"` // triggering host/agent
+	Timestamp   time.Time     `json:"timestamp"`
+	TTL         time.Duration `json:"ttl"` // how long the command is active
 }
 
 // PolicyDispatcher manages command broadcast to all agents.
@@ -92,7 +90,7 @@ func (pd *PolicyDispatcher) Broadcast(cmdType CommandType, target, description s
 
 	// In production: send gRPC command to each agent
 	for _, agentID := range pd.agents {
-		log.Printf("[dispatch] → %s: %s %s", agentID, cmdType, target)
+		log.Printf("[dispatch] 鈫-%s: %s %s", agentID, cmdType, target)
 	}
 
 	return cmd

@@ -39,7 +39,7 @@ type GrpcClient struct {
 // NewGrpcClient creates a gRPC client for the given server address.
 //
 // In production, use `grpc.WithTransportCredentials(credentials.NewTLS(...))`
-// for mTLS. See v2.1/mgmt/server.go for the mTLS server side.
+// for mTLS. See internal/policy/mgmt/server.go for the mTLS server side.
 func NewGrpcClient(addr string) *GrpcClient {
 	return NewGrpcClientWithOpts(addr, []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -51,8 +51,8 @@ func NewGrpcClient(addr string) *GrpcClient {
 func NewGrpcClientWithOpts(addr string, opts []grpc.DialOption) *GrpcClient {
 	defaults := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(64 * 1024 * 1024),
-			grpc.MaxCallSendMsgSize(64 * 1024 * 1024),
+			grpc.MaxCallRecvMsgSize(64*1024*1024),
+			grpc.MaxCallSendMsgSize(64*1024*1024),
 		),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                10 * time.Second,

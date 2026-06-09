@@ -14,7 +14,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/container"
 )
 
-// ─── Container monitor tests ────────────────────────────────
+// 鈹€鈹€鈹€ Container monitor tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestNewMonitor(t *testing.T) {
 	m := container.New()
@@ -80,7 +80,7 @@ func TestListContainers(t *testing.T) {
 	t.Logf("containers: %d", len(list))
 }
 
-// ─── CLI trace tests ────────────────────────────────────────
+// 鈹€鈹€鈹€ CLI trace tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestDefaultTraceRequest(t *testing.T) {
 	req := cli.DefaultTraceRequest()
@@ -171,17 +171,17 @@ func TestFormatText(t *testing.T) {
 	t.Logf("Trace:\n%s", text)
 }
 
-// ─── Protobuf tests ─────────────────────────────────────────
+// 鈹€鈹€鈹€ Protobuf tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestContainerInfoProto(t *testing.T) {
 	ci := &containerpb.ContainerInfo{
-		CgroupId:       1000,
-		ContainerId:    "abc123def456",
-		ContainerName:  "web-server",
-		Image:          "nginx:latest",
-		Orchestrator:   "docker",
-		PodName:        "web-pod-xyz",
-		PodNamespace:   "default",
+		CgroupId:      1000,
+		ContainerId:   "abc123def456",
+		ContainerName: "web-server",
+		Image:         "nginx:latest",
+		Orchestrator:  "docker",
+		PodName:       "web-pod-xyz",
+		PodNamespace:  "default",
 	}
 	if ci.ContainerId != "abc123def456" {
 		t.Errorf("id = %s", ci.ContainerId)
@@ -193,11 +193,11 @@ func TestContainerInfoProto(t *testing.T) {
 
 func TestContainerEventProto(t *testing.T) {
 	evt := &containerpb.ContainerEvent{
-		Type:            10,
-		Pid:             100,
-		Comm:            "bash",
-		CgroupId:        5000,
-		PidNamespaceId:  2000,
+		Type:           10,
+		Pid:            100,
+		Comm:           "bash",
+		CgroupId:       5000,
+		PidNamespaceId: 2000,
 	}
 	if evt.Type != 10 {
 		t.Errorf("type = %d", evt.Type)
@@ -207,7 +207,7 @@ func TestContainerEventProto(t *testing.T) {
 	}
 }
 
-// ─── Integration test ───────────────────────────────────────
+// 鈹€鈹€鈹€ Integration test 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestV21Integration(t *testing.T) {
 	// 1. Container monitor
@@ -229,7 +229,7 @@ func TestV21Integration(t *testing.T) {
 	}
 
 	result := cli.BuildTraceFromEvents(events, *req)
-	t.Logf("=== v2.1 Integration ===")
+	t.Logf("=== current release integration ===")
 	t.Logf("Events filtered by container: %d", result.Total)
 	t.Logf("Trace:\n%s", result.FormatText())
 
@@ -244,5 +244,5 @@ func TestV21Integration(t *testing.T) {
 		}
 	}
 
-	t.Log("v2.1 Integration OK")
+	t.Log("current release integration OK")
 }

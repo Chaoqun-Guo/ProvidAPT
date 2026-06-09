@@ -6,6 +6,7 @@
 package supportbundle
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -104,7 +105,7 @@ func readConfig() string {
 }
 
 func runCommand(name string, args ...string) string {
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(context.Background(), name, args...)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

@@ -4,11 +4,12 @@
 package heal
 
 import (
+	"runtime"
 	"testing"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Test helpers ────────────────────────────────────────────
@@ -188,12 +189,17 @@ func TestRollbackConfigDefaults(t *testing.T) {
 }
 
 func TestCmdExists(t *testing.T) {
-	// Should find basic commands
-	if !cmdExists("sh") {
-		t.Error("sh should exist")
-	}
-	if !cmdExists("kill") {
-		t.Error("kill should exist")
+	if runtime.GOOS == "windows" {
+		if !cmdExists("powershell") {
+			t.Error("powershell should exist")
+		}
+	} else {
+		if !cmdExists("sh") {
+			t.Error("sh should exist")
+		}
+		if !cmdExists("kill") {
+			t.Error("kill should exist")
+		}
 	}
 	if cmdExists("nonexistent_cmd_xyz") {
 		t.Error("nonexistent cmd should not be found")

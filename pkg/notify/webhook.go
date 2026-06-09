@@ -5,6 +5,7 @@ package notify
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -36,9 +37,9 @@ func (w *WebhookNotifier) Name() string { return fmt.Sprintf("webhook:%s", w.url
 
 // webhookEnvelope is the JSON payload sent to the webhook endpoint.
 type webhookEnvelope struct {
-	Event     string            `json:"event"`
-	Alert     Alert             `json:"alert"`
-	Timestamp time.Time         `json:"timestamp"`
+	Event     string    `json:"event"`
+	Alert     Alert     `json:"alert"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Send delivers the alert to the webhook endpoint.
@@ -54,7 +55,7 @@ func (w *WebhookNotifier) Send(alert Alert) error {
 		return fmt.Errorf("webhook marshal: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, w.url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, w.url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("webhook request: %w", err)
 	}
@@ -69,7 +70,7 @@ func (w *WebhookNotifier) Send(alert Alert) error {
 	if err != nil {
 		return fmt.Errorf("webhook post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("webhook returned %d", resp.StatusCode)

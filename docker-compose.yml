@@ -19,17 +19,17 @@ services:
         echo '' &&
         echo '=== Go Version ===' && go version &&
         echo '' &&
-        echo '=== Building ===' && make v1-userspace 2>&1 ||
-          echo '[WARN] v1-userspace build incomplete (eBPF deps may be missing)' &&
+        echo '=== Building ===' && make build-userspace 2>&1 ||
+          echo '[WARN] build-userspace incomplete (eBPF deps may be missing)' &&
         echo '' &&
         echo '=== Running Unit Tests ===' &&
         GOPROXY=https://goproxy.cn,direct go test -v -count=1 ./internal/engine/pipeline/... ./internal/engine/provenance/... ./internal/engine/query/... ./internal/engine/collector/... ./internal/engine/filter/... ./internal/engine/identity/... ./internal/storage/cache/... ./internal/storage/export/... ./internal/policy/alert/... ./internal/policy/response/... ./internal/policy/adaptive/... ./internal/policy/armor/... ./internal/policy/honeypot/... ./pkg/config/... ./pkg/anonymize/... ./pkg/secure/... ./pkg/hwaccel/... 2>&1 | tail -30 &&
         echo '' &&
-        echo '=== Running v2 Unit Tests ===' &&
-        GOPROXY=https://goproxy.cn,direct go test -v -count=1 ./internal/engine/v2/... ./internal/storage/v2/... ./internal/policy/v2/... 2>&1 | tail -20 &&
+        echo '=== Running Additional Unit Tests ===' &&
+        GOPROXY=https://goproxy.cn,direct go test -v -count=1 ./internal/engine/pipeline/... ./internal/engine/provenance/... ./internal/storage/schema/... ./internal/policy/alert/... 2>&1 | tail -20 &&
         echo '' &&
-        echo '=== Running v22 Unit Tests ===' &&
-        GOPROXY=https://goproxy.cn,direct go test -v -count=1 ./internal/stitcher/graphsketch/... ./internal/policy/v22/supplychain/... 2>&1 | tail -20 &&
+        echo '=== Running Supply-Chain Unit Tests ===' &&
+        GOPROXY=https://goproxy.cn,direct go test -v -count=1 ./internal/stitcher/graphsketch/... ./internal/policy/supplychain/... 2>&1 | tail -20 &&
         echo '' &&
         echo '=== Go Vet ===' &&
         GOPROXY=https://goproxy.cn,direct go vet ./internal/engine/... 2>&1 | head -10 &&
@@ -52,7 +52,7 @@ services:
     tty: true
     command: /bin/bash
 
-  # ─── Production deployment ────────────────────────────────
+  # Production-style local deployment
   providapt:
     build:
       context: .

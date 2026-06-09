@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package respond implements surgical response actions for ProvidAPT v2.1.
+// Package respond implements surgical response actions for ProvidAPT.
 //
 // Actions:
-//   1. Causal blocking — block high-risk process trees via eBPF LSM
-//   2. File quarantine — permission-lock files written by malicious processes
-//   3. Response policy — YAML-configured action rules
+//  1. Causal blocking 鈥-block high-risk process trees via eBPF LSM
+//  2. File quarantine 鈥-permission-lock files written by malicious processes
+//  3. Response policy 鈥-YAML-configured action rules
 package respond
 
 import (
@@ -15,18 +15,16 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Causal blocking — isolate process trees
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Causal blocking 鈥-isolate process trees
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // BlockLevel defines the isolation strictness.
 type BlockLevel int
 
 const (
-	BlockNone     BlockLevel = 0
-	BlockNetwork  BlockLevel = 1 // block network access only
+	BlockNone      BlockLevel = 0
+	BlockNetwork   BlockLevel = 1 // block network access only
 	BlockSensitive BlockLevel = 2 // block network + sensitive paths
-	BlockAll      BlockLevel = 3 // block all non-essential syscalls
+	BlockAll       BlockLevel = 3 // block all non-essential syscalls
 )
 
 func (bl BlockLevel) String() string {
@@ -59,7 +57,7 @@ type BlockedProcess struct {
 // programs read to decide whether to allow or deny operations.
 type CausalBlocker struct {
 	mu       sync.Mutex
-	blocked  map[uint32]*BlockedProcess // PID → block info
+	blocked  map[uint32]*BlockedProcess // PID 鈫-block info
 	children map[uint32]bool            // all PIDs in blocked trees
 }
 
@@ -104,7 +102,7 @@ func (cb *CausalBlocker) AddChild(parentPID, childPID uint32) {
 		cb.blocked[parentPID].Children = append(cb.blocked[parentPID].Children, childPID)
 
 		// In production: also write child PID to BPF map
-		log.Printf("[respond] child added: %d → %d", parentPID, childPID)
+		log.Printf("[respond] child added: %d 鈫-%d", parentPID, childPID)
 	}
 }
 

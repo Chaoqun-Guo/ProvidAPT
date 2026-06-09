@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0
- * ProvidAPT v2.1 — Container-aware eBPF enrichment
+ * ProvidAPT container-aware eBPF enrichment
  *
  * Captures:
  *   - Cgroup ID  via bpf_get_current_cgroup_id()
@@ -16,13 +16,13 @@
 
 char LICENSE[] SEC("license") = "GPL";
 
-/* ─── Ring buffer (shared with lsm_hooks) ─────────────── */
+/* Ring buffer shared with lsm_hooks */
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 1 << 22);
 } rb_container SEC(".maps");
 
-/* ─── Extended event with container context ────────────── */
+/* Extended event with container context */
 struct container_event {
     /* Standard fields */
     __u32 type;
@@ -36,12 +36,12 @@ struct container_event {
     __u8  comm[16];
     __u8  pathname[256];
 
-    /* v2.1 container enrichment */
+    /* container enrichment */
     __u64 cgroup_id;
     __u64 pid_namespace_id;
 };
 
-/* ─── pid_namespace helper ────────────────────────────── */
+/* pid namespace helper */
 static __always_inline __u64 get_pid_ns_id(void) {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     struct nsproxy *np = BPF_CORE_READ(task, nsproxy);
@@ -51,7 +51,7 @@ static __always_inline __u64 get_pid_ns_id(void) {
     return BPF_CORE_READ(pid_ns, ns.inum);
 }
 
-/* ─── file_open — enrich with cgroup info ─────────────── */
+/* file_open hook with container enrichment */
 SEC("lsm.s/file_open")
 int BPF_PROG(probe_container_file_open, struct file *file)
 {
@@ -68,7 +68,7 @@ int BPF_PROG(probe_container_file_open, struct file *file)
     e->tid = (__u32)bpf_get_current_pid_tgid();
     bpf_get_current_comm(&e->comm, sizeof(e->comm));
 
-    /* v2.1: container context */
+    /* container context */
     e->cgroup_id = bpf_get_current_cgroup_id();
     e->pid_namespace_id = get_pid_ns_id();
 
@@ -76,7 +76,7 @@ int BPF_PROG(probe_container_file_open, struct file *file)
     return 0;
 }
 
-/* ─── sched_process_fork — propagate container info ──── */
+/* sched_process_fork hook propagating container context */
 SEC("tracepoint/sched/sched_process_fork")
 int BPF_PROG(probe_container_fork, struct task_struct *parent,
              struct task_struct *child)
@@ -92,7 +92,7 @@ int BPF_PROG(probe_container_fork, struct task_struct *parent,
     e->ppid = BPF_CORE_READ(parent, pid);
     bpf_get_current_comm(&e->comm, sizeof(e->comm));
 
-    /* v2.1: container context inherited from parent */
+    /* container context inherited from parent */
     e->cgroup_id = bpf_get_current_cgroup_id();
     e->pid_namespace_id = get_pid_ns_id();
 

@@ -51,9 +51,11 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 			if !valid {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]string{
+				if err := json.NewEncoder(w).Encode(map[string]string{
 					"error": "unauthorized: missing or invalid API key",
-				})
+				}); err != nil {
+					log.Printf("[api] encode unauthorized response failed: %v", err)
+				}
 				return
 			}
 			role := normalizeRole(roles[key])
@@ -76,10 +78,12 @@ func authorizationMiddleware() func(http.Handler) http.Handler {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]string{
+			if err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "forbidden: insufficient role",
 				"role":  role,
-			})
+			}); err != nil {
+				log.Printf("[api] encode forbidden response failed: %v", err)
+			}
 		})
 	}
 }
@@ -251,9 +255,11 @@ func rateLimitMiddleware(rl *rateLimiter) func(http.Handler) http.Handler {
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "1")
 				w.WriteHeader(http.StatusTooManyRequests)
-				json.NewEncoder(w).Encode(map[string]string{
+				if err := json.NewEncoder(w).Encode(map[string]string{
 					"error": "rate limit exceeded",
-				})
+				}); err != nil {
+					log.Printf("[api] encode rate limit response failed: %v", err)
+				}
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -274,9 +280,11 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 				log.Printf("[api] PANIC recovered: %s %s: %v", r.Method, r.URL.Path, rec)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{
+				if err := json.NewEncoder(w).Encode(map[string]string{
 					"error": "internal server error",
-				})
+				}); err != nil {
+					log.Printf("[api] encode panic response failed: %v", err)
+				}
 			}
 		}()
 		next.ServeHTTP(w, r)

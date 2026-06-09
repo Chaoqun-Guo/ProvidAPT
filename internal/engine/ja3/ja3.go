@@ -1,7 +1,7 @@
-// Copyright (c) 2026 Chaoqun-Guo
+﻿// Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package ja3 implements TLS fingerprinting for ProvidAPT v2.2.
+// Package ja3 implements TLS fingerprinting for ProvidAPT.
 //
 // JA3 fingerprint identifies TLS client connections by the cipher
 // suites, extensions, and elliptic curves in the Client Hello message.
@@ -19,35 +19,33 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// TLS Client Hello parser
-// ═══════════════════════════════════════════════════════════════
-
+// JA3Record holds the computed JA3 fingerprint and metadata.
 // JA3Record holds the computed JA3 fingerprint and metadata.
 type JA3Record struct {
-	JA3          string `json:"ja3"`         // MD5 hash
-	JA3Text      string `json:"ja3_text"`     // raw text: ciphers+exts+curves+formats
-	CipherSuites string `json:"cipher_suites"`
-	Extensions   string `json:"extensions"`
-	EllipticCurves string `json:"elliptic_curves"`
-	ECFormats    string `json:"ec_formats"`
-	SourceHost   string `json:"source_host"`
-	PID          uint32 `json:"pid"`
-	Comm         string `json:"comm"`
-	DestIP       string `json:"dest_ip"`
-	DestPort     uint32 `json:"dest_port"`
-	Timestamp    time.Time `json:"timestamp"`
-	IsAtypical   bool   `json:"is_atypical"`
+	JA3            string    `json:"ja3"`      // MD5 hash
+	JA3Text        string    `json:"ja3_text"` // raw text: ciphers+exts+curves+formats
+	CipherSuites   string    `json:"cipher_suites"`
+	Extensions     string    `json:"extensions"`
+	EllipticCurves string    `json:"elliptic_curves"`
+	ECFormats      string    `json:"ec_formats"`
+	SourceHost     string    `json:"source_host"`
+	PID            uint32    `json:"pid"`
+	Comm           string    `json:"comm"`
+	DestIP         string    `json:"dest_ip"`
+	DestPort       uint32    `json:"dest_port"`
+	Timestamp      time.Time `json:"timestamp"`
+	IsAtypical     bool      `json:"is_atypical"`
 }
 
 // ParseClientHello parses a TLS Client Hello packet and computes
 // the JA3 fingerprint.  Input should start at the TLS record layer.
 //
 // TLS Record format:
-//   [0]    ContentType (22 = Handshake)
-//   [1-2]  Protocol Version
-//   [3-4]  Length
-//   [5+]   Handshake Message (Client Hello)
+//
+//	[0]    ContentType (22 = Handshake)
+//	[1-2]  Protocol Version
+//	[3-4]  Length
+//	[5+]   Handshake Message (Client Hello)
 func ParseClientHello(data []byte, srcHost string, pid uint32, comm string, destIP string, destPort uint32) *JA3Record {
 	if len(data) < 5 {
 		return nil
@@ -65,7 +63,7 @@ func ParseClientHello(data []byte, srcHost string, pid uint32, comm string, dest
 	}
 
 	// Skip to session ID length
-	pos := 43 // handshake(6) + version(2) + random(32) + sessionIDLength(1) + sessionID(?)
+	pos := 43 // handshake(6) + version(2) + random(32) + sessionIDLength(1) + sessionID(-)
 	if pos >= len(data) {
 		return nil
 	}
@@ -163,7 +161,7 @@ func parseEllipticCurves(data []byte) []string {
 	}
 	numCurves := int(binary.BigEndian.Uint16(data[:2]))
 	var curves []string
-		for i := 2; i+1 < numCurves+2 && i < len(data); i += 2 {
+	for i := 2; i+1 < numCurves+2 && i < len(data); i += 2 {
 		id := int(binary.BigEndian.Uint16(data[i:]))
 		curves = append(curves, fmt.Sprintf("%d", id))
 	}
@@ -184,10 +182,14 @@ func parseECFormats(data []byte) []string {
 
 // String returns a short JA3 fingerprint summary.
 func (j *JA3Record) String() string {
-	return fmt.Sprintf("JA3=%s %s→%s:%d (%s PID %d)", j.JA3[:16], j.SourceHost, j.DestIP, j.DestPort, j.Comm, j.PID)
+	ja3Short := j.JA3
+	if len(ja3Short) > 16 {
+		ja3Short = ja3Short[:16]
+	}
+	return fmt.Sprintf("JA3=%s %s -> %s:%d (%s PID %d)", ja3Short, j.SourceHost, j.DestIP, j.DestPort, j.Comm, j.PID)
 }
 
-// ─── Known JA3 fingerprints (for atypical detection) ────────
+// Known JA3 fingerprints for atypical-traffic detection.
 
 // CommonJA3 hashes for known software.
 var CommonJA3 = map[string]string{
@@ -204,10 +206,6 @@ func IsAtypicalJA3(ja3 string) bool {
 	_, known := CommonJA3[ja3]
 	return !known
 }
-
-// ═══════════════════════════════════════════════════════════════
-// JA3 store
-// ═══════════════════════════════════════════════════════════════
 
 // JA3Store maintains JA3 fingerprints for this agent.
 type JA3Store struct {

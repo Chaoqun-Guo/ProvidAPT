@@ -1,0 +1,15 @@
+# Local evaluation configuration for ProvidAPT
+
+output_dir = "/var/log/providapt"
+api_rest = ":8080"
+log_level = "info"
+
+[storage]
+path = "/var/lib/providapt/store"
+
+[support]
+redact_archives = true
+retain_archives = 5
+
+[telemetry]
+enabled = true

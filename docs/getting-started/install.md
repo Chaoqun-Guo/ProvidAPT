@@ -63,7 +63,7 @@ CONFIG_CGROUPS=y
 ```bash
 # Check kernel version
 uname -r
-# ≥ 5.11.0
+# 鈮-5.11.0
 
 # Check BTF availability
 ls -la /sys/kernel/btf/vmlinux
@@ -199,10 +199,10 @@ bash build/verify.sh
 make ebpf
 
 # Output files in build/ebpf/:
-#   lsm_hooks.bpf.o     — Core LSM hooks
-#   defense.bpf.o       — Self-defence mechanisms
-#   memory.bpf.o        — Memory attack detection
-#   network.bpf.o       — Enhanced network events
+#   lsm_hooks.bpf.o     鈥-Core LSM hooks
+#   defense.bpf.o       鈥-Self-defence mechanisms
+#   memory.bpf.o        鈥-Memory attack detection
+#   network.bpf.o       鈥-Enhanced network events
 ```
 
 Loader behavior:
@@ -226,12 +226,12 @@ sudo -E providaptd -config /etc/providapt/providapt.toml
 make userspace
 
 # Output binaries in build/bin/:
-#   providaptd           — Main daemon
-#   providaptctl         — Control CLI
-#   providapt-watchdog   — Watchdog process
-#   providapt-verify     — Data integrity verifier
-#   providapt-deanon     — De-anonymization tool
-#   providapt-heal       — Self-healing tool
+#   providaptd           鈥-Main daemon
+#   providaptctl         鈥-Control CLI
+#   providapt-watchdog   鈥-Watchdog process
+#   providapt-verify     鈥-Data integrity verifier
+#   providapt-deanon     鈥-De-anonymization tool
+#   providapt-heal       鈥-Self-healing tool
 ```
 
 ### 3.5 Full Build
@@ -498,7 +498,7 @@ Storage optimisation features:
 - **RocksDB WriteBatch**: 200 ops per commit (reduces IOPS by 200x)
 - **Sliding-window merge**: 5-second dedup window (reduces edges ~40%)
 - **Causality-preserving reduction**: Merges intermediate nodes
-- **Cold data tiering**: RocksDB → Parquet → S3 lifecycle
+- **Cold data tiering**: RocksDB 鈫-Parquet 鈫-S3 lifecycle
 
 ### 6.3 Benchmarking
 
@@ -524,7 +524,7 @@ go run test/kernel-test/stress_test.go
 # Check kernel version (need 5.10+)
 uname -r
 
-# Install BTF manually (if kernel ≥ 5.10 but BTF missing)
+# Install BTF manually (if kernel 鈮-5.10 but BTF missing)
 sudo apt-get install -y dwarves
 sudo pahole -J /lib/modules/$(uname -r)/vmlinux 2>/dev/null || true
 
@@ -573,7 +573,7 @@ sudo setcap cap_bpf,cap_sys_admin,cap_net_admin=ep /usr/local/sbin/providaptd
 
 ```bash
 # Build the object locally
-make v1-ebpf
+make build-ebpf
 
 # Or point the loader at an existing object
 export PROVIDAPT_BPF_OBJECT_PATH=/path/to/lsm_hooks.bpf.o
@@ -701,7 +701,7 @@ ProvidAPT also exposes support bundle operations from the control plane:
 - `POST /api/v1/control/support` exports a fresh support bundle
 - `GET /api/v1/control/support` returns latest bundle/archive metadata
 - `GET /api/v1/control/support/download` downloads the latest redacted zip archive
-- `GET /api/v1/control/audit?category=admin&source=supportbundle&limit=20` queries persisted support bundle audit records
+- `GET /api/v1/control/audit-category=admin&source=supportbundle&limit=20` queries persisted support bundle audit records
 
 Useful environment variables:
 
@@ -760,27 +760,27 @@ Recommended operator flow:
 
 ```
 ProvidAPT/
-├── kernel/                    # eBPF kernel programs
-│   ├── bpf/
-│   │   ├── lsm_hooks.bpf.c   # Core LSM hooks
-│   │   ├── defense.bpf.c     # Self-defence
-│   │   ├── memory.bpf.c      # Memory attack detection
-│   │   └── network.bpf.c     # Enhanced network events
-│   └── include/
-│       ├── providapt.h        # Shared definitions
-│       └── taint.h           # Taint flags
-├── cmd/                         # Go binaries
-│   ├── agent/                   # Daemon and watchdog
-│   ├── cli/                     # CLI tools
-│   ├── collector/               # Distributed collector
-│   └── bpf/                     # eBPF C programs
-├── internal/                    # Core libraries
-│   ├── engine/                  # Provenance engine
-│   ├── storage/                 # Storage layer
-│   ├── stitcher/                # Cross-host stitching
-│   └── policy/                  # Policy engine
-├── pkg/                         # Public libraries
-└── test/                      # Test suites
+鈹溾攢鈹€ kernel/                    # eBPF kernel programs
+鈹-  鈹溾攢鈹€ bpf/
+鈹-  鈹-  鈹溾攢鈹€ lsm_hooks.bpf.c   # Core LSM hooks
+鈹-  鈹-  鈹溾攢鈹€ defense.bpf.c     # Self-defence
+鈹-  鈹-  鈹溾攢鈹€ memory.bpf.c      # Memory attack detection
+鈹-  鈹-  鈹斺攢鈹€ network.bpf.c     # Enhanced network events
+鈹-  鈹斺攢鈹€ include/
+鈹-      鈹溾攢鈹€ providapt.h        # Shared definitions
+鈹-      鈹斺攢鈹€ taint.h           # Taint flags
+鈹溾攢鈹€ cmd/                         # Go binaries
+鈹-  鈹溾攢鈹€ agent/                   # Daemon and watchdog
+鈹-  鈹溾攢鈹€ cli/                     # CLI tools
+鈹-  鈹溾攢鈹€ collector/               # Distributed collector
+鈹-  鈹斺攢鈹€ bpf/                     # eBPF C programs
+鈹溾攢鈹€ internal/                    # Core libraries
+鈹-  鈹溾攢鈹€ engine/                  # Provenance engine
+鈹-  鈹溾攢鈹€ storage/                 # Storage layer
+鈹-  鈹溾攢鈹€ stitcher/                # Cross-host stitching
+鈹-  鈹斺攢鈹€ policy/                  # Policy engine
+鈹溾攢鈹€ pkg/                         # Public libraries
+鈹斺攢鈹€ test/                      # Test suites
 ```
 
 ## Appendix B: Quick Start (TL;DR)

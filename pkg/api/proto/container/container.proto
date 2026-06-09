@@ -1,7 +1,7 @@
-// ProvidAPT v2.1 — Container-aware provenance data model
+// ProvidAPT 鈥-Container-aware provenance data model
 syntax = "proto3";
 package providapt;
-option go_package = "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/v21";
+option go_package = "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/container";
 
 // ContainerInfo is attached to every process node to provide
 // container context for provenance tracing.

@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Test helpers ────────────────────────────────────────────
 
-func testGraph(t *testing.T) *provenance.Graph {
+func testGraph() *provenance.Graph {
 	g := provenance.NewGraph()
 	// Web server compromise: nginx forks child, child downloads evil.sh
 	g.AddEvent(&collector.Event{
@@ -47,7 +47,7 @@ func testGraph(t *testing.T) *provenance.Graph {
 // ── Serialization tests ─────────────────────────────────────
 
 func TestSerializeGraph(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	llmGraph := SerializeGraph(g.Nodes(), g.Edges(), &AlertInfo{
 		AlertID: "test-001", Score: 85, Severity: "HIGH",
 	})
@@ -65,7 +65,7 @@ func TestSerializeGraph(t *testing.T) {
 }
 
 func TestSerializeGraphToJSON(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	llmGraph := SerializeGraph(g.Nodes(), g.Edges(), nil)
 	jsonStr, err := llmGraph.ToJSON()
 	if err != nil {
@@ -80,7 +80,7 @@ func TestSerializeGraphToJSON(t *testing.T) {
 }
 
 func TestShortText(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	llmGraph := SerializeGraph(g.Nodes(), g.Edges(), nil)
 	text := llmGraph.ShortText()
 	if !strings.Contains(text, "process") {
@@ -193,7 +193,7 @@ func TestNewQAEngine(t *testing.T) {
 }
 
 func TestQAWithoutLLM(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	qa := NewQAEngine(g, nil)
 
 	answer := qa.AnswerWithoutLLM("what files did bash modify?")
@@ -203,7 +203,7 @@ func TestQAWithoutLLM(t *testing.T) {
 }
 
 func TestQAWithoutLLMNetwork(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	qa := NewQAEngine(g, nil)
 
 	answer := qa.AnswerWithoutLLM("how did the process connect to the network?")
@@ -237,12 +237,12 @@ func TestExtractPID(t *testing.T) {
 // ── Integration test ────────────────────────────────────────
 
 func TestAIIntegration(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 
 	// Serialize
 	llmGraph := SerializeGraph(g.Nodes(), g.Edges(), &AlertInfo{
-		AlertID: "INTEGRATION-TEST",
-		Score:   75,
+		AlertID:  "INTEGRATION-TEST",
+		Score:    75,
 		Severity: "HIGH",
 	})
 	jsonStr, _ := llmGraph.ToJSON()

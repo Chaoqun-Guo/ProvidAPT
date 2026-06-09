@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# loader_smoke.sh — Linux runtime smoke test for the real eBPF loader.
+# loader_smoke.sh 鈥-Linux runtime smoke test for the real eBPF loader.
 #
 # Verifies:
 #   1. precompiled lsm_hooks.bpf.o can be built
@@ -41,7 +41,7 @@ done
 cd "$PROJECT_ROOT"
 
 echo "[1/5] Building eBPF objects"
-make v1-ebpf >/dev/null
+make build-ebpf >/dev/null
 
 OBJECT_PATH="$PROJECT_ROOT/build/ebpf/lsm_hooks.bpf.o"
 if [[ ! -f "$OBJECT_PATH" ]]; then
@@ -95,7 +95,7 @@ echo "[3/5] Running daemon with object-path override"
 set +e
 PROVIDAPT_BPF_OBJECT_PATH="$OBJECT_PATH" \
 timeout --signal=INT 12s "$BIN_FILE" -config "$CONFIG_FILE" >"$LOG_FILE" 2>&1
-status=$?
+status=$-
 set -e
 
 echo "[4/5] Inspecting loader result"

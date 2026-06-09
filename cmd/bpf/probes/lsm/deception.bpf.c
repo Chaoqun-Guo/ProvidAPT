@@ -3,34 +3,15 @@
  * ProvidAPT Deception eBPF Program
  *
  * Active defense through honeytoken deception:
- *   1. Intercept getdents64 → inject fake honeytoken file entries
+ *   1. Intercept getdents64 鈫-inject fake honeytoken file entries
  *      into directory listings (the files don't exist on disk).
- *   2. Intercept openat/statx → detect access to honeytoken paths
+ *   2. Intercept openat/statx 鈫-detect access to honeytoken paths
  *      and mark the process as confirmed malicious.
  *   3. Emit trigger events to userspace for cgroup freezer action.
  *
  * Architecture:
- *   ┌─────────────────┐    ┌──────────────────┐
- *   │  sys_enter_     │    │  sys_exit_       │
- *   │  getdents64     │    │  getdents64      │
- *   │  (record dir fd)│    │  (inject phantoms)│
- *   └────────┬────────┘    └────────┬─────────┘
- *            │                      │
- *            ▼                      ▼
- *   ┌──────────────────────────────────────────┐
- *   │         honeytoken_map (hash)            │
- *   │  path_hash → {flags, trigger_pid, time}  │
- *   └────────────────┬─────────────────────────┘
- *                    │
- *          ┌─────────▼──────────┐
- *          │  sys_enter_openat  │
- *          │  (match path arg)  │
- *          └─────────┬──────────┘
- *                    │
- *          ┌─────────▼──────────┐
- *          │  rb_defense ringbuf│──→ userspace → cgroup freeze
- *          └────────────────────┘
- * ============================================================ */
+ *   鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹-   鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- *   鈹- sys_enter_     鈹-   鈹- sys_exit_       鈹- *   鈹- getdents64     鈹-   鈹- getdents64      鈹- *   鈹- (record dir fd)鈹-   鈹- (inject phantoms)鈹- *   鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹-   鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- *            鈹-                     鈹- *            鈻-                     鈻- *   鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- *   鈹-        honeytoken_map (hash)            鈹- *   鈹- path_hash 鈫-{flags, trigger_pid, time}  鈹- *   鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- *                    鈹- *          鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻尖攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- *          鈹- sys_enter_openat  鈹- *          鈹- (match path arg)  鈹- *          鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- *                    鈹- *          鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻尖攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- *          鈹- rb_defense ringbuf鈹傗攢鈹€鈫-userspace 鈫-cgroup freeze
+ *          鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹- * ============================================================ */
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -40,7 +21,7 @@
 
 char __license[] SEC("license") = "GPL";
 
-/* ─── Maps ───────────────────────────────────────────────────── */
+/* 鈹€鈹€鈹€ Maps 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 /* Honeytoken path registration map.
  * Key:   FNV-1a hash of the full honeytoken path.
@@ -53,7 +34,7 @@ struct {
 	__type(value, struct honeytoken_val);
 } honeytoken_map SEC(".maps");
 
-/* Directory watch map: inode → flags for directories where
+/* Directory watch map: inode 鈫-flags for directories where
  * honeytoken files should be injected into getdents64 output. */
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -62,7 +43,7 @@ struct {
 	__type(value, __u32);       /* flags */
 } watch_dir_map SEC(".maps");
 
-/* Track getdents64 in-flight: PID → directory fd.
+/* Track getdents64 in-flight: PID 鈫-directory fd.
  * Cleared on sys_exit. */
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -71,7 +52,7 @@ struct {
 	__type(value, __u32);       /* directory fd */
 } getdents_tracker SEC(".maps");
 
-/* ─── Helper: compute FNV-1a hash of a path ────────────────── */
+/* 鈹€鈹€鈹€ Helper: compute FNV-1a hash of a path 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 
 static __always_inline __u32 hash_path(const char *path, __u32 max_len) {
 	__u32 hash = 2166136261U;
@@ -86,7 +67,7 @@ static __always_inline __u32 hash_path(const char *path, __u32 max_len) {
 	return hash;
 }
 
-/* ─── SEC(hook): sys_enter_getdents64 ────────────────────────
+/* 鈹€鈹€鈹€ SEC(hook): sys_enter_getdents64 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
  * Record the directory fd so sys_exit can check if this is a
  * watched directory. */
 SEC("tp/syscalls/sys_enter_getdents64")
@@ -99,7 +80,7 @@ int probe_enter_getdents64(struct trace_event_raw_sys_enter *ctx)
 	return 0;
 }
 
-/* ─── SEC(hook): sys_exit_getdents64 ─────────────────────────
+/* 鈹€鈹€鈹€ SEC(hook): sys_exit_getdents64 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
  * On return, check if the directory fd matches a watched dir.
  * If so, inject a fake 'backup_credentials.xml' entry into the
  * output buffer so it appears in `ls -la` output but doesn't
@@ -125,13 +106,13 @@ int probe_exit_getdents64(struct trace_event_raw_sys_exit *ctx)
 	if (!fd_ptr)
 		return 0;
 
-	/* We'd need to resolve fd → inode to check watch_dir_map here.
+	/* We'd need to resolve fd 鈫-inode to check watch_dir_map here.
 	 * In practice, this requires a kprobe on do_sys_open or fd/file
 	 * lookup helpers. For this framework, the userspace overlay
 	 * approach handles directory listing injection. The eBPF hook
 	 * primarily serves as a detection mechanism.
 	 *
-	 * See userspace: v2.2/deception/honeytoken.go (OverlayManager)
+	 * See userspace: internal/policy/deception/honeytoken.go (OverlayManager)
 	 * for the practical getdents injection via overlayfs mounts.
 	 */
 
@@ -143,7 +124,7 @@ cleanup:
 	return 0;
 }
 
-/* ─── SEC(hook): sys_enter_openat ────────────────────────────
+/* 鈹€鈹€鈹€ SEC(hook): sys_enter_openat 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
  * Intercept openat syscall to detect processes accessing
  * honeytoken files. When a match is found:
  *   1. Set HONEYPOT_TRIGGERED flag in honeytoken_map.
@@ -167,7 +148,7 @@ int probe_enter_openat(struct trace_event_raw_sys_enter *ctx)
 	if (!val)
 		return 0;
 
-	/* ── HONEYPOT TRIGGERED ── */
+	/* 鈹€鈹€ HONEYPOT TRIGGERED 鈹€鈹€ */
 	/* A process is accessing a honeytoken file. Mark it malicious. */
 
 	/* Update honeytoken_map with trigger info. */
@@ -180,7 +161,7 @@ int probe_enter_openat(struct trace_event_raw_sys_enter *ctx)
 
 	/* Set taint flag on this process.
 	 * Reuses taint_map from lsm_hooks.bpf.c (shared via BPF FS pin).
-	 * TAINT_HONEYPOT = (1 << 5) — defined in taint.h. */
+	 * TAINT_HONEYPOT = (1 << 5) 鈥-defined in taint.h. */
 	__u32 taint_flag = TAINT_HONEYPOT;
 	__u32 *existing = bpf_map_lookup_elem(&taint_map, &pid);
 	__u32 flags = taint_flag;
@@ -209,7 +190,7 @@ int probe_enter_openat(struct trace_event_raw_sys_enter *ctx)
 	return 0;
 }
 
-/* ─── SEC(hook): sys_enter_statx ─────────────────────────────
+/* 鈹€鈹€鈹€ SEC(hook): sys_enter_statx 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
  * Intercept statx to detect processes that stat honeytoken
  * files (e.g., file managers, find, test -f). On match,
  * same flow as openat: taint + emit trigger event.
@@ -231,7 +212,7 @@ int probe_enter_statx(struct trace_event_raw_sys_enter *ctx)
 	if (!val)
 		return 0;
 
-	/* ── HONEYPOT TRIGGERED via stat ── */
+	/* 鈹€鈹€ HONEYPOT TRIGGERED via stat 鈹€鈹€ */
 	struct honeytoken_val new_val = {
 		.flags       = val->flags | HONEYPOT_TRIGGERED,
 		.pid         = pid,
@@ -264,7 +245,7 @@ int probe_enter_statx(struct trace_event_raw_sys_enter *ctx)
 	return 0;
 }
 
-/* ─── SEC(hook): sys_enter_newfstatat ────────────────────────
+/* 鈹€鈹€鈹€ SEC(hook): sys_enter_newfstatat 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
  * Same as statx but for the newfstatat syscall (used by `ls` on
  * some kernel versions). */
 SEC("tp/syscalls/sys_enter_newfstatat")

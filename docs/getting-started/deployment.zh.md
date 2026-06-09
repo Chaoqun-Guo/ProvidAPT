@@ -1,4 +1,4 @@
-﻿# 部署指南
+# 部署指南
 
 **单机部署 & Kubernetes** | 环境准备、安装步骤、分布式配置
 
@@ -50,10 +50,10 @@ git clone https://github.com/Chaoqun-Guo/ProvidAPT
 cd ProvidAPT
 
 # 完整构建（eBPF + 用户空间）
-make v1
+make build-core
 
 # 安装到系统
-sudo make v1-install
+sudo make install-local
 ```
 
 补充说明：
