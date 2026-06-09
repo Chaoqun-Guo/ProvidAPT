@@ -1,7 +1,7 @@
 ﻿# ProvidAPT Development Progress
 
 Date: 2026-06-09
-Release Target: `v1.2.1`
+Release Target: `v1.2.2`
 Module Path: `github.com/Chaoqun-Guo/ProvidAPT`
 Go Version: `1.25`
 

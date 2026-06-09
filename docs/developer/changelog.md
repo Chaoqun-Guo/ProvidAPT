@@ -2,6 +2,23 @@
 
 This file records engineering-facing milestones for the current maintained release line.
 
+## v1.2.2 (2026-06-09)
+
+### Release Engineering
+
+- Fixed `golangci-lint` workflow `unknown flag: --fix` by upgrading from `v2.0` to `v2.12.2`
+- Fixed Go version drift in `ci.yml` (was `"1.22"`, now `"1.25"` to match other workflows)
+- Upgraded `anchore/sbom-action` from `@v0` to `@v1` for Node 24 compatibility
+- Added `.editorconfig`, `.gitattributes`, and `scripts/verify-utf8.py` for encoding hygiene
+- Added `examples/` directory with API client, config, ProvQL, and support-bundle walkthroughs
+- Cleaned up stale local test cache directories (`.tmp-*`)
+
+### Validation
+
+- Local `golangci-lint` passes with `0 issues` on release-scoped packages
+- `go test ./...` passes locally
+- `python scripts/verify-utf8.py` passes
+
 ## v1.2.1 (2026-06-09)
 
 ### Product and Operations

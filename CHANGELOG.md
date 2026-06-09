@@ -2,6 +2,41 @@
 
 All notable changes to ProvidAPT are documented here.
 
+## v1.2.2 (2026-06-09)
+
+### Fixed
+
+- Fixed `golangci-lint` workflow failure by upgrading from `v2.0` to `v2.12.2` in
+  `.github/workflows/lint.yml`, resolving the `unknown flag: --fix` regression
+  introduced by golangci-lint v2 API changes
+- Fixed Go version inconsistency in `ci.yml` — `GO_VERSION` now matches across
+  all workflows (`"1.25"`)
+- Upgraded `anchore/sbom-action` from `@v0` to `@v1` for Node 24 compatibility
+  in the release pipeline
+
+### Added
+
+- Added `.editorconfig` for consistent editor settings across the project
+- Added `.gitattributes` for consistent line-ending handling (LF for sources,
+  binary markers for images/archives)
+- Added `scripts/verify-utf8.py` for automated UTF-8 encoding verification
+- Added `docs/project/encoding-policy.md` documenting the project's encoding
+  conventions
+- Added `examples/` directory with usage examples:
+  - `examples/README.md`
+  - `examples/client-status/main.go` — API client example
+  - `examples/config/providapt.local.toml` — annotated local config
+  - `examples/provql/queries.sql` — example Provenance Query Language queries
+  - `examples/supportbundle-api/README.md` — support bundle API walkthrough
+
+### Changed
+
+- Expanded and reorganized project documentation with clearer release-scoped
+  sections
+- Formatted `internal/policy/mgmt/server.go` to resolve code style issues
+- Updated `DEVELOPMENT_PROGRESS.md` to reflect current project state and
+  release target
+
 ## v1.2.1 (2026-06-09)
 
 ### Added

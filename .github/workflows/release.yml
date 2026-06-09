@@ -40,7 +40,7 @@ jobs:
           sudo apt-get install -y -qq clang llvm libbpf-dev
 
       - name: Install Syft (SBOM)
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v1
         with:
           syft-version: latest
 
