@@ -3,6 +3,7 @@
 #
 # Usage:
 #   golangci-lint run ./...
+#   golangci-lint run --config .golangci.yml ./pkg/...
 
 version: "2"
 
@@ -38,9 +39,6 @@ linters:
     - unparam
   disable:
     - lll  # long lines (too noisy)
-  presets:
-    - bugs
-    - performance
   exclusions:
     rules:
       - path: _test\.go
@@ -62,20 +60,20 @@ linters:
       - text: "SA1019"
         linters:
           - staticcheck
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 30
 
 formatters:
   enable:
     - gofmt
     - goimports
 
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  misspell:
-    locale: US
-  nakedret:
-    max-func-lines: 30
 issues:
   max-issues-per-linter: 50
   max-same-issues: 10
