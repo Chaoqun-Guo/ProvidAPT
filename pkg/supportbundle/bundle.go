@@ -23,7 +23,7 @@ var bundleDir = "/var/log/providapt/support-bundle"
 // re-panicking. Use as: defer supportbundle.HandleCrash()
 func HandleCrash() {
 	if r := recover(); r != nil {
-		_, _ = Capture(fmt.Sprintf("panic: %v", r))
+		_, _ = Capture(fmt.Sprintf("panic: %v", r)) //nolint:errcheck
 		panic(r)
 	}
 }

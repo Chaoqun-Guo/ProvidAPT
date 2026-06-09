@@ -12,6 +12,7 @@ on:
 env:
   GO_VERSION: "1.25.0"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  GOWORK: "off"
 
 jobs:
   golangci:
@@ -27,6 +28,9 @@ jobs:
           cache-dependency-path: |
             go.mod
             go.sum
+
+      - name: Download Go modules
+        run: go mod download
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9

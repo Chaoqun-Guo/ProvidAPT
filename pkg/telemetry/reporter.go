@@ -103,13 +103,13 @@ func (r *Reporter) loop(ctx context.Context) {
 	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
 
-	_ = r.ReportNow()
+	_ = r.ReportNow() //nolint:errcheck
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_ = r.ReportNow()
+			_ = r.ReportNow() //nolint:errcheck
 		}
 	}
 }
