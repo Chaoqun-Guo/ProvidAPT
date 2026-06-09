@@ -29,8 +29,9 @@ jobs:
             go.mod
             go.sum
 
-      - name: Download Go modules
-        run: go mod download
+      # golangci-lint-action@v9 handles go mod download internally.
+      # Explicit go mod download with GOTOOLCHAIN=local can fail on
+      # Go 1.25 when no toolchain directive is in go.mod.
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
