@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/secure"
 )
 
 type contextKey string
@@ -43,7 +45,7 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 			}
 			valid := false
 			for _, k := range keys {
-				if key == k {
+				if secure.ConstantTimeCompare(key, k) {
 					valid = true
 					break
 				}

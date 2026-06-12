@@ -4,8 +4,11 @@
 package ml
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 )
 
@@ -55,6 +58,24 @@ func NewIsolationForest(nTrees, sampleSize int) *IsolationForest {
 		HeightMax:  int(math.Ceil(math.Log2(float64(sampleSize)))),
 		rng:        rand.New(rand.NewSource(42)), // fixed seed for repro
 	}
+}
+
+// Save serializes the forest to a JSON file.
+func (f *IsolationForest) Save(path string) error {
+	data, err := json.Marshal(f.Trees)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+// Load deserializes the forest from a JSON file.
+func (f *IsolationForest) Load(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, &f.Trees)
 }
 
 // Train builds the forest from training samples.
@@ -203,6 +224,36 @@ type StatisticalDetector struct {
 	stds  [NumFeatures]float64
 }
 
+// Save serializes the statistical detector to a JSON file.
+func (sd *StatisticalDetector) Save(path string) error {
+	data, err := json.Marshal(struct {
+		Means [NumFeatures]float64
+		Stds  [NumFeatures]float64
+	}{sd.means, sd.stds})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+// Load deserializes the statistical detector from a JSON file.
+func (sd *StatisticalDetector) Load(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var state struct {
+		Means [NumFeatures]float64
+		Stds  [NumFeatures]float64
+	}
+	if err := json.Unmarshal(data, &state); err != nil {
+		return err
+	}
+	sd.means = state.Means
+	sd.stds = state.Stds
+	return nil
+}
+
 // Train computes mean and std for each feature.
 func (sd *StatisticalDetector) Train(samples []FeatureVector) error {
 	if len(samples) == 0 {
@@ -258,6 +309,8 @@ func (sd *StatisticalDetector) Predict(vec FeatureVector) float64 {
 type AnomalyDetector interface {
 	Train(samples []FeatureVector) error
 	Predict(vec FeatureVector) (score float64)
+	Save(path string) error
+	Load(path string) error
 }
 
 // ── EnsembleDetector combines multiple detectors ───────────
@@ -286,6 +339,27 @@ func (ed *EnsembleDetector) Predict(vec FeatureVector) float64 {
 		total += d.Predict(vec)
 	}
 	return total / float64(len(ed.detectors))
+}
+
+func (ed *EnsembleDetector) Save(path string) error {
+	// Ensemble saves each detector to path.N where N is the index.
+	for i, d := range ed.detectors {
+		p := fmt.Sprintf("%s.%d", path, i)
+		if err := d.Save(p); err != nil {
+			return fmt.Errorf("save detector %d: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func (ed *EnsembleDetector) Load(path string) error {
+	for i, d := range ed.detectors {
+		p := fmt.Sprintf("%s.%d", path, i)
+		if err := d.Load(p); err != nil {
+			return fmt.Errorf("load detector %d: %w", i, err)
+		}
+	}
+	return nil
 }
 
 // ═══════════════════════════════════════════════════════════════

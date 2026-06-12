@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -77,6 +78,12 @@ func NewFreezer(cfg *Config) *Freezer {
 func (f *Freezer) Freeze(trigger *HoneypotTrigger) (*FreezeRecord, error) {
 	if trigger == nil {
 		return nil, fmt.Errorf("nil trigger")
+	}
+
+	// cgroup v2 is Linux-only — return a clear error on other platforms
+	// to prevent accidental directory creation (e.g. C:\sys\fs\cgroup on Windows).
+	if runtime.GOOS != "linux" {
+		return nil, fmt.Errorf("cgroup freezer is not supported on %s", runtime.GOOS)
 	}
 
 	pid := int(trigger.PID)

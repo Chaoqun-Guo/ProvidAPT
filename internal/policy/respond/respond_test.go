@@ -11,14 +11,14 @@ import (
 // ─── Causal blocking tests ──────────────────────────────────
 
 func TestNewCausalBlocker(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	if cb == nil {
 		t.Fatal("NewCausalBlocker returned nil")
 	}
 }
 
 func TestBlockProcess(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	bp := cb.BlockProcess(100, "curl", BlockNetwork)
 
 	if bp.PID != 100 {
@@ -33,7 +33,7 @@ func TestBlockProcess(t *testing.T) {
 }
 
 func TestAddChild(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	cb.BlockProcess(100, "bash", BlockAll)
 	cb.AddChild(100, 200)
 
@@ -43,7 +43,7 @@ func TestAddChild(t *testing.T) {
 }
 
 func TestIsBlocked(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	cb.BlockProcess(100, "python", BlockAll)
 
 	if !cb.IsBlocked(100) {
@@ -55,7 +55,7 @@ func TestIsBlocked(t *testing.T) {
 }
 
 func TestBlockLevel(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	cb.BlockProcess(100, "curl", BlockNetwork)
 	cb.BlockProcess(200, "bash", BlockAll)
 
@@ -68,7 +68,7 @@ func TestBlockLevel(t *testing.T) {
 }
 
 func TestUnblockProcess(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	cb.BlockProcess(100, "bash", BlockAll)
 	cb.AddChild(100, 200)
 	cb.UnblockProcess(100)
@@ -91,7 +91,7 @@ func TestBlockLevelString(t *testing.T) {
 }
 
 func TestStats(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	cb.BlockProcess(100, "bash", BlockAll)
 	cb.AddChild(100, 200)
 
@@ -198,7 +198,7 @@ func TestEvaluateMemfd(t *testing.T) {
 }
 
 func TestExecuteResponse(t *testing.T) {
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	fqm := NewFileQuarantineManager("", true)
 
 	rule := ResponseRule{
@@ -233,7 +233,7 @@ func TestRespondIntegration(t *testing.T) {
 	}
 
 	// 3. Execute responses
-	cb := NewCausalBlocker()
+	cb := NewCausalBlocker("")
 	fqm := NewFileQuarantineManager("", true)
 
 	for _, rule := range matches {

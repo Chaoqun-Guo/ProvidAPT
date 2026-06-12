@@ -44,11 +44,5 @@
       GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
       GF_INSTALL_PLUGINS: grafana-piechart-panel
 
-- name: Deploy Prometheus alerting rules
-  ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../helm/providapt/files/providapt_alerts.yml"
-    dest: /etc/prometheus/providapt_alerts.yml
-    owner: root
-    group: root
-    mode: "0644"
-  when: false  # Adjust path as needed
+# TODO: Implement Prometheus alerting rule deployment
+# See deploy/helm/providapt/ for alert rule templates

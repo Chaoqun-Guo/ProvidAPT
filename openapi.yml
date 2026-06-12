@@ -240,6 +240,148 @@ paths:
               schema:
                 type: string
 
+  /ready:
+    get:
+      summary: Readiness probe
+      description: Returns 200 when the daemon is ready to serve traffic
+      operationId: getReady
+      responses:
+        "200":
+          description: Ready
+
+  /api/v1/control/overview:
+    get:
+      summary: Cluster overview
+      description: Returns cluster-wide health and agent group aggregation
+      operationId: getClusterOverview
+      responses:
+        "200":
+          description: Cluster overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterOverview"
+
+  /api/v1/control/fleet:
+    get:
+      summary: Fleet management
+      description: List and manage fleet of agents by group/tag
+      operationId: getFleet
+      parameters:
+        - name: group
+          in: query
+          schema:
+            type: string
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fleet list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetList"
+
+  /api/v1/control/support:
+    get:
+      summary: Support bundles
+      description: List generated support bundles
+      operationId: getSupportBundles
+      responses:
+        "200":
+          description: Support bundle summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportBundleSummary"
+
+  /api/v1/control/support/download:
+    get:
+      summary: Download support bundle
+      description: Download the latest support bundle archive
+      operationId: downloadSupportBundle
+      responses:
+        "200":
+          description: Binary support bundle archive
+
+  /api/v1/control/audit:
+    get:
+      summary: Audit log
+      description: List control-plane audit trail entries
+      operationId: getAuditLog
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Audit feed
+
+  /api/v1/control/license:
+    get:
+      summary: License status
+      description: Returns current license information and history
+      operationId: getLicenseStatus
+      responses:
+        "200":
+          description: License status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseStatus"
+
+  /api/v1/control/upgrade:
+    get:
+      summary: Upgrade readiness
+      description: Check upgrade readiness and current version
+      operationId: getUpgradeReadiness
+      responses:
+        "200":
+          description: Upgrade readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpgradeReadiness"
+
+  /api/v1/control/policies:
+    get:
+      summary: Policy center
+      description: List and manage detection/response policies
+      operationId: getPolicies
+      responses:
+        "200":
+          description: Policy center data
+
+  /api/v1/control/alerts:
+    get:
+      summary: Alert workflow
+      description: Manage alert workflow (triage, assign, resolve)
+      operationId: getAlertWorkflow
+      responses:
+        "200":
+          description: Alert workflow items
+
+  /api/v1/control/deliveries:
+    get:
+      summary: Notifications and deliveries
+      description: View and manage notification channel delivery status
+      operationId: getDeliveries
+      responses:
+        "200":
+          description: Notification delivery center
+
 components:
   schemas:
     HealthStatus:
@@ -300,3 +442,92 @@ components:
               type: string
             class:
               type: string
+
+    ClusterOverview:
+      type: object
+      properties:
+        updated_at:
+          type: string
+          format: date-time
+        total_agents:
+          type: integer
+        healthy_agents:
+          type: integer
+        degraded_agents:
+          type: integer
+        agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClusterAgent"
+
+    ClusterAgent:
+      type: object
+      properties:
+        id:
+          type: string
+        hostname:
+          type: string
+        status:
+          type: string
+        version:
+          type: string
+        last_seen:
+          type: string
+          format: date-time
+
+    FleetList:
+      type: object
+      properties:
+        updated_at:
+          type: string
+          format: date-time
+        group:
+          type: string
+        tag:
+          type: string
+        agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClusterAgent"
+
+    SupportBundleSummary:
+      type: object
+      properties:
+        last_bundle_path:
+          type: string
+        last_status:
+          type: string
+        last_bundle_at:
+          type: string
+          format: date-time
+        download_url:
+          type: string
+
+    LicenseStatus:
+      type: object
+      properties:
+        updated_at:
+          type: string
+          format: date-time
+        licensed:
+          type: boolean
+        plan:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    UpgradeReadiness:
+      type: object
+      properties:
+        updated_at:
+          type: string
+          format: date-time
+        ready:
+          type: boolean
+        current_tag:
+          type: string
+        latest_tag:
+          type: string
+        description:
+          type: string

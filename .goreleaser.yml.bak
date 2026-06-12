@@ -63,8 +63,6 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version={{ .Version }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit={{ .ShortCommit }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date={{ .Date }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -81,8 +79,6 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version={{ .Version }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit={{ .ShortCommit }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date={{ .Date }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -99,8 +95,6 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version={{ .Version }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit={{ .ShortCommit }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date={{ .Date }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -117,8 +111,6 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version={{ .Version }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit={{ .ShortCommit }}
-      - -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date={{ .Date }}
     env:
       - CGO_ENABLED=0
     goos:

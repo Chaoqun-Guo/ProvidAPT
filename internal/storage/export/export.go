@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -29,10 +30,12 @@ type ClientConfig struct {
 
 // Client handles exporting events to the central server.
 type Client struct {
-	cfg    ClientConfig
-	host   string
-	buffer []*SocketEvent
-	stopCh chan struct{}
+	mu       sync.Mutex
+	stopOnce sync.Once
+	cfg      ClientConfig
+	host     string
+	buffer   []*SocketEvent
+	stopCh   chan struct{}
 }
 
 // NewClient creates an export client.
@@ -68,24 +71,33 @@ func (c *Client) ReportSocketEvent(evt *SocketEvent) {
 	evt.AgentID = c.cfg.AgentID
 	evt.Hostname = c.host
 
+	c.mu.Lock()
 	c.buffer = append(c.buffer, evt)
-	if len(c.buffer) >= c.cfg.BatchSize {
+	shouldFlush := len(c.buffer) >= c.cfg.BatchSize
+	c.mu.Unlock()
+
+	if shouldFlush {
 		c.flush()
 	}
 }
 
 // flush sends buffered events to the server.
 func (c *Client) flush() {
+	c.mu.Lock()
 	if len(c.buffer) == 0 {
+		c.mu.Unlock()
 		return
 	}
 	batch := c.buffer
 	c.buffer = make([]*SocketEvent, 0, c.cfg.BatchSize)
+	c.mu.Unlock()
 
 	if err := c.sendBatch(batch); err != nil {
 		log.Printf("[export] send error: %v (queued %d events)", err, len(batch))
 		// Re-queue for retry
+		c.mu.Lock()
 		c.buffer = append(c.buffer, batch...)
+		c.mu.Unlock()
 	}
 }
 
@@ -122,7 +134,10 @@ func (c *Client) loop() {
 }
 
 // Stop gracefully shuts down the client.
+// Safe to call multiple times — subsequent calls are no-ops.
 func (c *Client) Stop() {
-	close(c.stopCh)
+	c.stopOnce.Do(func() {
+		close(c.stopCh)
+	})
 	log.Printf("[export] client stopped")
 }

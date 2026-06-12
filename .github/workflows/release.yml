@@ -16,7 +16,6 @@ permissions:
   id-token: write
 
 env:
-  GO_VERSION: "1.25.0"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -31,13 +30,27 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
           cache: false
 
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang llvm libbpf-dev
+          sudo apt-get install -y -qq clang llvm libbpf-dev gnupg
+
+      - name: Import GPG signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          # Write key to file to avoid echo truncation, then import
+          cat > /tmp/gpg.key <<< "$GPG_PRIVATE_KEY"
+          echo "$GPG_PASSPHRASE" | gpg --batch --import --passphrase-fd 0 /tmp/gpg.key
+          rm -f /tmp/gpg.key
+          # Extract fingerprint for goreleaser signing
+          FPR=$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')
+          echo "GPG_FINGERPRINT=$FPR" >> "$GITHUB_ENV"
+          echo "Imported GPG key: $FPR"
 
       - name: Install Syft (SBOM)
         uses: anchore/sbom-action@v1
@@ -57,6 +70,31 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ env.GPG_FINGERPRINT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/providapt:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/providapt:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4

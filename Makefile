@@ -1,5 +1,5 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
-.PHONY: clean test test-core fmt fmt-check vet lint staticcheck
+.PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
 .PHONY: attack-sim verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
@@ -97,6 +97,9 @@ vet:
 	$(GO) vet ./cmd/... ./internal/... ./pkg/...
 
 lint: vet fmt-check
+
+test-race:
+	$(GO) test -race -count=1 -short ./internal/... ./pkg/... ./cmd/...
 
 staticcheck:
 	staticcheck ./cmd/... ./internal/... ./pkg/...
@@ -234,6 +237,7 @@ help:
 	@echo '  make vet              Run go vet'
 	@echo '  make lint             Run vet and format checks'
 	@echo '  make staticcheck      Run staticcheck'
+t@echo '  make test-race        Run unit tests with race detection'
 	@echo ''
 	@echo 'Aliases:'
 	@echo '  make build            = make build-core'

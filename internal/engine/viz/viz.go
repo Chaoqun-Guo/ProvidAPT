@@ -12,6 +12,7 @@ package viz
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -385,5 +386,89 @@ func truncateLabel(rel string) string {
 			return rel[:16] + "..."
 		}
 		return rel
+	}
+}
+
+// ─── DOT export ─────────────────────────────────────────────
+
+// CytoToDOT converts a CytoGraph to Graphviz DOT format for rendering
+// with tools like `dot`, `neato`, or Graphviz online viewers.
+func CytoToDOT(g *CytoGraph) string {
+	var b strings.Builder
+	b.WriteString("digraph ProvidAPT {\n")
+	b.WriteString("  rankdir=LR;\n")
+	b.WriteString("  node [shape=box, style=rounded, fontname=monospace];\n")
+	b.WriteString("  edge [fontname=monospace, fontsize=10];\n\n")
+
+	// Nodes
+	for _, elem := range g.Elements {
+		if elem.Group != "nodes" {
+			continue
+		}
+		id := elem.Data.ID
+		label := elem.Data.Label
+		if label == "" {
+			label = id
+		}
+		ntype := elem.Data.NodeType
+		color := nodeColor(ntype)
+		b.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q, style=filled];\n", id, label, color))
+	}
+
+	b.WriteString("\n")
+
+	// Edges (dedup by counting multi-edges)
+	edgeCount := make(map[string]int)
+	for _, elem := range g.Elements {
+		if elem.Group != "edges" {
+			continue
+		}
+		key := fmt.Sprintf("%s->%s", elem.Data.Source, elem.Data.Target)
+		edgeCount[key]++
+	}
+	seen := make(map[string]bool)
+	for _, elem := range g.Elements {
+		if elem.Group != "edges" {
+			continue
+		}
+		key := fmt.Sprintf("%s->%s", elem.Data.Source, elem.Data.Target)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		rel := elem.Data.Label
+		if rel == "" {
+			rel = "related"
+		}
+		count := edgeCount[key]
+		label := rel
+		if count > 1 {
+			label = fmt.Sprintf("%s (x%d)", rel, count)
+		}
+		b.WriteString(fmt.Sprintf("  %q -> %q [label=%q];\n",
+			elem.Data.Source, elem.Data.Target, label))
+	}
+
+	b.WriteString("}\n")
+	return b.String()
+}
+
+// nodeColor returns a DOT fillcolor based on node type.
+func nodeColor(ntype string) string {
+	switch ntype {
+	case "process", "proc":
+		return "#ADD8E6" // light blue
+	case "file":
+		return "#90EE90" // light green
+	case "network", "net":
+		return "#FFB6C1" // light pink
+	case "socket":
+		return "#FFD700" // gold
+	case "dns":
+		return "#DDA0DD" // plum
+	case "alert":
+		return "#FF6347" // tomato (red)
+	default:
+		return "#F5F5F5" // white smoke
 	}
 }

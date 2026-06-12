@@ -39,16 +39,16 @@ type ScannerConfig struct {
 // DefaultScannerConfig returns defaults.
 func DefaultScannerConfig() *ScannerConfig {
 	return &ScannerConfig{
-		YARABinary:      "yara",
-		YARATimeout:     30,
+		YARABinary:       "yara",
+		YARATimeout:      30,
 		EnableHexScanner: true,
-		MaxDumpSize:     256 * 1024 * 1024,
+		MaxDumpSize:      256 * 1024 * 1024,
 	}
 }
 
 // MemoryScanner scans dumped memory segments for malicious patterns.
 type MemoryScanner struct {
-	cfg        *ScannerConfig
+	cfg         *ScannerConfig
 	hexPatterns []hexPattern
 }
 
@@ -214,7 +214,7 @@ func defaultHexPatterns() []hexPattern {
 		},
 		{
 			Name:     "CS_BEACON_PIPE",
-			Hex:      "5c5c2e5c706970655c",     // "\\.\pipe\"
+			Hex:      "5c5c2e5c706970655c", // "\\.\pipe\"
 			Severity: SevHigh,
 			Meta: map[string]string{
 				"family": "cobalt_strike",

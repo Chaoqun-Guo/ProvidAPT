@@ -74,6 +74,7 @@ func DefaultGRPCConfig() *GRPCExporterConfig {
 type GRPCExporter struct {
 	cfg      *GRPCExporterConfig
 	mu       sync.Mutex
+	stopOnce sync.Once
 	buffer   []*ExportEvent
 	stopCh   chan struct{}
 	wg       sync.WaitGroup
@@ -189,8 +190,11 @@ func (e *GRPCExporter) flushLoop() {
 }
 
 // Stop gracefully shuts down the exporter.
+// Safe to call multiple times — subsequent calls are no-ops.
 func (e *GRPCExporter) Stop() {
-	close(e.stopCh)
+	e.stopOnce.Do(func() {
+		close(e.stopCh)
+	})
 	e.wg.Wait()
 }
 

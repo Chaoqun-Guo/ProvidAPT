@@ -39,8 +39,10 @@ subjects:
     name: {{ include "providapt.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
-# Pod Security Policy (for clusters with PSP enabled)
-{{- if .Values.psp.create }}
+# Pod Security Policy (DEPRECATED — policy/v1beta1 removed in K8s 1.25+)
+# Use Pod Security Admission instead: https://kubernetes.io/docs/concepts/security/pod-security-admission/
+# This block remains for backward compatibility with K8s <1.25 clusters.
+{{- if and .Values.psp.create (semverCompare "<1.25" .Capabilities.KubeVersion.Version) }}
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:

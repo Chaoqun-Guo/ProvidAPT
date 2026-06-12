@@ -113,19 +113,16 @@ func (sm *SnapManager) Stop() {
 
 // CreateSnapshot creates a new RocksDB checkpoint snapshot.
 func (sm *SnapManager) CreateSnapshot() (*SnapshotMeta, error) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
 	now := time.Now().UTC()
 	id := fmt.Sprintf("snap-%s-%06d", now.Format("20060102T150405"), now.UnixNano()%1000000)
 	snapPath := filepath.Join(sm.cfg.SnapDir, id)
 
-	// Create RocksDB checkpoint
+	// Create RocksDB checkpoint (no lock — IO-heavy operation)
 	if err := sm.db.Checkpoint(snapPath); err != nil {
 		return nil, fmt.Errorf("checkpoint: %w", err)
 	}
 
-	// Measure size
+	// Measure size (no lock — filepath.Walk can be slow on large dirs)
 	var size int64
 	filepath.Walk(snapPath, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() {
@@ -133,6 +130,9 @@ func (sm *SnapManager) CreateSnapshot() (*SnapshotMeta, error) {
 		}
 		return nil
 	})
+
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
 
 	meta := &SnapshotMeta{
 		ID:        id,
@@ -145,7 +145,9 @@ func (sm *SnapManager) CreateSnapshot() (*SnapshotMeta, error) {
 	// Cleanup old snapshots
 	if len(sm.snapshots) > sm.cfg.Retention {
 		old := sm.snapshots[0]
+		sm.mu.Unlock()
 		os.RemoveAll(old.Path)
+		sm.mu.Lock()
 		sm.snapshots = sm.snapshots[1:]
 	}
 

@@ -90,6 +90,15 @@ struct fork_payload {
 	__u32 child_pid;
 } __attribute__((packed));
 
+/* ─── Network payload ────────────────────────────────────── */
+struct net_payload {
+	__u32 saddr;      /* source IPv4 address      */
+	__u32 daddr;      /* destination IPv4 address */
+	__u16 sport;      /* source port              */
+	__u16 dport;      /* destination port         */
+	__u8  protocol;   /* IPPROTO_*                */
+} __attribute__((packed));
+
 /* ─── Main ring-buffer event record ──────────────────────
  *
  *   Offset  Field          Type        Bytes
@@ -126,8 +135,8 @@ struct event {
 	union {
 		struct file_payload file;
 		struct fork_payload fork;
-		__u8  __pad[24];
-	};
+		struct net_payload net;
+	} payload;
 
 	/* Sampling payload (when type == EV_SAMPLE) — overlays pathname */
 	__u32 sample_hook_id;     /* which hook was being sampled */

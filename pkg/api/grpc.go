@@ -17,10 +17,12 @@ type GRPCServer struct {
 	addr   string
 }
 
-// NewGRPCServer creates a gRPC server (not yet registered with services).
+// NewGRPCServer creates a gRPC server with registered management and telemetry services.
 func NewGRPCServer(addr string) *GRPCServer {
+	srv := grpc.NewServer()
+	registerGRPCServices(srv)
 	return &GRPCServer{
-		server: grpc.NewServer(),
+		server: srv,
 		addr:   addr,
 	}
 }

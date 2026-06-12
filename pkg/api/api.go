@@ -475,6 +475,7 @@ func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
 		backtracer: backtrace.New(graph, st),
 		startTime:  time.Now(),
 	}
+	s.SetDefaultControlHandlers()
 	s.mux = s.buildMux()
 	return s
 }
@@ -556,6 +557,61 @@ func (s *Server) SetNotifyDeliveryActionFunc(fn NotifyDeliveryActionFunc) {
 // POST /api/v1/admin/reload. Same logic as SIGHUP handling.
 func (s *Server) SetReloadHandler(fn func() error) {
 	s.reloadFn = fn
+}
+
+// SetDefaultControlHandlers registers no-op handlers for the control plane
+// endpoints so they return valid (if empty) responses instead of 501.
+func (s *Server) SetDefaultControlHandlers() {
+	s.clusterFn = func() ClusterOverview {
+		return ClusterOverview{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			Agents:    []ClusterAgent{},
+		}
+	}
+	s.fleetListFn = func(group, tag string) FleetList {
+		return FleetList{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			Group:     group,
+			Tag:       tag,
+			Agents:    []ClusterAgent{},
+		}
+	}
+	s.supportFn = func() SupportBundleSummary {
+		return SupportBundleSummary{
+			History: []ControlActionAudit{},
+		}
+	}
+	s.auditFn = func(category, source string, limit int) AuditFeed {
+		return AuditFeed{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+	s.licenseFn = func() LicenseStatus {
+		return LicenseStatus{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			History:   []ControlActionAudit{},
+		}
+	}
+	s.upgradeFn = func() UpgradeReadiness {
+		return UpgradeReadiness{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+	s.policyFn = func() PolicyCenter {
+		return PolicyCenter{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+	s.alertsFn = func(status, assignee string) AlertWorkflow {
+		return AlertWorkflow{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+	s.deliveryFn = func() NotifyDeliveryCenter {
+		return NotifyDeliveryCenter{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+	}
 }
 
 // SetAPIKeyAuth enables API key authentication.

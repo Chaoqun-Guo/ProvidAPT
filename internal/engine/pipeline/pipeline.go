@@ -94,6 +94,7 @@ type Pipeline struct {
 	// edge flush ticker
 	flushTicker *time.Ticker
 	stopCh      chan struct{}
+	stopOnce    sync.Once
 	wg          sync.WaitGroup
 }
 
@@ -334,27 +335,34 @@ func (p *Pipeline) Start() {
 }
 
 // Stop cleanly shuts down the pipeline (flush + close store).
+// Safe to call multiple times — subsequent calls are no-ops.
 func (p *Pipeline) Stop() error {
-	close(p.stopCh)
-	p.wg.Wait()
-	p.flushTicker.Stop()
-	p.pressure.Stop()
-
-	// Final flush
-	p.onMidPressure()
-
-	return p.store.Close()
+	var err error
+	p.stopOnce.Do(func() {
+		close(p.stopCh)
+		p.wg.Wait()
+		p.flushTicker.Stop()
+		if p.pressure != nil {
+			p.pressure.Stop()
+		}
+		// Final flush
+		p.onMidPressure()
+		err = p.store.Close()
+	})
+	return err
 }
 
 // ── Stats ───────────────────────────────────────────────────
 
 func (p *Pipeline) Stats() map[string]interface{} {
-	stats := map[string]interface{}{
+	p.mu.Lock()
+	paused := p.paused
+	p.mu.Unlock()
+	return map[string]interface{}{
 		"cache":   p.hotCache.Stats(),
 		"merger":  p.merger.Stats(),
 		"store":   p.store.Stats(),
 		"graph":   p.graph.Stats(),
-		"paused":  p.paused,
+		"paused":  paused,
 	}
-	return stats
 }

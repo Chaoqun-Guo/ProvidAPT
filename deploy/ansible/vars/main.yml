@@ -42,7 +42,9 @@ providapt_env:
 # ---- Monitoring ----
 prometheus_version: latest
 grafana_version: latest
-grafana_admin_password: admin
+# Set via Ansible Vault: ansible-vault encrypt_string 'your-password' --name 'grafana_admin_password'
+# Or pass at runtime: --extra-vars 'grafana_admin_password=your-password'
+grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') | default('changeme', true) }}"
 
 # ---- Backup ----
 backup_script_path: /usr/local/bin/providapt-backup.sh

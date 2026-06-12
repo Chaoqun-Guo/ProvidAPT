@@ -47,15 +47,15 @@ type MemoryRegion struct {
 type SegmentType string
 
 const (
-	SegStack     SegmentType = "stack"
-	SegHeap      SegmentType = "heap"
-	SegExec      SegmentType = "executable"
-	SegAnon      SegmentType = "anonymous"
-	SegFile      SegmentType = "file-backed"
-	SegVDSO      SegmentType = "vdso"
-	SegVVar      SegmentType = "vvar"
-	SegVSysCall  SegmentType = "vsyscall"
-	SegUnknown   SegmentType = "unknown"
+	SegStack    SegmentType = "stack"
+	SegHeap     SegmentType = "heap"
+	SegExec     SegmentType = "executable"
+	SegAnon     SegmentType = "anonymous"
+	SegFile     SegmentType = "file-backed"
+	SegVDSO     SegmentType = "vdso"
+	SegVVar     SegmentType = "vvar"
+	SegVSysCall SegmentType = "vsyscall"
+	SegUnknown  SegmentType = "unknown"
 )
 
 // ─────────────────────────────────────────────────────────────────
@@ -64,14 +64,14 @@ const (
 
 // MemDumpResult holds the raw memory dump for a process.
 type MemDumpResult struct {
-	PID       int             `json:"pid"`
-	Comm      string          `json:"comm"`
-	Regions   []MemoryRegion  `json:"regions"`
-	StackData []byte          `json:"-"`
-	ExecData  []byte          `json:"-"` // concatenated r-xp segments
-	HeapData  []byte          `json:"-"`
-	Timestamp time.Time       `json:"timestamp"`
-	Error     string          `json:"error,omitempty"`
+	PID       int            `json:"pid"`
+	Comm      string         `json:"comm"`
+	Regions   []MemoryRegion `json:"regions"`
+	StackData []byte         `json:"-"`
+	ExecData  []byte         `json:"-"` // concatenated r-xp segments
+	HeapData  []byte         `json:"-"`
+	Timestamp time.Time      `json:"timestamp"`
+	Error     string         `json:"error,omitempty"`
 }
 
 // HasData returns true if at least one segment was successfully read.
@@ -104,22 +104,22 @@ type ScanMatch struct {
 	Rule     string            `json:"rule"`
 	Severity ScanSeverity      `json:"severity"`
 	Offset   uint64            `json:"offset,omitempty"`
-	Segment  SegmentType       `json:"segment"`   // which segment contained the match
-	Source   string            `json:"source"`    // "yara" or "hex"
+	Segment  SegmentType       `json:"segment"` // which segment contained the match
+	Source   string            `json:"source"`  // "yara" or "hex"
 	Meta     map[string]string `json:"meta,omitempty"`
 }
 
 // MemScanResult aggregates all scan findings for a process.
 type MemScanResult struct {
-	PID         int          `json:"pid"`
-	Comm        string       `json:"comm"`
-	StackHash   string       `json:"stack_hash"`   // SHA256 of stack dump
-	ExecHash    string       `json:"exec_hash"`    // SHA256 of executable segments
-	HeapHash    string       `json:"heap_hash"`    // SHA256 of heap dump
-	Matches     []ScanMatch  `json:"matches"`
-	RiskScore   float64      `json:"risk_score"`
-	RiskLevel   string       `json:"risk_level"` // "low", "medium", "high", "critical"
-	Timestamp   time.Time    `json:"timestamp"`
+	PID       int         `json:"pid"`
+	Comm      string      `json:"comm"`
+	StackHash string      `json:"stack_hash"` // SHA256 of stack dump
+	ExecHash  string      `json:"exec_hash"`  // SHA256 of executable segments
+	HeapHash  string      `json:"heap_hash"`  // SHA256 of heap dump
+	Matches   []ScanMatch `json:"matches"`
+	RiskScore float64     `json:"risk_score"`
+	RiskLevel string      `json:"risk_level"` // "low", "medium", "high", "critical"
+	Timestamp time.Time   `json:"timestamp"`
 }
 
 // MatchCount returns the number of matches by severity.
@@ -144,25 +144,25 @@ func (r *MemScanResult) HasMatches() bool {
 type TriggerReason string
 
 const (
-	TrigMprotectRX        TriggerReason = "MPROTECT_RW_TO_RX"
-	TrigShellcodeAttr     TriggerReason = "SHELLCODE_ATTRIBUTE"
-	TrigFilelessExec      TriggerReason = "FILELESS_EXECUTION"
-	TrigDeepTainted       TriggerReason = "DEEP_TAINTED_PROCESS"
-	TrigUnsignedMemory    TriggerReason = "UNSIGNED_MEMORY_EXEC"
-	TrigManual            TriggerReason = "MANUAL_REQUEST"
-	TrigSupplyChainRisk   TriggerReason = "SUPPLY_CHAIN_RISK"
+	TrigMprotectRX      TriggerReason = "MPROTECT_RW_TO_RX"
+	TrigShellcodeAttr   TriggerReason = "SHELLCODE_ATTRIBUTE"
+	TrigFilelessExec    TriggerReason = "FILELESS_EXECUTION"
+	TrigDeepTainted     TriggerReason = "DEEP_TAINTED_PROCESS"
+	TrigUnsignedMemory  TriggerReason = "UNSIGNED_MEMORY_EXEC"
+	TrigManual          TriggerReason = "MANUAL_REQUEST"
+	TrigSupplyChainRisk TriggerReason = "SUPPLY_CHAIN_RISK"
 )
 
 // TriggerEvent is produced when a trigger condition is met.
 type TriggerEvent struct {
-	PID        int            `json:"pid"`
-	Comm       string         `json:"comm"`
-	Reason     TriggerReason  `json:"reason"`
-	Detail     string         `json:"detail"`
-	NodeAttrs  map[string]interface{} `json:"-"`
-	NodeID     string         `json:"node_id"`
-	HostID     string         `json:"host_id"`
-	Timestamp  time.Time      `json:"timestamp"`
+	PID       int                    `json:"pid"`
+	Comm      string                 `json:"comm"`
+	Reason    TriggerReason          `json:"reason"`
+	Detail    string                 `json:"detail"`
+	NodeAttrs map[string]interface{} `json:"-"`
+	NodeID    string                 `json:"node_id"`
+	HostID    string                 `json:"host_id"`
+	Timestamp time.Time              `json:"timestamp"`
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -171,11 +171,11 @@ type TriggerEvent struct {
 
 // MemForensicResult is the complete output of the acquisition→scan pipeline.
 type MemForensicResult struct {
-	Trigger  TriggerReason   `json:"trigger"`
-	Dump     *MemDumpResult  `json:"dump"`
-	Scan     *MemScanResult  `json:"scan"`
-	NodeID   string          `json:"node_id"`
-	HostID   string          `json:"host_id"`
+	Trigger TriggerReason  `json:"trigger"`
+	Dump    *MemDumpResult `json:"dump"`
+	Scan    *MemScanResult `json:"scan"`
+	NodeID  string         `json:"node_id"`
+	HostID  string         `json:"host_id"`
 }
 
 // NodeAttributes converts the forensic result into provenance node
@@ -241,4 +241,3 @@ func joinStrings(elems []string, sep string) string {
 	}
 	return out
 }
-

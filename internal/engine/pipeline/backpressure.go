@@ -32,8 +32,9 @@ type PressureMonitor struct {
 	onMid  func() // force eviction + flush
 	onHigh func() // reduce ingestion rate
 
-	running bool
-	stopCh  chan struct{}
+	running  bool
+	stopCh   chan struct{}
+	stopOnce sync.Once
 }
 
 // NewPressureMonitor creates a pressure monitor.
@@ -91,8 +92,11 @@ func (pm *PressureMonitor) loop() {
 }
 
 // Stop the monitoring goroutine.
+// Safe to call multiple times — subsequent calls are no-ops.
 func (pm *PressureMonitor) Stop() {
-	close(pm.stopCh)
+	pm.stopOnce.Do(func() {
+		close(pm.stopCh)
+	})
 }
 
 // ── Pressure check ──────────────────────────────────────────

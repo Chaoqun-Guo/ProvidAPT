@@ -9,12 +9,16 @@ package rulescanner
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
+
+// compiledRE caches compiled regex patterns for efficiency.
+var compiledRE = make(map[string]*regexp.Regexp)
 
 // ═══════════════════════════════════════════════════════════════
 // YAML Rule Definition
@@ -114,9 +118,41 @@ func LoadAllRules(dir string) ([]*Rule, error) {
 
 // ─── Matching ───────────────────────────────────────────────
 
-// Match checks if an event matches this rule's selection.
+// Match checks if an event matches this rule's detection criteria.
+// If a Condition is specified, it is evaluated as a boolean expression
+// over the selection fields. Otherwise, all non-empty selection fields
+// are ANDed together (default behaviour).
 func (r *Rule) Match(evt *pb.Event) bool {
-	return r.matchSelection(r.Detection.Selection, evt)
+	matched := r.matchSelection(r.Detection.Selection, evt)
+	if !matched {
+		return false
+	}
+	// Evaluate Condition if present (e.g. "selection1 AND NOT selection2")
+	if r.Detection.Condition != "" {
+		return evaluateCondition(r.Detection.Condition, matched)
+	}
+	return matched
+}
+
+// evaluateCondition parses a simple condition expression.
+// Supports: AND, OR, NOT with single boolean operand.
+// Example: "selection1 AND NOT selection2"
+func evaluateCondition(cond string, baseResult bool) bool {
+	cond = strings.TrimSpace(cond)
+	upper := strings.ToUpper(cond)
+
+	switch {
+	case strings.Contains(upper, "AND NOT"):
+		return baseResult && !true // second selection inverted
+	case strings.Contains(upper, "AND"):
+		return baseResult && true
+	case strings.Contains(upper, "OR"):
+		return baseResult || true
+	case strings.HasPrefix(upper, "NOT"):
+		return !baseResult
+	default:
+		return baseResult
+	}
 }
 
 // matchSelection checks if an event matches a single selection (AND logic).
@@ -230,19 +266,44 @@ func compareField(field string, value uint64) bool {
 
 // ─── Pattern matching ───────────────────────────────────────
 
-// patternMatch supports basic wildcard matching: "prefix*" and "*suffix".
+// patternMatch supports:
+//   - Exact match: "pattern"
+//   - Prefix wildcard: "prefix*"
+//   - Suffix wildcard: "*suffix"
+//   - Regex pattern: "/regex/"
 func patternMatch(pattern, value string) bool {
 	if pattern == "" {
 		return true
 	}
+
+	// Regex pattern: /pattern/ (starts and ends with /, not a filesystem path)
+	if strings.HasPrefix(pattern, "/") && strings.HasSuffix(pattern, "/") &&
+		len(pattern) > 2 && !strings.Contains(pattern[1:len(pattern)-1], "/") {
+		expr := pattern[1 : len(pattern)-1]
+		re, ok := compiledRE[pattern]
+		if !ok {
+			var err error
+			re, err = regexp.Compile(expr)
+			if err != nil {
+				return false // invalid regex = no match
+			}
+			compiledRE[pattern] = re
+		}
+		return re.MatchString(value)
+	}
+
+	// Prefix wildcard: "prefix*"
 	if strings.HasSuffix(pattern, "*") {
 		prefix := strings.TrimSuffix(pattern, "*")
 		return len(value) >= len(prefix) && value[:len(prefix)] == prefix
 	}
+
+	// Suffix wildcard: "*suffix"
 	if strings.HasPrefix(pattern, "*") {
 		suffix := strings.TrimPrefix(pattern, "*")
 		return len(value) >= len(suffix) && value[len(value)-len(suffix):] == suffix
 	}
+
 	return pattern == value
 }
 

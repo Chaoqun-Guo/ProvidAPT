@@ -52,6 +52,7 @@ linters:
           - revive
           - forcetypeassert
           - staticcheck
+          - errcheck
       - path: internal/engine/loader/bpf/
         linters:
           - govet
@@ -59,9 +60,6 @@ linters:
       - text: "SA1019"
         linters:
           - staticcheck
-      - path: pkg/api/proto/mgmt/service\.go
-        linters:
-          - errcheck
       # The AI package intentionally uses British spelling in identifiers
       # (Analyse, AnalysePrompt) and comments (neighbourhood, MITRE).
       - path: internal/engine/ai/

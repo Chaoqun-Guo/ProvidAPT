@@ -251,7 +251,7 @@ func TestScannerStats(t *testing.T) {
 	rules, _ := LoadDefaultRules()
 	s := NewScanner(rules, ScannerConfig{})
 	stats := s.Stats()
-	if stats["rules_loaded"] != 6 {
+	if stats["rules_loaded"] != 18 {
 		t.Errorf("rules = %d", stats["rules_loaded"])
 	}
 }
@@ -357,8 +357,8 @@ func TestDefaultRulesYAMLFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseMultiRules: %v", err)
 	}
-	if len(rules) != 6 {
-		t.Errorf("expected 6 rules, got %d", len(rules))
+	if len(rules) != 18 {
+		t.Errorf("expected 18 rules, got %d", len(rules))
 	}
 	for _, r := range rules {
 		if r.ID == "" {

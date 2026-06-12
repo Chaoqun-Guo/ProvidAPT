@@ -518,16 +518,19 @@ func TestLoadTLSClientConfig(t *testing.T) {
 // ─── Platform-specific: /proc/self/fd is Linux-only ──────────
 
 func TestHashCacheOpenMissingDir(t *testing.T) {
-	// Opening in a non-existent dir should fail gracefully
-	_, err := NewPersistentHashCache("/nonexistent/providapt/hc")
+	// Opening in a non-existent dir — use t.TempDir to avoid creating
+	// files at hardcoded Linux paths on Windows (C:\nonexistent\providapt\hc).
+	hc, err := NewPersistentHashCache(t.TempDir())
 	if err == nil {
+		hc.Close()
 		t.Log("persistent hash cache opened in nonexistent dir (pebble may create it)")
 	}
 }
 
 func TestPriorityPipelineOpenMissingDir(t *testing.T) {
-	_, err := NewPersistentPriorityPipeline("/nonexistent/providapt/lowpri")
+	pp, err := NewPersistentPriorityPipeline(t.TempDir() + "/lowpri")
 	if err == nil {
+		pp.Close()
 		t.Log("persistent pipeline opened in nonexistent dir (pebble may create it)")
 	}
 }

@@ -68,6 +68,7 @@ type BatchWriter struct {
 	cfg      *BatchWriterConfig
 	store    *store.Store
 	mu       sync.Mutex
+	stopOnce sync.Once
 	pending  []*provenance.Edge
 	bytesWr  int64
 	opsCount int64
@@ -126,18 +127,16 @@ func (bw *BatchWriter) Flush() error {
 	bw.mu.Lock()
 	edges := bw.pending
 	bw.pending = make([]*provenance.Edge, 0, bw.cfg.BatchSize)
-	bw.mu.Unlock()
-
 	if len(edges) == 0 {
+		bw.mu.Unlock()
 		return nil
 	}
 	if bw.store == nil {
-		bw.pending = edges // put back for retry
+		bw.pending = edges // put back for retry — still under lock
+		bw.mu.Unlock()
 		return fmt.Errorf("store not initialized")
 	}
-
-	// Disable WAL if configured
-	// In production: store.Flush() already commits the WriteBatch
+	bw.mu.Unlock()
 
 	// Write all edges through the store (uses internal WriteBatch)
 	for _, e := range edges {
@@ -153,18 +152,25 @@ func (bw *BatchWriter) Flush() error {
 		}
 	}
 
+	bw.mu.Lock()
 	bw.opsCount += int64(len(edges))
 	bw.bytesWr += int64(len(edges)) * 300 // approx 300 bytes per edge
+	opsCount := bw.opsCount
+	bytesWr := bw.bytesWr
+	bw.mu.Unlock()
 
 	log.Printf("[batch] flushed %d edges (total=%d, %.1f MB written)",
-		len(edges), bw.opsCount, float64(bw.bytesWr)/1024/1024)
+		len(edges), opsCount, float64(bytesWr)/1024/1024)
 
 	return nil
 }
 
 // Stop flushes pending data and shuts down.
+// Safe to call multiple times — subsequent calls are no-ops.
 func (bw *BatchWriter) Stop() {
-	close(bw.stopCh)
+	bw.stopOnce.Do(func() {
+		close(bw.stopCh)
+	})
 	bw.wg.Wait()
 }
 

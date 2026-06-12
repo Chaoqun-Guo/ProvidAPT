@@ -23,7 +23,7 @@ output "api_endpoint" {
 
 output "grpc_endpoint" {
   description = "ProvidAPT gRPC endpoint"
-  value = var.domain_name != "" ? "%s:50051" : format(
+  value = var.domain_name != "" ? format("%s:50051", var.domain_name) : format(
     "%s:50051",
     aws_instance.providapt[0].public_ip,
   )

@@ -2,6 +2,11 @@ variable "cloud_provider" {
   description = "Cloud provider (aws, gcp, azure, or openstack)"
   type        = string
   default     = "aws"
+
+  validation {
+    condition     = contains(["aws", "gcp", "azure", "openstack"], var.cloud_provider)
+    error_message = "cloud_provider must be one of: aws, gcp, azure, openstack. Currently only AWS is fully implemented; other providers are stubs."
+  }
 }
 
 variable "region" {

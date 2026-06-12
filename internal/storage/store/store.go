@@ -6,6 +6,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/cockroachdb/pebble"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
@@ -27,6 +28,7 @@ func reverseEdgeKey(ts uint64, target, source string) string {
 }
 
 type Store struct {
+	mu        sync.Mutex
 	db        *pebble.DB
 	wb        *pebble.Batch
 	wbCap     int
@@ -66,6 +68,8 @@ func (s *Store) decrypt(data []byte) ([]byte, error) {
 // ── Node persistence ───────────────────────────────────────
 
 func (s *Store) PutNode(n *provenance.Node) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
 		return errClosed
 	}
@@ -82,6 +86,8 @@ func (s *Store) PutNode(n *provenance.Node) error {
 }
 
 func (s *Store) GetNode(id string) (*provenance.Node, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	v, closer, err := s.wb.Get([]byte(nodeKey(id)))
 	if err == pebble.ErrNotFound {
 		return nil, nil
@@ -102,6 +108,8 @@ func (s *Store) GetNode(id string) (*provenance.Node, error) {
 }
 
 func (s *Store) DeleteNode(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.wb.Delete([]byte(nodeKey(id)), pebble.NoSync)
 	return s.autoFlush()
 }
@@ -109,6 +117,8 @@ func (s *Store) DeleteNode(id string) error {
 // ── Edge persistence ───────────────────────────────────────
 
 func (s *Store) PutEdge(e *provenance.Edge) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
 		return errClosed
 	}
@@ -127,6 +137,11 @@ func (s *Store) PutEdge(e *provenance.Edge) error {
 }
 
 func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, error) {
+	// Flush pending writes so reads see the latest data.
+	s.mu.Lock()
+	s.flushLocked()
+	s.mu.Unlock()
+
 	lo := []byte(edgeKey(start, "", ""))
 	hi := []byte(edgeKey(end, "", ""))
 
@@ -152,6 +167,11 @@ func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, erro
 }
 
 func (s *Store) GetEdgesByTarget(targetID string) ([]*provenance.Edge, error) {
+	// Flush pending writes so reads see the latest data.
+	s.mu.Lock()
+	s.flushLocked()
+	s.mu.Unlock()
+
 	lo := []byte(fmt.Sprintf("r:%s:", targetID))
 	hi := []byte(fmt.Sprintf("r:%s\xff", targetID))
 
@@ -178,6 +198,11 @@ func (s *Store) GetEdgesByTarget(targetID string) ([]*provenance.Edge, error) {
 
 // EdgeCount returns the total number of persisted edges.
 func (s *Store) EdgeCount() (int, error) {
+	// Flush pending writes so reads see the latest data.
+	s.mu.Lock()
+	s.flushLocked()
+	s.mu.Unlock()
+
 	lo, hi := []byte(edgePrefix), []byte("e\xff")
 	iter, err := s.db.NewIter(&pebble.IterOptions{LowerBound: lo, UpperBound: hi})
 	if err != nil {
@@ -194,13 +219,14 @@ func (s *Store) EdgeCount() (int, error) {
 // ── Batch lifecycle ────────────────────────────────────────
 
 func (s *Store) autoFlush() error {
+	// Must be called with s.mu held.
 	if int(s.wb.Count()) >= s.wbCap {
-		return s.Flush()
+		return s.flushLocked()
 	}
 	return nil
 }
 
-func (s *Store) Flush() error {
+func (s *Store) flushLocked() error {
 	if s.wb.Count() == 0 {
 		return nil
 	}
@@ -211,9 +237,18 @@ func (s *Store) Flush() error {
 	return nil
 }
 
+// Flush commits any pending writes to the underlying database.
+func (s *Store) Flush() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.flushLocked()
+}
+
 func (s *Store) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.closed = true
-	s.Flush()
+	s.flushLocked()
 	return s.db.Close()
 }
 
@@ -228,6 +263,8 @@ func (s *Store) DiskUsage() int64 {
 }
 
 func (s *Store) Stats() map[string]interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	m := s.db.Metrics()
 	return map[string]interface{}{
 		"disk_bytes":    m.DiskSpaceUsage(),

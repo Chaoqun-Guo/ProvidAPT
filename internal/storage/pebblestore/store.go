@@ -95,12 +95,13 @@ func (s *Store) PutNode(node *pb.Node) error {
 	s.stats.BytesWritten += int64(len(data))
 	s.stats.mu.Unlock()
 
-	// Write secondary indexes in a separate goroutine to avoid blocking
+	// Write secondary indexes synchronously — the batch must not be
+	// replaced by Flush() while goroutines hold a stale reference.
 	if node.Pid > 0 {
-		go s.writePIDIndex(node.Pid, node.Id, node.FirstSeenNs)
+		s.writePIDIndex(node.Pid, node.Id, node.FirstSeenNs)
 	}
 	if node.Inode > 0 {
-		go s.writeInodeIndex(node.Inode, node.DevMajor, node.DevMinor, node.Id)
+		s.writeInodeIndex(node.Inode, node.DevMajor, node.DevMinor, node.Id)
 	}
 
 	if batchSize >= uint32(s.wbSize) {

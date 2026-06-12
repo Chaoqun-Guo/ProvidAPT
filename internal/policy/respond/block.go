@@ -4,19 +4,23 @@
 // Package respond implements surgical response actions for ProvidAPT.
 //
 // Actions:
-//  1. Causal blocking 鈥-block high-risk process trees via eBPF LSM
-//  2. File quarantine 鈥-permission-lock files written by malicious processes
-//  3. Response policy 鈥-YAML-configured action rules
+//  1. Causal blocking — block high-risk process trees via eBPF LSM
+//  2. File quarantine — permission-lock files written by malicious processes
+//  3. Response policy — YAML-configured action rules
 package respond
 
 import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/cilium/ebpf"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Causal blocking 鈥-isolate process trees
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// ═══════════════════════════════════════════════════════════════
+// Causal blocking — isolate process trees
+// ═══════════════════════════════════════════════════════════════
+
 // BlockLevel defines the isolation strictness.
 type BlockLevel int
 
@@ -57,15 +61,49 @@ type BlockedProcess struct {
 // programs read to decide whether to allow or deny operations.
 type CausalBlocker struct {
 	mu       sync.Mutex
-	blocked  map[uint32]*BlockedProcess // PID 鈫-block info
+	blocked  map[uint32]*BlockedProcess // PID -> block info
 	children map[uint32]bool            // all PIDs in blocked trees
+	bpfMap   *ebpf.Map                  // pinned BPF map, nil if unavailable
 }
 
 // NewCausalBlocker creates a process isolation manager.
-func NewCausalBlocker() *CausalBlocker {
-	return &CausalBlocker{
+// If a BPF map path is provided, attempts to open it for kernel-level blocking.
+// When the BPF map is unavailable, blocking is in-memory only.
+func NewCausalBlocker(bpfMapPath string) *CausalBlocker {
+	cb := &CausalBlocker{
 		blocked:  make(map[uint32]*BlockedProcess),
 		children: make(map[uint32]bool),
+	}
+	if bpfMapPath != "" {
+		m, err := ebpf.LoadPinnedMap(bpfMapPath, &ebpf.LoadPinOptions{})
+		if err == nil {
+			cb.bpfMap = m
+			log.Printf("[respond] BPF map opened: %s", bpfMapPath)
+		} else {
+			log.Printf("[respond] BPF map not available at %s: %v (in-memory fallback)", bpfMapPath, err)
+		}
+	}
+	return cb
+}
+
+// bpfPut writes a PID with its block level to the BPF map (best-effort).
+func (cb *CausalBlocker) bpfPut(pid uint32, level BlockLevel) {
+	if cb.bpfMap == nil {
+		return
+	}
+	val := uint32(level)
+	if err := cb.bpfMap.Put(pid, val); err != nil {
+		log.Printf("[respond] BPF map Put pid=%d: %v", pid, err)
+	}
+}
+
+// bpfDelete removes a PID from the BPF map (best-effort).
+func (cb *CausalBlocker) bpfDelete(pid uint32) {
+	if cb.bpfMap == nil {
+		return
+	}
+	if err := cb.bpfMap.Delete(pid); err != nil {
+		log.Printf("[respond] BPF map Delete pid=%d: %v", pid, err)
 	}
 }
 
@@ -84,9 +122,8 @@ func (cb *CausalBlocker) BlockProcess(pid uint32, comm string, level BlockLevel)
 	cb.blocked[pid] = bp
 	cb.children[pid] = true
 
-	// In production: write to BPF map
-	//   blocked_pids_map.Put(pid, uint32(level))
-	//   LSM programs check this map at file_open, socket_connect
+	// Write to BPF map for kernel-level enforcement
+	cb.bpfPut(pid, level)
 
 	log.Printf("[respond] BLOCKED pid=%d comm=%s level=%s", pid, comm, level)
 	return bp
@@ -97,12 +134,14 @@ func (cb *CausalBlocker) AddChild(parentPID, childPID uint32) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	if _, ok := cb.blocked[parentPID]; ok {
+	if bp, ok := cb.blocked[parentPID]; ok {
 		cb.children[childPID] = true
-		cb.blocked[parentPID].Children = append(cb.blocked[parentPID].Children, childPID)
+		bp.Children = append(bp.Children, childPID)
 
-		// In production: also write child PID to BPF map
-		log.Printf("[respond] child added: %d 鈫-%d", parentPID, childPID)
+		// Also write child PID to BPF map at same level as parent
+		cb.bpfPut(childPID, bp.Level)
+
+		log.Printf("[respond] child added: %d -> %d", parentPID, childPID)
 	}
 }
 
@@ -129,14 +168,15 @@ func (cb *CausalBlocker) UnblockProcess(pid uint32) {
 	defer cb.mu.Unlock()
 
 	if bp, ok := cb.blocked[pid]; ok {
-		// Remove all children
+		// Remove all children from BPF map and tracking
 		for _, childPID := range bp.Children {
+			cb.bpfDelete(childPID)
 			delete(cb.children, childPID)
 		}
+		cb.bpfDelete(pid)
 		delete(cb.children, pid)
 		delete(cb.blocked, pid)
 
-		// In production: delete from BPF map
 		log.Printf("[respond] UNBLOCKED pid=%d", pid)
 	}
 }

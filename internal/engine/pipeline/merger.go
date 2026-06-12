@@ -139,9 +139,12 @@ func (mw *MergeWindow) Pending() int {
 
 // Stats returns merge window statistics.
 func (mw *MergeWindow) Stats() map[string]interface{} {
+	mw.mu.Lock()
+	tickCount := mw.tickCount
+	mw.mu.Unlock()
 	return map[string]interface{}{
 		"window_dur": mw.windowDur.String(),
 		"pending":    mw.Pending(),
-		"ticks":      mw.tickCount,
+		"ticks":      tickCount,
 	}
 }

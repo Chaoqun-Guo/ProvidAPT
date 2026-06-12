@@ -96,7 +96,7 @@ func TestCheckDataDir(t *testing.T) {
 	}
 
 	// Test with non-existent dir in unwritable location
-	cfg.Output.Dir = "/nonexistent/providapt/test"
+	cfg.Output.Dir = t.TempDir() + "/nonexistent-test"
 	result = checkDataDir(cfg)
 	if result.Status != FAIL {
 		t.Logf("non-writable dir result: %v - %s", result.Status, result.Message)

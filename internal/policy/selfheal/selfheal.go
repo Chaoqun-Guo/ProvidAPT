@@ -73,6 +73,10 @@ type Healer struct {
 	reloadCnt  int64
 	stopCh     chan struct{}
 	wg         sync.WaitGroup
+	// Circuit breaker for reload storms
+	cbFailures    int       // consecutive reload failures
+	cbTrippedAt   time.Time // when the breaker tripped, zero=not tripped
+	cbFirstFailAt time.Time // first failure in the current window
 }
 
 // SetAuditStore attaches an audit logging store. If set, integrity
@@ -86,7 +90,7 @@ func (h *Healer) SetAuditStore(as *audit.Store) {
 // AuditEvent is a security-relevant event recorded by the healer.
 type AuditEvent struct {
 	Timestamp time.Time `json:"timestamp"`
-	Type      string    `json:"type"`    // "check", "fail", "reload", "cleanup"
+	Type      string    `json:"type"`     // "check", "fail", "reload", "cleanup"
 	Severity  string    `json:"severity"` // "INFO", "WARNING", "CRITICAL"
 	Message   string    `json:"message"`
 }
@@ -211,10 +215,30 @@ func (h *Healer) checkProgram(name string) bool {
 }
 
 // reloadPrograms attempts to reload missing eBPF programs.
+// Features a circuit breaker: after 3 consecutive failures within 10 minutes,
+// further reloads are skipped until a successful check cycle.
 func (h *Healer) reloadPrograms() {
+	h.mu.Lock()
+	now := time.Now()
+
+	// Circuit breaker check: if tripped and still within cooldown, skip
+	if !h.cbTrippedAt.IsZero() {
+		if now.Before(h.cbTrippedAt.Add(10 * time.Minute)) {
+			h.mu.Unlock()
+			log.Printf("[heal] circuit breaker open — skipping reload until %s",
+				h.cbTrippedAt.Add(10*time.Minute).Format(time.RFC3339))
+			return
+		}
+		// Cooldown expired — reset and try again
+		h.cbFailures = 0
+		h.cbTrippedAt = time.Time{}
+		h.cbFirstFailAt = time.Time{}
+	}
+	h.mu.Unlock()
+
 	h.reloadCnt++
 	h.auditLog = append(h.auditLog, AuditEvent{
-		Timestamp: time.Now(),
+		Timestamp: now,
 		Type:      "reload",
 		Severity:  "WARNING",
 		Message:   "Initiating eBPF program reload",

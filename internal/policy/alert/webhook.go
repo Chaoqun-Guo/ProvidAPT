@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
@@ -63,12 +64,12 @@ func (ws *WebhookSender) Send(summary *AlertSummary) error {
 	}
 
 	payload := map[string]interface{}{
-		"text":       summary.Text(),
-		"title":      summary.Title,
-		"severity":   summary.Severity,
-		"timestamp":  summary.Timestamp,
+		"text":        summary.Text(),
+		"title":       summary.Title,
+		"severity":    summary.Severity,
+		"timestamp":   summary.Timestamp,
 		"attack_path": summary.AttackPath,
-		"entities":   summary.KeyEntities,
+		"entities":    summary.KeyEntities,
 	}
 
 	data, _ := json.Marshal(payload)
@@ -104,28 +105,122 @@ func (ws *WebhookSender) Send(summary *AlertSummary) error {
 	return fmt.Errorf("webhook failed after %d retries: %w", ws.cfg.Retries, lastErr)
 }
 
+// ─── Rate limiter for storm control ─────────────────────────
+
+// RateLimitConfig tunes the alert rate limiter.
+type RateLimitConfig struct {
+	// MaxAlertsPerMinute is the maximum number of alerts allowed per minute.
+	// Beyond this threshold, alerts are coalesced into storm summaries.
+	MaxAlertsPerMinute int
+
+	// StormCooldown is the duration to suppress individual alerts after
+	// a storm is detected, sending only periodic storm summaries.
+	StormCooldown time.Duration
+}
+
+// DefaultRateLimitConfig returns sensible defaults.
+func DefaultRateLimitConfig() *RateLimitConfig {
+	return &RateLimitConfig{
+		MaxAlertsPerMinute: 60,
+		StormCooldown:      30 * time.Second,
+	}
+}
+
+// RateLimiter implements a sliding-window alert rate limiter with
+// storm coalescing.
+type RateLimiter struct {
+	mu            sync.Mutex
+	cfg           *RateLimitConfig
+	window        []time.Time // timestamps of alerts within the window
+	stormUntil    time.Time   // suppress individual alerts until this time
+	stormCount    int         // total alerts during storm
+	lastStormSent time.Time   // last storm summary sent
+}
+
+// NewRateLimiter creates a rate limiter.
+func NewRateLimiter(cfg *RateLimitConfig) *RateLimiter {
+	if cfg == nil {
+		cfg = DefaultRateLimitConfig()
+	}
+	return &RateLimiter{cfg: cfg}
+}
+
+// Allow checks if an alert should be delivered or coalesced.
+// Returns (allow=true) if the alert should be sent.
+// Returns (allow=false, isStorm=true) when a storm is active — the caller
+// should send a coalesced storm summary instead of individual alerts.
+func (rl *RateLimiter) Allow() (allow bool, isStorm bool) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	windowStart := now.Add(-1 * time.Minute)
+
+	// Prune old entries outside the window
+	cut := 0
+	for cut < len(rl.window) && rl.window[cut].Before(windowStart) {
+		cut++
+	}
+	rl.window = rl.window[cut:]
+
+	// Check storm cooldown
+	if now.Before(rl.stormUntil) {
+		rl.stormCount++
+		if now.After(rl.lastStormSent.Add(rl.cfg.StormCooldown)) {
+			rl.lastStormSent = now
+			return false, true // time for a storm summary tick
+		}
+		return false, true // suppressed during storm
+	}
+
+	// Check rate limit
+	if len(rl.window) >= rl.cfg.MaxAlertsPerMinute {
+		rl.stormUntil = now.Add(rl.cfg.StormCooldown)
+		rl.stormCount = len(rl.window)
+		rl.lastStormSent = now
+		return false, true // storm just started
+	}
+
+	// Normal: record and allow
+	rl.window = append(rl.window, now)
+	return true, false
+}
+
+// StormStats returns the number of alerts suppressed and remaining cooldown.
+// If no storm is active, returns (0, 0).
+func (rl *RateLimiter) StormStats() (int, time.Duration) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	if rl.stormUntil.IsZero() || time.Now().After(rl.stormUntil) {
+		return 0, 0
+	}
+	return rl.stormCount, time.Until(rl.stormUntil)
+}
+
 // ─── Alert pipeline orchestrator ─────────────────────────────
 
 // AlertPipeline ties pattern matching, incident aggregation, summary,
-// and webhook delivery into a single pipeline.
+// webhook delivery, and rate limiting into a single pipeline.
 type AlertPipeline struct {
-	Matcher  *PatternMatcher
-	Incidents *IncidentManager
-	Summaries *SummaryGenerator
-	Webhook  *WebhookSender
+	Matcher     *PatternMatcher
+	Incidents   *IncidentManager
+	Summaries   *SummaryGenerator
+	Webhook     *WebhookSender
+	RateLimiter *RateLimiter
 }
 
 // NewAlertPipeline creates a complete alert pipeline.
 func NewAlertPipeline(graph *provenance.Graph, webhookURL string) *AlertPipeline {
 	return &AlertPipeline{
-		Matcher:   NewPatternMatcher(),
-		Incidents: NewIncidentManager(),
-		Summaries: NewSummaryGenerator(graph),
-		Webhook:   NewWebhookSender(&WebhookConfig{URL: webhookURL}),
+		Matcher:     NewPatternMatcher(),
+		Incidents:   NewIncidentManager(),
+		Summaries:   NewSummaryGenerator(graph),
+		Webhook:     NewWebhookSender(&WebhookConfig{URL: webhookURL}),
+		RateLimiter: NewRateLimiter(nil),
 	}
 }
 
-// Tick runs one full alert cycle: match → aggregate → summarise → notify.
+// Tick runs one full alert cycle: match -> aggregate -> rate-limit -> summarise -> notify.
 func (ap *AlertPipeline) Tick(graph *provenance.Graph) {
 	// 1. Resolve old incidents
 	ap.Incidents.ResolveOld()
@@ -133,10 +228,22 @@ func (ap *AlertPipeline) Tick(graph *provenance.Graph) {
 	// 2. Match patterns
 	matches := ap.Matcher.MatchAll(graph)
 	if len(matches) == 0 {
+		// Send all-clear if storm just ended
+		if cnt, _ := ap.RateLimiter.StormStats(); cnt > 0 {
+			summary := &AlertSummary{
+				Title:       "Alert Storm Resolved",
+				Severity:    "info",
+				Timestamp:   time.Now().Format(time.RFC3339),
+				Description: fmt.Sprintf("Alert storm cleared after %d alerts suppressed", cnt),
+			}
+			_ = ap.Webhook.Send(summary)
+		}
 		return
 	}
 
-	// 3. Aggregate into incidents
+	// 3. Rate-limit and process matches
+	var stormSummary *AlertSummary
+
 	for _, match := range matches {
 		severity := "info"
 		if len(match.Nodes) > 5 {
@@ -145,19 +252,43 @@ func (ap *AlertPipeline) Tick(graph *provenance.Graph) {
 			severity = "medium"
 		}
 		metrics.AlertsTriggered.WithLabelValues(severity).Inc()
-		inc := ap.Incidents.Ingest(match)
-		if inc == nil {
-			continue // was merged into existing incident
+
+		// Rate limit check
+		allow, isStorm := ap.RateLimiter.Allow()
+		if !allow {
+			if isStorm && stormSummary == nil {
+				cnt, _ := ap.RateLimiter.StormStats()
+				stormSummary = &AlertSummary{
+					Title:       "Alert Storm Detected",
+					Severity:    "critical",
+					Timestamp:   time.Now().Format(time.RFC3339),
+					AttackPath:  "",
+					KeyEntities: []string{fmt.Sprintf("%d alerts suppressed", cnt)},
+					Description: fmt.Sprintf("Alert storm in progress — %d alerts suppressed. "+
+						"Individual alerts will resume after cooldown.", cnt),
+				}
+			}
+			continue
 		}
 
-		// 4. Generate summary
-		summary := ap.Summaries.Generate(inc)
+		inc := ap.Incidents.Ingest(match)
+		if inc == nil {
+			continue
+		}
 
-		// 5. Send webhook
+		// 4. Generate and send summary
+		summary := ap.Summaries.Generate(inc)
 		if err := ap.Webhook.Send(summary); err != nil {
 			log.Printf("[alert] webhook error: %v", err)
 		}
-
 		log.Printf("[alert] %s", summary.Text())
+	}
+
+	// 5. Send storm summary if any alerts were suppressed
+	if stormSummary != nil {
+		if err := ap.Webhook.Send(stormSummary); err != nil {
+			log.Printf("[alert] storm webhook error: %v", err)
+		}
+		log.Printf("[alert] STORM: %s", stormSummary.Description)
 	}
 }

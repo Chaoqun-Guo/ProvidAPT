@@ -9,6 +9,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"fmt"
 	"io"
 	"os"
@@ -154,4 +155,10 @@ func LoadOrGenerateKey(path string) (*EncryptionKey, error) {
 // Bytes returns the raw key material.
 func (ek *EncryptionKey) Bytes() []byte {
 	return ek.key
+}
+
+// ConstantTimeCompare compares two strings in constant time,
+// preventing timing side-channel attacks.
+func ConstantTimeCompare(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }

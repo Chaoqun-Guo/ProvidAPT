@@ -113,6 +113,32 @@ podAnnotations: {}
 psp:
   create: false
 
+# -- PodDisruptionBudget for the DaemonSet (minAvailable on daemonset = maxUnavailable)
+podDisruptionBudget:
+  enabled: false
+  maxUnavailable: 1
+  # minAvailable: 1  # mutually exclusive with maxUnavailable
+
+# -- NetworkPolicy for the DaemonSet
+networkPolicy:
+  enabled: false
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 50051
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+
 # -- Service Monitor for Prometheus Operator
 serviceMonitor:
   enabled: false
