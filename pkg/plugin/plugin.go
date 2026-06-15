@@ -8,12 +8,27 @@
 package plugin
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
+
+// ErrUnsupported is returned by Discover on platforms that do not
+// support dynamic plugin loading (plugin package requires Unix).
+var ErrUnsupported = errors.New("plugin discovery not supported on this platform")
+
+// DiscoveryResult summarises the outcome of a Discover call.
+type DiscoveryResult struct {
+	// Loaded contains the names of plugins successfully loaded.
+	Loaded []string
+
+	// Failed contains the paths of plugins that failed to load,
+	// with the associated error message.
+	Failed []string
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Registry
@@ -182,3 +197,18 @@ func NodeAttrString(n *provenance.Node, key string) string {
 	}
 	return ""
 }
+
+// ── Plugin discovery ──────────────────────────────────────────
+
+// Discover scans dir for compiled Go plugins (.so files built with
+// -buildmode=plugin), loads each one, and calls its exported
+// RegisterPlugins() function to auto-register types in the global
+// registry.
+//
+// On non-Unix platforms (e.g. Windows), Discover returns ErrUnsupported
+// and a nil result.
+func Discover(dir string) (*DiscoveryResult, error) {
+	return discoverPlugins(dir)
+}
+
+// discoverPlugins is implemented per-platform in discover_*.go files.
