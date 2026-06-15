@@ -4,7 +4,14 @@
 package viz
 
 import (
+	"context"
+	"fmt"
 	"testing"
+	"time"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ─── VizEngine tests ────────────────────────────────────────
@@ -261,4 +268,234 @@ func TestVizIntegration(t *testing.T) {
 	}
 
 	t.Log("Visualization integration OK")
+}
+
+// ─── Graph sync tests ─────────────────────────────────────────
+
+func TestSyncFromGraph(t *testing.T) {
+	graph := buildTestGraph(t)
+
+	ve := NewVizEngine()
+	if err := ve.SyncFromGraph(graph); err != nil {
+		t.Fatalf("SyncFromGraph error: %v", err)
+	}
+
+	ve.mu.Lock()
+	nodeCount := len(ve.nodes)
+	edgeCount := len(ve.edges)
+	ve.mu.Unlock()
+
+	if nodeCount == 0 {
+		t.Error("no nodes synced from graph")
+	}
+	if edgeCount == 0 {
+		t.Error("no edges synced from graph")
+	}
+	t.Logf("Synced: %d nodes, %d edges", nodeCount, edgeCount)
+}
+
+func TestSyncFromGraphEmpty(t *testing.T) {
+	graph := provenance.NewGraph()
+
+	ve := NewVizEngine()
+	if err := ve.SyncFromGraph(graph); err != nil {
+		t.Fatalf("SyncFromGraph error: %v", err)
+	}
+
+	ve.mu.Lock()
+	nodeCount := len(ve.nodes)
+	edgeCount := len(ve.edges)
+	ve.mu.Unlock()
+
+	if nodeCount != 0 {
+		t.Errorf("expected 0 nodes, got %d", nodeCount)
+	}
+	if edgeCount != 0 {
+		t.Errorf("expected 0 edges, got %d", edgeCount)
+	}
+}
+
+func TestSyncFromGraphNoGraph(t *testing.T) {
+	ve := NewVizEngine()
+	err := ve.Sync()
+	if err == nil {
+		t.Fatal("expected error when no graph connected")
+	}
+}
+
+func TestSyncClearsExisting(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:1", "process", "old", 0)
+	ve.AddEdge("p:1", "f:1", "used", 100)
+
+	graph := buildTestGraph(t)
+	if err := ve.SyncFromGraph(graph); err != nil {
+		t.Fatalf("SyncFromGraph error: %v", err)
+	}
+
+	ve.mu.Lock()
+	_, exists := ve.nodes["p:1"]
+	ve.mu.Unlock()
+	if exists {
+		t.Error("old nodes should be cleared after sync")
+	}
+}
+
+func TestSetGraph(t *testing.T) {
+	graph := buildTestGraph(t)
+
+	ve := NewVizEngine()
+	ve.SetGraph(graph)
+
+	ve.mu.Lock()
+	if ve.graph != graph {
+		t.Error("SetGraph did not store reference")
+	}
+	ve.mu.Unlock()
+}
+
+// ─── Pagination tests ─────────────────────────────────────────
+
+func TestExtractSubgraphWithOptsLimit(t *testing.T) {
+	ve := NewVizEngine()
+	for i := 0; i < 20; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+	// All nodes are seeds.
+	seedIDs := make([]string, 0, 20)
+	for i := 0; i < 20; i++ {
+		seedIDs = append(seedIDs, fmt.Sprintf("p:%d", i))
+	}
+
+	// Limit to 5 nodes.
+	graph := ve.ExtractSubgraphWithOpts(seedIDs, 0, 0, 0, SubgraphOpts{Limit: 5})
+	if graph.Data.NodeCount > 5 {
+		t.Errorf("expected <= 5 nodes with Limit=5, got %d", graph.Data.NodeCount)
+	}
+	t.Logf("Limit=5: %d nodes", graph.Data.NodeCount)
+}
+
+func TestExtractSubgraphWithOptsOffset(t *testing.T) {
+	ve := NewVizEngine()
+	for i := 0; i < 20; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+	seedIDs := make([]string, 0, 20)
+	for i := 0; i < 20; i++ {
+		seedIDs = append(seedIDs, fmt.Sprintf("p:%d", i))
+	}
+
+	// Offset 10: should get nodes p:10 through p:19.
+	graph := ve.ExtractSubgraphWithOpts(seedIDs, 0, 0, 0, SubgraphOpts{Offset: 10})
+	if graph.Data.NodeCount != 10 {
+		t.Errorf("expected 10 nodes with Offset=10, got %d", graph.Data.NodeCount)
+	}
+	t.Logf("Offset=10: %d nodes", graph.Data.NodeCount)
+}
+
+func TestExtractSubgraphWithOptsOffsetLimit(t *testing.T) {
+	ve := NewVizEngine()
+	for i := 0; i < 20; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+	seedIDs := make([]string, 0, 20)
+	for i := 0; i < 20; i++ {
+		seedIDs = append(seedIDs, fmt.Sprintf("p:%d", i))
+	}
+
+	// Offset 5, Limit 10: nodes p:5 through p:14.
+	graph := ve.ExtractSubgraphWithOpts(seedIDs, 0, 0, 0, SubgraphOpts{Offset: 5, Limit: 10})
+	if graph.Data.NodeCount != 10 {
+		t.Errorf("expected 10 nodes with Offset=5, Limit=10, got %d", graph.Data.NodeCount)
+	}
+	t.Logf("Offset=5, Limit=10: %d nodes", graph.Data.NodeCount)
+}
+
+func TestExtractSubgraphWithOptsOffsetBeyondEnd(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:1", "process", "proc1", 0)
+	ve.AddNode("p:2", "process", "proc2", 0)
+
+	graph := ve.ExtractSubgraphWithOpts([]string{"p:1", "p:2"}, 0, 0, 0, SubgraphOpts{Offset: 10})
+	if graph.Data.NodeCount != 0 {
+		t.Errorf("expected 0 nodes with Offset beyond end, got %d", graph.Data.NodeCount)
+	}
+}
+
+// ─── Context cancellation tests ───────────────────────────────
+
+func TestExtractSubgraphWithOptsCancellation(t *testing.T) {
+	ve := NewVizEngine()
+	for i := 0; i < 50; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+	seedIDs := make([]string, 0, 50)
+	for i := 0; i < 50; i++ {
+		seedIDs = append(seedIDs, fmt.Sprintf("p:%d", i))
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	graph := ve.ExtractSubgraphWithOpts(seedIDs, 0, 0, 0, SubgraphOpts{Ctx: ctx})
+	// Must not panic; returns whatever it has.
+	t.Logf("Cancelled: %d nodes", graph.Data.NodeCount)
+}
+
+func TestExtractSubgraphWithOptsTimeout(t *testing.T) {
+	ve := NewVizEngine()
+	for i := 0; i < 100; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+	seedIDs := make([]string, 0, 100)
+	for i := 0; i < 100; i++ {
+		seedIDs = append(seedIDs, fmt.Sprintf("p:%d", i))
+	}
+
+	// Very short timeout — should still return gracefully.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancel()
+	time.Sleep(time.Millisecond) // ensure expiry
+
+	graph := ve.ExtractSubgraphWithOpts(seedIDs, 0, 0, 0, SubgraphOpts{Ctx: ctx})
+	t.Logf("Timeout: %d nodes", graph.Data.NodeCount)
+}
+
+// ─── Helper ───────────────────────────────────────────────────
+
+func buildTestGraph(t *testing.T) *provenance.Graph {
+	t.Helper()
+	graph := provenance.NewGraph()
+
+	// Add a fork event: process 100 → 101
+	graph.AddEvent(&collector.Event{
+		PID:      100,
+		Type:     syscall.EventProcessFork,
+		ChildPID: 101,
+	})
+	// Add an exec event: process 101 executes /bin/bash
+	graph.AddEvent(&collector.Event{
+		PID:      101,
+		Type:     syscall.EventProcessExec,
+		Pathname: "/bin/bash",
+	})
+	// Add a file open: process 101 reads /etc/passwd
+	graph.AddEvent(&collector.Event{
+		PID:      101,
+		Type:     syscall.EventFileOpen,
+		Pathname: "/etc/passwd",
+	})
+	// Add a file create: process 101 writes /tmp/out
+	graph.AddEvent(&collector.Event{
+		PID:      101,
+		Type:     syscall.EventFileCreate,
+		Pathname: "/tmp/out",
+	})
+
+	stats := graph.Stats()
+	if stats.Nodes == 0 {
+		t.Fatal("test graph has no nodes")
+	}
+	t.Logf("Test graph: %d nodes, %d edges", stats.Nodes, stats.Edges)
+	return graph
 }

@@ -4,21 +4,26 @@
 // Package viz provides a lightweight visualization backend for ProvidAPT.
 //
 // Features:
-//  1. Subgraph slice 鈥-extract 3-hop neighbourhood by alert ID
+//  1. Subgraph slice — extract 3-hop neighbourhood by alert ID
 //  2. Cytoscape.js/D3.js JSON output
-//  3. Timeline replay 鈥-timestamp-filtered attack path reconstruction
+//  3. Timeline replay — timestamp-filtered attack path reconstruction
 package viz
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Cytoscape.js graph format
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// ═══════════════════════════════════════════════════════════════
+// Cytoscape.js graph format
+// ═══════════════════════════════════════════════════════════════
+
 // CytoGraph is the top-level graph structure for Cytoscape.js.
 type CytoGraph struct {
 	Data     CytoMeta      `json:"data"`
@@ -52,11 +57,14 @@ type CytoElemData struct {
 	Score    float64 `json:"score,omitempty"`
 }
 
-// 鈹€鈹€鈹€ VizEngine 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ─── VizEngine ────────────────────────────────────────────────────
 
 // VizEngine builds visualisation data from the provenance graph.
+// It can be populated manually via AddNode/AddEdge, or synced from a
+// provenance.Graph via SyncFromGraph for real-time data access.
 type VizEngine struct {
 	mu    sync.Mutex
+	graph *provenance.Graph // connected provenance graph (optional)
 	nodes map[string]*NodeInfo
 	edges []*EdgeInfo
 }
@@ -84,6 +92,74 @@ func NewVizEngine() *VizEngine {
 	}
 }
 
+// ─── Graph connection ─────────────────────────────────────────
+
+// SetGraph sets the provenance graph to sync from. Call Sync() after
+// setting the graph to populate the internal cache, or use SyncFromGraph
+// for the combined operation.
+func (ve *VizEngine) SetGraph(g *provenance.Graph) {
+	ve.mu.Lock()
+	defer ve.mu.Unlock()
+	ve.graph = g
+}
+
+// Sync clears the internal cache and reloads all data from the connected
+// provenance graph. Returns an error if no graph is connected.
+func (ve *VizEngine) Sync() error {
+	ve.mu.Lock()
+	defer ve.mu.Unlock()
+
+	if ve.graph == nil {
+		return fmt.Errorf("viz: no graph connected, call SetGraph first")
+	}
+
+	// Clear existing data.
+	ve.nodes = make(map[string]*NodeInfo)
+	ve.edges = ve.edges[:0]
+
+	// Copy nodes from the provenance graph.
+	for _, n := range ve.graph.Nodes() {
+		ve.nodes[n.ID] = &NodeInfo{
+			ID:    n.ID,
+			Type:  n.ProvType,
+			Label: n.Label,
+		}
+	}
+
+	// Copy edges from the provenance graph.
+	for _, e := range ve.graph.Edges() {
+		ve.edges = append(ve.edges, &EdgeInfo{
+			Source:   e.Source,
+			Target:   e.Target,
+			Relation: e.Relation,
+			Time:     e.Timestamp.UnixNano(),
+		})
+	}
+
+	return nil
+}
+
+// SyncFromGraph sets the graph and syncs in one call.
+func (ve *VizEngine) SyncFromGraph(g *provenance.Graph) error {
+	ve.SetGraph(g)
+	return ve.Sync()
+}
+
+// ─── Pagination options for subgraph extraction ───────────────
+
+// SubgraphOpts controls optional behaviour of ExtractSubgraphWithOpts.
+type SubgraphOpts struct {
+	// Ctx carries a deadline or cancellation for long-running extractions
+	// on large provenance graphs. When nil, context.Background() is used.
+	Ctx context.Context
+
+	// Limit caps the number of nodes returned. 0 = unlimited.
+	Limit int
+
+	// Offset skips the first N nodes from the result. 0 = start from beginning.
+	Offset int
+}
+
 // AddNode registers a node for visualization.
 func (ve *VizEngine) AddNode(id, ntype, label string, score float64) {
 	ve.mu.Lock()
@@ -100,7 +176,7 @@ func (ve *VizEngine) AddEdge(source, target, relation string, timestamp int64) {
 	})
 }
 
-// 鈹€鈹€鈹€ 3-hop subgraph extraction 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ─── 3-hop subgraph extraction ─────────────────────────────────
 
 // ExtractSubgraph returns a Cytoscape.js graph containing all nodes
 // and edges within `maxHops` of the given seed nodes.
@@ -108,6 +184,20 @@ func (ve *VizEngine) AddEdge(source, target, relation string, timestamp int64) {
 // BFS traversal from each seed node, following edges in both
 // directions.
 func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, timeEnd int64) *CytoGraph {
+	return ve.ExtractSubgraphWithOpts(seedIDs, maxHops, timeStart, timeEnd, SubgraphOpts{})
+}
+
+// ExtractSubgraphWithOpts is like ExtractSubgraph but supports
+// pagination (Limit/Offset) and context-based cancellation via
+// SubgraphOpts.
+//
+// When Limit is set, the returned graph contains at most Limit nodes
+// (after applying Offset). Edges are limited to those connecting the
+// returned nodes.
+//
+// The caller should periodically check ctx.Err() for cancellation when
+// working with very large graphs.
+func (ve *VizEngine) ExtractSubgraphWithOpts(seedIDs []string, maxHops int, timeStart, timeEnd int64, opts SubgraphOpts) *CytoGraph {
 	ve.mu.Lock()
 	defer ve.mu.Unlock()
 
@@ -115,8 +205,13 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 		maxHops = 3
 	}
 
+	ctx := opts.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// BFS to find reachable nodes
-	visited := make(map[string]int) // nodeID 鈫-depth
+	visited := make(map[string]int) // nodeID → depth
 	queue := make([]string, 0)
 
 	for _, seed := range seedIDs {
@@ -127,6 +222,11 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 	}
 
 	for len(queue) > 0 {
+		if err := ctx.Err(); err != nil {
+			// Build what we have so far.
+			return buildCytoGraph(ve.nodes, ve.edges, visited, timeStart, timeEnd)
+		}
+
 		current := queue[0]
 		queue = queue[1:]
 		depth := visited[current]
@@ -162,7 +262,55 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 		}
 	}
 
-	// Build Cytoscape.js output
+	// Apply pagination (offset/limit) to visited nodes.
+	visited = paginateVisited(visited, opts.Offset, opts.Limit)
+
+	return buildCytoGraph(ve.nodes, ve.edges, visited, timeStart, timeEnd)
+}
+
+// paginateVisited applies offset and limit to a visited node set.
+func paginateVisited(visited map[string]int, offset, limit int) map[string]int {
+	if offset <= 0 && limit <= 0 {
+		return visited
+	}
+
+	// Collect into a slice for deterministic ordering.
+	type visit struct {
+		id    string
+		depth int
+	}
+	visitedSlice := make([]visit, 0, len(visited))
+	for id, depth := range visited {
+		visitedSlice = append(visitedSlice, visit{id, depth})
+	}
+	sort.Slice(visitedSlice, func(i, j int) bool {
+		return visitedSlice[i].id < visitedSlice[j].id
+	})
+
+	// Apply offset.
+	if offset > 0 {
+		if offset >= len(visitedSlice) {
+			return make(map[string]int)
+		}
+		visitedSlice = visitedSlice[offset:]
+	}
+
+	// Apply limit.
+	if limit > 0 && limit < len(visitedSlice) {
+		visitedSlice = visitedSlice[:limit]
+	}
+
+	// Rebuild map.
+	paginated := make(map[string]int, len(visitedSlice))
+	for _, v := range visitedSlice {
+		paginated[v.id] = v.depth
+	}
+	return paginated
+}
+
+// buildCytoGraph constructs a CytoGraph from the given nodes, edges,
+// visited set, and time range. The caller must hold ve.mu.
+func buildCytoGraph(nodes map[string]*NodeInfo, edgeList []*EdgeInfo, visited map[string]int, timeStart, timeEnd int64) *CytoGraph {
 	graph := &CytoGraph{
 		Data: CytoMeta{
 			Generated: time.Now().UTC().Format(time.RFC3339Nano),
@@ -172,7 +320,7 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 
 	// Add nodes
 	for nodeID, depth := range visited {
-		if n, ok := ve.nodes[nodeID]; ok {
+		if n, ok := nodes[nodeID]; ok {
 			class := "depth-" + fmt.Sprintf("%d", depth)
 			if depth == 0 {
 				class = "seed"
@@ -192,7 +340,7 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 
 	// Add edges
 	seenEdge := make(map[string]bool)
-	for _, edge := range ve.edges {
+	for _, edge := range edgeList {
 		if _, ok := visited[edge.Source]; !ok {
 			continue
 		}
@@ -230,7 +378,21 @@ func (ve *VizEngine) ExtractSubgraph(seedIDs []string, maxHops int, timeStart, t
 	return graph
 }
 
-// 鈹€鈹€鈹€ Timeline replay 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// countEdgesFromVisited counts edges whose source and target are both
+// in the visited node set. Used for early cancellation reporting.
+func countEdgesFromVisited(edgeList []*EdgeInfo, visited map[string]int) int {
+	count := 0
+	for _, edge := range edgeList {
+		if _, ok := visited[edge.Source]; ok {
+			if _, ok := visited[edge.Target]; ok {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// ─── Timeline replay ──────────────────────────────────────────
 
 // TimelineFrame represents a single frame in the attack replay.
 type TimelineFrame struct {
@@ -264,7 +426,7 @@ func (ve *VizEngine) GenerateTimeline(seedIDs []string, maxHops int, frameCount 
 		return timestamps[i] < timestamps[j]
 	})
 
-	// Build frames 鈥-each frame adds a slice of edges
+	// Build frames — each frame adds a slice of edges
 	frames := make([]*TimelineFrame, 0, frameCount)
 	stepSize := len(timestamps) / frameCount
 	if stepSize < 1 {
@@ -313,7 +475,7 @@ func (ve *VizEngine) GenerateTimeline(seedIDs []string, maxHops int, frameCount 
 	return frames
 }
 
-// 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ─── Helpers ──────────────────────────────────────────────────
 
 func countNodes(elements []CytoElement) int {
 	n := 0
