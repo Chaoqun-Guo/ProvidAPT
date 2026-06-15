@@ -304,6 +304,9 @@ func (p *Pipeline) checkPause() {
 	p.mu.Unlock()
 }
 
+// Graph returns the in-memory provenance DAG for read-only access.
+func (p *Pipeline) Graph() *provenance.Graph { return p.graph }
+
 // PauseCh returns the channel that receives a signal when ingestion
 // should pause (high memory pressure).
 func (p *Pipeline) PauseCh() <-chan struct{} { return p.pauseCh }
