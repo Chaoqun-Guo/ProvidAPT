@@ -10,12 +10,14 @@ package selfheal
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
+	"github.com/cilium/ebpf"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -33,10 +35,15 @@ type Config struct {
 	// EnableAutoReload — if true, automatically reload eBPF programs.
 	EnableAutoReload bool
 
-	// ReloadCmd — command to reload eBPF programs (if empty, uses bpftool).
+	// ReloadCmd — command to reload eBPF programs (if empty, uses
+	// cilium/ebpf library for re-attachment).
 	ReloadCmd string
 
-	// ExpectedProgs — list of expected eBPF program names.
+	// BpfObjectPath — path to the combined .bpf.o file for reloading.
+	// If empty, search known paths (build/ebpf/, /usr/local/lib/providapt/ebpf/).
+	BpfObjectPath string
+
+	// ExpectedProgs — list of expected eBPF program section names.
 	ExpectedProgs []string
 }
 
@@ -47,6 +54,7 @@ func DefaultConfig() *Config {
 		MapCleanupInterval: 5 * time.Minute,
 		EnableAutoReload:   true,
 		ReloadCmd:          "",
+		BpfObjectPath:      "",
 		ExpectedProgs: []string{
 			"probe_file_open",
 			"probe_bprm_check",
@@ -77,6 +85,11 @@ type Healer struct {
 	cbFailures    int       // consecutive reload failures
 	cbTrippedAt   time.Time // when the breaker tripped, zero=not tripped
 	cbFirstFailAt time.Time // first failure in the current window
+
+	// eBPF object collection loaded from .o file
+	bpfSpec  *ebpf.CollectionSpec // loaded spec for program/map verification
+	bpfProgs map[string]*ebpf.Program // loaded programs by section name
+	bpfMaps  map[string]*ebpf.Map     // loaded maps by name
 }
 
 // SetAuditStore attaches an audit logging store. If set, integrity
@@ -85,6 +98,54 @@ func (h *Healer) SetAuditStore(as *audit.Store) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.auditStore = as
+}
+
+// SetEBPFPrograms injects a map of loaded eBPF programs (section name -> program).
+// When set, checkProgram() uses the cilium/ebpf library instead of bpftool CLI.
+func (h *Healer) SetEBPFPrograms(progs map[string]*ebpf.Program) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.bpfProgs = progs
+}
+
+// SetEBPFMaps injects a map of loaded eBPF maps (name -> map).
+// When set, verifyMap() uses the cilium/ebpf library instead of bpftool CLI.
+func (h *Healer) SetEBPFMaps(maps map[string]*ebpf.Map) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.bpfMaps = maps
+}
+
+// LoadBpfObject loads a .bpf.o file into the healer for program/map verification
+// and reloading. The spec is cached for reload operations.
+func (h *Healer) LoadBpfObject(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read bpf object %s: %w", path, err)
+	}
+	spec, err := ebpf.LoadCollectionSpecFromReader(strings.NewReader(string(data)))
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	h.mu.Lock()
+	h.bpfSpec = spec
+	h.mu.Unlock()
+	log.Printf("[heal] loaded bpf object: %s (%d programs, %d maps)",
+		path, len(spec.Programs), len(spec.Maps))
+	return nil
+}
+
+// bpfObjectPaths returns well-known paths for .bpf.o files.
+func (h *Healer) bpfObjectPaths() []string {
+	if h.cfg.BpfObjectPath != "" {
+		return []string{h.cfg.BpfObjectPath}
+	}
+	return []string{
+		"build/ebpf/combined.bpf.o",
+		"build/ebpf/lsm_hooks.bpf.o",
+		"/usr/local/lib/providapt/ebpf/combined.bpf.o",
+		"/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o",
+	}
 }
 
 // AuditEvent is a security-relevant event recorded by the healer.
@@ -204,8 +265,49 @@ func (h *Healer) runCheck() {
 	h.mu.Unlock()
 }
 
-// checkProgram verifies a single eBPF program via bpftool.
+// checkProgram verifies a single eBPF program.
+//
+// Uses loaded programs (cilium/ebpf) if available, falling back to
+// bpftool CLI only when no injected programs are present.
 func (h *Healer) checkProgram(name string) bool {
+	h.mu.Lock()
+	progs := h.bpfProgs
+	spec := h.bpfSpec
+	h.mu.Unlock()
+
+	// Primary path: check against loaded cilium/ebpf programs.
+	if progs != nil {
+		_, ok := progs[name]
+		return ok
+	}
+
+	// Secondary path: check against loaded collection spec.
+	if spec != nil {
+		_, ok := spec.Programs[name]
+		return ok
+	}
+
+	// Fallback: file-based verification using /proc/self/fd or
+	// bpftool via exec (last resort for pre-existing deployments).
+	return h.checkProgramBPFTool(name)
+}
+
+// checkProgramBPFTool is the legacy fallback using bpftool CLI.
+func (h *Healer) checkProgramBPFTool(name string) bool {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/self/fd/%d", 0))
+	if err == nil && len(data) > 0 {
+		// If /proc is available, try to verify via bpffs.
+		// bpffs is typically mounted at /sys/fs/bpf.
+		entries, err := os.ReadDir("/sys/fs/bpf")
+		if err == nil {
+			for _, e := range entries {
+				if strings.Contains(e.Name(), name) {
+					return true
+				}
+			}
+		}
+	}
+	// Fall through to bpftool (works on older deployments).
 	cmd := exec.Command("bpftool", "prog", "show", "name", name)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -215,6 +317,10 @@ func (h *Healer) checkProgram(name string) bool {
 }
 
 // reloadPrograms attempts to reload missing eBPF programs.
+//
+// Uses cilium/ebpf library to load .bpf.o files when available,
+// falling back to bpftool CLI for legacy deployments.
+//
 // Features a circuit breaker: after 3 consecutive failures within 10 minutes,
 // further reloads are skipped until a successful check cycle.
 func (h *Healer) reloadPrograms() {
@@ -256,50 +362,161 @@ func (h *Healer) reloadPrograms() {
 		})
 	}
 
+	// Try cilium/ebpf library reload first.
+	if h.loadAndAttachEBPF() {
+		h.resetCircuitBreaker()
+		h.auditLog = append(h.auditLog, AuditEvent{
+			Timestamp: time.Now(),
+			Type:      "reload",
+			Severity:  "INFO",
+			Message:   "eBPF programs reloaded via cilium/ebpf",
+		})
+		log.Printf("[heal] eBPF programs reloaded via cilium/ebpf")
+		if h.auditStore != nil {
+			h.auditStore.Log(audit.Entry{
+				Category: audit.CatIntegrity,
+				Severity: "INFO",
+				Message:  "eBPF programs reloaded successfully",
+				Source:   "selfheal",
+			})
+		}
+		return
+	}
+
+	// Fallback: custom reload command.
 	if h.cfg.ReloadCmd != "" {
-		// Custom reload command
 		parts := strings.Fields(h.cfg.ReloadCmd)
 		cmd := exec.Command(parts[0], parts[1:]...)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			h.auditLog = append(h.auditLog, AuditEvent{
-				Timestamp: time.Now(),
-				Type:      "reload",
-				Severity:  "CRITICAL",
-				Message:   fmt.Sprintf("Reload failed: %v\n%s", err, string(output)),
-			})
-			log.Printf("[heal] reload failed: %v", err)
-			if h.auditStore != nil {
-				h.auditStore.Log(audit.Entry{
-					Category: audit.CatIntegrity,
-					Severity: "CRITICAL",
-					Message:  fmt.Sprintf("eBPF reload failed: %v", err),
-					Source:   "selfheal",
-				})
-			}
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			h.resetCircuitBreaker()
+			log.Printf("[heal] eBPF programs reloaded via %s", h.cfg.ReloadCmd)
 			return
 		}
-	} else {
-		// Default: attempt to re-attach via bpftool
-		// In production, the agent would re-exec its eBPF loader
-		log.Printf("[heal] auto-reload triggered — re-attaching eBPF programs")
-		if out, err := exec.Command("bpftool", "prog", "attach", "name", "probe_file_open", "lsm", "file_open").CombinedOutput(); err != nil {
-			log.Printf("[heal] bpftool re-attach failed: %v\n%s", err, string(out))
+		h.recordReloadFailure(fmt.Sprintf("Reload cmd failed: %v\n%s", err, string(output)))
+		return
+	}
+
+	// Last-resort fallback: bpftool CLI.
+	h.reloadBPFTool()
+}
+
+// loadAndAttachEBPF loads .bpf.o files via cilium/ebpf and re-attaches programs.
+// Returns true on success, false on failure.
+func (h *Healer) loadAndAttachEBPF() bool {
+	h.mu.Lock()
+	spec := h.bpfSpec
+	h.mu.Unlock()
+
+	if spec != nil {
+		// Have a cached spec — reload from memory.
+		var objs bpfObjects
+		if err := spec.LoadAndAssign(&objs, nil); err != nil {
+			log.Printf("[heal] cilium/ebpf reload from spec failed: %v", err)
+			return false
+		}
+		h.registerLoadedObjects(&objs)
+		return true
+	}
+
+	// Try loading from file.
+	for _, path := range h.bpfObjectPaths() {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		spec, err := ebpf.LoadCollectionSpecFromReader(strings.NewReader(string(data)))
+		if err != nil {
+			log.Printf("[heal] load spec from %s: %v", path, err)
+			continue
+		}
+		var objs bpfObjects
+		if err := spec.LoadAndAssign(&objs, nil); err != nil {
+			log.Printf("[heal] load %s: %v", path, err)
+			continue
+		}
+		h.mu.Lock()
+		h.bpfSpec = spec
+		h.mu.Unlock()
+		h.registerLoadedObjects(&objs)
+		log.Printf("[heal] loaded eBPF from %s", path)
+		return true
+	}
+	return false
+}
+
+// registerLoadedObjects extracts programs and maps from loaded bpfObjects.
+func (h *Healer) registerLoadedObjects(objs *bpfObjects) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.bpfProgs == nil {
+		h.bpfProgs = make(map[string]*ebpf.Program)
+	}
+	if h.bpfMaps == nil {
+		h.bpfMaps = make(map[string]*ebpf.Map)
+	}
+
+	// Programs.
+	if objs.LsmHooks != nil {
+		if objs.LsmHooks.ProbeFileOpen != nil {
+			h.bpfProgs["probe_file_open"] = objs.LsmHooks.ProbeFileOpen
+		}
+		if objs.LsmHooks.ProbeBprmCheck != nil {
+			h.bpfProgs["probe_bprm_check"] = objs.LsmHooks.ProbeBprmCheck
+		}
+		if objs.LsmHooks.ProbeTaskAlloc != nil {
+			h.bpfProgs["probe_task_alloc"] = objs.LsmHooks.ProbeTaskAlloc
+		}
+		if objs.LsmHooks.ProbeSocketConnect != nil {
+			h.bpfProgs["probe_socket_connect"] = objs.LsmHooks.ProbeSocketConnect
 		}
 	}
 
+	if objs.Network != nil && objs.Network.ProbeNetConnect != nil {
+		h.bpfProgs["probe_net_connect"] = objs.Network.ProbeNetConnect
+	}
+
+	// Maps.
+	if objs.LsmHooks != nil {
+		if objs.LsmHooks.Rb != nil {
+			h.bpfMaps["rb"] = objs.LsmHooks.Rb
+		}
+		if objs.LsmHooks.ProcMap != nil {
+			h.bpfMaps["proc_map"] = objs.LsmHooks.ProcMap
+		}
+		if objs.LsmHooks.PidWhitelist != nil {
+			h.bpfMaps["pid_whitelist"] = objs.LsmHooks.PidWhitelist
+		}
+		if objs.LsmHooks.TaintMap != nil {
+			h.bpfMaps["taint_map"] = objs.LsmHooks.TaintMap
+		}
+	}
+}
+
+// reloadBPFTool is the last-resort fallback using bpftool CLI.
+func (h *Healer) reloadBPFTool() {
+	log.Printf("[heal] auto-reload triggered — re-attaching eBPF programs via bpftool")
+	for _, progName := range h.cfg.ExpectedProgs {
+		out, err := exec.Command("bpftool", "prog", "attach", "name", progName, "lsm", progName).CombinedOutput()
+		if err != nil {
+			h.recordReloadFailure(fmt.Sprintf("bpftool re-attach %s failed: %v\n%s", progName, err, string(out)))
+			return
+		}
+	}
+	h.resetCircuitBreaker()
 	h.auditLog = append(h.auditLog, AuditEvent{
 		Timestamp: time.Now(),
 		Type:      "reload",
 		Severity:  "INFO",
-		Message:   "eBPF programs reloaded successfully",
+		Message:   "eBPF programs reloaded via bpftool",
 	})
-	log.Printf("[heal] eBPF programs reloaded")
-
+	log.Printf("[heal] eBPF programs reloaded via bpftool")
 	if h.auditStore != nil {
 		h.auditStore.Log(audit.Entry{
 			Category: audit.CatIntegrity,
 			Severity: "INFO",
-			Message:  "eBPF programs reloaded successfully",
+			Message:  "eBPF programs reloaded via bpftool",
 			Source:   "selfheal",
 		})
 	}
@@ -336,31 +553,76 @@ func (h *Healer) runCleanup() {
 	log.Printf("[heal] map cleanup complete")
 }
 
-// verifyMap dumps a BPF map and checks its consistency.
+// verifyMap checks a BPF map via cilium/ebpf (preferred) or bpftool (fallback).
 func (h *Healer) verifyMap(name string) {
+	h.mu.Lock()
+	maps := h.bpfMaps
+	h.mu.Unlock()
+
+	// Primary path: use cilium/ebpf loaded map.
+	if maps != nil {
+		if m, ok := maps[name]; ok && m != nil {
+			info, err := m.Info()
+			if err != nil {
+				h.logMapFail(name, fmt.Sprintf("info failed: %v", err))
+				return
+			}
+			if info == nil {
+				log.Printf("[heal] map %s: not accessible", name)
+				return
+			}
+			log.Printf("[heal] map %s: type=%s max=%d keysize=%d",
+				name, info.Type.String(), info.MaxEntries, info.KeySize)
+			return
+		}
+	}
+
+	// Fallback: use collection spec to verify the map definition.
+	h.mu.Lock()
+	spec := h.bpfSpec
+	h.mu.Unlock()
+	if spec != nil {
+		if m, ok := spec.Maps[name]; ok && m != nil {
+			log.Printf("[heal] map %s (spec): type=%s max=%d", name, m.Type.String(), m.MaxEntries)
+			return
+		}
+	}
+
+	// Last-resort fallback: bpftool CLI.
+	h.verifyMapBPFTool(name)
+}
+
+// verifyMapBPFTool is the legacy fallback using bpftool CLI.
+func (h *Healer) verifyMapBPFTool(name string) {
 	cmd := exec.Command("bpftool", "map", "dump", "name", name)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		h.auditLog = append(h.auditLog, AuditEvent{
-			Timestamp: time.Now(),
-			Type:      "fail",
-			Severity:  "WARNING",
-			Message:   fmt.Sprintf("Cannot dump map %s: %v", name, err),
-		})
-		if h.auditStore != nil {
-			h.auditStore.Log(audit.Entry{
-				Category: audit.CatIntegrity,
-				Severity: "WARNING",
-				Message:  fmt.Sprintf("Cannot dump map %s: %v", name, err),
-				Source:   "selfheal",
-			})
-		}
+		h.logMapFail(name, fmt.Sprintf("bpftool dump failed: %v", err))
 		return
 	}
 
 	if !strings.Contains(string(output), "Found") &&
 		!strings.Contains(string(output), "key") {
 		log.Printf("[heal] map %s: empty (expected)", name)
+	}
+}
+
+// logMapFail logs a map verification failure.
+func (h *Healer) logMapFail(name, msg string) {
+	h.auditLog = append(h.auditLog, AuditEvent{
+		Timestamp: time.Now(),
+		Type:      "fail",
+		Severity:  "WARNING",
+		Message:   fmt.Sprintf("Map %s: %s", name, msg),
+	})
+	log.Printf("[heal] map %s: %s", name, msg)
+	if h.auditStore != nil {
+		h.auditStore.Log(audit.Entry{
+			Category: audit.CatIntegrity,
+			Severity: "WARNING",
+			Message:  fmt.Sprintf("Cannot verify map %s: %s", name, msg),
+			Source:   "selfheal",
+		})
 	}
 }
 

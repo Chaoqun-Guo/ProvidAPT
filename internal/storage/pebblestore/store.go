@@ -77,6 +77,8 @@ func Open(path string) (*Store, error) {
 // ─── Node operations ───────────────────────────────────────
 
 // PutNode writes a node to the store (queued in batch).
+// All data (node + secondary indexes) is written within a single lock
+// scope to prevent Flush() from replacing the batch mid-write.
 func (s *Store) PutNode(node *pb.Node) error {
 	data, err := proto.Marshal(node)
 	if err != nil {
@@ -87,6 +89,22 @@ func (s *Store) PutNode(node *pb.Node) error {
 
 	s.wbMu.Lock()
 	s.wb.Set([]byte(key), data, pebble.Sync)
+
+	// Write secondary indexes within the same lock scope for atomicity
+	// — Flush() cannot replace s.wb while we hold the lock.
+	if node.Pid > 0 {
+		pidKey := schema.PIDIndexKey(node.Pid, node.Id)
+		idx := &pb.PIDIndex{Pid: node.Pid, NodeId: node.Id, FirstSeenNs: node.FirstSeenNs}
+		idxData, _ := proto.Marshal(idx)
+		s.wb.Set([]byte(pidKey), idxData, pebble.Sync)
+	}
+	if node.Inode > 0 {
+		inodeKey := schema.InodeIndexKey(node.Inode, node.DevMajor, node.DevMinor, node.Id)
+		idx := &pb.InodeIndex{Inode: node.Inode, DevMajor: node.DevMajor, DevMinor: node.DevMinor, NodeId: node.Id}
+		idxData, _ := proto.Marshal(idx)
+		s.wb.Set([]byte(inodeKey), idxData, pebble.Sync)
+	}
+
 	batchSize := s.wb.Count()
 	s.wbMu.Unlock()
 
@@ -95,41 +113,10 @@ func (s *Store) PutNode(node *pb.Node) error {
 	s.stats.BytesWritten += int64(len(data))
 	s.stats.mu.Unlock()
 
-	// Write secondary indexes synchronously — the batch must not be
-	// replaced by Flush() while goroutines hold a stale reference.
-	if node.Pid > 0 {
-		s.writePIDIndex(node.Pid, node.Id, node.FirstSeenNs)
-	}
-	if node.Inode > 0 {
-		s.writeInodeIndex(node.Inode, node.DevMajor, node.DevMinor, node.Id)
-	}
-
 	if batchSize >= uint32(s.wbSize) {
 		return s.Flush()
 	}
 	return nil
-}
-
-// writePIDIndex creates a PID→Node index entry.
-func (s *Store) writePIDIndex(pid uint32, nodeID string, ts uint64) {
-	key := schema.PIDIndexKey(pid, nodeID)
-	idx := &pb.PIDIndex{Pid: pid, NodeId: nodeID, FirstSeenNs: ts}
-	data, _ := proto.Marshal(idx)
-
-	s.wbMu.Lock()
-	s.wb.Set([]byte(key), data, pebble.Sync)
-	s.wbMu.Unlock()
-}
-
-// writeInodeIndex creates an Inode→Node index entry.
-func (s *Store) writeInodeIndex(inode uint64, devMajor, devMinor uint32, nodeID string) {
-	key := schema.InodeIndexKey(inode, devMajor, devMinor, nodeID)
-	idx := &pb.InodeIndex{Inode: inode, DevMajor: devMajor, DevMinor: devMinor, NodeId: nodeID}
-	data, _ := proto.Marshal(idx)
-
-	s.wbMu.Lock()
-	s.wb.Set([]byte(key), data, pebble.Sync)
-	s.wbMu.Unlock()
 }
 
 // ─── Edge operations ───────────────────────────────────────

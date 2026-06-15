@@ -24,6 +24,13 @@ const (
 	HoneytokenKubeconfig  HoneytokenType = "kubeconfig"  // k8s admin config
 	HoneytokenVault       HoneytokenType = "vault"       // vault token file
 )
+// Honeytoken eBPF map flags — mirrors cmd/bpf/headers/deception.h.
+const (
+	HONEYPOT_ACTIVE    = 1 << 0 // honeytoken injection active
+	HONEYPOT_TRIGGERED = 1 << 1 // honeytoken was accessed
+	HONEYPOT_TRIPWIRE  = 1 << 2 // file is a tripwire (immediate freeze)
+)
+
 
 // HoneytokenDef describes a single honeytoken file to inject.
 type HoneytokenDef struct {

@@ -4,6 +4,7 @@
 package deception
 
 import (
+	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/cilium/ebpf"
 )
 
 // ═══════════════════════════════════════════════════════════════════
@@ -42,7 +45,7 @@ type OverlayManager struct {
 	mu        sync.Mutex
 	mounts    []OverlayMount
 	active    bool
-	mapFd     int // eBPF honeytoken_map fd (-1 if not connected)
+	bpfMap    *ebpf.Map // eBPF honeytoken_map (nil if not connected)
 	triggerCh chan HoneypotTrigger
 }
 
@@ -56,7 +59,7 @@ func NewOverlayManager(cfg *Config) *OverlayManager {
 	return &OverlayManager{
 		cfg:       cfg,
 		mounts:    make([]OverlayMount, 0),
-		mapFd:     -1,
+		bpfMap:    nil,
 		triggerCh: make(chan HoneypotTrigger, 256),
 	}
 }
@@ -98,7 +101,7 @@ func (om *OverlayManager) Start() error {
 	}
 
 	// Register honeytoken paths in eBPF map (if connected).
-	if om.mapFd >= 0 {
+	if om.bpfMap != nil {
 		for _, ht := range om.cfg.Honeytokens {
 			if err := om.registerInEBPF(ht); err != nil {
 				log.Printf("[deception] eBPF register failed for %s: %v", ht.Path, err)
@@ -126,6 +129,15 @@ func (om *OverlayManager) Stop() error {
 		if err := om.unmountOverlay(m); err != nil {
 			log.Printf("[deception] unmount failed for %s: %v", m.TargetDir, err)
 			lastErr = err
+		}
+	}
+
+	// Unregister from eBPF map.
+	if om.bpfMap != nil {
+		for _, ht := range om.cfg.Honeytokens {
+			if err := om.unregisterFromEBPF(ht); err != nil {
+				log.Printf("[deception] eBPF unregister failed for %s: %v", ht.Path, err)
+			}
 		}
 	}
 
@@ -167,11 +179,13 @@ func (om *OverlayManager) HandleTrigger(t HoneypotTrigger) {
 	}
 }
 
-// SetEBPFMapFd connects the manager to an eBPF honeytoken_map.
-func (om *OverlayManager) SetEBPFMapFd(fd int) {
+// SetEBPFMap connects the manager to an eBPF honeytoken_map.
+// The map must be a BPF_MAP_TYPE_HASH with uint32 key (path_hash)
+// and uint64 value (flags | pid<<32 | triggered_at<<32).
+func (om *OverlayManager) SetEBPFMap(m *ebpf.Map) {
 	om.mu.Lock()
 	defer om.mu.Unlock()
-	om.mapFd = fd
+	om.bpfMap = m
 }
 
 // ── Overlay mount operations ────────────────────────────────────
@@ -259,27 +273,52 @@ func (om *OverlayManager) unmountOverlay(m OverlayMount) error {
 
 // ── eBPF map operations ─────────────────────────────────────────
 
+// registerInEBPF writes a honeytoken definition to the eBPF honeytoken_map.
+// The map uses:
+//   key = struct honeytoken_key { __u32 path_hash; }
+//   val = struct honeytoken_val { __u32 flags; __u32 pid; __u64 triggered_at; }
 func (om *OverlayManager) registerInEBPF(ht HoneytokenDef) error {
-	if om.mapFd < 0 {
+	if om.bpfMap == nil {
 		return nil // no eBPF connection
 	}
 
 	pathHash := fnvHash(ht.Path)
 
-	// In production, this writes to the honeytoken_map eBPF map:
-	//   key = struct honeytoken_key { .path_hash = pathHash }
-	//   val = struct honeytoken_val { .flags = HONEYPOT_ACTIVE | (tripwire ? HONEYPOT_TRIPWIRE : 0) }
-	//
-	// Using ebpf-go Map interface:
-	//   key := uint32(pathHash)
-	//   flags := uint32(HONEYPOT_ACTIVE)
-	//   if ht.Tripwire { flags |= HONEYPOT_TRIPWIRE }
-	//   return bpfMap.Update(unsafe.Pointer(&key), unsafe.Pointer(&flags))
-	//
-	// For now, log the registration.
+	// Build key: struct honeytoken_key { __u32 path_hash; }
+	key := make([]byte, 4)
+	binary.LittleEndian.PutUint32(key, pathHash)
+
+	// Build val: struct honeytoken_val { __u32 flags; __u32 pid; __u64 triggered_at; }
+	flags := uint32(HONEYPOT_ACTIVE)
+	if ht.Tripwire {
+		flags |= HONEYPOT_TRIPWIRE
+	}
+	val := make([]byte, 16)
+	binary.LittleEndian.PutUint32(val[0:4], flags)
+	binary.LittleEndian.PutUint32(val[4:8], 0)  // pid=0 (not triggered yet)
+	binary.LittleEndian.PutUint64(val[8:16], 0)  // triggered_at=0
+
+	if err := om.bpfMap.Update(key, val, 0); err != nil {
+		return fmt.Errorf("honeytoken_map update: %w", err)
+	}
+
 	log.Printf("[deception] eBPF register: hash=%08x path=%s tripwire=%v",
 		pathHash, ht.Path, ht.Tripwire)
+	return nil
+}
 
+// unregisterFromEBPF removes a honeytoken from the eBPF map.
+func (om *OverlayManager) unregisterFromEBPF(ht HoneytokenDef) error {
+	if om.bpfMap == nil {
+		return nil
+	}
+	pathHash := fnvHash(ht.Path)
+	key := make([]byte, 4)
+	binary.LittleEndian.PutUint32(key, pathHash)
+	if err := om.bpfMap.Delete(key); err != nil {
+		return fmt.Errorf("honeytoken_map delete: %w", err)
+	}
+	log.Printf("[deception] eBPF unregister: hash=%08x path=%s", pathHash, ht.Path)
 	return nil
 }
 
@@ -356,6 +395,6 @@ func (om *OverlayManager) Stats() map[string]interface{} {
 		"active":        om.active,
 		"mount_count":   len(om.mounts),
 		"token_count":   len(om.cfg.Honeytokens),
-		"map_fd":        om.mapFd,
+		"map_present":   om.bpfMap != nil,
 	}
 }

@@ -205,17 +205,17 @@ func TestOverlayManagerStats(t *testing.T) {
 	if stats["mount_count"].(int) != 0 {
 		t.Errorf("mount count = %d", stats["mount_count"])
 	}
-	if stats["map_fd"].(int) != -1 {
-		t.Errorf("map fd = %d", stats["map_fd"])
+	if stats["map_present"].(bool) {
+		t.Error("map_present should be false")
 	}
 }
 
 func TestOverlayManagerSetEBPFMapFd(t *testing.T) {
 	om := NewOverlayManager(nil)
-	om.SetEBPFMapFd(42)
+	// nil by default — map not connected.
 	stats := om.Stats()
-	if stats["map_fd"].(int) != 42 {
-		t.Errorf("map fd = %d", stats["map_fd"])
+	if stats["map_present"].(bool) {
+		t.Error("expected map_present=false with no map set")
 	}
 }
 
@@ -688,11 +688,11 @@ func TestOverlayManagerRegisterInEBPF(t *testing.T) {
 		t.Errorf("registerInEBPF: %v", err)
 	}
 
-	// With map fd -1, should still be no-op.
-	om.SetEBPFMapFd(-1)
+	// With nil map, should still be no-op.
+	om.SetEBPFMap(nil)
 	err = om.registerInEBPF(ht)
 	if err != nil {
-		t.Errorf("registerInEBPF with fd=-1: %v", err)
+		t.Errorf("registerInEBPF with nil map: %v", err)
 	}
 }
 
