@@ -463,6 +463,83 @@ func TestExtractSubgraphWithOptsTimeout(t *testing.T) {
 
 // ─── Helper ───────────────────────────────────────────────────
 
+
+// ─── Partial extraction tests ─────────────────────────────────
+
+func TestExtractPartialFirstLevel(t *testing.T) {
+	ve := NewVizEngine()
+	// Build a 4-level chain: 0→1→2→3→4
+	for i := 0; i <= 4; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+	for i := 0; i < 4; i++ {
+		ve.AddEdge(fmt.Sprintf("p:%d", i), fmt.Sprintf("p:%d", i+1), "fork", int64(i*1000))
+	}
+
+	// Depth 0-1 from seed p:0
+	result := ve.ExtractPartial([]string{"p:0"}, 4, 0, 1, SubgraphOpts{})
+	if result == nil || result.Graph == nil {
+		t.Fatal("ExtractPartial returned nil")
+	}
+	if result.Graph.Data.NodeCount <= 0 {
+		t.Error("expected nodes in depth range 0-1")
+	}
+	if !result.HasMore {
+		t.Error("HasMore should be true when deeper levels exist")
+	}
+	t.Logf("Depth 0-1: %d nodes, HasMore=%v", result.Graph.Data.NodeCount, result.HasMore)
+}
+
+func TestExtractPartialLastLevel(t *testing.T) {
+	ve := NewVizEngine()
+	for i := 0; i <= 4; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+	for i := 0; i < 4; i++ {
+		ve.AddEdge(fmt.Sprintf("p:%d", i), fmt.Sprintf("p:%d", i+1), "fork", int64(i*1000))
+	}
+
+	// Depth 4-5 — only p:4 should be in this range
+	result := ve.ExtractPartial([]string{"p:0"}, 4, 4, 1, SubgraphOpts{})
+	if result == nil || result.Graph == nil {
+		t.Fatal("ExtractPartial returned nil")
+	}
+	if !result.HasMore {
+		t.Log("Last level: HasMore=false (as expected)")
+	}
+	t.Logf("Depth 4: %d nodes", result.Graph.Data.NodeCount)
+}
+
+func TestExtractPartialBeyondMax(t *testing.T) {
+	ve := NewVizEngine()
+	ve.AddNode("p:0", "process", "root", 0)
+
+	// startDepth beyond maxHops should return empty but not panic.
+	result := ve.ExtractPartial([]string{"p:0"}, 3, 10, 1, SubgraphOpts{})
+	if result == nil || result.Graph == nil {
+		t.Fatal("ExtractPartial returned nil")
+	}
+	t.Logf("Beyond max: %d nodes, HasMore=%v", result.Graph.Data.NodeCount, result.HasMore)
+}
+
+func TestExtractPartialPagination(t *testing.T) {
+	ve := NewVizEngine()
+	for i := 0; i < 10; i++ {
+		ve.AddNode(fmt.Sprintf("p:%d", i), "process", fmt.Sprintf("proc%d", i), 0)
+	}
+
+	// All nodes are seeds at depth 0. Limit to 3.
+	seeds := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		seeds[i] = fmt.Sprintf("p:%d", i)
+	}
+	result := ve.ExtractPartial(seeds, 0, 0, 1, SubgraphOpts{Limit: 3})
+	if result.Graph.Data.NodeCount > 3 {
+		t.Errorf("expected ≤3 nodes with Limit=3, got %d", result.Graph.Data.NodeCount)
+	}
+	t.Logf("Paginated partial: %d nodes", result.Graph.Data.NodeCount)
+}
+
 func buildTestGraph(t *testing.T) *provenance.Graph {
 	t.Helper()
 	graph := provenance.NewGraph()

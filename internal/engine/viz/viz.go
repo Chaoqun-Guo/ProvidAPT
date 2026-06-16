@@ -392,6 +392,107 @@ func countEdgesFromVisited(edgeList []*EdgeInfo, visited map[string]int) int {
 	return count
 }
 
+// ─── Incremental / depth-range extraction ──────────────────────
+
+// PartialResult holds a partial extraction result with a flag that tells
+// the caller whether deeper BFS levels remain.  Useful for progressive
+// (lazy) loading in a UI.
+type PartialResult struct {
+	Graph   *CytoGraph
+	HasMore bool // true when deeper (unfetched) levels still exist
+}
+
+// ExtractPartial extracts nodes and edges within [0, maxDepth] from seed
+// nodes, but caps the returned set to depthRange levels starting from
+// startDepth.  The HasMore field tells the caller whether nodes at
+// depth > startDepth+depthRange exist.
+//
+// Example — three calls to progressively load depth 0‑1, then 2, then 3:
+//
+//	r1 := ve.ExtractPartial(seeds, 3, 0, 1, SubgraphOpts{})
+//	r2 := ve.ExtractPartial(seeds, 3, 2, 1, SubgraphOpts{})
+//	r3 := ve.ExtractPartial(seeds, 3, 3, 1, SubgraphOpts{})
+func (ve *VizEngine) ExtractPartial(seedIDs []string, maxHops, startDepth, depthRange int, opts SubgraphOpts) *PartialResult {
+	ve.mu.Lock()
+	defer ve.mu.Unlock()
+
+	if maxHops <= 0 {
+		maxHops = 3
+	}
+	if depthRange <= 0 {
+		depthRange = 1
+	}
+
+	ctx := opts.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// BFS to discover all reachable nodes (up to maxHops).
+	visited := make(map[string]int)
+	queue := make([]string, 0)
+
+	for _, seed := range seedIDs {
+		if _, ok := ve.nodes[seed]; ok {
+			visited[seed] = 0
+			queue = append(queue, seed)
+		}
+	}
+
+	for len(queue) > 0 {
+		if err := ctx.Err(); err != nil {
+			break
+		}
+		current := queue[0]
+		queue = queue[1:]
+		depth := visited[current]
+
+		if depth >= maxHops {
+			continue
+		}
+
+		for _, edge := range ve.edges {
+			var neighbour string
+			if edge.Source == current {
+				neighbour = edge.Target
+			} else if edge.Target == current {
+				neighbour = edge.Source
+			} else {
+				continue
+			}
+			if _, seen := visited[neighbour]; !seen {
+				if _, exists := ve.nodes[neighbour]; exists {
+					visited[neighbour] = depth + 1
+					queue = append(queue, neighbour)
+				}
+			}
+		}
+	}
+
+	// Keep only nodes in [startDepth, startDepth+depthRange).
+	targetMax := startDepth + depthRange
+	filtered := make(map[string]int)
+	maxReached := 0
+	for id, d := range visited {
+		if d >= startDepth && d < targetMax {
+			filtered[id] = d
+		}
+		if d > maxReached {
+			maxReached = d
+		}
+	}
+
+	hasMore := maxReached >= targetMax
+
+	// Apply pagination on top.
+	filtered = paginateVisited(filtered, opts.Offset, opts.Limit)
+
+	return &PartialResult{
+		Graph:   buildCytoGraph(ve.nodes, ve.edges, filtered, 0, 0),
+		HasMore: hasMore,
+	}
+}
+
 // ─── Timeline replay ──────────────────────────────────────────
 
 // TimelineFrame represents a single frame in the attack replay.

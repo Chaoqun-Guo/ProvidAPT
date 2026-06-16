@@ -256,13 +256,14 @@ func (h *Healer) runCheck() {
 				},
 			})
 		}
-
-		// Auto-reload
-		if h.cfg.EnableAutoReload {
-			h.reloadPrograms()
-		}
 	}
 	h.mu.Unlock()
+
+	// Auto-reload outside the lock — reloadPrograms acquires h.mu internally
+	// and calling it while holding the lock would cause a deadlock.
+	if !allFound && h.cfg.EnableAutoReload {
+		h.reloadPrograms()
+	}
 }
 
 // checkProgram verifies a single eBPF program.

@@ -403,3 +403,262 @@ func TestDetectIntegration(t *testing.T) {
 		t.Error("expected at least 1 match in integration test")
 	}
 }
+
+// ─── evaluateCondition tests ────────────────────────────────────
+
+func TestEvaluateConditionSimple(t *testing.T) {
+	results := map[string]bool{"selection": true}
+	if !evaluateCondition("selection", results) {
+		t.Error("'selection' with true result should return true")
+	}
+	results["selection"] = false
+	if evaluateCondition("selection", results) {
+		t.Error("'selection' with false result should return false")
+	}
+}
+
+func TestEvaluateConditionNOT(t *testing.T) {
+	results := map[string]bool{"sel": true}
+	if evaluateCondition("NOT sel", results) {
+		t.Error("NOT true should be false")
+	}
+	results["sel"] = false
+	if !evaluateCondition("NOT sel", results) {
+		t.Error("NOT false should be true")
+	}
+}
+
+func TestEvaluateConditionAND(t *testing.T) {
+	results := map[string]bool{"a": true, "b": true}
+	if !evaluateCondition("a AND b", results) {
+		t.Error("true AND true should be true")
+	}
+	results["a"] = true
+	results["b"] = false
+	if evaluateCondition("a AND b", results) {
+		t.Error("true AND false should be false")
+	}
+	results["a"] = false
+	results["b"] = true
+	if evaluateCondition("a AND b", results) {
+		t.Error("false AND true should be false")
+	}
+}
+
+func TestEvaluateConditionOR(t *testing.T) {
+	results := map[string]bool{"a": false, "b": true}
+	if !evaluateCondition("a OR b", results) {
+		t.Error("false OR true should be true")
+	}
+	results["a"] = false
+	results["b"] = false
+	if evaluateCondition("a OR b", results) {
+		t.Error("false OR false should be false")
+	}
+	results["a"] = true
+	results["b"] = true
+	if !evaluateCondition("a OR b", results) {
+		t.Error("true OR true should be true")
+	}
+}
+
+func TestEvaluateConditionANDNOT(t *testing.T) {
+	results := map[string]bool{"a": true, "b": false}
+	if !evaluateCondition("a AND NOT b", results) {
+		t.Error("true AND NOT false should be true")
+	}
+	results["a"] = true
+	results["b"] = true
+	if evaluateCondition("a AND NOT b", results) {
+		t.Error("true AND NOT true should be false")
+	}
+}
+
+func TestEvaluateConditionParentheses(t *testing.T) {
+	results := map[string]bool{"a": true, "b": false, "c": false}
+	if evaluateCondition("(a OR b) AND c", results) {
+		t.Error("(true OR false) AND false should be false")
+	}
+	if !evaluateCondition("(a OR b) AND NOT c", results) {
+		t.Error("(true OR false) AND NOT false should be true")
+	}
+}
+
+func TestEvaluateConditionNestedParens(t *testing.T) {
+	results := map[string]bool{"a": false, "b": false, "c": true}
+	if !evaluateCondition("(a OR (b OR c))", results) {
+		t.Error("(false OR (false OR true)) should be true")
+	}
+	if evaluateCondition("(a AND (b AND c))", results) {
+		t.Error("(false AND (false AND true)) should be false")
+	}
+}
+
+func TestEvaluateConditionComplex(t *testing.T) {
+	results := map[string]bool{
+		"file_event":   true,
+		"net_event":    false,
+		"sensitive":    true,
+		"root_process": false,
+	}
+	if !evaluateCondition("file_event AND sensitive AND NOT root_process", results) {
+		t.Error("true AND true AND NOT false should be true")
+	}
+	if !evaluateCondition("(file_event OR net_event) AND sensitive", results) {
+		t.Error("(true OR false) AND true should be true")
+	}
+	if !evaluateCondition("(file_event OR net_event) AND NOT root_process", results) {
+		t.Error("(true OR false) AND NOT false should be true")
+	}
+}
+
+func TestEvaluateConditionUnknownSelection(t *testing.T) {
+	results := map[string]bool{"known": true}
+	if evaluateCondition("unknown", results) {
+		t.Error("unknown selection should return false")
+	}
+}
+
+func TestEvaluateConditionPrecedence(t *testing.T) {
+	results := map[string]bool{"a": true, "b": false, "c": false}
+	if !evaluateCondition("a OR b AND NOT c", results) {
+		t.Error("true OR false AND NOT false should be true (AND binds tighter)")
+	}
+
+	results2 := map[string]bool{"a": false, "b": false, "c": true}
+	if !evaluateCondition("a AND NOT b OR c", results2) {
+		t.Error("false AND NOT false OR true should be true")
+	}
+}
+
+func TestEvaluateConditionOnlyOperators(t *testing.T) {
+	results := map[string]bool{"x": true}
+	if evaluateCondition("AND", results) {
+		t.Error("bare AND should not panic")
+	}
+	if evaluateCondition("OR", results) {
+		t.Error("bare OR should not panic")
+	}
+	// NOT with no operand: parse factor returns !false = true
+	if !evaluateCondition("NOT", results) {
+		t.Error("bare NOT should not panic")
+	}
+}
+
+// ─── Multi-selection Match tests ────────────────────────────────
+
+func TestMatchMultiSelectionAND(t *testing.T) {
+	evt := &pb.Event{
+		Type:     10,
+		Pathname: "/etc/shadow",
+		Comm:     "cat",
+		Uid:      1000,
+	}
+	rule := &Rule{
+		Title: "multi-and",
+		Detection: Detection{
+			NamedSelections: map[string]Selection{
+				"type_sel":   {EventType: []uint32{10}},
+				"shadow_sel": {TargetPath: "/etc/shadow"},
+				"comm_sel":   {Comm: "cat"},
+			},
+			Condition: "type_sel AND shadow_sel AND comm_sel",
+		},
+	}
+	if !rule.Match(evt) {
+		t.Error("all conditions match: expected true")
+	}
+}
+
+func TestMatchMultiSelectionOneFails(t *testing.T) {
+	evt := &pb.Event{
+		Type:     10,
+		Pathname: "/etc/shadow",
+		Comm:     "cat",
+	}
+	rule := &Rule{
+		Title: "multi-one-fails",
+		Detection: Detection{
+			NamedSelections: map[string]Selection{
+				"type_sel":   {EventType: []uint32{10}},
+				"shadow_sel": {TargetPath: "/etc/nonexistent"},
+			},
+			Condition: "type_sel AND shadow_sel",
+		},
+	}
+	if rule.Match(evt) {
+		t.Error("TargetPath doesn't match: expected false")
+	}
+}
+
+func TestMatchMultiSelectionNOT(t *testing.T) {
+	evt := &pb.Event{
+		Type:     10,
+		Pathname: "/etc/shadow",
+		Comm:     "sudo",
+		Uid:      0,
+	}
+	rule := &Rule{
+		Title: "multi-not",
+		Detection: Detection{
+			NamedSelections: map[string]Selection{
+				"type_sel":   {EventType: []uint32{10}},
+				"shadow_sel": {TargetPath: "/etc/shadow"},
+				"root_sel":   {UID: "0"},
+			},
+			Condition: "type_sel AND shadow_sel AND NOT root_sel",
+		},
+	}
+	if rule.Match(evt) {
+		t.Error("uid=0 should NOT match root_sel: expected false")
+	}
+
+	evt.Uid = 1000
+	if !rule.Match(evt) {
+		t.Error("non-root uid should match: expected true")
+	}
+}
+
+// ─── Fuzz tests ─────────────────────────────────────────────────
+
+func FuzzPatternMatch(f *testing.F) {
+	seeds := []struct{ pattern, value string }{
+		{"/etc/shadow", "/etc/shadow"},
+		{"/etc/*", "/etc/shadow"},
+		{"*.conf", "nginx.conf"},
+	}
+	for _, s := range seeds {
+		f.Add(s.pattern, s.value)
+	}
+	f.Fuzz(func(t *testing.T, pattern, value string) {
+		patternMatch(pattern, value)
+	})
+}
+
+func FuzzCompareField(f *testing.F) {
+	seeds := []struct {
+		field string
+		val   uint64
+	}{
+		{"0", 0},
+		{"!=0", 100},
+		{">1000", 500},
+	}
+	for _, s := range seeds {
+		f.Add(s.field, s.val)
+	}
+	f.Fuzz(func(t *testing.T, field string, val uint64) {
+		compareField(field, val)
+	})
+}
+
+func FuzzEvaluateCondition(f *testing.F) {
+	seeds := []string{"selection", "NOT selection", "a AND b", "a OR b", "(a AND b) OR c"}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, cond string) {
+		results := map[string]bool{"selection": true, "a": true, "b": false, "c": true}
+		evaluateCondition(cond, results)
+	})
+}

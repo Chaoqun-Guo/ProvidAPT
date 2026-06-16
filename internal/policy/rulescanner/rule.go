@@ -37,9 +37,32 @@ type Rule struct {
 }
 
 // Detection contains the selection criteria.
+// Supports two formats:
+//
+// (a) Single inline selection (backward compatible with all existing rules):
+//
+//	detection:
+//	  EventType: [10]
+//	  TargetPath: /etc/shadow
+//
+// (b) Named selections — multiple named groups, each with its own AND-conditions.
+//     The "condition" field is a boolean expression (AND, OR, NOT, parentheses)
+//     over the named selections.
+//
+//	detection:
+//	  sel1:
+//	    EventType: [10]
+//	  sel2:
+//	    TargetPath: /etc/shadow
+//	  condition: sel1 AND sel2
 type Detection struct {
-	Selection Selection `yaml:",inline"` // inline YAML keys
-	Condition  string   `yaml:"condition"`
+	// Selection is the single inline selection (backward compatible).
+	Selection Selection `yaml:",inline"`
+	// NamedSelections holds named selection groups for multi-selection rules.
+	NamedSelections map[string]Selection `yaml:"selections,flow,omitempty"`
+	// Condition is a boolean expression over selection names, e.g. "sel1 AND NOT sel2".
+	// If empty, all populated selections are ANDed together.
+	Condition string `yaml:"condition"`
 }
 
 // Selection is a set of AND-conditions.
@@ -120,38 +143,201 @@ func LoadAllRules(dir string) ([]*Rule, error) {
 
 // Match checks if an event matches this rule's detection criteria.
 // If a Condition is specified, it is evaluated as a boolean expression
-// over the selection fields. Otherwise, all non-empty selection fields
-// are ANDed together (default behaviour).
+// (AND, OR, NOT, parentheses) over the selection names.
+// Without a Condition, all populated selections are ANDed together.
 func (r *Rule) Match(evt *pb.Event) bool {
-	matched := r.matchSelection(r.Detection.Selection, evt)
-	if !matched {
-		return false
+	results := make(map[string]bool)
+
+	// Evaluate inline selection (backward compatible).
+	if hasSelectionFields(r.Detection.Selection) {
+		results["selection"] = r.matchSelection(r.Detection.Selection, evt)
 	}
-	// Evaluate Condition if present (e.g. "selection1 AND NOT selection2")
+
+	// Evaluate named selections.
+	for name, sel := range r.Detection.NamedSelections {
+		results[name] = r.matchSelection(sel, evt)
+	}
+
+	if len(results) == 0 {
+		return true // no selection criteria → matches everything
+	}
+
 	if r.Detection.Condition != "" {
-		return evaluateCondition(r.Detection.Condition, matched)
+		return evaluateCondition(r.Detection.Condition, results)
 	}
-	return matched
+
+	// Default: AND all selections.
+	for _, v := range results {
+		if !v {
+			return false
+		}
+	}
+	return true
 }
 
-// evaluateCondition parses a simple condition expression.
-// Supports: AND, OR, NOT with single boolean operand.
-// Example: "selection1 AND NOT selection2"
-func evaluateCondition(cond string, baseResult bool) bool {
-	cond = strings.TrimSpace(cond)
-	upper := strings.ToUpper(cond)
+// hasSelectionFields reports whether a Selection has any non-zero field.
+func hasSelectionFields(s Selection) bool {
+	return len(s.EventType) > 0 || s.TargetPath != "" || s.Comm != "" ||
+		s.UID != "" || s.PID != "" || s.TargetIP != "" ||
+		s.TargetPort != "" || s.Flags != ""
+}
 
-	switch {
-	case strings.Contains(upper, "AND NOT"):
-		return baseResult && !true // second selection inverted
-	case strings.Contains(upper, "AND"):
-		return baseResult && true
-	case strings.Contains(upper, "OR"):
-		return baseResult || true
-	case strings.HasPrefix(upper, "NOT"):
-		return !baseResult
+// ═══════════════════════════════════════════════════════════════
+// Condition expression parser
+// ═══════════════════════════════════════════════════════════════
+
+// evaluateCondition evaluates a boolean expression over named selection results.
+//
+// Grammar (precedence: NOT > AND > OR):
+//
+//	expr      := term (OR term)*
+//	term      := factor (AND factor)*
+//	factor    := NOT factor | primary
+//	primary   := IDENTIFIER | LPAREN expr RPAREN
+//
+// Selection names are case-sensitive; operators AND, OR, NOT are case-insensitive.
+func evaluateCondition(cond string, results map[string]bool) bool {
+	tokens := tokenizeCondition(cond)
+	p := &condParser{tokens: tokens, results: results}
+	return p.parseExpr()
+}
+
+// condTokenType enumerates condition token types.
+type condTokenType int
+
+const (
+	tokIdent  condTokenType = iota
+	tokAND
+	tokOR
+	tokNOT
+	tokLParen
+	tokRParen
+	tokEOF
+)
+
+// condToken is a single token from the condition string.
+type condToken struct {
+	typ condTokenType
+	val string
+}
+
+func tokenizeCondition(cond string) []condToken {
+	var tokens []condToken
+	i := 0
+	runes := []rune(cond)
+	for i < len(runes) {
+		ch := runes[i]
+		if ch == ' ' || ch == '\t' {
+			i++
+			continue
+		}
+		if ch == '(' {
+			tokens = append(tokens, condToken{typ: tokLParen, val: "("})
+			i++
+			continue
+		}
+		if ch == ')' {
+			tokens = append(tokens, condToken{typ: tokRParen, val: ")"})
+			i++
+			continue
+		}
+		// Read a word (identifier or operator).
+		start := i
+		for i < len(runes) && runes[i] != ' ' && runes[i] != '\t' &&
+			runes[i] != '(' && runes[i] != ')' {
+			i++
+		}
+		word := string(runes[start:i])
+		switch strings.ToUpper(word) {
+		case "AND":
+			tokens = append(tokens, condToken{typ: tokAND, val: word})
+		case "OR":
+			tokens = append(tokens, condToken{typ: tokOR, val: word})
+		case "NOT":
+			tokens = append(tokens, condToken{typ: tokNOT, val: word})
+		default:
+			tokens = append(tokens, condToken{typ: tokIdent, val: word})
+		}
+	}
+	tokens = append(tokens, condToken{typ: tokEOF})
+	return tokens
+}
+
+// condParser is a recursive-descent parser for condition expressions.
+type condParser struct {
+	tokens  []condToken
+	pos     int
+	results map[string]bool
+}
+
+func (p *condParser) peek() condToken {
+	if p.pos >= len(p.tokens) {
+		return condToken{typ: tokEOF}
+	}
+	return p.tokens[p.pos]
+}
+
+func (p *condParser) advance() condToken {
+	tok := p.peek()
+	p.pos++
+	return tok
+}
+
+// expr   := term (OR term)*
+func (p *condParser) parseExpr() bool {
+	result := p.parseTerm()
+	for p.peek().typ == tokOR {
+		p.advance()
+		right := p.parseTerm()
+		result = result || right
+	}
+	return result
+}
+
+// term   := factor (AND factor)*
+func (p *condParser) parseTerm() bool {
+	result := p.parseFactor()
+	for p.peek().typ == tokAND {
+		p.advance()
+		right := p.parseFactor()
+		result = result && right
+	}
+	return result
+}
+
+// factor := NOT factor | primary
+func (p *condParser) parseFactor() bool {
+	if p.peek().typ == tokNOT {
+		p.advance()
+		return !p.parseFactor()
+	}
+	return p.parsePrimary()
+}
+
+// primary := IDENTIFIER | LPAREN expr RPAREN
+func (p *condParser) parsePrimary() bool {
+	tok := p.peek()
+	switch tok.typ {
+	case tokIdent:
+		p.advance()
+		if v, ok := p.results[tok.val]; ok {
+			return v
+		}
+		return false // unknown selection → false (no match)
+	case tokLParen:
+		p.advance()
+		result := p.parseExpr()
+		// Expect closing paren — skip on mismatch (graceful degradation).
+		if p.peek().typ == tokRParen {
+			p.advance()
+		}
+		return result
 	default:
-		return baseResult
+		// Unexpected token → false (skip it).
+		if p.peek().typ != tokEOF {
+			p.advance()
+		}
+		return false
 	}
 }
 
