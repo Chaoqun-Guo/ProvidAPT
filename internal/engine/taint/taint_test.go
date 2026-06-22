@@ -401,3 +401,73 @@ func FuzzTaintStringMethods(f *testing.F) {
 		_ = clean
 	})
 }
+
+// ─── Edge cases ────────────────────────────────────────────
+
+func TestIsExternalIPv6(t *testing.T) {
+	te := New(nil)
+	// IPv6 private/unique-local addresses
+	if te.IsExternalIP("fd00::1") {
+		t.Error("fd00:: should be internal (ULA)")
+	}
+	if te.IsExternalIP("fe80::1") {
+		t.Error("fe80:: should be internal (link-local)")
+	}
+	// IPv6 public addresses
+	if !te.IsExternalIP("2001:db8::1") {
+		t.Error("2001:db8:: should be external")
+	}
+	if !te.IsExternalIP("2a00:1450:4001:830::200e") {
+		t.Error("2a00:: should be external (google.com)")
+	}
+}
+
+func TestIsExternalIPInvalid(t *testing.T) {
+	te := New(nil)
+	// Invalid IPs should not panic
+	if te.IsExternalIP("") {
+		t.Error("empty string should not be external")
+	}
+	if te.IsExternalIP("not-an-ip") {
+		t.Error("invalid IP should not be external")
+	}
+	if te.IsExternalIP("256.256.256.256") {
+		t.Error("invalid IP should not be external")
+	}
+}
+
+func TestIsSensitivePathTraversal(t *testing.T) {
+	te := New(nil)
+	if !te.IsSensitivePath("/etc/../etc/shadow") {
+		t.Error("/etc/../etc/shadow should be sensitive")
+	}
+	if !te.IsSensitivePath("/etc//shadow") {
+		t.Error("/etc//shadow should be sensitive")
+	}
+}
+
+func TestIsSensitivePathEdgeCases(t *testing.T) {
+	te := New(nil)
+	if te.IsSensitivePath("") {
+		t.Error("empty path should not be sensitive")
+	}
+	if te.IsSensitivePath("/") {
+		t.Error("root path should not be sensitive")
+	}
+}
+
+func TestPropagateReadNonexistent(t *testing.T) {
+	te := New(nil)
+	state := te.PropagateRead("p:1", "nonexistent", "bash")
+	if state != nil {
+		t.Error("expected nil propagation from nonexistent source")
+	}
+}
+
+func TestPropagateWriteNonexistent(t *testing.T) {
+	te := New(nil)
+	state := te.PropagateWrite("p:1", "nonexistent")
+	if state != nil {
+		t.Error("expected nil propagation from nonexistent source")
+	}
+}

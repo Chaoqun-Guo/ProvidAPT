@@ -3,7 +3,8 @@
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
 .PHONY: attack-sim verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
-.PHONY: fuzz fuzz-short dist dist-deb dist-rpm dist-tar dist-all create-user docker-build docker-run help
+.PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all create-user docker-build docker-run help
 
 SHELL := /bin/bash
 
@@ -24,6 +25,7 @@ CONFIG := /etc/providapt
 BPF_SRC := cmd/bpf/probes
 SBOM_OUT ?= build
 FUZZ_TIME ?= 15s
+COVER_DIR := $(OUTPUT)/coverage
 
 all: build-core
 
@@ -75,7 +77,8 @@ install-local: create-user build-core
 	@echo "Installed ProvidAPT locally"
 
 test-core:
-	$(GO) test -v -count=1 ./internal/... ./pkg/... ./cmd/...
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -v -count=1 -coverprofile=$(COVER_DIR)/core.out -covermode=atomic ./internal/... ./pkg/... ./cmd/...
 
 build: build-core
 install: install-local
@@ -99,7 +102,22 @@ vet:
 lint: vet fmt-check
 
 test-race:
-	$(GO) test -race -count=1 -short ./internal/... ./pkg/... ./cmd/...
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -race -count=1 -short -coverprofile=$(COVER_DIR)/race.out -covermode=atomic ./internal/... ./pkg/... ./cmd/...
+
+coverage: test-core
+	@echo "=== Generating Coverage Report ==="
+	$(GO) tool cover -func=$(COVER_DIR)/core.out -o $(COVER_DIR)/coverage.txt
+	@echo "Coverage summary:"
+	@tail -5 $(COVER_DIR)/coverage.txt
+
+coverage-html: test-core
+	@mkdir -p $(COVER_DIR)
+	$(GO) tool cover -html=$(COVER_DIR)/core.out -o $(COVER_DIR)/coverage.html
+	$(GO) tool cover -func=$(COVER_DIR)/core.out -o $(COVER_DIR)/coverage.txt
+	@echo "Coverage report: file://$(PWD)/$(COVER_DIR)/coverage.html"
+	@echo "Coverage summary:"
+	@tail -5 $(COVER_DIR)/coverage.txt
 
 staticcheck:
 	staticcheck ./cmd/... ./internal/... ./pkg/...
@@ -116,35 +134,45 @@ sbom-syft:
 	fi
 
 fuzz-short:
-	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=10s ./internal/engine/collector/
-	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=10s ./internal/storage/schema/
-	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=10s ./internal/storage/schema/
-	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=10s ./pkg/config/
-	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=10s ./internal/engine/taint/
-	$(GO) test -fuzz=FuzzParseQuery -fuzztime=10s ./internal/engine/query/
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_event.out -covermode=atomic ./internal/engine/collector/
+	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_edgekey.out -covermode=atomic ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_nodekey.out -covermode=atomic ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_config.out -covermode=atomic ./pkg/config/
+	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_taint.out -covermode=atomic ./internal/engine/taint/
+	$(GO) test -fuzz=FuzzParseQuery -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_query.out -covermode=atomic ./internal/engine/query/
 
 fuzz:
-	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=$(FUZZ_TIME) ./internal/engine/collector/
-	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=$(FUZZ_TIME) ./internal/storage/schema/
-	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=$(FUZZ_TIME) ./internal/storage/schema/
-	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) ./pkg/config/
-	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=$(FUZZ_TIME) ./internal/engine/taint/
-	$(GO) test -fuzz=FuzzParseQuery -fuzztime=$(FUZZ_TIME) ./internal/engine/query/
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_event.out -covermode=atomic ./internal/engine/collector/
+	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_edgekey.out -covermode=atomic ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_nodekey.out -covermode=atomic ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_config.out -covermode=atomic ./pkg/config/
+	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_taint.out -covermode=atomic ./internal/engine/taint/
+	$(GO) test -fuzz=FuzzParseQuery -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_query.out -covermode=atomic ./internal/engine/query/
 
 ext-test:
-	$(GO) test -v -count=1 ./internal/engine/edgereduce/... ./internal/engine/graphquery/... ./internal/engine/profile/... ./internal/engine/ratelimit/... ./internal/storage/schema/... ./internal/storage/pebblestore/... ./internal/storage/grpcexport/... ./internal/policy/rulescanner/... ./internal/policy/selfheal/...
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -v -count=1 -coverprofile=$(COVER_DIR)/ext.out -covermode=atomic ./internal/engine/edgereduce/... ./internal/engine/graphquery/... ./internal/engine/profile/... ./internal/engine/ratelimit/... ./internal/storage/schema/... ./internal/storage/pebblestore/... ./internal/storage/grpcexport/... ./internal/policy/rulescanner/... ./internal/policy/selfheal/...
 
 cluster-test:
-	$(GO) test -v -count=1 ./internal/stitcher/... ./internal/policy/blastradius/... ./internal/policy/deception/... ./internal/policy/supplychain/... ./internal/engine/ja3/... ./internal/engine/memforensic/... ./internal/storage/graphdb/...
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -v -count=1 -coverprofile=$(COVER_DIR)/cluster.out -covermode=atomic ./internal/stitcher/... ./internal/policy/blastradius/... ./internal/policy/deception/... ./internal/policy/supplychain/... ./internal/engine/ja3/... ./internal/engine/memforensic/... ./internal/storage/graphdb/...
 
 graphsketch-test:
-	$(GO) test -v -count=1 ./internal/stitcher/graphsketch/...
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -v -count=1 -coverprofile=$(COVER_DIR)/graphsketch.out -covermode=atomic ./internal/stitcher/graphsketch/...
 
 deception-test:
-	$(GO) test -v -count=1 ./internal/policy/deception/...
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -v -count=1 -coverprofile=$(COVER_DIR)/deception.out -covermode=atomic ./internal/policy/deception/...
 
 supplychain-test:
-	$(GO) test -v -count=1 ./internal/policy/supplychain/...
+	@mkdir -p $(COVER_DIR)
+	$(GO) test -v -count=1 -coverprofile=$(COVER_DIR)/supplychain.out -covermode=atomic ./internal/policy/supplychain/...
+
+test-e2e:
+	$(GO) test -v -count=1 -tags=e2e -timeout=600s ./test/e2e/
 
 dist-deb: build-userspace
 	bash build/packages/build_deb.sh "$(VERSION)"
@@ -237,7 +265,16 @@ help:
 	@echo '  make vet              Run go vet'
 	@echo '  make lint             Run vet and format checks'
 	@echo '  make staticcheck      Run staticcheck'
-t@echo '  make test-race        Run unit tests with race detection'
+	@echo '  make test-race        Run unit tests with race detection'
+	@echo ''
+	@echo 'Coverage:'
+	@echo '  make coverage         Run tests and print coverage summary'
+	@echo '  make coverage-html    Run tests and generate HTML coverage report'
+	@echo ''
+	@echo 'Performance & Fuzz:'
+	@echo '  make bench-baseline   Run all benchmarks and record baseline'
+	@echo '  make fuzz             Run fuzz tests (FUZZ_TIME=15s default)'
+	@echo '  make fuzz-short       Run quick fuzz tests (10s per target)'
 	@echo ''
 	@echo 'Aliases:'
 	@echo '  make build            = make build-core'

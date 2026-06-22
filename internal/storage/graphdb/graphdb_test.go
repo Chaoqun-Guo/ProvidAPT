@@ -390,3 +390,57 @@ func TestDataTierValues(t *testing.T) {
 		t.Errorf("TierCold = %d", TierCold)
 	}
 }
+
+func TestQueryNodesLimitZero(t *testing.T) {
+	db := NewMemGraphDB()
+	db.CreateNode("process", "p:100", "bash", nil)
+	db.CreateNode("process", "p:200", "sshd", nil)
+
+	results, err := db.QueryNodes("", nil)
+	if err != nil {
+		t.Fatalf("QueryNodes: %v", err)
+	}
+	if len(results) != 2 {
+		t.Errorf("expected 2 nodes, got %d", len(results))
+	}
+}
+
+func TestQueryPathsMaxDepthZero(t *testing.T) {
+	db := NewMemGraphDB()
+	db.CreateNode("process", "p:100", "bash", nil)
+	db.CreateNode("process", "p:200", "sshd", nil)
+	db.CreateEdge("p:100", "p:200", "wasInformedBy", nil)
+
+	// maxDepth=0 means unlimited, should find path
+	paths, err := db.QueryPaths("p:100", "p:200", 0)
+	if err != nil {
+		t.Fatalf("QueryPaths: %v", err)
+	}
+	if len(paths) == 0 {
+		t.Error("maxDepth=0 should mean unlimited, found no path")
+	}
+
+	// Direct edge with maxDepth=1 should also find path
+	paths, err = db.QueryPaths("p:100", "p:200", 1)
+	if err != nil {
+		t.Fatalf("QueryPaths: %v", err)
+	}
+	if len(paths) == 0 {
+		t.Error("expected path with maxDepth=1 for direct edge")
+	}
+}
+
+func TestCreateNodeEmptyLabel(t *testing.T) {
+	db := NewMemGraphDB()
+	_, err := db.CreateNode("process", "p:empty", "", nil)
+	if err != nil {
+		t.Fatalf("CreateNode with empty label: %v", err)
+	}
+	results, err := db.QueryNodes("process", nil)
+	if err != nil {
+		t.Fatalf("QueryNodes: %v", err)
+	}
+	if len(results) != 1 {
+		t.Errorf("expected 1 node, got %d", len(results))
+	}
+}

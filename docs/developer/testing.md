@@ -1,5 +1,43 @@
 # Testing Guide
 
+## Quick Start
+
+```bash
+# Run all core unit tests with coverage
+make test-core
+
+# Run with race detection
+make test-race
+
+# View coverage summary
+make coverage
+
+# Generate HTML coverage report
+make coverage-html
+
+# Run fuzz tests (10s per target)
+make fuzz-short
+```
+
+## Coverage
+
+### Project-Wide Threshold
+
+Current total coverage: **~61%** (as of v1.2.2). CI enforces a minimum of **20%** total coverage.
+
+### Running Coverage Locally
+
+```bash
+make coverage          # Text summary → build/coverage/coverage.txt
+make coverage-html     # HTML report → build/coverage/coverage.html
+```
+
+### Quality Gate
+
+The CI pipeline checks total coverage against a threshold (currently 20%). If coverage drops below the threshold, the build fails. The threshold is raised incrementally as coverage improves.
+
+# Testing Guide
+
 ## Test Organization
 
 ```
@@ -143,11 +181,17 @@ trap 'rm -rf "$SIM_TMPDIR"' EXIT
 
 The test suite is designed for CI pipelines:
 
-1. **Fast path** (every commit): `make test` + `make ext-test`
+1. **Fast path** (every commit): `make test` + `make ext-test` + coverage collection
 2. **Integration path** (nightly): Full integration suite in Docker
 3. **Kernel path** (weekly): Kernel compatibility matrix
 4. **Manual loader path**: GitHub Actions `CI` workflow `loader smoke (manual)` job
 5. **Release path**: All tests + benchmarks + attack simulations
+
+### Coverage in CI
+
+Each `go test` invocation in CI includes `-coverprofile` and `-covermode=atomic`. After all tests run, profiles are merged into a single report at `build/coverage/merged.out`.
+
+A **quality gate** checks that total coverage meets the threshold (currently 20%). Coverage artifacts are uploaded for manual download and review.
 
 The `loader smoke (manual)` job is exposed through `workflow_dispatch` so maintainers can validate the real eBPF loader on a Linux runner without making every PR depend on kernel/runtime support.
 

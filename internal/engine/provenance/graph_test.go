@@ -421,3 +421,65 @@ func TestGraphRaceFree(t *testing.T) {
 	// The -race detector should find no races.
 	// Without -race, this at least exercises the code paths.
 }
+
+// ── Edge cases ──────────────────────────────────────────────
+
+func TestEmptyGraphNodes(t *testing.T) {
+	g := NewGraph()
+	nodes := g.Nodes()
+	if nodes == nil {
+		t.Error("Nodes() should return empty slice, not nil")
+	}
+	if len(nodes) != 0 {
+		t.Errorf("expected 0 nodes, got %d", len(nodes))
+	}
+}
+
+func TestEmptyGraphEdges(t *testing.T) {
+	g := NewGraph()
+	edges := g.Edges()
+	if edges == nil {
+		t.Error("Edges() should return empty slice, not nil")
+	}
+	if len(edges) != 0 {
+		t.Errorf("expected 0 edges, got %d", len(edges))
+	}
+}
+
+func TestDuplicateEvents(t *testing.T) {
+	g := NewGraph()
+
+	evt := makeForkEvent(1, 2, 0, "init")
+	g.AddEvent(evt)
+	stats1 := g.Stats()
+
+	// Add the same event again
+	g.AddEvent(evt)
+	stats2 := g.Stats()
+
+	if stats1.Nodes != stats2.Nodes {
+		t.Errorf("duplicate event changed node count: %d → %d", stats1.Nodes, stats2.Nodes)
+	}
+	if stats1.Edges != stats2.Edges {
+		t.Errorf("duplicate event changed edge count: %d → %d", stats1.Edges, stats2.Edges)
+	}
+}
+
+func TestStatsAfterBatchInsert(t *testing.T) {
+	g := NewGraph()
+	const n = 500
+	for i := 1; i <= n; i++ {
+		g.AddEvent(makeForkEvent(uint32(i), uint32(i+n), 0, "batch"))
+	}
+	stats := g.Stats()
+	if stats.Nodes < n {
+		t.Errorf("expected at least %d nodes after %d forks, got %d", n, n, stats.Nodes)
+	}
+	if stats.Edges < n {
+		t.Errorf("expected at least %d edges after %d forks, got %d", n, n, stats.Edges)
+	}
+	if stats.Nodes > n*2 {
+		t.Errorf("unexpectedly large node count: %d", stats.Nodes)
+	}
+}
+

@@ -15,6 +15,8 @@ package taint
 import (
 	"fmt"
 	"log"
+	"net"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -158,12 +160,34 @@ func New(cfg *Config) *TaintEngine {
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Taint source detection
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // IsExternalIP checks if an IP is not in the internal prefixes list.
+// IsExternalIP checks whether a given IP string is external (not in private ranges).
+// Supports both IPv4 and IPv6. Invalid IP strings are returned as internal (safe default).
 func (te *TaintEngine) IsExternalIP(ipStr string) bool {
-	for _, prefix := range te.cfg.NonInternalPrefixes {
-		if strings.HasPrefix(ipStr, prefix) {
-			return false
-		}
+	// Parse as IP to validate format and normalize
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false // invalid IPs are not external (safe default)
 	}
+
+	// Check if it's a private/loopback/link-local IPv4
+	// net.IP.IsPrivate() handles all RFC 1918 + RFC 6598 + ULA
+	// net.IP.IsLoopback() handles 127.0.0.1/8 and ::1
+	// net.IP.IsLinkLocalUnicast() handles 169.254.0.0/16 and fe80::/10
+	if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+		return false
+	}
+
+	// For IPv4, also check the configured prefix list (may include custom ranges)
+	if ip4 := ip.To4(); ip4 != nil {
+		for _, prefix := range te.cfg.NonInternalPrefixes {
+			if strings.HasPrefix(ipStr, prefix) {
+				return false
+			}
+		}
+		return true
+	}
+
+	// IPv6 is external unless caught by IsPrivate/IsLoopback/IsLinkLocalUnicast above
 	return true
 }
 
@@ -319,9 +343,11 @@ func (te *TaintEngine) DecayTaint() int {
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Sensitive action checking and alerting
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
 // IsSensitivePath checks if a path triggers alerts.
-func (te *TaintEngine) IsSensitivePath(path string) bool {
+// Uses path.Clean to normalize path traversal (e.g. /etc/../etc/shadow).
+func (te *TaintEngine) IsSensitivePath(rawPath string) bool {
+	cleaned := path.Clean(rawPath)
 	for _, sp := range te.cfg.SensitivePaths {
-		if strings.HasPrefix(path, sp) || path == sp {
+		if strings.HasPrefix(cleaned, sp) || cleaned == sp {
 			return true
 		}
 	}

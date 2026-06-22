@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-06-18T09:10:00Z",
+  "target": "test-core",
+  "packages_tested": 90,
+  "packages_no_tests": 16,
+  "failures": 0,
+  "go_version": "go1.26.3",
+  "platform": "windows/amd64"
+}
