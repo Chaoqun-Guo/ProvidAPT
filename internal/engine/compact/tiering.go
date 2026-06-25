@@ -65,7 +65,7 @@ func DefaultTieringConfig() *TieringConfig {
 		ColdPrefix:    "provenance/",
 		HotRetention:  7 * 24 * time.Hour,
 		WarmRetention: 90 * 24 * time.Hour,
-		ExportFormat:  "json",  // Use "parquet" in production
+		ExportFormat:  "json", // Use "parquet" in production
 		DryRun:        true,
 	}
 }
@@ -83,8 +83,8 @@ type ColdIndexEntry struct {
 
 // TieringManager manages the data lifecycle.
 type TieringManager struct {
-	cfg      *TieringConfig
-	index    map[string]*ColdIndexEntry
+	cfg   *TieringConfig
+	index map[string]*ColdIndexEntry
 }
 
 // NewTieringManager creates a data lifecycle manager.
@@ -154,6 +154,10 @@ func (tm *TieringManager) ArchiveWarmToCold() (int, error) {
 
 	entries, err := os.ReadDir(tm.cfg.WarmPath)
 	if err != nil {
+		if os.IsNotExist(err) && tm.cfg.DryRun {
+			log.Printf("[compact/tier] warm path missing in dry-run: %s", tm.cfg.WarmPath)
+			return 0, nil
+		}
 		return 0, fmt.Errorf("read warm path: %w", err)
 	}
 
@@ -216,10 +220,10 @@ func (tm *TieringManager) LookupCold(entityID string) []*ColdIndexEntry {
 // Stats returns tiering statistics.
 func (tm *TieringManager) Stats() map[string]interface{} {
 	return map[string]interface{}{
-		"hot_path":    tm.cfg.HotPath,
-		"warm_path":   tm.cfg.WarmPath,
-		"cold_bucket": tm.cfg.ColdBucket,
+		"hot_path":      tm.cfg.HotPath,
+		"warm_path":     tm.cfg.WarmPath,
+		"cold_bucket":   tm.cfg.ColdBucket,
 		"index_entries": len(tm.index),
-		"dry_run":     tm.cfg.DryRun,
+		"dry_run":       tm.cfg.DryRun,
 	}
 }

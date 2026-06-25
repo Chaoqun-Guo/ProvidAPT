@@ -14,7 +14,7 @@
 # =============================================================
 set -euo pipefail
 
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../../.."
 PROJECT_ROOT=$(pwd)
 OUTPUT_DIR="$PROJECT_ROOT/build/kernel-test"
 mkdir -p "$OUTPUT_DIR"
@@ -80,12 +80,13 @@ for KVER in "${KERNEL_VERSIONS[@]}"; do
             echo "  Test: CO-RE verification only (no BTF)"
             # Test 1: Verify the .bpf.o loads without BTF
             if command -v bpftool &>/dev/null; then
-                if python3 -c "
+                if PROJECT_ROOT=\"$PROJECT_ROOT\" python3 -c "
+import os
 import subprocess
 # Try loading without BTF info
 result = subprocess.run(
     ['bpftool', 'gen', 'object', '/dev/null',
-     f'{PROJECT_ROOT}/build/ebpf/lsm_hooks.bpf.o'],
+     os.path.join(os.environ['PROJECT_ROOT'], 'build', 'ebpf', 'lsm_hooks.bpf.o')],
     capture_output=True, text=True
 )
 print('exit:', result.returncode)
@@ -165,7 +166,7 @@ sleep 1
 # ─── Generate HTML report ──────────────────────────────
 echo "[5/5] Generating compatibility report..."
 
-python3 "$PROJECT_ROOT/test/kernel-test/generate_report.py" \
+python3 "$PROJECT_ROOT/test/integration/kernel-test/generate_report.py" \
     --results "$RESULTS_JSON" \
     --output "$OUTPUT_DIR/report.html"
 

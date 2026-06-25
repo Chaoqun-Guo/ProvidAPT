@@ -77,7 +77,7 @@ func (tp *TaintPropagator) PropagateViaStitch(edge *StitchEdge) {
 		PID:         edge.TargetPID,
 		Comm:        edge.TargetComm,
 		Tainted:     true,
-		Source:      fmt.Sprintf("cross-host-stitch:%s", edge.FlowID[:16]),
+		Source:      fmt.Sprintf("cross-host-stitch:%s", taintPrefix(edge.FlowID, 16)),
 		SourceAgent: edge.SourceAgent,
 		SourcePID:   edge.SourcePID,
 		UpdatedAt:   time.Now(),
@@ -121,4 +121,11 @@ func (tp *TaintPropagator) Stats() map[string]interface{} {
 		"hosts_tracked": len(tp.hostTaints),
 		"propagations":  tp.propagated,
 	}
+}
+
+func taintPrefix(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit]
 }

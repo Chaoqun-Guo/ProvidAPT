@@ -271,3 +271,24 @@ func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
+
+// FuzzAnonymizeHashString fuzzes HashString and related hash functions.
+func FuzzAnonymizeHashString(f *testing.F) {
+	f.Add("hello")
+	f.Add("/etc/shadow")
+	f.Add("192.168.1.1")
+	f.Add("")
+	f.Add("invalid")
+	f.Fuzz(func(t *testing.T, input string) {
+		a, err := New(nil)
+		if err != nil {
+			return
+		}
+		_ = a.HashString(input, 0)
+		_ = a.HashString(input, 8)
+		_ = a.HashPath(input)
+		_ = a.HashIP(input)
+		_ = a.HashComm(input)
+		_ = IsAnonymizedPath(input)
+	})
+}

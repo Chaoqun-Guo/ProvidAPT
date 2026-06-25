@@ -40,8 +40,14 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 1024);
 	__type(key, u32);
-	__type(value, u64);
+	__type(value, struct mprotect_state);
 } mprotect_tracker SEC(".maps");
+
+struct mprotect_state {
+	u64 addr;
+	u64 len;
+	u64 prot;
+};
 
 /* ============================================================
  * Pipe tracker — correlates write and read ends
@@ -50,7 +56,7 @@ struct {
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 256);
-	__type(key, u32);
+	__type(key, u64);
 	__type(value, u32);
 } pipe_writer SEC(".maps");
 
@@ -88,7 +94,7 @@ int trace_memfd_create(struct trace_event_raw_sys_enter *ctx)
 	fill_hdr(e, EV_MEMFD_CREATE);
 
 	/* Read the name of the memfd from userspace */
-	const char __user *name_ptr = (const char *)ctx->args[0];
+	const char *name_ptr = (const char *)ctx->args[0];
 	if (name_ptr)
 		bpf_probe_read_user_str(e->pathname, sizeof(e->pathname), name_ptr);
 	else
@@ -120,6 +126,11 @@ int trace_mprotect_enter(struct trace_event_raw_sys_enter *ctx)
 {
 	u32 pid = bpf_get_current_pid_tgid() >> 32;
 	unsigned long prot = (unsigned long)ctx->args[2];
+	struct mprotect_state state = {
+		.addr = (u64)ctx->args[0],
+		.len  = (u64)ctx->args[1],
+		.prot = (u64)prot,
+	};
 
 	/* PROT_EXEC = 4, PROT_WRITE = 2, PROT_READ = 1 */
 	/* We only care about changes involving PROT_EXEC */
@@ -129,8 +140,7 @@ int trace_mprotect_enter(struct trace_event_raw_sys_enter *ctx)
 	/* Store the requested protection in the tracker.
 	 * Lower 32 bits: new protection flags.
 	 * Upper 32 bits: old protection (we'll read the VMA on exit). */
-	u64 val = (u64)prot;
-	bpf_map_update_elem(&mprotect_tracker, &pid, &val, BPF_ANY);
+	bpf_map_update_elem(&mprotect_tracker, &pid, &state, BPF_ANY);
 	return 0;
 }
 
@@ -141,10 +151,10 @@ int trace_mprotect_exit(struct trace_event_raw_sys_exit *ctx)
 	if (ctx->ret < 0) return 0;
 
 	u32 pid = bpf_get_current_pid_tgid() >> 32;
-	u64 *entry = bpf_map_lookup_elem(&mprotect_tracker, &pid);
+	struct mprotect_state *entry = bpf_map_lookup_elem(&mprotect_tracker, &pid);
 	if (!entry) return 0;
 
-	unsigned long new_prot = (unsigned long)(*entry & 0xFFFFFFFF);
+	unsigned long new_prot = (unsigned long)entry->prot;
 
 	/* In a real implementation, we'd read the VMA's previous
 	 * protection flags.  For now we flag any mprotect that
@@ -165,11 +175,11 @@ int trace_mprotect_exit(struct trace_event_raw_sys_exit *ctx)
 	e->payload.file.f_flags = (u32)new_prot;
 
 	/* Store the address being modified */
-	e->payload.file.inode = (unsigned long)ctx->args[0];
+	e->payload.file.inode = entry->addr;
 
 	/* Store the length */
-	e->payload.file.dev_major = (u32)((unsigned long)ctx->args[1] >> 32);
-	e->payload.file.dev_minor = (u32)((unsigned long)ctx->args[1] & 0xFFFFFFFF);
+	e->payload.file.dev_major = (u32)(entry->len >> 32);
+	e->payload.file.dev_minor = (u32)(entry->len & 0xFFFFFFFF);
 
 	bpf_ringbuf_submit(e, 0);
 	return 0;
@@ -207,7 +217,7 @@ int trace_pipe_write(struct trace_event_raw_sys_enter *ctx)
 	/* Check if this PID has been writing to pipes recently.
 	 * We track by PID+fd as a crude pipe correlation. */
 	u64 key = ((u64)pid << 32) | fd;
-	u32 *partner = bpf_map_lookup_elem(&pipe_writer, (u32 *)&key);
+	u32 *partner = bpf_map_lookup_elem(&pipe_writer, &key);
 	if (partner) {
 		/* This is a pipe — emit event */
 		e = bpf_ringbuf_reserve(&rb_memory, sizeof(*e), 0);
@@ -243,9 +253,9 @@ int trace_pipe_read(struct trace_event_raw_sys_enter *ctx)
 	u64 key = ((u64)pid << 32) | fd;
 	u32 writer_pid = pid;  /* placeholder — in production, use pipe ID */
 
-	u32 *entry = bpf_map_lookup_elem(&pipe_writer, (u32 *)&key);
+	u32 *entry = bpf_map_lookup_elem(&pipe_writer, &key);
 	if (!entry) {
-		bpf_map_update_elem(&pipe_writer, (u32 *)&key, &writer_pid, BPF_ANY);
+		bpf_map_update_elem(&pipe_writer, &key, &writer_pid, BPF_ANY);
 		return 0;
 	}
 

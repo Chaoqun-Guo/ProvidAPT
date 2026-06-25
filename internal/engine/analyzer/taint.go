@@ -47,10 +47,10 @@ func (l TaintLevel) String() string {
 // ─── Knowledge base: initial suspicion seeds ────────────────
 
 var (
-	taintMu         sync.RWMutex
-	untrustedComms  = defaultUntrustedComms()
-	networkTools    = defaultNetworkTools()
-	sensitivePaths  = defaultSensitivePaths()
+	taintMu        sync.RWMutex
+	untrustedComms = defaultUntrustedComms()
+	networkTools   = defaultNetworkTools()
+	sensitivePaths = defaultSensitivePaths()
 )
 
 func defaultUntrustedComms() map[string]bool {
@@ -208,11 +208,11 @@ func (te *TaintEngine) propagate() {
 
 		for _, e := range te.forward[id] {
 			te.tryTaint(e.Target, id, e.Relation, nextLevel,
-				fmt.Sprintf("forward via %s", e.Relation), &worklist, e.Relation == "prov:used")
+				fmt.Sprintf("forward via %s", e.Relation), &worklist)
 		}
 		for _, e := range te.reverse[id] {
 			te.tryTaint(e.Source, id, e.Relation, nextLevel,
-				fmt.Sprintf("reverse via %s", e.Relation), &worklist, e.Relation == "prov:wasInformedBy" || e.Relation == "prov:wasGeneratedBy")
+				fmt.Sprintf("reverse via %s", e.Relation), &worklist)
 		}
 	}
 }
@@ -222,6 +222,18 @@ func (te *TaintEngine) seedTaints() []string {
 	var worklist []string
 
 	add := func(id string, level TaintLevel, reason string) {
+		if existing := te.tainted[id]; existing != nil {
+			if existing.Level >= level {
+				return
+			}
+			existing.Level = level
+			existing.Depth = 0
+			existing.PrevID = ""
+			existing.PrevRel = ""
+			existing.Reasons = []string{reason}
+			worklist = append(worklist, id)
+			return
+		}
 		te.tainted[id] = &TaintNode{
 			Level:   level,
 			Depth:   0,
@@ -238,6 +250,9 @@ func (te *TaintEngine) seedTaints() []string {
 
 		switch n.Subtype {
 		case "process":
+			if te.isForkChild(id) {
+				continue
+			}
 			// Untrusted network-facing daemon
 			if getUntrustedComms()[comm] {
 				add(id, TaintCritical,
@@ -262,7 +277,7 @@ func (te *TaintEngine) seedTaints() []string {
 // tryTaint attempts to taint a node and adds it to the worklist if
 // the new level is higher than any existing taint.
 func (te *TaintEngine) tryTaint(id, prevID, rel string, level TaintLevel,
-	reason string, worklist *[]string, reverse bool) {
+	reason string, worklist *[]string) {
 
 	prevTn, _ := te.tainted[prevID]
 	newDepth := 0
@@ -272,25 +287,18 @@ func (te *TaintEngine) tryTaint(id, prevID, rel string, level TaintLevel,
 
 	existing, ok := te.tainted[id]
 	if ok {
-		if !reverse && existing.Level >= level {
-			return
-		}
-		if existing.Level > level && existing.Depth >= newDepth {
+		if existing.Level > level {
 			return
 		}
 		if existing.Level == level && existing.Depth >= newDepth {
 			return
 		}
-		if level > existing.Level {
-			existing.Level = level
-			existing.PrevID = prevID
-			existing.PrevRel = rel
-			*worklist = append(*worklist, id)
-		}
-		if reverse && newDepth > existing.Depth {
-			existing.Depth = newDepth
-			*worklist = append(*worklist, id)
-		}
+		existing.Level = level
+		existing.Depth = newDepth
+		existing.PrevID = prevID
+		existing.PrevRel = rel
+		existing.Reasons = append(te.reasons(prevID), reason)
+		*worklist = append(*worklist, id)
 		return
 	}
 
@@ -303,6 +311,7 @@ func (te *TaintEngine) tryTaint(id, prevID, rel string, level TaintLevel,
 	}
 	*worklist = append(*worklist, id)
 }
+
 // PropagationPath returns node IDs from the initial seed to the given
 // node, following PrevID pointers, EARLIEST first.
 func (te *TaintEngine) PropagationPath(id string) []string {
@@ -373,6 +382,15 @@ func (te *TaintEngine) reasons(nodeID string) []string {
 		return tn.Reasons
 	}
 	return nil
+}
+
+func (te *TaintEngine) isForkChild(nodeID string) bool {
+	for _, e := range te.forward[nodeID] {
+		if e.Relation == "prov:wasInformedBy" {
+			return true
+		}
+	}
+	return false
 }
 
 // SnapshotFromGraph constructs a Snapshot from the provenance graph.

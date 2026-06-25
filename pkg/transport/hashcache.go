@@ -26,14 +26,14 @@ type SubgraphHash struct {
 // When a subgraph content hash is already known, the agent sends only
 // a heartbeat (hash + timestamp) instead of the full structure.
 type HashCache struct {
-	mu        sync.Mutex
-	hashes    map[string]*SubgraphHash // content hash → metadata
-	db        *pebble.DB               // optional persistent backend
-	dbPath    string
-	hits      int64 // heartbeat-only sends
-	savings   int64 // estimated bytes saved
-	stopCh    chan struct{}
-	flushWg   sync.WaitGroup
+	mu      sync.Mutex
+	hashes  map[string]*SubgraphHash // content hash → metadata
+	db      *pebble.DB               // optional persistent backend
+	dbPath  string
+	hits    int64 // heartbeat-only sends
+	savings int64 // estimated bytes saved
+	stopCh  chan struct{}
+	flushWg sync.WaitGroup
 }
 
 // NewHashCache creates an in-memory-only subgraph hash cache.
@@ -48,7 +48,7 @@ func NewHashCache() *HashCache {
 // The cache survives agent restarts: existing hashes are loaded from
 // disk on creation, and new hashes are flushed to disk periodically.
 func NewPersistentHashCache(path string) (*HashCache, error) {
-	db, err := pebble.Open(path, &pebble.Options{DisableWAL: true})
+	db, err := pebble.Open(path, &pebble.Options{})
 	if err != nil {
 		return nil, err
 	}
@@ -89,18 +89,21 @@ func (hc *HashCache) ShouldTransmit(contentHash string) bool {
 
 	existing, ok := hc.hashes[contentHash]
 	if !ok {
-		hc.hashes[contentHash] = &SubgraphHash{
+		entry := &SubgraphHash{
 			Hash:     contentHash,
 			SentAt:   time.Now(),
 			Count:    1,
 			IsActive: true,
 		}
+		hc.hashes[contentHash] = entry
+		hc.persistEntryLocked(entry)
 		return true
 	}
 
 	existing.Count++
 	existing.SentAt = time.Now()
 	existing.IsActive = true
+	hc.persistEntryLocked(existing)
 	hc.hits++
 	hc.savings += 1024
 	return false
@@ -148,7 +151,7 @@ func (hc *HashCache) CleanStale(maxAge time.Duration) int {
 			removed++
 			if hc.db != nil {
 				key := []byte("hc:" + hash)
-				if err := hc.db.Delete(key, pebble.NoSync); err != nil {
+				if err := hc.db.Delete(key, pebble.Sync); err != nil {
 					log.Printf("[hashcache] delete error: %v", err)
 				}
 			}
@@ -174,10 +177,12 @@ func (hc *HashCache) FlushToDisk() error {
 		if err != nil {
 			return err
 		}
-		batch.Set([]byte("hc:"+hash), data, pebble.NoSync)
+		if err := batch.Set([]byte("hc:"+hash), data, nil); err != nil {
+			return err
+		}
 	}
 
-	return batch.Commit(pebble.NoSync)
+	return batch.Commit(pebble.Sync)
 }
 
 // loadFromDisk loads all entries from Pebble into the in-memory map.
@@ -247,4 +252,18 @@ func (hc *HashCache) Close() error {
 		return hc.db.Close()
 	}
 	return nil
+}
+
+func (hc *HashCache) persistEntryLocked(entry *SubgraphHash) {
+	if hc.db == nil || entry == nil {
+		return
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		log.Printf("[hashcache] marshal error: %v", err)
+		return
+	}
+	if err := hc.db.Set([]byte("hc:"+entry.Hash), data, pebble.Sync); err != nil {
+		log.Printf("[hashcache] persist error: %v", err)
+	}
 }

@@ -21,34 +21,6 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-func (o *bpfObjects) Close() error {
-	var errs []error
-	for _, prog := range []*ebpf.Program{
-		o.ProbeFileOpen, o.ProbeBprmCheck, o.ProbeTaskAlloc,
-		o.ProbeTaskFree, o.ProbeSocketConnect, o.ProbeFilePermission,
-		o.RawTpSchedProcessFork,
-	} {
-		if prog != nil {
-			if err := prog.Close(); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-	for _, m := range []*ebpf.Map{
-		o.PidWhitelist, o.TaintMap, o.SampleCounters, o.HotPaths, o.Rb,
-	} {
-		if m != nil {
-			if err := m.Close(); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("close bpf objects: %v", errs)
-	}
-	return nil
-}
-
 // loadBpf is a stub that returns an error.  Build with -tags bpf and
 // pre-compiled .bpf.o files to use the real loader.
 func loadBpf(objs *bpfObjects, opts *ebpf.CollectionOptions) error {

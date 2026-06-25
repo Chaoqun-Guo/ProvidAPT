@@ -78,8 +78,10 @@ func (cc *CentralCorrelator) Ingest(record *JA3Record) *C2Alert {
 
 	// Alert on coordinated C2
 	if cluster.IsC2 && cluster.Count >= 2 {
+		alertPrefix := prefix(record.JA3, 8)
+		logPrefix := prefix(record.JA3, 16)
 		alert := &C2Alert{
-			ID:          fmt.Sprintf("C2-%s-%d", record.JA3[:8], time.Now().Unix()),
+			ID:          fmt.Sprintf("C2-%s-%d", alertPrefix, time.Now().Unix()),
 			JA3:         record.JA3,
 			Hosts:       cluster.Hosts,
 			Processes:   cluster.Processes,
@@ -89,11 +91,18 @@ func (cc *CentralCorrelator) Ingest(record *JA3Record) *C2Alert {
 		}
 		cc.alerts = append(cc.alerts, *alert)
 		log.Printf("[ja3] C2 ALERT: %s (%d hosts, risk=%.0f)",
-			record.JA3[:16], len(cluster.Hosts), cluster.RiskScore)
+			logPrefix, len(cluster.Hosts), cluster.RiskScore)
 		return alert
 	}
 
 	return nil
+}
+
+func prefix(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit]
 }
 
 // calcRisk computes the C2 risk score based on cluster properties.

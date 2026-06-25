@@ -42,11 +42,12 @@ type HostImpact struct {
 //   5. Return complete blast radius report
 type BlastRadiusEngine struct {
 	maxDepth int
+	maxHosts int
 }
 
 // NewBlastRadiusEngine creates a blast radius analyzer.
 func NewBlastRadiusEngine() *BlastRadiusEngine {
-	return &BlastRadiusEngine{maxDepth: 10}
+	return &BlastRadiusEngine{maxDepth: 10, maxHosts: 10}
 }
 
 // Calculate computes the blast radius from an initial compromised node.
@@ -89,6 +90,10 @@ func (bre *BlastRadiusEngine) Calculate(rootNode, rootHost string, lateralEdges 
 		impact.RiskScore = bre.calcHostRisk(impact)
 		impact.IsCritical = impact.RiskScore > 50
 		hosts = append(hosts, impact)
+
+		if bre.maxHosts > 0 && len(hosts) >= bre.maxHosts {
+			continue
+		}
 
 		if item.depth >= bre.maxDepth {
 			continue

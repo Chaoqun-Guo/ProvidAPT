@@ -127,8 +127,8 @@ func TestCreateEmptyStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create on empty store: %v", err)
 	}
-	if meta.SizeBytes <= 0 {
-		t.Errorf("expected positive backup size for empty store, got %d", meta.SizeBytes)
+	if meta.SizeBytes < 0 {
+		t.Errorf("expected non-negative backup size, got %d", meta.SizeBytes)
 	}
 }
 

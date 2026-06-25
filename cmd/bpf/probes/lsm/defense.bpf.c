@@ -85,7 +85,7 @@ static __always_inline bool is_agent(u32 pid) {
  *
  * This prevents:
  *   - rm -rf /var/lib/providapt/
- *   - echo > /var/lib/providapt/store/*.sst
+ *   - echo > /var/lib/providapt/store/<sst-file>
  *   - tampering with provenance log files
  * ============================================================ */
 
@@ -172,7 +172,7 @@ cleanup:
  *
  * SEC("lsm/file_open")
  *
- * When a non-agent process tries to open /proc/<agent_pid>/*,
+ * When a non-agent process tries to open /proc/<agent_pid>/...,
  * deny the access.  This prevents casual discovery via:
  *   cat /proc/<pid>/status
  *   ls /proc/<pid>/

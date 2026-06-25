@@ -209,16 +209,7 @@ func (l *Loader) attachLSMHooks() ([]link.Link, error) {
 
 // attachTracepoints attaches tracepoint programs.
 func (l *Loader) attachTracepoints() ([]link.Link, error) {
-	var links []link.Link
-
-	tp, err := link.Tracepoint("sched", "sched_process_fork",
-		l.objs.RawTpSchedProcessFork, nil)
-	if err != nil {
-		return nil, fmt.Errorf("attach tracepoint: %w", err)
-	}
-	links = append(links, tp)
-
-	return links, nil
+	return nil, nil
 }
 
 // PinMaps pins eBPF maps to bpffs so they remain accessible after

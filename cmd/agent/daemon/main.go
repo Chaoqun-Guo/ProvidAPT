@@ -748,7 +748,19 @@ func main() {
 	defer os.Remove(pidFile)
 
 	// ── Self-check ───────────────────────────────────────
-	sanityReport := sanity.RunChecks(cfg, nil)
+	var sanitySkipList []string
+	if raw := strings.TrimSpace(os.Getenv("PROVIDAPT_SKIP_SANITY_CHECKS")); raw != "" {
+		for _, item := range strings.Split(raw, ",") {
+			name := strings.TrimSpace(item)
+			if name != "" {
+				sanitySkipList = append(sanitySkipList, name)
+			}
+		}
+		if len(sanitySkipList) > 0 {
+			logx.System().Warn("skipping sanity checks via environment", "checks", sanitySkipList)
+		}
+	}
+	sanityReport := sanity.RunChecks(cfg, sanitySkipList)
 	for _, r := range sanityReport.Results {
 		msg := r.Message
 		if r.FixSuggestion != "" {
@@ -801,11 +813,15 @@ func main() {
 		if err := secure.EnsureDataDirOwnership(cfg.Output.Dir); err != nil {
 			logx.System().Warn("data dir ownership", "error", err)
 		}
-		if err := secure.DropPrivileges(); err != nil {
-			logx.System().Error("privilege drop failed", "error", err)
-			os.Exit(1)
+		if strings.EqualFold(strings.TrimSpace(os.Getenv("PROVIDAPT_SKIP_PRIVILEGE_DROP")), "1") {
+			logx.System().Warn("skipping privilege drop via environment")
+		} else {
+			if err := secure.DropPrivileges(); err != nil {
+				logx.System().Error("privilege drop failed", "error", err)
+				os.Exit(1)
+			}
+			logx.System().Info("privileges dropped to providapt user")
 		}
-		logx.System().Info("privileges dropped to providapt user")
 	}
 
 	// ── Ring buffer reader ──────────────────────────────

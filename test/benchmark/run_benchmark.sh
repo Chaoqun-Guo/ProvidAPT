@@ -54,7 +54,7 @@ echo ""
 
 # ── Step 2: Quick sanity test ───────────────────────────
 echo "[2/5] Running sanity check..."
-"$OUT_DIR/benchmark.test" -test.run=^$ -bench=BenchmarkPipelineSanity -benchtime=1x 2>&1 | tee "$OUT_DIR/sanity.log"
+"$OUT_DIR/benchmark.test" -test.run=^$ -test.bench=BenchmarkPipelineSanity -test.benchtime=1x 2>&1 | tee "$OUT_DIR/sanity.log"
 echo -e "  ${GREEN}✓${NC} Sanity check complete"
 echo ""
 
@@ -65,11 +65,11 @@ if [ "$DURATION" = "30s" ]; then
     BENCH_TIME="10s"
 fi
 
-"$OUT_DIR/benchmark.test" \
+    "$OUT_DIR/benchmark.test" \
     -test.run=^$ \
-    -bench=BenchmarkPipelineThroughput \
-    -benchtime="$BENCH_TIME" \
-    -benchmem 2>&1 | tee "$OUT_DIR/throughput.log"
+    -test.bench=BenchmarkPipelineThroughput \
+    -test.benchtime="$BENCH_TIME" \
+    -test.benchmem 2>&1 | tee "$OUT_DIR/throughput.log"
 
 echo -e "  ${GREEN}✓${NC} Throughput benchmark complete"
 echo ""
@@ -79,8 +79,8 @@ if [ "$DURATION" != "30s" ]; then
     echo "[4/5] Running resource profile..."
     "$OUT_DIR/benchmark.test" \
         -test.run=^$ \
-        -bench=BenchmarkPipeline50K \
-        -benchtime="$BENCH_TIME" 2>&1 | tee "$OUT_DIR/resource.log"
+        -test.bench=BenchmarkPipeline50K \
+        -test.benchtime="$BENCH_TIME" 2>&1 | tee "$OUT_DIR/resource.log"
     echo -e "  ${GREEN}✓${NC} Resource profile complete"
 else
     echo "[4/5] Skipping resource profile (use duration=5m for full profile)"

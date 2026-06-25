@@ -61,3 +61,18 @@ func TestEventFlagConstants(t *testing.T) {
 		t.Errorf("EventFlagExecSetuid = %d", EventFlagExecSetuid)
 	}
 }
+
+// FuzzEventTypeString fuzzes EventType.String() with arbitrary values.
+// FuzzEventTypeString fuzzes EventType.String() with arbitrary values.
+func FuzzEventTypeString(f *testing.F) {
+	f.Add(int(0))
+	f.Add(int(100))
+	f.Add(int(255))
+	f.Fuzz(func(t *testing.T, n int) {
+		et := EventType(n)
+		s := et.String()
+		if s == "" {
+			t.Errorf("String() returned empty for %d", n)
+		}
+	})
+}

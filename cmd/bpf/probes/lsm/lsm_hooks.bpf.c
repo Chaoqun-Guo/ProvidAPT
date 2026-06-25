@@ -22,11 +22,6 @@
 char LICENSE[] SEC("license") = "GPL";
 
 /* ============================================================
- * BPF helpers
- * ============================================================ */
-static long (*bpf_d_path)(struct path *path, char *buf, u32 sz) = (void *)194;
-
-/* ============================================================
  * Maps
  * ============================================================ */
 
@@ -162,8 +157,6 @@ static __always_inline bool is_sensitive_path(const char *path, u32 max_len) {
 /* ── fill_file_path — full path via bpf_d_path ───────── */
 static __always_inline void fill_file_path(struct file *file, char *dst, u32 dst_sz) {
 	if (!file) { bpf_probe_read_kernel_str(dst, dst_sz, "?"); return; }
-	long ret = bpf_d_path(&file->f_path, dst, dst_sz);
-	if (ret > 0) return;
 	struct dentry *d = BPF_CORE_READ(file, f_path.dentry);
 	if (d) { const unsigned char *n = BPF_CORE_READ(d, d_name.name);
 		if (n) { bpf_probe_read_kernel_str(dst, dst_sz, n); return; } }
@@ -326,8 +319,9 @@ int BPF_PROG(probe_bprm_check, struct linux_binprm *bprm)
 			__u32 uv = BPF_CORE_READ(new_cred, uid.val);
 			__u32 ev = BPF_CORE_READ(new_cred, euid.val);
 			if (uv != ev) {
+				u32 taint = TAINT_SETUID;
 				e->flags |= EV_FLAG_EXEC_SETUID;
-				bpf_map_update_elem(&taint_map, &pid, &TAINT_SETUID, BPF_ANY);
+				bpf_map_update_elem(&taint_map, &pid, &taint, BPF_ANY);
 			}
 		}
 	}

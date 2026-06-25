@@ -71,18 +71,15 @@ func readStartTime(pid uint32) uint64 {
 
 // ─── Process ID builder ─────────────────────────────────────
 
-// ProcessNodeID builds a unique process node ID combining PID and
-// start_time.  Format: "p:<pid>:<start_time>"
+// ProcessNodeID returns the graph-wide process node ID.
 //
-// This prevents PID reuse from merging distinct process lifetimes
-// into a single graph node.
+// The graph still records `start_time` as node metadata where available,
+// but the identifier itself remains `p:<pid>` so that all event ingestion
+// paths (exec, fork, file, memory, network) resolve to the same node.
+// A composite ID can be reintroduced once every producer and consumer path
+// is upgraded consistently.
 func ProcessNodeID(pid uint32) string {
-	startTime := readStartTime(pid)
-	if startTime == startTimeUnknown {
-		// Fallback: just use PID (v1 compatible)
-		return nodeID("p", pid)
-	}
-	return nodeID("p", pid, startTime)
+	return nodeID("p", pid)
 }
 
 // ─── Process identity tracker ───────────────────────────────
@@ -90,9 +87,9 @@ func ProcessNodeID(pid uint32) string {
 // ProcessStore tracks parent-child relationships and resolves
 // orphaned processes to the virtual unknown_parent node.
 type ProcessStore struct {
-	mu          sync.Mutex
-	parentOf    map[uint32]uint32  // child_pid → parent_pid
-	knownPIDs   map[uint32]bool    // PIDs we've seen in the graph
+	mu        sync.Mutex
+	parentOf  map[uint32]uint32 // child_pid → parent_pid
+	knownPIDs map[uint32]bool   // PIDs we've seen in the graph
 }
 
 // NewProcessStore creates a process relationship tracker.

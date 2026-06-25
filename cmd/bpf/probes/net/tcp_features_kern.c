@@ -48,17 +48,15 @@ SEC("kprobe/tcp_v4_connect")
 int BPF_KPROBE(probe_tcp_connect, struct sock *sk)
 {
     struct tcp_fingerprint_event *e;
-    struct inet_sock *inet = (struct inet_sock *)sk;
-
     e = bpf_ringbuf_reserve(&rb_tcp, sizeof(*e), 0);
     if (!e) return 0;
 
     e->timestamp_ns = bpf_ktime_get_ns();
     e->pid = bpf_get_current_pid_tgid() >> 32;
-    e->src_ip = BPF_CORE_READ(inet, inet_saddr);
-    e->dst_ip = BPF_CORE_READ(inet, inet_daddr);
-    e->src_port = BPF_CORE_READ(inet, inet_sport);
-    e->dst_port = BPF_CORE_READ(inet, inet_dport);
+    e->src_ip = BPF_CORE_READ(sk, __sk_common.skc_rcv_saddr);
+    e->dst_ip = BPF_CORE_READ(sk, __sk_common.skc_daddr);
+    e->src_port = BPF_CORE_READ(sk, __sk_common.skc_num);
+    e->dst_port = BPF_CORE_READ(sk, __sk_common.skc_dport);
     e->isn = BPF_CORE_READ(sk, sk_rcv_nxt);
     e->direction = 0;
 
@@ -71,17 +69,15 @@ SEC("kprobe/tcp_v4_do_rcv")
 int BPF_KPROBE(probe_tcp_rcv, struct sock *sk, struct sk_buff *skb)
 {
     struct tcp_fingerprint_event *e;
-    struct inet_sock *inet = (struct inet_sock *)sk;
-
     e = bpf_ringbuf_reserve(&rb_tcp, sizeof(*e), 0);
     if (!e) return 0;
 
     e->timestamp_ns = bpf_ktime_get_ns();
     e->pid = bpf_get_current_pid_tgid() >> 32;
-    e->src_ip = BPF_CORE_READ(inet, inet_saddr);
-    e->dst_ip = BPF_CORE_READ(inet, inet_daddr);
-    e->src_port = BPF_CORE_READ(inet, inet_sport);
-    e->dst_port = BPF_CORE_READ(inet, inet_dport);
+    e->src_ip = BPF_CORE_READ(sk, __sk_common.skc_rcv_saddr);
+    e->dst_ip = BPF_CORE_READ(sk, __sk_common.skc_daddr);
+    e->src_port = BPF_CORE_READ(sk, __sk_common.skc_num);
+    e->dst_port = BPF_CORE_READ(sk, __sk_common.skc_dport);
     e->isn = BPF_CORE_READ(sk, sk_rcv_nxt);
     e->direction = 1;
 

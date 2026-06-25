@@ -7,6 +7,7 @@ package metrics
 import (
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -18,6 +19,8 @@ const namespace = "providapt"
 // ─── Metric descriptors ──────────────────────────────────────────
 
 var (
+	registerOnce sync.Once
+
 	// Events ingested from the eBPF ring buffer.
 	EventsIngested = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: namespace,
@@ -128,25 +131,27 @@ var (
 // MustRegister registers all metrics with the default Prometheus registry.
 // Panics on registration failure.
 func MustRegister() {
-	r := prometheus.DefaultRegisterer
-	r.MustRegister(
-		EventsIngested,
-		EventsParseErrors,
-		GraphNodes,
-		GraphEdges,
-		GrpcSentBytes,
-		GrpcSendErrors,
-		GrpcSendDuration,
-		AlertsTriggered,
-		PipelineEventsProcessed,
-		PipelineBackpressure,
-		CPUUsageRatio,
-		MemoryUsageBytes,
-		EventsDroppedTotal,
-		UptimeSeconds,
-		PipelineQueueDepth,
-	)
-	log.Printf("[metrics] registered %d Prometheus metrics", 15)
+	registerOnce.Do(func() {
+		r := prometheus.DefaultRegisterer
+		r.MustRegister(
+			EventsIngested,
+			EventsParseErrors,
+			GraphNodes,
+			GraphEdges,
+			GrpcSentBytes,
+			GrpcSendErrors,
+			GrpcSendDuration,
+			AlertsTriggered,
+			PipelineEventsProcessed,
+			PipelineBackpressure,
+			CPUUsageRatio,
+			MemoryUsageBytes,
+			EventsDroppedTotal,
+			UptimeSeconds,
+			PipelineQueueDepth,
+		)
+		log.Printf("[metrics] registered %d Prometheus metrics", 15)
+	})
 }
 
 // Handler returns the Prometheus HTTP handler for /metrics.

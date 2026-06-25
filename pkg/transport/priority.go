@@ -26,8 +26,8 @@ const (
 
 // TransportEvent wraps an event with its transmission priority.
 type TransportEvent struct {
-	Data      []byte    `json:"-"`           // serialised payload
-	Hash      string    `json:"hash"`        // content hash
+	Data      []byte    `json:"-"`    // serialised payload
+	Hash      string    `json:"hash"` // content hash
 	Priority  Priority  `json:"priority"`
 	Tainted   bool      `json:"tainted"`
 	RuleMatch bool      `json:"rule_match"`
@@ -60,7 +60,7 @@ func NewPriorityPipeline() *PriorityPipeline {
 // NewPersistentPriorityPipeline creates a priority pipeline with
 // a Pebble-backed low-priority queue for crash recovery.
 func NewPersistentPriorityPipeline(path string) (*PriorityPipeline, error) {
-	db, err := pebble.Open(path, &pebble.Options{DisableWAL: true})
+	db, err := pebble.Open(path, &pebble.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("open low-priority db: %w", err)
 	}
@@ -102,7 +102,9 @@ func (pp *PriorityPipeline) saveSeq() {
 	}
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, pp.lowSeq)
-	pp.lowDB.Set(lowSeqKey(), buf, pebble.NoSync)
+	if err := pp.lowDB.Set(lowSeqKey(), buf, pebble.Sync); err != nil {
+		log.Printf("[priority] save sequence: %v", err)
+	}
 }
 
 // lowEventKey builds a Pebble key for a low-priority event.
@@ -141,11 +143,22 @@ func (pp *PriorityPipeline) writeLowToPebbleLocked(evt *TransportEvent) {
 	}
 
 	key := lowEventKey(pp.lowSeq)
-	if err := pp.lowDB.Set(key, data, pebble.NoSync); err != nil {
+	batch := pp.lowDB.NewBatch()
+	defer batch.Close()
+
+	if err := batch.Set(key, data, nil); err != nil {
 		log.Printf("[priority] write low event: %v", err)
 		return
 	}
-	pp.saveSeq()
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, pp.lowSeq)
+	if err := batch.Set(lowSeqKey(), buf, nil); err != nil {
+		log.Printf("[priority] write sequence: %v", err)
+		return
+	}
+	if err := batch.Commit(pebble.Sync); err != nil {
+		log.Printf("[priority] commit low event: %v", err)
+	}
 }
 
 // DrainHigh returns all high-priority events for immediate sending.
@@ -220,6 +233,9 @@ func (pp *PriorityPipeline) drainLowFromPebbleLocked() []*TransportEvent {
 
 	// Read in batches to bound memory usage.
 	for iter.First(); iter.Valid(); iter.Next() {
+		if string(iter.Key()) == string(lowSeqKey()) {
+			continue
+		}
 		var evt TransportEvent
 		if err := json.Unmarshal(iter.Value(), &evt); err != nil {
 			log.Printf("[priority] corrupt low event: %v", err)
@@ -237,9 +253,9 @@ func (pp *PriorityPipeline) drainLowFromPebbleLocked() []*TransportEvent {
 	if len(keys) > 0 {
 		batch := pp.lowDB.NewBatch()
 		for _, k := range keys {
-			batch.Delete(k, pebble.NoSync)
+			_ = batch.Delete(k, nil)
 		}
-		if err := batch.Commit(pebble.NoSync); err != nil {
+		if err := batch.Commit(pebble.Sync); err != nil {
 			log.Printf("[priority] delete low events: %v", err)
 		}
 		batch.Close()
@@ -264,6 +280,9 @@ func (pp *PriorityPipeline) LowQueueDepth() int {
 		defer iter.Close()
 		count := 0
 		for iter.First(); iter.Valid(); iter.Next() {
+			if string(iter.Key()) == string(lowSeqKey()) {
+				continue
+			}
 			count++
 		}
 		return count
@@ -288,10 +307,10 @@ func (pp *PriorityPipeline) Stats() map[string]interface{} {
 	pp.mu.Lock()
 	defer pp.mu.Unlock()
 	return map[string]interface{}{
-		"high_sent":   pp.highSent,
-		"low_staged":  pp.lowStaged,
-		"processed":   pp.processed,
-		"persistent":  pp.lowDB != nil,
+		"high_sent":  pp.highSent,
+		"low_staged": pp.lowStaged,
+		"processed":  pp.processed,
+		"persistent": pp.lowDB != nil,
 	}
 }
 

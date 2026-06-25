@@ -45,6 +45,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "providapt.h"
+#include "taint.h"
 #include "deception.h"
 
 char __license[] SEC("license") = "GPL";
@@ -237,9 +238,9 @@ int probe_enter_openat(struct trace_event_raw_sys_enter *ctx)
 		e->tid = bpf_get_current_pid_tgid() & 0xFFFFFFFF;
 		e->uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
 		/* Store path_hash in payload inode field for userspace. */
-		e->file.inode = (__u64)path_hash;
+		e->payload.file.inode = (__u64)path_hash;
 		/* Store honeytoken flags in payload f_flags field. */
-		e->file.f_flags = new_val.flags;
+		e->payload.file.f_flags = new_val.flags;
 
 		__builtin_memcpy(e->comm, "honeypot", 9);
 		bpf_ringbuf_submit(e, 0);
@@ -296,8 +297,8 @@ int probe_enter_statx(struct trace_event_raw_sys_enter *ctx)
 		e->pid = pid;
 		e->tid = bpf_get_current_pid_tgid() & 0xFFFFFFFF;
 		e->uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
-		e->file.inode = (__u64)path_hash;
-		e->file.f_flags = new_val.flags;
+		e->payload.file.inode = (__u64)path_hash;
+		e->payload.file.f_flags = new_val.flags;
 		__builtin_memcpy(e->comm, "honeypot", 9);
 		bpf_ringbuf_submit(e, 0);
 	}
@@ -349,8 +350,8 @@ int probe_enter_newfstatat(struct trace_event_raw_sys_enter *ctx)
 		e->pid = pid;
 		e->tid = bpf_get_current_pid_tgid() & 0xFFFFFFFF;
 		e->uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
-		e->file.inode = (__u64)path_hash;
-		e->file.f_flags = new_val.flags;
+		e->payload.file.inode = (__u64)path_hash;
+		e->payload.file.f_flags = new_val.flags;
 		__builtin_memcpy(e->comm, "honeypot", 9);
 		bpf_ringbuf_submit(e, 0);
 	}

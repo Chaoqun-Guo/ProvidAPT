@@ -132,6 +132,10 @@ func TestTryWriteFileEmptySkips(t *testing.T) {
 }
 
 func TestReadOSReleaseNotFound(t *testing.T) {
+	oldPath := osReleasePath
+	osReleasePath = filepath.Join(t.TempDir(), "missing-os-release")
+	defer func() { osReleasePath = oldPath }()
+
 	result := readOSRelease()
 	if result != "(not found)\n" {
 		t.Errorf("expected not-found message, got %q", result)

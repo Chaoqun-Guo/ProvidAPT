@@ -6,6 +6,7 @@ package filter
 import (
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -101,11 +102,25 @@ func (r *Reputation) ScorePath(path string) int {
 		if rule.Field != "path" {
 			continue
 		}
-		if matched, _ := filepath.Match(rule.Pattern, path); matched {
+		if pathMatches(rule.Pattern, path) {
 			return rule.Score
 		}
 	}
 	return 50
+}
+
+func pathMatches(pattern, path string) bool {
+	if matched, _ := filepath.Match(pattern, path); matched {
+		return true
+	}
+
+	pattern = filepath.ToSlash(pattern)
+	path = filepath.ToSlash(path)
+	if strings.HasSuffix(pattern, "/*") {
+		prefix := strings.TrimSuffix(pattern, "*")
+		return strings.HasPrefix(path, prefix)
+	}
+	return false
 }
 
 // Classify returns a human-readable trust level.
@@ -135,9 +150,9 @@ func (r *Reputation) AddRule(pattern, field string, score, priority int) {
 // ── Reputation thresholds ───────────────────────────────────
 
 const (
-	RepThresholdLow    = 20  // below this: always persist
-	RepThresholdMedium = 50  // below this: normal processing
-	RepThresholdHigh   = 80  // above this: aggressive merge
+	RepThresholdLow    = 20 // below this: always persist
+	RepThresholdMedium = 50 // below this: normal processing
+	RepThresholdHigh   = 80 // above this: aggressive merge
 )
 
 // ShouldAggressivelyMerge returns true if events from paths with

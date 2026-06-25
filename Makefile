@@ -34,19 +34,28 @@ build-core: build-ebpf build-userspace
 
 build-ebpf:
 	@mkdir -p $(EBPF_OUT)
-	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -O2 -g -target bpf \
+	@if [ ! -s cmd/bpf/headers/vmlinux.h ] || grep -q "Placeholder - replace" cmd/bpf/headers/vmlinux.h; then \
+		if command -v $(BPFTOOL) >/dev/null 2>&1 && [ -r /sys/kernel/btf/vmlinux ]; then \
+			echo "Generating cmd/bpf/headers/vmlinux.h from kernel BTF"; \
+			$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > cmd/bpf/headers/vmlinux.h; \
+		else \
+			echo "Missing real vmlinux.h and cannot generate one via bpftool"; \
+			exit 1; \
+		fi; \
+	fi
+	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -Icmd/bpf/probes -O2 -g -target bpf \
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
 		-c $(BPF_SRC)/lsm/lsm_hooks.bpf.c -o $(EBPF_OUT)/lsm_hooks.bpf.o
-	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -O2 -g -target bpf \
+	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -Icmd/bpf/probes -O2 -g -target bpf \
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
 		-c $(BPF_SRC)/lsm/defense.bpf.c -o $(EBPF_OUT)/defense.bpf.o
-	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -O2 -g -target bpf \
+	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -Icmd/bpf/probes -O2 -g -target bpf \
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
 		-c $(BPF_SRC)/task/memory.bpf.c -o $(EBPF_OUT)/memory.bpf.o
-	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -O2 -g -target bpf \
+	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -Icmd/bpf/probes -O2 -g -target bpf \
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
 		-c $(BPF_SRC)/net/network.bpf.c -o $(EBPF_OUT)/network.bpf.o
-	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -O2 -g -target bpf \
+	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -Icmd/bpf/probes -O2 -g -target bpf \
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
 		-c $(BPF_SRC)/lsm/deception.bpf.c -o $(EBPF_OUT)/deception.bpf.o
 	$(LLVM_STRIP) -g $(EBPF_OUT)/*.bpf.o 2>/dev/null || true
@@ -133,6 +142,28 @@ sbom-syft:
 		exit 1; \
 	fi
 
+fuzz-ci:
+	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=45s ./internal/engine/collector/
+	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=45s ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=45s ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=45s ./pkg/config/
+	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=45s ./internal/engine/taint/
+	$(GO) test -fuzz=FuzzParseQuery -fuzztime=45s ./internal/engine/query/
+	$(GO) test -fuzz=FuzzHashHex -fuzztime=45s ./internal/engine/forensic/
+	$(GO) test -fuzz=FuzzAnonymizeHashString -fuzztime=45s ./pkg/anonymize/
+	$(GO) test -fuzz=FuzzEventTypeString -fuzztime=45s ./internal/engine/syscall/
+
+fuzz-long:
+	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=5m ./internal/engine/collector/
+	$(GO) test -fuzz=FuzzParseEdgeKey -fuzztime=5m ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzParseNodeKey -fuzztime=5m ./internal/storage/schema/
+	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=5m ./pkg/config/
+	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=5m ./internal/engine/taint/
+	$(GO) test -fuzz=FuzzParseQuery -fuzztime=5m ./internal/engine/query/
+	$(GO) test -fuzz=FuzzHashHex -fuzztime=5m ./internal/engine/forensic/
+	$(GO) test -fuzz=FuzzAnonymizeHashString -fuzztime=5m ./pkg/anonymize/
+	$(GO) test -fuzz=FuzzEventTypeString -fuzztime=5m ./internal/engine/syscall/
+
 fuzz-short:
 	@mkdir -p $(COVER_DIR)
 	$(GO) test -fuzz=FuzzParseRawEvent -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_event.out -covermode=atomic ./internal/engine/collector/
@@ -141,6 +172,9 @@ fuzz-short:
 	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_config.out -covermode=atomic ./pkg/config/
 	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_taint.out -covermode=atomic ./internal/engine/taint/
 	$(GO) test -fuzz=FuzzParseQuery -fuzztime=10s -coverprofile=$(COVER_DIR)/fuzz_query.out -covermode=atomic ./internal/engine/query/
+	$(GO) test -fuzz=FuzzHashHex -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_forensic.out -covermode=atomic ./internal/engine/forensic/
+	$(GO) test -fuzz=FuzzAnonymizeHashString -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_anonymize.out -covermode=atomic ./pkg/anonymize/
+	$(GO) test -fuzz=FuzzEventTypeString -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_syscall.out -covermode=atomic ./internal/engine/syscall/
 
 fuzz:
 	@mkdir -p $(COVER_DIR)
@@ -150,6 +184,9 @@ fuzz:
 	$(GO) test -fuzz=FuzzConfigLoad -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_config.out -covermode=atomic ./pkg/config/
 	$(GO) test -fuzz=FuzzMatchTaint -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_taint.out -covermode=atomic ./internal/engine/taint/
 	$(GO) test -fuzz=FuzzParseQuery -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_query.out -covermode=atomic ./internal/engine/query/
+	$(GO) test -fuzz=FuzzHashHex -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_forensic.out -covermode=atomic ./internal/engine/forensic/
+	$(GO) test -fuzz=FuzzAnonymizeHashString -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_anonymize.out -covermode=atomic ./pkg/anonymize/
+	$(GO) test -fuzz=FuzzEventTypeString -fuzztime=$(FUZZ_TIME) -coverprofile=$(COVER_DIR)/fuzz_syscall.out -covermode=atomic ./internal/engine/syscall/
 
 ext-test:
 	@mkdir -p $(COVER_DIR)

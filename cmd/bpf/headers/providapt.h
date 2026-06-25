@@ -27,6 +27,29 @@
 #define O_APPEND      02000
 #define O_EXCL         0200
 
+/* ─── Access/error constants when kernel headers do not provide them ─── */
+#ifndef MAY_EXEC
+#define MAY_EXEC        0x00000001
+#endif
+#ifndef MAY_WRITE
+#define MAY_WRITE       0x00000002
+#endif
+#ifndef MAY_READ
+#define MAY_READ        0x00000004
+#endif
+#ifndef EPERM
+#define EPERM           1
+#endif
+
+/* ─── Socket/protocol constants when kernel headers do not provide them ─── */
+#ifndef AF_INET
+#define AF_INET         2
+#endif
+
+#ifndef IPPROTO_TCP
+#define IPPROTO_TCP     6
+#endif
+
 /* ─── Ring buffer size (bytes) ─────────────────────────── */
 #define RINGBUF_SIZE     (1 << 22)    /* 4 MB */
 

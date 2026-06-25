@@ -206,3 +206,17 @@ func TestForensicIntegration(t *testing.T) {
 
 	t.Log("Forensic integration OK")
 }
+
+// FuzzHashHex fuzzes HashHex with arbitrary binary data.
+func FuzzHashHex(f *testing.F) {
+	f.Add([]byte("hello"))
+	f.Add([]byte{})
+	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	f.Add([]byte("the quick brown fox"))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		result := HashHex(data)
+		if len(result) == 0 {
+			t.Error("HashHex returned empty")
+		}
+	})
+}

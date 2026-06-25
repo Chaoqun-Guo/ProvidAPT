@@ -4,10 +4,10 @@
 // Package heal provides system self-healing capabilities for
 // ProvidAPT.  Given a malicious process node, it can:
 //
-//   1. Assess attack impact — traverse all successor nodes
-//   2. Roll back changes — kill processes, quarantine files,
-//      trigger BTRFS/ZFS snapshot rollback
-//   3. Block C2 communication — integrate with iptables/nftables
+//  1. Assess attack impact — traverse all successor nodes
+//  2. Roll back changes — kill processes, quarantine files,
+//     trigger BTRFS/ZFS snapshot rollback
+//  3. Block C2 communication — integrate with iptables/nftables
 package heal
 
 import (
@@ -23,25 +23,25 @@ import (
 
 // ImpactReport describes all resources affected by a malicious process.
 type ImpactReport struct {
-	MaliciousPID   uint32         `json:"malicious_pid"`
-	MaliciousNode  string         `json:"malicious_node"`
-	MaliciousComm  string         `json:"malicious_comm"`
+	MaliciousPID   uint32        `json:"malicious_pid"`
+	MaliciousNode  string        `json:"malicious_node"`
+	MaliciousComm  string        `json:"malicious_comm"`
 	ChildProcesses []ProcessNode `json:"child_processes"`
-	FilesWritten   []FileNode     `json:"files_written"`
-	FilesRead      []FileNode     `json:"files_read"`
-	C2Addresses    []NetworkNode  `json:"c2_addresses"`
-	CredChanges    []string       `json:"cred_changes,omitempty"`
-	TotalImpacted  int            `json:"total_impacted"`
-	MaxDepth       int            `json:"max_depth"`
-	Truncated      bool           `json:"truncated"`
+	FilesWritten   []FileNode    `json:"files_written"`
+	FilesRead      []FileNode    `json:"files_read"`
+	C2Addresses    []NetworkNode `json:"c2_addresses"`
+	CredChanges    []string      `json:"cred_changes,omitempty"`
+	TotalImpacted  int           `json:"total_impacted"`
+	MaxDepth       int           `json:"max_depth"`
+	Truncated      bool          `json:"truncated"`
 }
 
 // ProcessNode represents an affected child process.
 type ProcessNode struct {
-	PID      uint32 `json:"pid"`
-	NodeID   string `json:"node_id"`
-	Comm     string `json:"comm"`
-	Depth    int    `json:"depth"`
+	PID    uint32 `json:"pid"`
+	NodeID string `json:"node_id"`
+	Comm   string `json:"comm"`
+	Depth  int    `json:"depth"`
 }
 
 // FileNode represents an affected file.
@@ -53,9 +53,9 @@ type FileNode struct {
 
 // NetworkNode represents a C2 communication target.
 type NetworkNode struct {
-	Address  string `json:"address"`
-	NodeID   string `json:"node_id"`
-	Action   string `json:"action"` // "connect", "accept"
+	Address string `json:"address"`
+	NodeID  string `json:"node_id"`
+	Action  string `json:"action"` // "connect", "accept"
 }
 
 // bfsItem is used internally by AssessImpact for BFS traversal.
@@ -70,10 +70,11 @@ type bfsItem struct {
 // to find all successor nodes (files, child procs, networks).
 //
 // Algorithm:
-//   BFS forward from the seed node, following all outgoing edges.
-//   Also follows reverse edges to find child processes (fork creates
-//   child→parent edge) and generated files (wasGeneratedBy goes file→process).
-//   Depth-limited to prevent explosion (default maxDepth=5).
+//
+//	BFS forward from the seed node, following all outgoing edges.
+//	Also follows reverse edges to find child processes (fork creates
+//	child→parent edge) and generated files (wasGeneratedBy goes file→process).
+//	Depth-limited to prevent explosion (default maxDepth=5).
 func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *ImpactReport {
 	if maxDepth <= 0 {
 		maxDepth = 5
@@ -81,7 +82,7 @@ func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *Im
 
 	report := &ImpactReport{
 		MaliciousNode: startNodeID,
-		MaxDepth:     maxDepth,
+		MaxDepth:      maxDepth,
 	}
 
 	// Extract PID from node ID (format: "p:<pid>")
@@ -94,6 +95,7 @@ func AssessImpact(graph *provenance.Graph, startNodeID string, maxDepth int) *Im
 	}
 
 	visited := make(map[string]int)
+	visited[startNodeID] = 0
 	queue := []bfsItem{{nodeID: startNodeID, depth: 0}}
 
 	for len(queue) > 0 {

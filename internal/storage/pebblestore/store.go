@@ -17,8 +17,8 @@ import (
 	"github.com/cockroachdb/pebble"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/schema"
+	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
 // ─── Store ──────────────────────────────────────────────────
@@ -26,26 +26,26 @@ import (
 // Store wraps a Pebble database and provides provenance-specific
 // operations with asynchronous batch writes.
 type Store struct {
-	db        *pebble.DB
-	wb        *pebble.Batch
-	wbMu      sync.Mutex
-	wbSize    int       // batch size threshold
-	flushInt  time.Duration
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
-	cache     *pebble.Cache // shared LRU block cache
+	db       *pebble.DB
+	wb       *pebble.Batch
+	wbMu     sync.Mutex
+	wbSize   int // batch size threshold
+	flushInt time.Duration
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
+	cache    *pebble.Cache // shared LRU block cache
 
 	// Statistics
-	stats     StoreStats
+	stats StoreStats
 }
 
 // StoreStats tracks write performance.
 type StoreStats struct {
-	NodesWritten   int64
-	EdgesWritten   int64
+	NodesWritten    int64
+	EdgesWritten    int64
 	BatchesCommited int64
-	BytesWritten   int64
-	mu             sync.Mutex
+	BytesWritten    int64
+	mu              sync.Mutex
 }
 
 // Open opens or creates a Pebble-backed store with performance
@@ -60,7 +60,7 @@ func Open(path string) (*Store, error) {
 	s := &Store{
 		db:       db,
 		wb:       db.NewBatch(),
-		wbSize:   500,                 // larger batch for throughput
+		wbSize:   500, // larger batch for throughput
 		flushInt: 2 * time.Second,
 		stopCh:   make(chan struct{}),
 		cache:    cache,
@@ -80,6 +80,10 @@ func Open(path string) (*Store, error) {
 // All data (node + secondary indexes) is written within a single lock
 // scope to prevent Flush() from replacing the batch mid-write.
 func (s *Store) PutNode(node *pb.Node) error {
+	if node.Type == "process" && node.Comm == "" && node.Label != "" {
+		node.Comm = node.Label
+	}
+
 	data, err := proto.Marshal(node)
 	if err != nil {
 		return fmt.Errorf("marshal node: %w", err)
@@ -228,16 +232,17 @@ func (s *Store) GetNodeByPID(pid uint32) (*pb.Node, error) {
 	}
 
 	// Parse the node ID from the index key
+	var idx pb.PIDIndex
+	if err := proto.Unmarshal(iter.Value(), &idx); err == nil && idx.NodeId != "" {
+		return s.GetNode("process", idx.NodeId)
+	}
+
 	key := string(iter.Key())
-	parts := splitAfter(prefix, key)
-	if len(parts) < 2 {
+	nodeID := trimPrefix(prefix, key)
+	if nodeID == "" {
 		return nil, nil
 	}
-	nodeID := parts[1]
-
-	// Determine node type from ID prefix
-	nodeType := nodeTypeFromID(nodeID)
-	return s.GetNode(nodeType, nodeID)
+	return s.GetNode("process", nodeID)
 }
 
 // GetNodeByInode retrieves a file node by inode.
@@ -253,13 +258,16 @@ func (s *Store) GetNodeByInode(inode uint64) (*pb.Node, error) {
 		return nil, nil
 	}
 
+	var idx pb.InodeIndex
+	if err := proto.Unmarshal(iter.Value(), &idx); err == nil && idx.NodeId != "" {
+		return s.GetNode("file", idx.NodeId)
+	}
+
 	key := string(iter.Key())
-	parts := splitAfter(prefix, key)
-	if len(parts) < 2 {
+	nodeID := trimPrefix(prefix, key)
+	if nodeID == "" {
 		return nil, nil
 	}
-	nodeID := parts[len(parts)-1]
-
 	return s.GetNode("file", nodeID)
 }
 
@@ -357,26 +365,21 @@ func (s *Store) Stats() map[string]interface{} {
 
 	m := s.db.Metrics()
 	return map[string]interface{}{
-		"nodes_written":    s.stats.NodesWritten,
-		"edges_written":    s.stats.EdgesWritten,
+		"nodes_written":     s.stats.NodesWritten,
+		"edges_written":     s.stats.EdgesWritten,
 		"batches_committed": s.stats.BatchesCommited,
-		"bytes_written":    s.stats.BytesWritten,
-		"disk_usage_bytes": m.DiskSpaceUsage(),
-		"memtable_size":    m.MemTable.Size,
+		"bytes_written":     s.stats.BytesWritten,
+		"disk_usage_bytes":  m.DiskSpaceUsage(),
+		"memtable_size":     m.MemTable.Size,
 	}
 }
 
 // ─── Helpers ─────────────────────────────────────────────
 
-// splitAfter splits the remaining part of a key after a prefix.
-func splitAfter(prefix, key string) []string {
-	rest := key[len(prefix):]
-	return strings.SplitN(rest, ":", 2)
-}
-
-func nodeTypeFromID(id string) string {
-	if len(id) > 0 && id[0] == 'p' {
-		return "process"
+// trimPrefix returns the remainder of key after prefix, or "" if it does not match.
+func trimPrefix(prefix, key string) string {
+	if !strings.HasPrefix(key, prefix) {
+		return ""
 	}
-	return "file"
+	return key[len(prefix):]
 }

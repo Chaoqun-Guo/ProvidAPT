@@ -31,6 +31,24 @@ if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     exit 1
 fi
 
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    SUDO_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+    if [[ -n "${SUDO_HOME:-}" && -d "${SUDO_HOME}" ]]; then
+        export HOME="$SUDO_HOME"
+        export GOPATH="${GOPATH:-$SUDO_HOME/go}"
+        export GOMODCACHE="${GOMODCACHE:-$GOPATH/pkg/mod}"
+        export GOCACHE="${GOCACHE:-$SUDO_HOME/.cache/go-build}"
+        for candidate in \
+            "$SUDO_HOME/.local/go/bin" \
+            "$SUDO_HOME/.local/go1.25/go/bin"
+        do
+            if [[ -d "$candidate" ]]; then
+                export PATH="$candidate:$PATH"
+            fi
+        done
+    fi
+fi
+
 for tool in timeout go make; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "loader_smoke: missing required tool: $tool"
@@ -93,9 +111,11 @@ EOF
 
 echo "[3/5] Running daemon with object-path override"
 set +e
+PROVIDAPT_SKIP_SANITY_CHECKS="bpf_lsm,providapt_user" \
+PROVIDAPT_SKIP_PRIVILEGE_DROP="1" \
 PROVIDAPT_BPF_OBJECT_PATH="$OBJECT_PATH" \
 timeout --signal=INT 12s "$BIN_FILE" -config "$CONFIG_FILE" >"$LOG_FILE" 2>&1
-status=$-
+status=$?
 set -e
 
 echo "[4/5] Inspecting loader result"

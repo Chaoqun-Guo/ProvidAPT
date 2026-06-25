@@ -12,10 +12,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 	query "github.com/Chaoqun-Guo/ProvidAPT/internal/engine/graphquery"
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/schema"
 	store "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/pebblestore"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/schema"
+	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
 // ─── Schema tests ───────────────────────────────────────────
@@ -46,10 +46,10 @@ func TestParseNodeKey(t *testing.T) {
 
 func TestEdgeTimeRange(t *testing.T) {
 	start, end := schema.EdgeTimeRange(0, 1000)
-	if start != "e:0000000000000000:" {
+	if start != "e:0000000000000000|" {
 		t.Errorf("start = %q", start)
 	}
-	if end != "e:00000000000003e8:" {
+	if end != "e:00000000000003e8|" {
 		t.Errorf("end = %q", end)
 	}
 }

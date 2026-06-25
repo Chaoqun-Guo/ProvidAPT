@@ -18,6 +18,7 @@ import (
 )
 
 var bundleDir = "/var/log/providapt/support-bundle"
+var osReleasePath = "/etc/os-release"
 
 // HandleCrash recovers from a panic and captures a support bundle before
 // re-panicking. Use as: defer supportbundle.HandleCrash()
@@ -127,7 +128,7 @@ func collectSystemInfo() string {
 }
 
 func readOSRelease() string {
-	data, err := os.ReadFile("/etc/os-release")
+	data, err := os.ReadFile(osReleasePath)
 	if err != nil {
 		return "(not found)\n"
 	}

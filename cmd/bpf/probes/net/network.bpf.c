@@ -43,7 +43,7 @@ static __always_inline u32 hash_seq(u32 seq) {
  *   bit 2: SACK Permit  (Option 4)
  *   bit 3: Timestamp    (Option 8)
  */
-static __always_inline u32 read_tcp_options(struct tcphdr *th, u32 th_len) {
+static __always_inline __attribute__((unused)) u32 read_tcp_options(struct tcphdr *th, u32 th_len) {
 	u32 opts = 0;
 	/* TCP options start after the 20-byte fixed header */
 	u32 off = sizeof(struct tcphdr);
@@ -128,12 +128,9 @@ int BPF_PROG(probe_net_connect, struct socket *sock, struct sockaddr *address, i
 	/* Source address from socket */
 	struct sock *sk = BPF_CORE_READ(sock, sk);
 	if (sk) {
-		/* Read source address */
-		struct inet_sock *inet = (struct inet_sock *)sk;
-		e->payload.net.saddr = BPF_CORE_READ(inet, inet_saddr);
-
-		/* Read source port */
-		e->payload.net.sport = BPF_CORE_READ(inet, inet_sport);
+		/* Read source tuple from common socket fields for CO-RE stability */
+		e->payload.net.saddr = BPF_CORE_READ(sk, __sk_common.skc_rcv_saddr);
+		e->payload.net.sport = BPF_CORE_READ(sk, __sk_common.skc_num);
 
 		/* TCP sequence number hash (socket identity) */
 		if (e->payload.net.protocol == IPPROTO_TCP) {
@@ -167,11 +164,10 @@ int BPF_PROG(probe_net_accept, struct socket *sock, struct socket *newsock)
 	struct sock *sk = BPF_CORE_READ(newsock, sk);
 	if (!sk) return 0;
 
-	struct inet_sock *inet = (struct inet_sock *)sk;
-	u32 daddr = BPF_CORE_READ(inet, inet_daddr);
-	u16 dport = BPF_CORE_READ(inet, inet_dport);
-	u32 saddr = BPF_CORE_READ(inet, inet_saddr);
-	u16 sport = BPF_CORE_READ(inet, inet_sport);
+	u32 daddr = BPF_CORE_READ(sk, __sk_common.skc_daddr);
+	u16 dport = BPF_CORE_READ(sk, __sk_common.skc_dport);
+	u32 saddr = BPF_CORE_READ(sk, __sk_common.skc_rcv_saddr);
+	u16 sport = BPF_CORE_READ(sk, __sk_common.skc_num);
 
 	e = bpf_ringbuf_reserve(&rb_network, sizeof(*e), 0);
 	if (!e) return 0;
