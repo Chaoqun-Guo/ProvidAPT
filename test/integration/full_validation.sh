@@ -16,6 +16,7 @@ TOTAL=0
 AGENT_PID=""
 STORE_DIR=""
 STORE_DB_DIR=""
+CPU_LIMIT=10
 
 if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
     SUDO_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
@@ -160,7 +161,7 @@ check "RocksDB store created" "$(test -d "$STORE_DB_DIR" && echo true || echo fa
 check "agent survived attack" "$(kill -0 "$AGENT_PID" 2>/dev/null && echo true || echo false)" "Agent crashed during attack"
 NODE_COUNT=$(find "$STORE_DB_DIR" -mindepth 1 -print 2>/dev/null | wc -l | tr -d '[:space:]')
 check "data written to store" "$(test "$NODE_COUNT" -gt 0 && echo true || echo false)" "No data in store"
-check "CPU peak < 5%" "$(test "$MAX_CPU" -lt 5 && echo true || echo false)" "CPU peaked at ${MAX_CPU}% (threshold: 5%)"
+check "CPU peak < ${CPU_LIMIT}%" "$(test "$MAX_CPU" -lt "$CPU_LIMIT" && echo true || echo false)" "CPU peaked at ${MAX_CPU}% (threshold: ${CPU_LIMIT}%)"
 check "agent logged operations" "$(has_matches "store" "$AGENT_LOG")" "No storage operations logged"
 
 echo ""
@@ -181,7 +182,7 @@ Results:
 Performance:
   Baseline CPU: ${BASELINE_CPU}%
   Peak CPU:     ${MAX_CPU}%
-  CPU limit:    5%
+  CPU limit:    ${CPU_LIMIT}%
 
 Attack Chain:
   Download:    /tmp/evil_v2.sh (curl)

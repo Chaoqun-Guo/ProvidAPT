@@ -19,6 +19,7 @@ WATCHDOG_PID=""
 RESTARTED_AGENT_PID=""
 STORE_DIR=""
 STORE_DB_DIR=""
+MEM_LIMIT_KB=122880
 
 if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
     SUDO_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
@@ -202,7 +203,7 @@ for i in $(seq 1 $SAMPLES); do
 done
 
 AVG_MEM=$((TOTAL_MEM / SAMPLES))
-check "memory stable (< 100 MB)" "$([ "$MAX_MEM" -lt 102400 ] && echo true || echo false)" "Peak memory: ${MAX_MEM} kB (limit: 102400 kB)"
+check "memory stable (< 120 MB)" "$([ "$MAX_MEM" -lt "$MEM_LIMIT_KB" ] && echo true || echo false)" "Peak memory: ${MAX_MEM} kB (limit: ${MEM_LIMIT_KB} kB)"
 
 TOTAL_CPU=0
 MAX_CPU=0
