@@ -1,0 +1,12 @@
+{
+  timestamp: 2026-06-24T20:38:00Z,
+  cpu: AMD Ryzen 5 5600X 6-Core,
+  go: go1.25.0,
+  results: {
+    EventParsing: 123.9 ns/op, 8,069,174 events/sec,
+    EventParsingParallel: 103.5 ns/op,
+    PipelineThroughput: 325,662 ns/op, 3,207 events/sec,
+    PipelineBurst: 5,021,939 ns/op, 199.7 burst_events/sec,
+    MemoryAlloc: 5254 B/event, 10 GC cycles
+  }
+}
