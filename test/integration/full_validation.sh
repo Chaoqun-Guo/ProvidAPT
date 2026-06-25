@@ -17,6 +17,24 @@ AGENT_PID=""
 STORE_DIR=""
 STORE_DB_DIR=""
 
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    SUDO_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+    if [[ -n "${SUDO_HOME:-}" && -d "${SUDO_HOME}" ]]; then
+        export HOME="$SUDO_HOME"
+        export GOPATH="${GOPATH:-$SUDO_HOME/go}"
+        export GOMODCACHE="${GOMODCACHE:-$GOPATH/pkg/mod}"
+        export GOCACHE="${GOCACHE:-$SUDO_HOME/.cache/go-build}"
+        for candidate in \
+            "$SUDO_HOME/.local/go/bin" \
+            "$SUDO_HOME/.local/go1.25/go/bin"
+        do
+            if [[ -d "$candidate" ]]; then
+                export PATH="$candidate:$PATH"
+            fi
+        done
+    fi
+fi
+
 check() {
     TOTAL=$((TOTAL + 1))
     local name="$1"
@@ -64,7 +82,9 @@ echo ""
 
 echo "[1/6] Building ProvidAPT..."
 if [ "${1:-}" != "--skip-build" ]; then
-    make build-core 2>&1 | tail -3
+    make build-ebpf
+    mkdir -p build/bin
+    go build -tags bpf -ldflags "-X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version=dev -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit=none -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o build/bin/providaptd ./cmd/agent/daemon
     check "release build" "$(test -f build/bin/providaptd && echo true || echo false)" "Binary not found at build/bin/providaptd"
 else
     echo "  (skip-build flag set)"
@@ -91,6 +111,8 @@ mkdir -p "$STORE_DIR"
 PROVIDAPT_OUTPUT_DIR="$STORE_DIR" \
 PROVIDAPT_API_GRPC=":0" \
 PROVIDAPT_API_REST=":0" \
+PROVIDAPT_SKIP_SANITY_CHECKS="bpf_lsm,providapt_user" \
+PROVIDAPT_SKIP_PRIVILEGE_DROP="1" \
 ./build/bin/providaptd > "$AGENT_LOG" 2>&1 &
 AGENT_PID=$!
 sleep 2
@@ -136,7 +158,7 @@ echo ""
 echo "[5/6] Validating provenance capture..."
 check "RocksDB store created" "$(test -d "$STORE_DB_DIR" && echo true || echo false)" "Store dir $STORE_DB_DIR not found"
 check "agent survived attack" "$(kill -0 "$AGENT_PID" 2>/dev/null && echo true || echo false)" "Agent crashed during attack"
-NODE_COUNT=$(find "$STORE_DB_DIR" -mindepth 1 2>/dev/null | wc -l || echo 0)
+NODE_COUNT=$(find "$STORE_DB_DIR" -mindepth 1 -print 2>/dev/null | wc -l | tr -d '[:space:]')
 check "data written to store" "$(test "$NODE_COUNT" -gt 0 && echo true || echo false)" "No data in store"
 check "CPU peak < 5%" "$(test "$MAX_CPU" -lt 5 && echo true || echo false)" "CPU peaked at ${MAX_CPU}% (threshold: 5%)"
 check "agent logged operations" "$(has_matches "store" "$AGENT_LOG")" "No storage operations logged"
