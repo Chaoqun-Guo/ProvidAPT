@@ -32,6 +32,7 @@ import (
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/analyzer"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	containermon "github.com/Chaoqun-Guo/ProvidAPT/internal/engine/container"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/loader"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/pipeline"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
@@ -788,6 +789,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer bpfLoader.Close()
+	logx.System().Info("socket tracking configured", "attachment_mode", bpfLoader.ModeName(), "hook", "socket_connect")
 
 	// ── Encryption at rest ──────────────────────────────
 	var encryptKey []byte
@@ -829,6 +831,10 @@ func main() {
 
 	// ── Provenance graph (in-memory DAG) ────────────────
 	graph := provenance.NewGraph()
+	containerMonitor := containermon.New()
+	containerMonitor.Start()
+	defer containerMonitor.Stop()
+	logx.System().Info("container enrichment configured", "mode", "async_cgroup_monitor")
 
 	// ── Ingestion pipeline (cache + RocksDB + merge) ────
 	pipeCfg := pipeline.DefaultConfig()
@@ -844,6 +850,7 @@ func main() {
 	}
 	defer pipe.Stop()
 	pipe.Start()
+	logx.System().Info("event store configured", "path", pipeCfg.StorePath, "merge_window", pipeCfg.MergeWindow.String())
 
 	// ── APT analyzer ────────────────────────────────────
 	aptCfg := analyzer.DefaultConfig()
@@ -851,6 +858,7 @@ func main() {
 	apt := analyzer.New(graph, aptCfg)
 	apt.Start()
 	defer apt.Stop()
+	logx.System().Info("taint analysis configured", "scan_interval", aptCfg.ScanInterval.String())
 
 	// ── Connect sketch integrator (graph anomaly detection) ──
 	si := analyzer.NewSketchIntegrator(analyzer.DefaultSketchConfig())
