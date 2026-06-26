@@ -59,3 +59,17 @@ func TestTaintString_MixedKnownUnknown(t *testing.T) {
 		t.Errorf("mixed flags: unexpected string %q", s)
 	}
 }
+
+func TestStatsNilController(t *testing.T) {
+	var ctl *Controller
+	stats := ctl.Stats()
+	if stats["pid_whitelist_entries"] != 0 {
+		t.Fatalf("pid_whitelist_entries = %v, want 0", stats["pid_whitelist_entries"])
+	}
+	if stats["tainted_processes"] != 0 {
+		t.Fatalf("tainted_processes = %v, want 0", stats["tainted_processes"])
+	}
+	if stats["active_sample_counters"] != 0 {
+		t.Fatalf("active_sample_counters = %v, want 0", stats["active_sample_counters"])
+	}
+}

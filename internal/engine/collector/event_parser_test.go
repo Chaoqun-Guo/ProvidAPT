@@ -10,7 +10,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
-// makeRawEvent creates a 332-byte raw event buffer for testing.
+// makeRawEvent creates a raw event buffer matching struct event in providapt.h.
 // Fields are set via functional options; any nil field uses zero.
 func makeRawEvent(t *testing.T, opts ...func([]byte)) []byte {
 	t.Helper()
@@ -19,21 +19,23 @@ func makeRawEvent(t *testing.T, opts ...func([]byte)) []byte {
 	// Default: a basic file_open event
 	le := binary.LittleEndian
 	le.PutUint32(buf[0:4], uint32(syscall.EventFileOpen))
-	le.PutUint32(buf[4:8], 0)          // flags
-	le.PutUint64(buf[8:16], 1000000)   // timestamp
-	le.PutUint32(buf[16:20], 1001)     // pid
-	le.PutUint32(buf[20:24], 1001)     // tid
-	le.PutUint32(buf[24:28], 1000)     // ppid
-	le.PutUint32(buf[28:32], 1000)     // uid
-	le.PutUint32(buf[32:36], 1000)     // gid
+	le.PutUint32(buf[4:8], 0)        // flags
+	le.PutUint64(buf[8:16], 1000000) // timestamp
+	le.PutUint32(buf[16:20], 1001)   // pid
+	le.PutUint32(buf[20:24], 1001)   // tid
+	le.PutUint32(buf[24:28], 1000)   // ppid
+	le.PutUint32(buf[28:32], 1000)   // uid
+	le.PutUint32(buf[32:36], 1000)   // gid
 	// union payload (inode/dev/mode/f_flags)
-	le.PutUint64(buf[36:44], 123456)   // inode
-	le.PutUint32(buf[44:48], 8)        // dev_major
-	le.PutUint32(buf[48:52], 3)        // dev_minor
-	le.PutUint32(buf[52:56], 0o644)    // mode
-	le.PutUint32(buf[56:60], 0)        // f_flags
-	copy(buf[60:76], "test-prog\x00")  // comm
-	copy(buf[76:], "/etc/passwd\x00")  // pathname
+	le.PutUint64(buf[36:44], 123456)  // inode
+	le.PutUint32(buf[44:48], 8)       // dev_major
+	le.PutUint32(buf[48:52], 3)       // dev_minor
+	le.PutUint32(buf[52:56], 0o644)   // mode
+	le.PutUint32(buf[56:60], 0)       // f_flags
+	le.PutUint32(buf[60:64], 0)       // sample_hook_id
+	le.PutUint32(buf[64:68], 0)       // sample_count
+	copy(buf[68:84], "test-prog\x00") // comm
+	copy(buf[84:], "/etc/passwd\x00") // pathname
 
 	for _, opt := range opts {
 		opt(buf)
@@ -76,8 +78,8 @@ func TestParseRawEvent_ProcessFork(t *testing.T) {
 		le := binary.LittleEndian
 		le.PutUint32(buf[0:4], uint32(syscall.EventProcessFork))
 		le.PutUint32(buf[36:40], 1002) // child_pid
-		copy(buf[60:76], "sshd\x00")
-		copy(buf[76:], "\x00") // empty pathname
+		copy(buf[68:84], "sshd\x00")
+		copy(buf[84:], "\x00") // empty pathname
 	})
 
 	evt, err := ParseRawEvent(data)
@@ -104,8 +106,8 @@ func TestParseRawEvent_ProcessExec(t *testing.T) {
 		le := binary.LittleEndian
 		le.PutUint32(buf[0:4], uint32(syscall.EventProcessExec))
 		le.PutUint32(buf[4:8], uint32(syscall.EventFlagExecSetuid))
-		copy(buf[60:76], "bash\x00")
-		copy(buf[76:], "/usr/bin/bash\x00")
+		copy(buf[68:84], "bash\x00")
+		copy(buf[84:], "/usr/bin/bash\x00")
 	})
 
 	evt, err := ParseRawEvent(data)
@@ -131,8 +133,12 @@ func TestParseRawEvent_NetConnect(t *testing.T) {
 	data := makeRawEvent(t, func(buf []byte) {
 		le := binary.LittleEndian
 		le.PutUint32(buf[0:4], uint32(syscall.EventNetConnect))
-		copy(buf[60:76], "curl\x00")
-		copy(buf[76:], "1.2.3.4:443\x00")
+		le.PutUint32(buf[36:40], 0x0100007f) // 127.0.0.1
+		le.PutUint32(buf[40:44], 0x04030201) // 1.2.3.4
+		le.PutUint16(buf[44:46], 54321)
+		le.PutUint16(buf[46:48], 443)
+		buf[48] = 6
+		copy(buf[68:84], "curl\x00")
 	})
 
 	evt, err := ParseRawEvent(data)
@@ -146,8 +152,14 @@ func TestParseRawEvent_NetConnect(t *testing.T) {
 	if evt.Comm != "curl" {
 		t.Errorf("Comm = %q", evt.Comm)
 	}
-	if evt.Pathname != "1.2.3.4:443" {
-		t.Errorf("Pathname = %q", evt.Pathname)
+	if evt.Daddr != 0x04030201 {
+		t.Errorf("Daddr = %08x, want 04030201", evt.Daddr)
+	}
+	if evt.Dport != 443 {
+		t.Errorf("Dport = %d, want 443", evt.Dport)
+	}
+	if evt.Protocol != 6 {
+		t.Errorf("Protocol = %d, want 6", evt.Protocol)
 	}
 }
 
@@ -215,13 +227,13 @@ func TestParseRawEvent_ZeroFields(t *testing.T) {
 func TestParseRawEvent_LongStrings(t *testing.T) {
 	data := makeRawEvent(t, func(buf []byte) {
 		// Fill comm with exactly 15 chars + null (max possible)
-		copy(buf[60:76], "abcdefghijklmno\x00")
+		copy(buf[68:84], "abcdefghijklmno\x00")
 		// Fill pathname with exactly 255 chars + null
 		path := make([]byte, 255)
 		for i := range path {
 			path[i] = 'a' + byte(i%26)
 		}
-		copy(buf[76:], append(path, 0))
+		copy(buf[84:], append(path, 0))
 	})
 
 	evt, err := ParseRawEvent(data)
@@ -244,7 +256,7 @@ func TestParseRawEvent_ForkWithFilePayload(t *testing.T) {
 		le.PutUint32(buf[0:4], uint32(syscall.EventProcessFork))
 		le.PutUint32(buf[36:40], 1002) // child_pid
 		// Also set file fields — these should still be decoded
-		le.PutUint64(buf[36:44], 999)  // same offset as child_pid (overlap)!
+		le.PutUint64(buf[36:44], 999) // same offset as child_pid (overlap)!
 	})
 
 	evt, err := ParseRawEvent(data)
@@ -304,7 +316,7 @@ func FuzzParseRawEvent(f *testing.F) {
 		0, 0, 0, 0, // ChildPID
 		99, 0, // Comm (nul-terminated)
 	})
-	f.Add([]byte{}) // empty
+	f.Add([]byte{})                       // empty
 	f.Add([]byte{0xFF, 0xFF, 0xFF, 0xFF}) // minimal garbage
 	f.Add([]byte{
 		0, 0, 0, 0, // Type = 0 (invalid)
@@ -329,4 +341,3 @@ func FuzzParseRawEvent(f *testing.F) {
 		_ = err
 	})
 }
-

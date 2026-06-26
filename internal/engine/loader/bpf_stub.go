@@ -26,3 +26,7 @@ import (
 func loadBpf(objs *bpfObjects, opts *ebpf.CollectionOptions) error {
 	return fmt.Errorf("eBPF stub: no BPF device available (compile with -tags bpf to enable)")
 }
+
+func loadBpfForMode(objs *bpfObjects, opts *ebpf.CollectionOptions, mode string) error {
+	return loadBpf(objs, opts)
+}

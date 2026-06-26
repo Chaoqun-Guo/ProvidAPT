@@ -64,11 +64,11 @@ func TaintString(flags uint32) string {
 // Controller manages the optimisation maps exposed by the
 // eBPF LSM programs:
 //
-//   pid_whitelist   — PIDs to exclude from monitoring entirely
-//   taint_map       — per-process taint flags (read-only)
-//   sample_counters — adaptive sampling counters (read-only)
-//   dedup_map       — kernel-side frequency limiting (read-only)
-//   hot_paths       — high-interest path prefixes (writable)
+//	pid_whitelist   — PIDs to exclude from monitoring entirely
+//	taint_map       — per-process taint flags (read-only)
+//	sample_counters — adaptive sampling counters (read-only)
+//	dedup_map       — kernel-side frequency limiting (read-only)
+//	hot_paths       — high-interest path prefixes (writable)
 type Controller struct {
 	mu             sync.Mutex
 	pidWhitelist   *ebpf.Map
@@ -136,18 +136,47 @@ func (ctl *Controller) DumpTaints(fn func(pid uint32, flags uint32)) {
 // whitelist. It scans /proc for processes matching known noisy comm
 // names and excludes them from monitoring.
 func (ctl *Controller) DefaultExcludes() error {
-	noisyComms := map[string]bool{
-		"yum": true, "dnf": true, "apt": true, "dpkg": true, "rpm": true,
-		"make": true, "gcc": true, "cc": true, "g++": true, "clang": true,
-		"systemd-journal": true, "systemd-resolve": true,
-		"cron": true, "anacron": true, "systemd-tmpfiles": true,
-		"updatedb": true, "locate": true, "plocate": true,
-		"mandb": true, "catman": true,
+	noisyComms := []string{
+		"yum", "dnf", "apt", "dpkg", "rpm",
+		"make", "gcc", "cc", "g++", "clang",
+		"systemd-journal", "systemd-resolve",
+		"cron", "anacron", "systemd-tmpfiles",
+		"updatedb", "locate", "plocate",
+		"mandb", "catman",
+	}
+	excluded, err := ctl.ExcludeComms(noisyComms)
+	if err != nil {
+		return err
+	}
+	log.Printf("[control] default excludes applied: excluded %d noisy processes", excluded)
+	return nil
+}
+
+// ExcludeComm scans /proc and excludes all running processes with the given comm.
+func (ctl *Controller) ExcludeComm(comm string) (int, error) {
+	return ctl.ExcludeComms([]string{comm})
+}
+
+// ExcludeComms scans /proc and excludes all running processes with matching comm names.
+func (ctl *Controller) ExcludeComms(comms []string) (int, error) {
+	if len(comms) == 0 {
+		return 0, nil
+	}
+	targets := make(map[string]struct{}, len(comms))
+	for _, comm := range comms {
+		trimmed := strings.TrimSpace(comm)
+		if trimmed == "" {
+			continue
+		}
+		targets[trimmed] = struct{}{}
+	}
+	if len(targets) == 0 {
+		return 0, nil
 	}
 
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return fmt.Errorf("scan /proc: %w", err)
+		return 0, fmt.Errorf("scan /proc: %w", err)
 	}
 
 	var excluded int
@@ -165,19 +194,18 @@ func (ctl *Controller) DefaultExcludes() error {
 			continue
 		}
 		comm := strings.TrimSpace(string(commData))
-
-		if noisyComms[comm] {
-			if err := ctl.ExcludePID(uint32(pid)); err != nil {
-				log.Printf("[control] failed to exclude PID %d (%s): %v", pid, comm, err)
-			} else {
-				excluded++
-			}
+		if _, ok := targets[comm]; !ok {
+			continue
 		}
+
+		if err := ctl.ExcludePID(uint32(pid)); err != nil {
+			log.Printf("[control] failed to exclude PID %d (%s): %v", pid, comm, err)
+			continue
+		}
+		excluded++
 	}
 
-	log.Printf("[control] default excludes: scanned %d processes, excluded %d noisy comms",
-		len(entries), excluded)
-	return nil
+	return excluded, nil
 }
 
 // ── Hot path management ─────────────────────────────────────
@@ -222,31 +250,48 @@ func fnv1a32(s string) uint32 {
 // ── Stats ──────────────────────────────────────────────────
 
 // Stats returns a snapshot of all three maps.
-func (ctl *Controller) Stats() map[string]interface{} {
+func (ctl *Controller) Stats() (stats map[string]interface{}) {
+	stats = map[string]interface{}{
+		"pid_whitelist_entries":  0,
+		"tainted_processes":      0,
+		"active_sample_counters": 0,
+	}
 	pidCount := 0
-	iter := ctl.pidWhitelist.Iterate()
-	var k uint32
-	for iter.Next(&k, nil) {
-		pidCount++
+	defer func() {
+		if recover() != nil {
+			stats["pid_whitelist_entries"] = 0
+			stats["tainted_processes"] = 0
+			stats["active_sample_counters"] = 0
+		}
+	}()
+	if ctl != nil && ctl.pidWhitelist != nil {
+		iter := ctl.pidWhitelist.Iterate()
+		var k uint32
+		for iter.Next(&k, nil) {
+			pidCount++
+		}
 	}
 
 	taintCount := 0
-	iter2 := ctl.taintMap.Iterate()
-	var pid uint32
-	for iter2.Next(&pid, nil) {
-		taintCount++
+	if ctl != nil && ctl.taintMap != nil {
+		iter2 := ctl.taintMap.Iterate()
+		var pid uint32
+		for iter2.Next(&pid, nil) {
+			taintCount++
+		}
 	}
 
 	sampleCount := 0
-	iter3 := ctl.sampleCounters.Iterate()
-	var key uint64
-	for iter3.Next(&key, nil) {
-		sampleCount++
+	if ctl != nil && ctl.sampleCounters != nil {
+		iter3 := ctl.sampleCounters.Iterate()
+		var key uint64
+		for iter3.Next(&key, nil) {
+			sampleCount++
+		}
 	}
 
-	return map[string]interface{}{
-		"pid_whitelist_entries":   pidCount,
-		"tainted_processes":       taintCount,
-		"active_sample_counters":  sampleCount,
-	}
+	stats["pid_whitelist_entries"] = pidCount
+	stats["tainted_processes"] = taintCount
+	stats["active_sample_counters"] = sampleCount
+	return stats
 }

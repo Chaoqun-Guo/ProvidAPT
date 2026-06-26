@@ -14,18 +14,27 @@ import (
 
 const bpfObjectEnvVar = "PROVIDAPT_BPF_OBJECT_PATH"
 
-var defaultBpfObjectPaths = []string{
+var defaultLSMBpfObjectPaths = []string{
 	"/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o",
 	"build/ebpf/lsm_hooks.bpf.o",
 }
 
-func bpfObjectPaths() []string {
+var defaultKprobeBpfObjectPaths = []string{
+	"/usr/local/lib/providapt/ebpf/kprobe_fallback.bpf.o",
+	"build/ebpf/kprobe_fallback.bpf.o",
+}
+
+func bpfObjectPaths(mode string) []string {
 	if path := strings.TrimSpace(os.Getenv(bpfObjectEnvVar)); path != "" {
 		return []string{path}
 	}
 
-	paths := make([]string, len(defaultBpfObjectPaths))
-	copy(paths, defaultBpfObjectPaths)
+	source := defaultLSMBpfObjectPaths
+	if mode == "kprobe" {
+		source = defaultKprobeBpfObjectPaths
+	}
+	paths := make([]string, len(source))
+	copy(paths, source)
 	return paths
 }
 

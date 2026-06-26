@@ -807,10 +807,37 @@ func main() {
 	if secure.IsPrivileged() {
 		bpfLoader.PinMaps("/sys/fs/bpf/providapt")
 
-		// Apply default excludes before dropping privileges
-		if err := bpfLoader.Ctrl.DefaultExcludes(); err != nil {
-			logx.System().Warn("default excludes failed", "error", err)
+		// Apply runtime capture controls before dropping privileges.
+		if cfg.Capture.AutoExcludeNoisy {
+			if err := bpfLoader.Ctrl.DefaultExcludes(); err != nil {
+				logx.System().Warn("default excludes failed", "error", err)
+			}
 		}
+		for _, pid := range cfg.Capture.ExcludePIDs {
+			if err := bpfLoader.Ctrl.ExcludePID(pid); err != nil {
+				logx.System().Warn("capture exclude pid failed", "pid", pid, "error", err)
+			}
+		}
+		if excluded, err := bpfLoader.Ctrl.ExcludeComms(cfg.Capture.ExcludeComms); err != nil {
+			logx.System().Warn("capture exclude comms failed", "error", err)
+		} else if excluded > 0 {
+			logx.System().Info("capture exclude comms applied", "count", excluded)
+		}
+		for _, prefix := range cfg.Capture.HotPaths {
+			if err := bpfLoader.Ctrl.AddHotPath(prefix); err != nil {
+				logx.System().Warn("capture hot path failed", "path", prefix, "error", err)
+			}
+		}
+		controlStats := bpfLoader.Ctrl.Stats()
+		logx.System().Info("capture controls configured",
+			"auto_exclude_noisy", cfg.Capture.AutoExcludeNoisy,
+			"configured_exclude_pids", len(cfg.Capture.ExcludePIDs),
+			"configured_exclude_comms", len(cfg.Capture.ExcludeComms),
+			"configured_hot_paths", len(cfg.Capture.HotPaths),
+			"pid_whitelist_entries", controlStats["pid_whitelist_entries"],
+			"tainted_processes", controlStats["tainted_processes"],
+			"active_sample_counters", controlStats["active_sample_counters"],
+		)
 
 		if err := secure.EnsureDataDirOwnership(cfg.Output.Dir); err != nil {
 			logx.System().Warn("data dir ownership", "error", err)
@@ -968,19 +995,30 @@ func main() {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 		reporterStatus := telemetryReporter.Status()
+		controlStats := map[string]interface{}{}
+		if bpfLoader != nil && bpfLoader.Ctrl != nil {
+			controlStats = bpfLoader.Ctrl.Stats()
+		}
+		pidWhitelistEntries, _ := controlStats["pid_whitelist_entries"].(int)
+		taintedProcesses, _ := controlStats["tainted_processes"].(int)
+		activeSampleCounters, _ := controlStats["active_sample_counters"].(int)
 		hs := api.HealthStatus{
-			Status:             healthStatus(pipelineHealthy, storeHealthy),
-			UptimeSeconds:      int64(time.Since(startTime).Seconds()),
-			EbpfCollector:      bpfLoader.RB != nil,
-			PipelineHealthy:    pipelineHealthy,
-			StoreHealthy:       storeHealthy,
-			EventsIngested:     eventsIngested,
-			EventsDropped:      eventsDropped,
-			MemoryBytes:        m.Alloc,
-			Version:            version.String(),
-			TelemetryEnabled:   reporterStatus.Enabled,
-			TelemetryHealthy:   !reporterStatus.Enabled || reporterStatus.ConsecutiveFailures == 0,
-			TelemetryLastError: reporterStatus.LastError,
+			Status:               healthStatus(pipelineHealthy, storeHealthy),
+			UptimeSeconds:        int64(time.Since(startTime).Seconds()),
+			EbpfCollector:        bpfLoader.RB != nil,
+			AttachmentMode:       bpfLoader.ModeName(),
+			PipelineHealthy:      pipelineHealthy,
+			StoreHealthy:         storeHealthy,
+			EventsIngested:       eventsIngested,
+			EventsDropped:        eventsDropped,
+			MemoryBytes:          m.Alloc,
+			Version:              version.String(),
+			PIDWhitelistEntries:  pidWhitelistEntries,
+			TaintedProcesses:     taintedProcesses,
+			ActiveSampleCounters: activeSampleCounters,
+			TelemetryEnabled:     reporterStatus.Enabled,
+			TelemetryHealthy:     !reporterStatus.Enabled || reporterStatus.ConsecutiveFailures == 0,
+			TelemetryLastError:   reporterStatus.LastError,
 		}
 		if !reporterStatus.LastSuccess.IsZero() {
 			hs.TelemetryLastSuccess = reporterStatus.LastSuccess.UTC().Format(time.RFC3339)
@@ -1932,7 +1970,16 @@ func main() {
 loop:
 	for {
 		select {
-		case evt := <-eventCh:
+		case evt, ok := <-eventCh:
+			if !ok {
+				logx.System().Warn("collector event channel closed")
+				eventCh = nil
+				continue
+			}
+			if evt == nil {
+				logx.System().Warn("collector emitted nil event")
+				continue
+			}
 			pipe.AddEvent(evt)
 			if err := writer.Write(evt); err != nil {
 				logx.System().Error("event write error", "error", err)
@@ -1954,8 +2001,15 @@ loop:
 			metrics.EventsIngested.Inc()
 			metrics.PipelineEventsProcessed.Inc()
 
-		case err := <-errCh:
-			logx.System().Error("collector error", "error", err)
+		case err, ok := <-errCh:
+			if !ok {
+				logx.System().Warn("collector error channel closed")
+				errCh = nil
+				continue
+			}
+			if err != nil {
+				logx.System().Error("collector error", "error", err)
+			}
 
 		case al := <-apt.AlertCh:
 			logx.System().Warn("alert triggered", "alert", fmt.Sprintf("%s", al))

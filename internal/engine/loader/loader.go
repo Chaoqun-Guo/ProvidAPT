@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/control"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
@@ -71,30 +72,38 @@ func NewWithAudit(cfg *config.Config, auditStore *audit.Store) (*Loader, error) 
 	if err != nil {
 		return nil, err
 	}
-
-	var objs bpfObjects
-	if err := loadBpf(&objs, nil); err != nil {
-		return nil, fmt.Errorf("load eBPF objects: %w", err)
+	attachmentMode := strings.ToLower(strings.TrimSpace(cfg.Kernel.AttachmentMode))
+	if attachmentMode == "" {
+		attachmentMode = "auto"
 	}
 
 	l := &Loader{
-		objs:       &objs,
 		hooks:      hooks,
 		auditStore: auditStore,
 	}
 
-	// Create runtime controller for whitelist/taint management
-	l.Ctrl = control.New(objs.PidWhitelist, objs.TaintMap, objs.SampleCounters, objs.HotPaths)
+	reloadObjects := func(mode string) error {
+		var objs bpfObjects
+		if err := loadBpfForMode(&objs, nil, mode); err != nil {
+			return fmt.Errorf("load eBPF objects: %w", err)
+		}
+		if l.objs != nil {
+			l.objs.Close()
+		}
+		l.objs = &objs
+		l.Ctrl = control.New(objs.PidWhitelist, objs.TaintMap, objs.SampleCounters, objs.HotPaths)
+		return nil
+	}
 
-	// Try LSM hooks first
-	lsmLinks, lsmErr := l.attachLSMHooks()
-	if lsmErr != nil {
-		log.Printf("[loader] LSM attach failed: %v; trying kprobe fallback", lsmErr)
+	attachKprobes := func(reason string) (*Loader, error) {
+		if reason != "" {
+			log.Printf("[loader] %s; trying kprobe fallback", reason)
+		}
 		if l.auditStore != nil {
 			l.auditStore.Log(audit.Entry{
 				Category: audit.CatSystem,
 				Severity: "WARNING",
-				Message:  fmt.Sprintf("LSM attach failed, falling back to kprobe: %v", lsmErr),
+				Message:  reason,
 				Source:   "loader",
 			})
 		}
@@ -102,7 +111,7 @@ func NewWithAudit(cfg *config.Config, auditStore *audit.Store) (*Loader, error) 
 		kprobeLinks, kpErr := l.attachKprobeFallback()
 		if kpErr != nil {
 			l.Close()
-			return nil, fmt.Errorf("kprobe fallback also failed: %w (LSM error: %v)", kpErr, lsmErr)
+			return nil, fmt.Errorf("kprobe fallback failed: %w", kpErr)
 		}
 		l.links = append(l.links, kprobeLinks...)
 		l.Mode = ModeKprobeFallback
@@ -119,9 +128,48 @@ func NewWithAudit(cfg *config.Config, auditStore *audit.Store) (*Loader, error) 
 				},
 			})
 		}
-	} else {
+		return l, nil
+	}
+
+	switch attachmentMode {
+	case "kprobe":
+		if err := reloadObjects("kprobe"); err != nil {
+			return nil, err
+		}
+		if _, err := attachKprobes("kernel attachment mode forced to kprobe"); err != nil {
+			return nil, err
+		}
+	case "lsm":
+		if err := reloadObjects("lsm"); err != nil {
+			return nil, err
+		}
+		lsmLinks, lsmErr := l.attachLSMHooks()
+		if lsmErr != nil {
+			l.Close()
+			return nil, fmt.Errorf("attach LSM hooks: %w", lsmErr)
+		}
 		l.links = append(l.links, lsmLinks...)
 		l.Mode = ModeLSM
+	default:
+		if err := reloadObjects("lsm"); err != nil {
+			return nil, err
+		}
+		// Try LSM hooks first
+		lsmLinks, lsmErr := l.attachLSMHooks()
+		if lsmErr != nil {
+			l.Close()
+			l.links = nil
+			l.Mode = ModeLSM
+			if err := reloadObjects("kprobe"); err != nil {
+				return nil, fmt.Errorf("LSM attach failed and kprobe object load failed: %w (LSM error: %v)", err, lsmErr)
+			}
+			if _, err := attachKprobes(fmt.Sprintf("LSM attach failed, falling back to kprobe: %v", lsmErr)); err != nil {
+				return nil, fmt.Errorf("kprobe fallback also failed: %w (LSM error: %v)", err, lsmErr)
+			}
+		} else {
+			l.links = append(l.links, lsmLinks...)
+			l.Mode = ModeLSM
+		}
 	}
 
 	// Attach tracepoints (may be skipped in extreme fallback, but try)
@@ -133,7 +181,7 @@ func NewWithAudit(cfg *config.Config, auditStore *audit.Store) (*Loader, error) 
 	}
 
 	// Open ring buffer reader
-	rb, err := ringbuf.NewReader(objs.Rb)
+	rb, err := ringbuf.NewReader(l.objs.Rb)
 	if err != nil {
 		l.Close()
 		return nil, fmt.Errorf("ringbuf reader: %w", err)
@@ -305,7 +353,7 @@ func (l *Loader) kprobeSpecs() []kprobeAttachSpec {
 	}
 
 	symbols := map[HookID][]string{
-		HookFileOpen:       {"do_sys_openat2", "do_sys_open"},
+		HookFileOpen:       {"security_file_open"},
 		HookBprmCheck:      {"security_bprm_check"},
 		HookTaskAlloc:      {"copy_process"},
 		HookTaskFree:       {"do_exit"},

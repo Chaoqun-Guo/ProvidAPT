@@ -58,6 +58,9 @@ build-ebpf:
 	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -Icmd/bpf/probes -O2 -g -target bpf \
 		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
 		-c $(BPF_SRC)/lsm/deception.bpf.c -o $(EBPF_OUT)/deception.bpf.o
+	$(CLANG) $(BPF_CFLAGS) -Icmd/bpf/headers -Icmd/bpf/probes -O2 -g -target bpf \
+		-D__TARGET_ARCH_x86 -Wall -Werror -mlittle-endian \
+		-c $(BPF_SRC)/kprobe/fallback.bpf.c -o $(EBPF_OUT)/kprobe_fallback.bpf.o
 	$(LLVM_STRIP) -g $(EBPF_OUT)/*.bpf.o 2>/dev/null || true
 	@echo "Built eBPF objects into $(EBPF_OUT)"
 

@@ -316,8 +316,13 @@ func (te *TaintEngine) tryTaint(id, prevID, rel string, level TaintLevel,
 // node, following PrevID pointers, EARLIEST first.
 func (te *TaintEngine) PropagationPath(id string) []string {
 	var rev []string
-	for cur := id; cur != ""; cur = te.tainted[cur].PrevID {
+	for cur := id; cur != ""; {
 		rev = append(rev, cur)
+		node, ok := te.tainted[cur]
+		if !ok || node == nil {
+			break
+		}
+		cur = node.PrevID
 	}
 	// Reverse: earliest source first
 	for i, j := 0, len(rev)-1; i < j; i, j = i+1, j-1 {

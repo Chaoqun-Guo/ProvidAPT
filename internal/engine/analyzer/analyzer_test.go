@@ -302,6 +302,19 @@ func TestPropagationPath(t *testing.T) {
 	}
 }
 
+func TestPropagationPathHandlesUntaintedNode(t *testing.T) {
+	g := buildGraph([]*collector.Event{
+		testEvent(syscall.EventProcessExec, 42, 1000, "bash", "/usr/bin/bash"),
+	})
+	snap := SnapshotFromGraph(g)
+	te := NewTaintEngine(snap)
+
+	path := te.PropagationPath("p:42")
+	if len(path) != 1 || path[0] != "p:42" {
+		t.Fatalf("expected fallback path with only alert node, got %v", path)
+	}
+}
+
 // TestSubgraphExtraction verifies that alert subgraphs are complete.
 func TestSubgraphExtraction(t *testing.T) {
 	g := buildGraph([]*collector.Event{
@@ -533,4 +546,3 @@ level: low
 		}
 	}
 }
-

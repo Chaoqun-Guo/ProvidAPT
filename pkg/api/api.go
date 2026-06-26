@@ -33,9 +33,10 @@ import (
 
 // HealthStatus represents the current health of the daemon.
 type HealthStatus struct {
-	Status               string `json:"status"`                 // "healthy" or "unhealthy"
-	UptimeSeconds        int64  `json:"uptime_seconds"`         // process uptime
-	EbpfCollector        bool   `json:"ebpf_collector"`         // eBPF ring buffer active
+	Status               string `json:"status"`         // "healthy" or "unhealthy"
+	UptimeSeconds        int64  `json:"uptime_seconds"` // process uptime
+	EbpfCollector        bool   `json:"ebpf_collector"` // eBPF ring buffer active
+	AttachmentMode       string `json:"attachment_mode,omitempty"`
 	PipelineHealthy      bool   `json:"pipeline_healthy"`       // pipeline processing
 	StoreHealthy         bool   `json:"store_healthy"`          // storage backend
 	EventsIngested       uint64 `json:"events_ingested"`        // total ingested
@@ -43,6 +44,9 @@ type HealthStatus struct {
 	MemoryBytes          uint64 `json:"memory_bytes"`           // RSS in bytes
 	Version              string `json:"version"`                // build version
 	SanityCheck          string `json:"sanity_check,omitempty"` // "pass", "fail", or "" (not run)
+	PIDWhitelistEntries  int    `json:"pid_whitelist_entries,omitempty"`
+	TaintedProcesses     int    `json:"tainted_processes,omitempty"`
+	ActiveSampleCounters int    `json:"active_sample_counters,omitempty"`
 	TelemetryEnabled     bool   `json:"telemetry_enabled,omitempty"`
 	TelemetryHealthy     bool   `json:"telemetry_healthy,omitempty"`
 	TelemetryLastSuccess string `json:"telemetry_last_success,omitempty"`
@@ -656,9 +660,9 @@ func (s *Server) SetDefaultControlHandlers() {
 	// 5. License Status — check for license file at common paths.
 	s.licenseFn = func() LicenseStatus {
 		ls := LicenseStatus{
-			UpdatedAt:  time.Now().UTC().Format(time.RFC3339),
-			Present:    false,
-			History:    []ControlActionAudit{},
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			Present:   false,
+			History:   []ControlActionAudit{},
 		}
 		for _, p := range []string{
 			"/etc/providapt/license.pem",

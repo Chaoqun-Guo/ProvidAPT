@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -279,7 +280,7 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				log.Printf("[api] PANIC recovered: %s %s: %v", r.Method, r.URL.Path, rec)
+				log.Printf("[api] PANIC recovered: %s %s: %v\n%s", r.Method, r.URL.Path, rec, debug.Stack())
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
 				if err := json.NewEncoder(w).Encode(map[string]string{

@@ -130,6 +130,9 @@ func TestKernelConfig(t *testing.T) {
 	if cfg.Kernel.Verbose {
 		t.Error("Verbose should be false by default")
 	}
+	if cfg.Kernel.AttachmentMode != "auto" {
+		t.Errorf("AttachmentMode = %q, want auto", cfg.Kernel.AttachmentMode)
+	}
 	if len(cfg.Kernel.Hooks) == 0 {
 		t.Error("Hooks should not be empty")
 	}
@@ -191,12 +194,14 @@ func TestEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_LOG_LEVEL", "error")
 	os.Setenv("PROVIDAPT_OUTPUT_DIR", "/env/test")
 	os.Setenv("PROVIDAPT_CAPTURE_ENABLE_NET", "false")
+	os.Setenv("PROVIDAPT_KERNEL_ATTACHMENT_MODE", "kprobe")
 	os.Setenv("PROVIDAPT_TELEMETRY_ENDPOINT", "127.0.0.1:5444")
 	os.Setenv("PROVIDAPT_TELEMETRY_ENABLE_TLS", "true")
 	defer func() {
 		os.Unsetenv("PROVIDAPT_LOG_LEVEL")
 		os.Unsetenv("PROVIDAPT_OUTPUT_DIR")
 		os.Unsetenv("PROVIDAPT_CAPTURE_ENABLE_NET")
+		os.Unsetenv("PROVIDAPT_KERNEL_ATTACHMENT_MODE")
 		os.Unsetenv("PROVIDAPT_TELEMETRY_ENDPOINT")
 		os.Unsetenv("PROVIDAPT_TELEMETRY_ENABLE_TLS")
 	}()
@@ -222,6 +227,9 @@ capture:
 	}
 	if cfg.Capture.EnableNet != false {
 		t.Errorf("env override: enable_net = %v, want false", cfg.Capture.EnableNet)
+	}
+	if cfg.Kernel.AttachmentMode != "kprobe" {
+		t.Errorf("env override: attachment_mode = %q, want kprobe", cfg.Kernel.AttachmentMode)
 	}
 	if cfg.Telemetry.Endpoint != "127.0.0.1:5444" {
 		t.Errorf("env override: telemetry endpoint = %q", cfg.Telemetry.Endpoint)
@@ -485,6 +493,24 @@ func TestValidateInvalidLogLevel(t *testing.T) {
 	cfg.Log.Level = "trace"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected error for trace log level")
+	}
+}
+
+func TestValidateAttachmentMode(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Kernel.AttachmentMode = "kprobe"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate kprobe attachment mode: %v", err)
+	}
+
+	cfg.Kernel.AttachmentMode = "lsm"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate lsm attachment mode: %v", err)
+	}
+
+	cfg.Kernel.AttachmentMode = "definitely-not-valid"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for invalid kernel attachment mode")
 	}
 }
 

@@ -17,7 +17,7 @@ import (
 
 // ─── Event conversion ───────────────────────────────────────
 
-// RawEventToProto converts a 332-byte raw ring buffer record to
+// RawEventToProto converts a raw ring buffer record to
 // a protobuf Event.  Operates directly on the byte slice with
 // no intermediate allocations.
 //
@@ -33,12 +33,14 @@ import (
 //	     28     4  uid (u32)
 //	     32     4  gid (u32)
 //	     36    24  payload (union)
-//	     60    16  comm (char[16])
-//	     76   256  pathname (char[256])
+//	     60     4  sample_hook_id (u32)
+//	     64     4  sample_count (u32)
+//	     68    16  comm (char[16])
+//	     84   256  pathname (char[256])
 //	───────────────────
-//	    332 total
+//	    340 total
 func RawEventToProto(raw []byte) *pb.Event {
-	if len(raw) < 332 {
+	if len(raw) < 340 {
 		return nil
 	}
 
@@ -54,23 +56,23 @@ func RawEventToProto(raw []byte) *pb.Event {
 	}
 
 	// Parse union payload at offset 36
-	evt.Inode     = readLE64(raw, 36)
-	evt.DevMajor  = readLE32(raw, 44)
-	evt.DevMinor  = readLE32(raw, 48)
-	evt.Mode      = readLE32(raw, 52)
-	evt.FFlags    = readLE32(raw, 56)
-	evt.ChildPid  = readLE32(raw, 36) // overlays inode low bits for fork
-	evt.Protocol  = uint32(raw[54])   // network protocol byte
+	evt.Inode = readLE64(raw, 36)
+	evt.DevMajor = readLE32(raw, 44)
+	evt.DevMinor = readLE32(raw, 48)
+	evt.Mode = readLE32(raw, 52)
+	evt.FFlags = readLE32(raw, 56)
+	evt.ChildPid = readLE32(raw, 36)
+	evt.Protocol = uint32(raw[48])
 
 	// Parse network fields
 	evt.Saddr = readLE32(raw, 36)
 	evt.Daddr = readLE32(raw, 40)
 	evt.Sport = uint32(readLE16(raw, 44))
-	evt.Dport = uint32(readLE16(raw, 48))
+	evt.Dport = uint32(readLE16(raw, 46))
 
 	// Fixed-length strings (null-terminated)
-	evt.Comm     = cString(raw, 60, 16)
-	evt.Pathname = cString(raw, 76, 256)
+	evt.Comm = cString(raw, 68, 16)
+	evt.Pathname = cString(raw, 84, 256)
 
 	return evt
 }

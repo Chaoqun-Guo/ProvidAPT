@@ -94,7 +94,7 @@ func TestLoaderSpecsRespectConfiguredHooks(t *testing.T) {
 	if len(kprobeSpecs) != 2 {
 		t.Fatalf("len(kprobeSpecs) = %d, want 2", len(kprobeSpecs))
 	}
-	if !reflect.DeepEqual(kprobeSpecs[0].symbols, []string{"do_sys_openat2", "do_sys_open"}) {
+	if !reflect.DeepEqual(kprobeSpecs[0].symbols, []string{"security_file_open"}) {
 		t.Fatalf("unexpected file_open symbols: %#v", kprobeSpecs[0].symbols)
 	}
 	if !reflect.DeepEqual(kprobeSpecs[1].symbols, []string{"__sys_connect"}) {

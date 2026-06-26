@@ -24,7 +24,11 @@ import (
 // loadBpf loads eBPF objects from a pre-compiled BPF object file.
 // It searches bpfObjectPaths and returns the first successful load.
 func loadBpf(objs *bpfObjects, opts *ebpf.CollectionOptions) error {
-	paths := bpfObjectPaths()
+	return loadBpfForMode(objs, opts, "lsm")
+}
+
+func loadBpfForMode(objs *bpfObjects, opts *ebpf.CollectionOptions, mode string) error {
+	paths := bpfObjectPaths(mode)
 	var errs []error
 	for _, path := range paths {
 		data, err := os.ReadFile(path)

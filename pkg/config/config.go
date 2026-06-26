@@ -17,8 +17,9 @@ import (
 // Config holds all ProvidAPT configuration.
 type Config struct {
 	Kernel struct {
-		Verbose bool     `json:"verbose" yaml:"verbose"`
-		Hooks   []string `json:"hooks" yaml:"hooks"`
+		Verbose        bool     `json:"verbose" yaml:"verbose"`
+		AttachmentMode string   `json:"attachment_mode" yaml:"attachment_mode"`
+		Hooks          []string `json:"hooks" yaml:"hooks"`
 	} `json:"kernel" yaml:"kernel"`
 
 	Output struct {
@@ -32,14 +33,15 @@ type Config struct {
 	} `json:"log" yaml:"log"`
 
 	Capture struct {
-		MaxEvents    int      `json:"max_events" yaml:"max_events"`
-		EnableNet    bool     `json:"enable_net" yaml:"enable_net"`
-		EnableFile   bool     `json:"enable_file" yaml:"enable_file"`
-		EnableProc   bool     `json:"enable_proc" yaml:"enable_proc"`
-		SensitiveDir bool     `json:"sensitive_dir" yaml:"sensitive_dir"`
-		ExcludePIDs  []uint32 `json:"exclude_pids" yaml:"exclude_pids"`
-		ExcludeComms []string `json:"exclude_comms" yaml:"exclude_comms"`
-		HotPaths     []string `json:"hot_paths" yaml:"hot_paths"`
+		MaxEvents        int      `json:"max_events" yaml:"max_events"`
+		EnableNet        bool     `json:"enable_net" yaml:"enable_net"`
+		EnableFile       bool     `json:"enable_file" yaml:"enable_file"`
+		EnableProc       bool     `json:"enable_proc" yaml:"enable_proc"`
+		SensitiveDir     bool     `json:"sensitive_dir" yaml:"sensitive_dir"`
+		AutoExcludeNoisy bool     `json:"auto_exclude_noisy" yaml:"auto_exclude_noisy"`
+		ExcludePIDs      []uint32 `json:"exclude_pids" yaml:"exclude_pids"`
+		ExcludeComms     []string `json:"exclude_comms" yaml:"exclude_comms"`
+		HotPaths         []string `json:"hot_paths" yaml:"hot_paths"`
 	} `json:"capture" yaml:"capture"`
 
 	API struct {
@@ -189,6 +191,7 @@ func (d *Duration) parse(s string) error {
 func DefaultConfig() *Config {
 	c := &Config{}
 	c.Kernel.Verbose = false
+	c.Kernel.AttachmentMode = "auto"
 	c.Kernel.Hooks = []string{"task_alloc", "task_free", "file_open",
 		"bprm_check_security", "socket_connect"}
 	c.Output.Dir = "/var/log/providapt"
@@ -198,6 +201,7 @@ func DefaultConfig() *Config {
 	c.Capture.EnableNet = true
 	c.Capture.EnableFile = true
 	c.Capture.EnableProc = true
+	c.Capture.AutoExcludeNoisy = false
 	c.API.GRPC = ":50051"
 	c.API.REST = ":8080"
 	c.API.RateLimitPerSec = 100
@@ -286,6 +290,10 @@ func (c *Config) Validate() error {
 	if c.Log.Level != "debug" && c.Log.Level != "info" && c.Log.Level != "warn" && c.Log.Level != "error" {
 		return fmt.Errorf("unsupported log level %q (use debug, info, warn, or error)", c.Log.Level)
 	}
+	if mode := strings.ToLower(strings.TrimSpace(c.Kernel.AttachmentMode)); mode != "" &&
+		mode != "auto" && mode != "lsm" && mode != "kprobe" {
+		return fmt.Errorf("unsupported kernel.attachment_mode %q (use auto, lsm, or kprobe)", c.Kernel.AttachmentMode)
+	}
 	if c.API.REST != "" && !strings.HasPrefix(c.API.REST, ":") {
 		return fmt.Errorf("REST address %q should be in format :port (e.g. :8080)", c.API.REST)
 	}
@@ -350,6 +358,7 @@ func (c *Config) Validate() error {
 func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Log.Level, "PROVIDAPT_LOG_LEVEL")
 	overrideString(&cfg.Log.Format, "PROVIDAPT_LOG_FORMAT")
+	overrideString(&cfg.Kernel.AttachmentMode, "PROVIDAPT_KERNEL_ATTACHMENT_MODE")
 	overrideString(&cfg.Output.Dir, "PROVIDAPT_OUTPUT_DIR")
 	overrideString(&cfg.Output.Format, "PROVIDAPT_OUTPUT_FORMAT")
 	overrideString(&cfg.API.GRPC, "PROVIDAPT_API_GRPC")
@@ -395,6 +404,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Capture.EnableFile, "PROVIDAPT_CAPTURE_ENABLE_FILE")
 	overrideBool(&cfg.Capture.EnableProc, "PROVIDAPT_CAPTURE_ENABLE_PROC")
 	overrideBool(&cfg.Capture.SensitiveDir, "PROVIDAPT_CAPTURE_SENSITIVE_DIR")
+	overrideBool(&cfg.Capture.AutoExcludeNoisy, "PROVIDAPT_CAPTURE_AUTO_EXCLUDE_NOISY")
 	overrideBool(&cfg.Storage.Encrypt, "PROVIDAPT_STORAGE_ENCRYPT")
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
 	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
@@ -408,6 +418,9 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt(&cfg.License.GracePeriodDays, "PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
 
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
+	overrideUint32Slice(&cfg.Capture.ExcludePIDs, "PROVIDAPT_CAPTURE_EXCLUDE_PIDS")
+	overrideStringSlice(&cfg.Capture.ExcludeComms, "PROVIDAPT_CAPTURE_EXCLUDE_COMMS")
+	overrideStringSlice(&cfg.Capture.HotPaths, "PROVIDAPT_CAPTURE_HOT_PATHS")
 }
 
 func overrideString(field *string, envKey string) {
@@ -440,6 +453,25 @@ func overrideInt(field *int, envKey string) {
 		if n, err := strconv.Atoi(v); err == nil {
 			*field = n
 		}
+	}
+}
+
+func overrideUint32Slice(field *[]uint32, envKey string) {
+	if v, ok := os.LookupEnv(envKey); ok {
+		parts := strings.Split(v, ",")
+		out := make([]uint32, 0, len(parts))
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed == "" {
+				continue
+			}
+			n, err := strconv.ParseUint(trimmed, 10, 32)
+			if err != nil {
+				continue
+			}
+			out = append(out, uint32(n))
+		}
+		*field = out
 	}
 }
 

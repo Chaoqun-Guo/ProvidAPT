@@ -7,9 +7,9 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/cilium/ebpf/ringbuf"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
+	"github.com/cilium/ebpf/ringbuf"
 )
 
 // ─── Wire format (must match struct event in kernel/include/providapt.h) ───
@@ -43,19 +43,26 @@ import (
 //	                       union total:   24
 
 const (
-	eventHeaderSize = 36
-	eventTotalSize  = 332
-	unionSize       = 24
-	commOffset      = 60
-	commSize        = 16
-	pathnameOffset  = 76
-	pathnameSize    = 256
-	childPidOffset  = 36
-	inodeOffset     = 36
-	devMajorOffset  = 44
-	devMinorOffset  = 48
-	modeOffset      = 52
-	fFlagsOffset    = 56
+	eventHeaderSize    = 36
+	eventTotalSize     = 340
+	unionSize          = 24
+	sampleHookIDOffset = 60
+	sampleCountOffset  = 64
+	commOffset         = 68
+	commSize           = 16
+	pathnameOffset     = 84
+	pathnameSize       = 256
+	childPidOffset     = 36
+	inodeOffset        = 36
+	saddrOffset        = 36
+	daddrOffset        = 40
+	sportOffset        = 44
+	dportOffset        = 46
+	protocolOffset     = 48
+	devMajorOffset     = 44
+	devMinorOffset     = 48
+	modeOffset         = 52
+	fFlagsOffset       = 56
 )
 
 // Event represents a single provenance event decoded from the eBPF ring buffer.
@@ -78,6 +85,17 @@ type Event struct {
 
 	// Fork payload (valid for proc_fork)
 	ChildPID uint32
+
+	// Sample payload metadata
+	SampleHookID uint32
+	SampleCount  uint32
+
+	// Network payload (valid for net_* events)
+	Saddr    uint32
+	Daddr    uint32
+	Sport    uint16
+	Dport    uint16
+	Protocol uint8
 
 	Comm     string
 	Pathname string
@@ -143,6 +161,13 @@ func ParseRawEvent(data []byte) (*Event, error) {
 	evt.Mode = rd.Uint32(data[modeOffset : modeOffset+4])
 	evt.FFlags = rd.Uint32(data[fFlagsOffset : fFlagsOffset+4])
 	evt.ChildPID = rd.Uint32(data[childPidOffset : childPidOffset+4])
+	evt.SampleHookID = rd.Uint32(data[sampleHookIDOffset : sampleHookIDOffset+4])
+	evt.SampleCount = rd.Uint32(data[sampleCountOffset : sampleCountOffset+4])
+	evt.Saddr = rd.Uint32(data[saddrOffset : saddrOffset+4])
+	evt.Daddr = rd.Uint32(data[daddrOffset : daddrOffset+4])
+	evt.Sport = rd.Uint16(data[sportOffset : sportOffset+2])
+	evt.Dport = rd.Uint16(data[dportOffset : dportOffset+2])
+	evt.Protocol = data[protocolOffset]
 
 	// Fixed-length strings
 	evt.Comm = cString(data[commOffset : commOffset+commSize])
