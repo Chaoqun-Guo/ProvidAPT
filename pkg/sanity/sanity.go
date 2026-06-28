@@ -133,14 +133,17 @@ func checkKernelVersion() CheckResult {
 		}
 	}
 
-	versionStr := strings.TrimSpace(string(out))
+	return evaluateKernelVersion(strings.TrimSpace(string(out)))
+}
+
+func evaluateKernelVersion(versionStr string) CheckResult {
 	parts := strings.Split(versionStr, ".")
 	if len(parts) < 2 {
 		return CheckResult{
 			Name:    "kernel_version",
 			Status:  FAIL,
 			Message: fmt.Sprintf("unexpected kernel version format: %s", versionStr),
-			FixSuggestion: "ProvidAPT requires Linux kernel 5.11 or later. Update your kernel and reboot.",
+			FixSuggestion: "ProvidAPT requires Linux kernel 4.18 or later, and Linux kernel 5.11 or later is recommended for full eBPF LSM support. Update your kernel and reboot.",
 		}
 	}
 
@@ -151,24 +154,32 @@ func checkKernelVersion() CheckResult {
 			Name:    "kernel_version",
 			Status:  FAIL,
 			Message: fmt.Sprintf("unable to parse kernel version: %s", versionStr),
-			FixSuggestion: "ProvidAPT requires Linux kernel 5.11 or later.",
+			FixSuggestion: "ProvidAPT requires Linux kernel 4.18 or later, and Linux kernel 5.11 or later is recommended for full eBPF LSM support.",
 		}
 	}
 
-	ok := (major == 5 && minor >= 11) || major >= 6
-	if !ok {
+	if (major == 5 && minor >= 11) || major >= 6 {
 		return CheckResult{
 			Name:    "kernel_version",
-			Status:  FAIL,
-			Message: fmt.Sprintf("kernel %d.%d detected, need 5.11+", major, minor),
-			FixSuggestion: fmt.Sprintf("Upgrade Linux kernel to 5.11 or later (current: %s). On Ubuntu 20.04, run: sudo apt-get install --install-recommends linux-generic-hwe-20.04", versionStr),
+			Status:  PASS,
+			Message: fmt.Sprintf("kernel %s (>= 5.11)", versionStr),
+		}
+	}
+
+	if major > 4 || (major == 4 && minor >= 18) {
+		return CheckResult{
+			Name:    "kernel_version",
+			Status:  WARN,
+			Message: fmt.Sprintf("kernel %s detected; running in compatibility mode with degraded eBPF features", versionStr),
+			FixSuggestion: fmt.Sprintf("Upgrade Linux kernel to 5.11 or later for full BPF LSM and fentry support (current: %s). ProvidAPT will continue with fallback attachment where available.", versionStr),
 		}
 	}
 
 	return CheckResult{
 		Name:    "kernel_version",
-		Status:  PASS,
-		Message: fmt.Sprintf("kernel %s (>= 5.11)", versionStr),
+		Status:  FAIL,
+		Message: fmt.Sprintf("kernel %d.%d detected, need 4.18+ for compatibility mode or 5.11+ for full support", major, minor),
+		FixSuggestion: fmt.Sprintf("Upgrade Linux kernel to 4.18 or later at minimum, or 5.11 or later for full support (current: %s).", versionStr),
 	}
 }
 

@@ -63,11 +63,37 @@ func TestSkipList(t *testing.T) {
 
 func TestCheckKernelVersion(t *testing.T) {
 	result := checkKernelVersion()
-	// This should pass on any modern Linux kernel
 	if result.Status == FAIL && result.FixSuggestion == "" {
 		t.Error("FAIL without FixSuggestion")
 	}
 	t.Logf("kernel: %s", result.Message)
+}
+
+func TestEvaluateKernelVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		status  Status
+	}{
+		{name: "full support", version: "6.8.0-124-generic", status: PASS},
+		{name: "recommended floor", version: "5.11.0", status: PASS},
+		{name: "compatibility mode on centos8", version: "4.18.0-348.el8.x86_64", status: WARN},
+		{name: "compatibility mode on 5.10", version: "5.10.0", status: WARN},
+		{name: "unsupported old kernel", version: "4.14.302", status: FAIL},
+		{name: "invalid format", version: "garbled", status: FAIL},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := evaluateKernelVersion(tc.version)
+			if result.Status != tc.status {
+				t.Fatalf("version %q: got %v, want %v", tc.version, result.Status, tc.status)
+			}
+			if tc.status != PASS && result.FixSuggestion == "" {
+				t.Fatalf("version %q: expected fix suggestion", tc.version)
+			}
+		})
+	}
 }
 
 func TestCheckBTF(t *testing.T) {

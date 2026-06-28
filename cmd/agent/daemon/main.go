@@ -780,7 +780,11 @@ func main() {
 			"summary", sanityReport.Summary())
 		os.Exit(1)
 	}
-	logx.System().Info("all sanity checks passed", "summary", sanityReport.Summary())
+	if sanityReport.Warnings > 0 {
+		logx.System().Warn("sanity checks completed with warnings", "summary", sanityReport.Summary())
+	} else {
+		logx.System().Info("all sanity checks passed", "summary", sanityReport.Summary())
+	}
 
 	// ── eBPF loader ─────────────────────────────────────
 	bpfLoader, err := loader.NewWithAudit(cfg, auditStore)
