@@ -9,6 +9,8 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  GOTOOLCHAIN: auto
+  GOPROXY: https://proxy.golang.org,direct
 
 jobs:
   build:
@@ -25,7 +27,16 @@ jobs:
             go.sum
 
       - name: Download module dependencies
-        run: go mod download
+        run: |
+          set -o pipefail
+          go version
+          go env GOVERSION GOTOOLCHAIN GOPROXY GOSUMDB
+          if ! output="$(go mod download 2>&1)"; then
+            echo "$output"
+            message="$(printf '%s' "$output" | head -c 8000 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+            echo "::error title=go mod download failed::$message"
+            exit 1
+          fi
 
       - name: Install system dependencies
         run: |
