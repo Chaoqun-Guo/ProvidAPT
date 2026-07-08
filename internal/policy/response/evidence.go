@@ -13,10 +13,8 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Evidence locking — HMAC-SHA256 signing for forensic admissibility
-// ═══════════════════════════════════════════════════════════════
-
+// Evidence locking
+//
 // HMACKeySize is the number of bytes for the HMAC key.
 const HMACKeySize = 32
 
@@ -37,12 +35,12 @@ type EvidenceRecord struct {
 	CaptureHash    string `json:"capture_hash"`     // hex
 	GraphPathHash  string `json:"graph_path_hash"`  // hex
 
-	// Graph binding — provenance path summary
+	// Graph binding -?provenance path summary
 	GraphPathSummary string `json:"graph_path_summary"`
 
 	// File locations
-	DumpDir  string `json:"dump_dir,omitempty"`
-	CapFile  string `json:"cap_file,omitempty"`
+	DumpDir string `json:"dump_dir,omitempty"`
+	CapFile string `json:"cap_file,omitempty"`
 
 	// HMAC-SHA256 signature over all fields above
 	Signature string `json:"signature"` // hex
@@ -123,10 +121,10 @@ func (em *EvidenceManager) CreateEvidence(
 	return rec, nil
 }
 
-// Sign computes HMAC-SHA256 over the record's serialised fields.
+// Sign computes HMAC-SHA256 over the record's serialized fields.
 // The signature covers all fields except the signature itself.
 func (em *EvidenceManager) Sign(rec *EvidenceRecord) ([]byte, error) {
-	// Serialise all fields except Signature
+	// Serialize all fields except Signature
 	data := fmt.Sprintf("%s|%d|%s|%.2f|%d|%s|%s|%s|%s|%s|%s|%s",
 		rec.CaseID, rec.Timestamp.UnixNano(), rec.AlertID, rec.ThreatScore,
 		rec.PID, rec.Comm,

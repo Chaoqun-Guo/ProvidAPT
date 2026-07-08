@@ -5,6 +5,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -91,7 +92,7 @@ func (s *Store) GetNode(id string) (*provenance.Node, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v, closer, err := s.wb.Get([]byte(nodeKey(id)))
-	if err == pebble.ErrNotFound {
+	if errors.Is(err, pebble.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {
@@ -197,7 +198,9 @@ func (s *Store) GetEdgesByTarget(targetID string) ([]*provenance.Edge, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() {
+		_ = iter.Close()
+	}()
 
 	var out []*provenance.Edge
 	for iter.First(); iter.Valid(); iter.Next() {
@@ -271,7 +274,9 @@ func (s *Store) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.closed = true
-	s.flushLocked()
+	if err := s.flushLocked(); err != nil {
+		return err
+	}
 	return s.db.Close()
 }
 

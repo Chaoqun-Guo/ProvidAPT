@@ -395,9 +395,9 @@ func TestEntropyDetectAnomaly(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		fv := &GraphFeatureVector{
 			EdgeTypeDist: map[string]int{
-				"prov:used":          5,
+				"prov:used":           5,
 				"prov:wasGeneratedBy": 5,
-				"prov:wasInformedBy": 90,
+				"prov:wasInformedBy":  90,
 			},
 		}
 		result := ed.Evaluate(fv)
@@ -453,14 +453,14 @@ func TestEntropyBaselineUpdate(t *testing.T) {
 
 	fv2 := &GraphFeatureVector{
 		EdgeTypeDist: map[string]int{
-			"prov:used": 50,
+			"prov:used":           50,
 			"prov:wasGeneratedBy": 50,
 		},
 	}
 	ed.Evaluate(fv2)
 
 	// After second update: EMA with alpha=0.5.
-		// baseline was 1.0 (from fv1), current is 0.5 (from fv2).
+	// baseline was 1.0 (from fv1), current is 0.5 (from fv2).
 	if ed.baseline.Probabilities["prov:used"] < 0.65 || ed.baseline.Probabilities["prov:used"] > 0.85 {
 		t.Errorf("baseline prov:used = %f", ed.baseline.Probabilities["prov:used"])
 	}
@@ -743,8 +743,8 @@ func TestComputeHighDegree(t *testing.T) {
 	var edges []SketchEdge
 	for i := 1; i <= 100; i++ {
 		edges = append(edges, SketchEdge{
-			Source: "center",
-			Target: fmtInt(i),
+			Source:   "center",
+			Target:   fmtInt(i),
 			Relation: "prov:used",
 		})
 	}
@@ -913,8 +913,8 @@ func TestComputeMeanStdDevEmpty(t *testing.T) {
 func TestUploaderStartStop(t *testing.T) {
 	sender := NewLogSender()
 	vu := NewVectorUploader(&UploadConfig{
-		EnableUpload:   true,
-		FlushInterval:  100 * time.Millisecond,
+		EnableUpload:  true,
+		FlushInterval: 100 * time.Millisecond,
 	}, sender)
 
 	vu.Start()
@@ -993,8 +993,8 @@ func TestLongChainDepth(t *testing.T) {
 	var edges []SketchEdge
 	for i := 0; i < n-1; i++ {
 		edges = append(edges, SketchEdge{
-			Source: fmtInt(i),
-			Target: fmtInt(i + 1),
+			Source:   fmtInt(i),
+			Target:   fmtInt(i + 1),
 			Relation: "prov:wasInformedBy",
 		})
 	}

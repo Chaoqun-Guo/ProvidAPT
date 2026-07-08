@@ -6,11 +6,11 @@
 // with minimal storage overhead.
 //
 // It provides:
-//   1. Causality-preserving reduction — merges intermediate nodes
-//      (short-lived processes, temp pipes) into condensed edges.
-//   2. Semantic summary generation — abstracts fine-grained I/O
-//      into behaviour summaries for data > 7 days.
-//   3. Cold/hot data tiering — RocksDB → Parquet → S3 lifecycle.
+//  1. Causality-preserving reduction -?merges intermediate nodes
+//     (short-lived processes, temp pipes) into condensed edges.
+//  2. Semantic summary generation -?abstracts fine-grained I/O
+//     into behavior summaries for data > 7 days.
+//  3. Cold/hot data tiering -?RocksDB -?Parquet -?S3 lifecycle.
 package compact
 
 import (
@@ -22,22 +22,20 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Causality-preserving reduction
-// ═══════════════════════════════════════════════════════════════
-
-// ReductionConfig controls the node merging behaviour.
+//
+// ReductionConfig controls the node merging behavior.
 type ReductionConfig struct {
-	// MaxIntermediateLifespan — processes shorter than this are candidates.
+	// MaxIntermediateLifespan -?processes shorter than this are candidates.
 	MaxIntermediateLifespan time.Duration
 
-	// MaxIntermediateDegree — nodes with degree ≤ this are candidates.
+	// MaxIntermediateDegree -?nodes with degree -?this are candidates.
 	MaxIntermediateDegree int
 
-	// PreserveExternalIO — if false, nodes with external IO aren't merged.
+	// PreserveExternalIO -?if false, nodes with external IO aren't merged.
 	PreserveExternalIO bool
 
-	// DryRun — if true, only report what would be merged.
+	// DryRun -?if true, only report what would be merged.
 	DryRun bool
 }
 
@@ -53,11 +51,11 @@ func DefaultReductionConfig() *ReductionConfig {
 
 // ReductionMetrics tracks what was merged.
 type ReductionMetrics struct {
-	NodesExamined    int `json:"nodes_examined"`
-	NodesMerged      int `json:"nodes_merged"`
-	EdgesRemoved     int `json:"edges_removed"`
-	EdgesCreated     int `json:"edges_created"`
-	StorageSaved     int64 `json:"storage_saved_bytes"`
+	NodesExamined int   `json:"nodes_examined"`
+	NodesMerged   int   `json:"nodes_merged"`
+	EdgesRemoved  int   `json:"edges_removed"`
+	EdgesCreated  int   `json:"edges_created"`
+	StorageSaved  int64 `json:"storage_saved_bytes"`
 }
 
 // Reducer performs causality-preserving graph reduction.
@@ -118,13 +116,13 @@ func (r *Reducer) Reduce(graph *provenance.Graph) *ReductionMetrics {
 	}
 
 	// Merge intermediates: for each intermediate node N,
-	// replace paths A → N → B with A → B
+	// replace paths A -?N -?B with A -?B
 	for _, nodeID := range intermediates {
 		if !r.isMergeable(nodeID, edges) {
 			continue
 		}
 
-		// Find all A→N and N→B edges
+		// Find all A-墹 and N-墪 edges
 		var inEdges, outEdges []*provenance.Edge
 		for _, e := range edges {
 			if e.Target == nodeID {
@@ -136,7 +134,7 @@ func (r *Reducer) Reduce(graph *provenance.Graph) *ReductionMetrics {
 		}
 
 		if !r.cfg.DryRun {
-			r.performMerge(nodeID, inEdges, outEdges, edges, metrics)
+			r.performMerge(inEdges, outEdges, edges, metrics)
 		} else {
 			metrics.NodesMerged++
 			metrics.EdgesRemoved += len(inEdges) + len(outEdges)
@@ -204,13 +202,13 @@ func (r *Reducer) isMergeable(nodeID string, edges []*provenance.Edge) bool {
 	return hasIn && hasOut
 }
 
-// performMerge replaces A→N→B with A→B.
-func (r *Reducer) performMerge(nodeID string, inEdges, outEdges []*provenance.Edge,
+// performMerge replaces A-墹-墪 with A-墪.
+func (r *Reducer) performMerge(inEdges, outEdges []*provenance.Edge,
 	allEdges []*provenance.Edge, metrics *ReductionMetrics) {
 
 	for _, in := range inEdges {
 		for _, out := range outEdges {
-			// Create merged edge: in.Source → out.Target
+			// Create merged edge: in.Source -?out.Target
 			newEdge := &provenance.Edge{
 				Source:    in.Source,
 				Target:    out.Target,
@@ -232,7 +230,7 @@ func (r *Reducer) performMerge(nodeID string, inEdges, outEdges []*provenance.Ed
 
 // Summary returns a human-readable reduction summary.
 func (rm *ReductionMetrics) Summary() string {
-	return fmt.Sprintf("Reduction: %d/%d nodes merged, %d edges → %d edges (saved %.1f KB)",
+	return fmt.Sprintf("Reduction: %d/%d nodes merged, %d edges -?%d edges (saved %.1f KB)",
 		rm.NodesMerged, rm.NodesExamined, rm.EdgesRemoved, rm.EdgesCreated,
 		float64(rm.StorageSaved)/1024)
 }

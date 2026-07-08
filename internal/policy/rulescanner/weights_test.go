@@ -51,8 +51,8 @@ func TestScoreEvent(t *testing.T) {
 	se := NewScoreEngine(nil)
 
 	tests := []struct {
-		name  string
-		evt   *pb.Event
+		name     string
+		evt      *pb.Event
 		minScore float64
 	}{
 		{"file open", &pb.Event{Type: 10}, 2},
@@ -111,9 +111,9 @@ func TestAggregatePathMultipleEvents(t *testing.T) {
 
 	// Chain of high-score events should exceed composite threshold
 	events := []*pb.Event{
-		{Type: 51, Pid: 100, Comm: "bash"},         // 100 pts
-		{Type: 50, Pid: 100, Comm: "bash"},         // +60 pts
-		{Type: 20, Pid: 100, Comm: "bash"},         // +10 pts
+		{Type: 51, Pid: 100, Comm: "bash"}, // 100 pts
+		{Type: 50, Pid: 100, Comm: "bash"}, // +60 pts
+		{Type: 20, Pid: 100, Comm: "bash"}, // +10 pts
 	}
 
 	totalScore := 0.0
@@ -132,8 +132,8 @@ func TestThresholdExceeded(t *testing.T) {
 	se := NewScoreEngine(nil)
 
 	// mprotect RX alone exceeds 150? No (100 pts). But memfd + mprotect = 160.
-	evt1 := &pb.Event{Type: 50, Pid: 200, Comm: "python"}  // 60
-	evt2 := &pb.Event{Type: 51, Pid: 200, Comm: "python"}  // 100
+	evt1 := &pb.Event{Type: 50, Pid: 200, Comm: "python"} // 60
+	evt2 := &pb.Event{Type: 51, Pid: 200, Comm: "python"} // 100
 
 	result := se.AggregatePath(evt1)
 	_ = result
@@ -214,11 +214,11 @@ func TestWeightsIntegration(t *testing.T) {
 
 	// Simulate an attack chain with scoring
 	attackEvents := []*pb.Event{
-		{Type: 2, Pid: 100, Comm: "curl", Pathname: "/usr/bin/curl"},      // 20
-		{Type: 11, Pid: 100, Comm: "curl", Pathname: "/tmp/evil.sh"},      // 15 + 5 = 20
-		{Type: 2, Pid: 101, Comm: "bash", Pathname: "/tmp/evil.sh"},       // 20
-		{Type: 51, Pid: 101, Comm: "bash"},                                // 100
-		{Type: 20, Pid: 101, Comm: "bash"},                                // 10
+		{Type: 2, Pid: 100, Comm: "curl", Pathname: "/usr/bin/curl"}, // 20
+		{Type: 11, Pid: 100, Comm: "curl", Pathname: "/tmp/evil.sh"}, // 15 + 5 = 20
+		{Type: 2, Pid: 101, Comm: "bash", Pathname: "/tmp/evil.sh"},  // 20
+		{Type: 51, Pid: 101, Comm: "bash"},                           // 100
+		{Type: 20, Pid: 101, Comm: "bash"},                           // 10
 	}
 
 	t.Log("Attack chain scoring:")

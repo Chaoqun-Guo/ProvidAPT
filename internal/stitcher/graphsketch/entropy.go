@@ -4,30 +4,29 @@
 package graphsketch
 
 import (
+	"fmt"
 	"math"
 	"sort"
+	"strings"
 )
 
-// ═══════════════════════════════════════════════════════════════════
-// Entropy detection — KL divergence against historical baseline
+// Entropy detection uses KL divergence against a historical baseline.
 //
 // Algorithm:
-//   1. Build a probability distribution over edge types from the
-//      current graph snapshot.
-//   2. Update the historical baseline via exponential moving average.
-//   3. Compute KL(P_current || P_baseline).
-//   4. Track the running mean and std-dev of KL values.
-//   5. If KL > mean + threshold * stddev, flag as anomaly.
-// ═══════════════════════════════════════════════════════════════════
-
-// EntropyDetector tracks historical behavior baselines and detects
+//  1. Build a probability distribution over edge types from the
+//     current graph snapshot.
+//  2. Update the historical baseline via exponential moving average.
+//  3. Compute KL(P_current || P_baseline).
+//  4. Track the running mean and std-dev of KL values.
+//  5. If KL > mean + threshold * stddev, flag as anomaly.
+//
 // anomalous entropy spikes in process behavior.
 type EntropyDetector struct {
-	cfg        *EntropyConfig
-	baseline   *EdgeTypeBaseline
-	klHistory  []float64
-	windowNum  int
-	callback   AnomalyCallback
+	cfg       *EntropyConfig
+	baseline  *EdgeTypeBaseline
+	klHistory []float64
+	windowNum int
+	callback  AnomalyCallback
 }
 
 // NewEntropyDetector creates an entropy detector with the given config.
@@ -91,7 +90,7 @@ func (ed *EntropyDetector) Evaluate(fv *GraphFeatureVector) *EntropyResult {
 		threshold := mean + ed.cfg.AnomalyThreshold*stddev
 		if kl > threshold && stddev > 0 {
 			result.IsAnomaly = true
-			result.Reason = buildAnomalyReason(kl, mean, stddev, threshold, fv)
+			result.Reason = buildAnomalyReason(stddev, threshold, fv)
 			fv.IsAnomaly = true
 			fv.AnomalyReason = result.Reason
 
@@ -132,8 +131,7 @@ func (ed *EntropyDetector) Stats() map[string]interface{} {
 	}
 }
 
-// ── Baseline update ──────────────────────────────────────────────
-
+// Baseline update
 func (ed *EntropyDetector) updateBaseline(current map[string]float64) {
 	alpha := ed.baseline.Alpha
 
@@ -162,8 +160,8 @@ func (ed *EntropyDetector) updateBaseline(current map[string]float64) {
 	ed.baseline.Count++
 }
 
-// ── KL divergence ────────────────────────────────────────────────
-
+// KL divergence
+// KL divergence
 func computeKLD(current, baseline map[string]float64) float64 {
 	if len(current) == 0 || len(baseline) == 0 {
 		return 0
@@ -190,9 +188,8 @@ func computeKLD(current, baseline map[string]float64) float64 {
 	return kl
 }
 
-// ── Probability helpers ──────────────────────────────────────────
-
-// buildEdgeTypeProbabilities converts counts to probabilities summing to 1.
+// Probability helpers
+// Probability helpers
 func buildEdgeTypeProbabilities(counts map[string]int) map[string]float64 {
 	probs := make(map[string]float64, len(counts))
 
@@ -213,7 +210,7 @@ func buildEdgeTypeProbabilities(counts map[string]int) map[string]float64 {
 }
 
 // computeEdgeTypeEntropy computes the Shannon entropy of the edge type
-// distribution: H = -Σ P(i) * log(P(i))
+// distribution: H = -sum(P(i) * log(P(i)))
 func computeEdgeTypeEntropy(probs map[string]float64) float64 {
 	var entropy float64
 	for _, p := range probs {
@@ -249,9 +246,8 @@ func computeMeanStdDev(values []float64) (float64, float64) {
 	return mean, stddev
 }
 
-// ── Anomaly reporting ────────────────────────────────────────────
-
-func buildAnomalyReason(kl, mean, stddev, threshold float64, fv *GraphFeatureVector) string {
+// Anomaly reporting
+func buildAnomalyReason(stddev, threshold float64, fv *GraphFeatureVector) string {
 	// Find which edge types changed the most.
 	var topChanges []string
 	if fv != nil && len(fv.EdgeTypeDist) > 0 {
@@ -276,16 +272,9 @@ func buildAnomalyReason(kl, mean, stddev, threshold float64, fv *GraphFeatureVec
 		}
 	}
 
-	reason := "行为熵异常激增"
+	reason := fmt.Sprintf("behavior entropy anomaly (stddev %.2f >= threshold %.2f)", stddev, threshold)
 	if len(topChanges) > 0 {
-		reason += " (主要边类型: "
-		for i, tc := range topChanges {
-			if i > 0 {
-				reason += ", "
-			}
-			reason += tc
-		}
-		reason += ")"
+		reason += " (top edge types: " + strings.Join(topChanges, ", ") + ")"
 	}
 	return reason
 }

@@ -24,13 +24,13 @@ const (
 	HoneytokenKubeconfig  HoneytokenType = "kubeconfig"  // k8s admin config
 	HoneytokenVault       HoneytokenType = "vault"       // vault token file
 )
+
 // Honeytoken eBPF map flags — mirrors cmd/bpf/headers/deception.h.
 const (
 	HONEYPOT_ACTIVE    = 1 << 0 // honeytoken injection active
 	HONEYPOT_TRIGGERED = 1 << 1 // honeytoken was accessed
 	HONEYPOT_TRIPWIRE  = 1 << 2 // file is a tripwire (immediate freeze)
 )
-
 
 // HoneytokenDef describes a single honeytoken file to inject.
 type HoneytokenDef struct {
@@ -61,10 +61,10 @@ type HoneytokenDef struct {
 type TriggerType string
 
 const (
-	TrigOpen     TriggerType = "open"      // open/creat syscall
-	TrigStat     TriggerType = "stat"      // stat/statx/lstat
-	TrigGetdents TriggerType = "getdents"  // directory listing
-	TrigReadlink TriggerType = "readlink"  // readlink
+	TrigOpen     TriggerType = "open"     // open/creat syscall
+	TrigStat     TriggerType = "stat"     // stat/statx/lstat
+	TrigGetdents TriggerType = "getdents" // directory listing
+	TrigReadlink TriggerType = "readlink" // readlink
 )
 
 // HoneypotTrigger is emitted when a process accesses a honeytoken.
@@ -76,10 +76,10 @@ type HoneypotTrigger struct {
 	Comm string `json:"comm"`
 
 	// Honeytoken info.
-	Path       string         `json:"path"`
-	PathHash   uint32         `json:"path_hash"`
-	TokenType  HoneytokenType `json:"token_type"`
-	Trigger    TriggerType    `json:"trigger"`
+	Path      string         `json:"path"`
+	PathHash  uint32         `json:"path_hash"`
+	TokenType HoneytokenType `json:"token_type"`
+	Trigger   TriggerType    `json:"trigger"`
 
 	// Risk assessment.
 	Tripwire bool `json:"tripwire"`
@@ -96,34 +96,34 @@ type HoneypotTrigger struct {
 type FreezeState string
 
 const (
-	FreezePending    FreezeState = "pending"     // freeze requested
-	FreezeCGroupSet  FreezeState = "cgroup_set"  // cgroup cpu limit applied
-	FreezeComplete   FreezeState = "complete"    // all freeze actions done
-	FreezeReleased   FreezeState = "released"    // process released by operator
-	FreezeFailed     FreezeState = "failed"      // freeze operation failed
+	FreezePending   FreezeState = "pending"    // freeze requested
+	FreezeCGroupSet FreezeState = "cgroup_set" // cgroup cpu limit applied
+	FreezeComplete  FreezeState = "complete"   // all freeze actions done
+	FreezeReleased  FreezeState = "released"   // process released by operator
+	FreezeFailed    FreezeState = "failed"     // freeze operation failed
 )
 
 // ProcessContext captures the forensic context of a frozen process.
 type ProcessContext struct {
-	PID        int               `json:"pid"`
-	Comm       string            `json:"comm"`
-	Cmdline    string            `json:"cmdline"`
-	EnvVars    map[string]string `json:"env_vars,omitempty"`
-	MmapRegions []string         `json:"mmap_regions,omitempty"`
-	OpenFDs    []string          `json:"open_fds,omitempty"`
-	Status     string            `json:"status,omitempty"`
-	Seccomp    string            `json:"seccomp,omitempty"`
-	CGroupPath string            `json:"cgroup_path,omitempty"`
-	CapturedAt time.Time         `json:"captured_at"`
+	PID         int               `json:"pid"`
+	Comm        string            `json:"comm"`
+	Cmdline     string            `json:"cmdline"`
+	EnvVars     map[string]string `json:"env_vars,omitempty"`
+	MmapRegions []string          `json:"mmap_regions,omitempty"`
+	OpenFDs     []string          `json:"open_fds,omitempty"`
+	Status      string            `json:"status,omitempty"`
+	Seccomp     string            `json:"seccomp,omitempty"`
+	CGroupPath  string            `json:"cgroup_path,omitempty"`
+	CapturedAt  time.Time         `json:"captured_at"`
 }
 
 // FreezeRecord is the persistent record of a freeze operation.
 type FreezeRecord struct {
-	PID          int             `json:"pid"`
-	Comm         string          `json:"comm"`
-	Trigger      HoneypotTrigger `json:"trigger"`
-	State        FreezeState     `json:"state"`
-	Context      ProcessContext  `json:"context,omitempty"`
+	PID         int             `json:"pid"`
+	Comm        string          `json:"comm"`
+	Trigger     HoneypotTrigger `json:"trigger"`
+	State       FreezeState     `json:"state"`
+	Context     ProcessContext  `json:"context,omitempty"`
 	CGroupsPath string          `json:"cgroups_path,omitempty"`
 	FrozenAt    time.Time       `json:"frozen_at"`
 	ReleasedAt  *time.Time      `json:"released_at,omitempty"`
@@ -135,10 +135,10 @@ type FreezeRecord struct {
 
 // OverlayMount describes an active overlayfs mount for honeytoken injection.
 type OverlayMount struct {
-	TargetDir string `json:"target_dir"`  // directory being overlaid
-	UpperDir  string `json:"upper_dir"`   // temp dir with honeytoken files
-	WorkDir   string `json:"work_dir"`    // overlay work dir
-	MountedAt string `json:"mounted_at"`  // mount point (same as target)
+	TargetDir string    `json:"target_dir"` // directory being overlaid
+	UpperDir  string    `json:"upper_dir"`  // temp dir with honeytoken files
+	WorkDir   string    `json:"work_dir"`   // overlay work dir
+	MountedAt string    `json:"mounted_at"` // mount point (same as target)
 	Created   time.Time `json:"created"`
 }
 
@@ -183,13 +183,13 @@ type Config struct {
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		Enabled:          true,
-		Honeytokens:      DefaultHoneytokens(),
-		OverlayDir:       "/tmp/providapt-honeypot",
-		CGroupMount:      "/sys/fs/cgroup",
-		CGroupName:       "providapt-freeze",
-		CPUQuota:         1,
-		PreserveContext:  true,
+		Enabled:         true,
+		Honeytokens:     DefaultHoneytokens(),
+		OverlayDir:      "/tmp/providapt-honeypot",
+		CGroupMount:     "/sys/fs/cgroup",
+		CGroupName:      "providapt-freeze",
+		CPUQuota:        1,
+		PreserveContext: true,
 	}
 }
 
@@ -233,4 +233,3 @@ func DefaultHoneytokens() []HoneytokenDef {
 		},
 	}
 }
-

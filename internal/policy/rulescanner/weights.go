@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package detect — weight model and path aggregation for
+// Package detect -?weight model and path aggregation for
 // composite alerting.  Each operation type has a base score;
 // when a process's downstream path exceeds the threshold,
 // a composite alert fires with full provenance context.
@@ -11,29 +11,27 @@ import (
 	"fmt"
 	"strings"
 
-	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 	store "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/pebblestore"
+	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Score definitions
-// ═══════════════════════════════════════════════════════════════
-
+//
 // EventScores maps event types to base threat scores.
 // These scores represent the intrinsic risk of each operation.
 var EventScores = map[uint32]float64{
 	1:  5,   // EV_PROCESS_FORK
-	2:  20,  // EV_PROCESS_EXEC — executing any binary
-	10: 2,   // EV_FILE_OPEN — reading a file (low)
-	11: 15,  // EV_FILE_CREATE — creating a file
-	12: 10,  // EV_FILE_MODIFY — modifying a file
+	2:  20,  // EV_PROCESS_EXEC -?executing any binary
+	10: 2,   // EV_FILE_OPEN -?reading a file (low)
+	11: 15,  // EV_FILE_CREATE -?creating a file
+	12: 10,  // EV_FILE_MODIFY -?modifying a file
 	13: 5,   // EV_FILE_DELETE
-	20: 10,  // EV_NET_CONNECT — network connection
-	21: 15,  // EV_NET_ACCEPT — inbound connection
-	50: 60,  // EV_MEMFD_CREATE — anonymous memory file (suspicious)
-	51: 100, // EV_MPROTECT_RX — memory shellcode injection
-	52: 50,  // EV_PIPE_WRITE — pipe data flow (exfiltration risk)
-	53: 20,  // EV_PIPE_READ — pipe data flow
+	20: 10,  // EV_NET_CONNECT -?network connection
+	21: 15,  // EV_NET_ACCEPT -?inbound connection
+	50: 60,  // EV_MEMFD_CREATE -?anonymous memory file (suspicious)
+	51: 100, // EV_MPROTECT_RX -?memory shellcode injection
+	52: 50,  // EV_PIPE_WRITE -?pipe data flow (exfiltration risk)
+	53: 20,  // EV_PIPE_READ -?pipe data flow
 }
 
 // SensitivePathScores provides additional scoring for file paths.
@@ -57,15 +55,13 @@ type PathScore struct {
 const CompositeThreshold = 150.0
 const TraceDepth = 3
 
-// ═══════════════════════════════════════════════════════════════
 // Scoring engine
-// ═══════════════════════════════════════════════════════════════
-
+//
 // ScoreEngine assigns scores to events and aggregates them
 // along provenance paths.
 type ScoreEngine struct {
-	store *store.Store
-	scores map[uint32]float64
+	store      *store.Store
+	scores     map[uint32]float64
 	pathScores []PathScore
 }
 
@@ -99,18 +95,16 @@ func (se *ScoreEngine) ScoreEvent(evt *pb.Event) float64 {
 	return base
 }
 
-// ═══════════════════════════════════════════════════════════════
 // Path weight aggregation
-// ═══════════════════════════════════════════════════════════════
-
+//
 // AggregateResult collects the cumulative score and causal chain.
 type AggregateResult struct {
-	ProcessPID     uint32          `json:"process_pid"`
-	ProcessComm    string          `json:"process_comm"`
-	CumulativeScore float64        `json:"cumulative_score"`
-	EventCount     int             `json:"event_count"`
-	ExceedsThreshold bool          `json:"exceeds_threshold"`
-	CausalChain    []CausalNode    `json:"causal_chain"`
+	ProcessPID       uint32       `json:"process_pid"`
+	ProcessComm      string       `json:"process_comm"`
+	CumulativeScore  float64      `json:"cumulative_score"`
+	EventCount       int          `json:"event_count"`
+	ExceedsThreshold bool         `json:"exceeds_threshold"`
+	CausalChain      []CausalNode `json:"causal_chain"`
 }
 
 // CausalNode is a single step in the provenance trace-back.
@@ -200,19 +194,17 @@ func (se *ScoreEngine) AggregatePath(evt *pb.Event) *AggregateResult {
 	return result
 }
 
-// ═══════════════════════════════════════════════════════════════
 // Composite alert
-// ═══════════════════════════════════════════════════════════════
-
+//
 // CompositeAlert is emitted when a process's downstream path
 // exceeds the risk threshold.
 type CompositeAlert struct {
-	ProcessPID     uint32       `json:"process_pid"`
-	ProcessComm    string       `json:"process_comm"`
-	TotalScore     float64      `json:"total_score"`
-	Threshold      float64      `json:"threshold"`
-	TriggerEvent   string       `json:"trigger_event"`
-	CausalChain    []CausalNode `json:"causal_chain"`
+	ProcessPID   uint32       `json:"process_pid"`
+	ProcessComm  string       `json:"process_comm"`
+	TotalScore   float64      `json:"total_score"`
+	Threshold    float64      `json:"threshold"`
+	TriggerEvent string       `json:"trigger_event"`
+	CausalChain  []CausalNode `json:"causal_chain"`
 }
 
 // NewCompositeAlert creates a composite alert from an aggregate result.
@@ -222,7 +214,7 @@ func NewCompositeAlert(evt *pb.Event, agg *AggregateResult) *CompositeAlert {
 		ProcessComm:  evt.Comm,
 		TotalScore:   agg.CumulativeScore,
 		Threshold:    CompositeThreshold,
-		TriggerEvent: fmt.Sprintf("%s → %s", eventTypeName(evt.Type), evt.Pathname),
+		TriggerEvent: fmt.Sprintf("%s -?%s", eventTypeName(evt.Type), evt.Pathname),
 		CausalChain:  agg.CausalChain,
 	}
 }
@@ -230,18 +222,17 @@ func NewCompositeAlert(evt *pb.Event, agg *AggregateResult) *CompositeAlert {
 // String returns a human-readable composite alert.
 func (ca *CompositeAlert) String() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("🚨 COMPOSITE ALERT — Score: %.0f / %.0f\n",
-		ca.TotalScore, ca.Threshold))
-	b.WriteString(fmt.Sprintf("   Process: %s (PID %d)\n", ca.ProcessComm, ca.ProcessPID))
-	b.WriteString(fmt.Sprintf("   Trigger: %s\n", ca.TriggerEvent))
+	fmt.Fprintf(&b, "COMPOSITE ALERT - Score: %.0f / %.0f\n", ca.TotalScore, ca.Threshold)
+	fmt.Fprintf(&b, "   Process: %s (PID %d)\n", ca.ProcessComm, ca.ProcessPID)
+	fmt.Fprintf(&b, "   Trigger: %s\n", ca.TriggerEvent)
 	b.WriteString("   Causal Chain:\n")
 	for i, node := range ca.CausalChain {
-		marker := "└─"
+		marker := "鈹斺攢"
 		if i < len(ca.CausalChain)-1 {
-			marker = "├─"
+			marker = "鈹溾攢"
 		}
-		b.WriteString(fmt.Sprintf("   %s [%.0f] %s (PID %d) %s → %s\n",
-			marker, node.Score, node.Comm, node.PID, node.Action, node.Target))
+		fmt.Fprintf(&b, "   %s [%.0f] %s (PID %d) %s -> %s\n",
+			marker, node.Score, node.Comm, node.PID, node.Action, node.Target)
 	}
 	return b.String()
 }

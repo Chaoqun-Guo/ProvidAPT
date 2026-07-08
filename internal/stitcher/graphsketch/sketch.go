@@ -70,7 +70,7 @@ func (sc *SketchComputer) Compute(nodes []SketchNode, edges []SketchEdge) *Graph
 	fv.InOutRatio = computeInOutRatio(inDeg, outDeg)
 
 	// 4. Path statistics via BFS from root nodes.
-	fv.PathStats = computePathStats(nodes, edges, outDeg, inDeg)
+	fv.PathStats = computePathStats(nodes, edges, inDeg)
 
 	return fv
 }
@@ -156,7 +156,7 @@ func computeInOutRatio(inDeg, outDeg map[string]int) float64 {
 
 // ── Path statistics ──────────────────────────────────────────────
 
-func computePathStats(nodes []SketchNode, edges []SketchEdge, outDeg, inDeg map[string]int) PathStats {
+func computePathStats(nodes []SketchNode, edges []SketchEdge, inDeg map[string]int) PathStats {
 	// Build adjacency list.
 	adj := make(map[string][]string)
 	for _, e := range edges {

@@ -7,23 +7,20 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"gopkg.in/yaml.v3"
 
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
+	"gopkg.in/yaml.v3"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Alert structure
-// ═══════════════════════════════════════════════════════════════
-
 // Alert is triggered when a rule matches an event.
 type Alert struct {
-	RuleID      string    `json:"rule_id"`
-	Title       string    `json:"title"`
-	Severity    string    `json:"severity"` // critical, high, medium, low
-	Description string    `json:"description"`
-	Tags        []string  `json:"tags,omitempty"`
-	RiskScore   float64   `json:"risk_score"`
+	RuleID      string   `json:"rule_id"`
+	Title       string   `json:"title"`
+	Severity    string   `json:"severity"` // critical, high, medium, low
+	Description string   `json:"description"`
+	Tags        []string `json:"tags,omitempty"`
+	RiskScore   float64  `json:"risk_score"`
 
 	// Source event
 	Event *pb.Event `json:"event"`
@@ -39,37 +36,37 @@ type Alert struct {
 // String returns a human-readable alert representation.
 func (a *Alert) String() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("🚨 [%s] %s\n", strings.ToUpper(a.Severity), a.Title))
-	b.WriteString(fmt.Sprintf("   Rule: %s\n", a.RuleID))
-	b.WriteString(fmt.Sprintf("   Score: %.1f\n", a.RiskScore))
-	b.WriteString(fmt.Sprintf("   Event: %s\n", a.SubgraphDesc))
-	b.WriteString(fmt.Sprintf("   Time: %s\n", a.Timestamp.Format(time.RFC3339)))
+	fmt.Fprintf(&b, "ALERT [%s] %s\n", strings.ToUpper(a.Severity), a.Title)
+	fmt.Fprintf(&b, "   Rule: %s\n", a.RuleID)
+	fmt.Fprintf(&b, "   Score: %.1f\n", a.RiskScore)
+	fmt.Fprintf(&b, "   Event: %s\n", a.SubgraphDesc)
+	fmt.Fprintf(&b, "   Time: %s\n", a.Timestamp.Format(time.RFC3339))
 	if len(a.Tags) > 0 {
-		b.WriteString(fmt.Sprintf("   Tags: %s\n", strings.Join(a.Tags, ", ")))
+		fmt.Fprintf(&b, "   Tags: %s\n", strings.Join(a.Tags, ", "))
 	}
-	b.WriteString(fmt.Sprintf("   Subgraph: %s\n", a.SubgraphID))
+	fmt.Fprintf(&b, "   Subgraph: %s\n", a.SubgraphID)
 	return b.String()
 }
 
 // ConsoleLine returns a single-line console output.
 func (a *Alert) ConsoleLine() string {
-	emoji := "⚠"
+	label := "\u2139\ufe0f"
 	switch a.Severity {
 	case "critical":
-		emoji = "🔴"
+		label = "\U0001F534"
 	case "high":
-		emoji = "🚨"
+		label = "\U0001F6A8"
 	case "medium":
-		emoji = "⚠"
+		label = "\u26A0\ufe0f"
 	case "low":
-		emoji = "ℹ"
+		label = "\u2139\ufe0f"
 	}
-	return fmt.Sprintf("%s [%s] %s — %s", emoji, a.Severity, a.Title, a.SubgraphDesc)
+	return fmt.Sprintf("%s [%s] %s - %s", label, a.Severity, a.Title, a.SubgraphDesc)
 }
 
 // Markdown returns a Markdown-formatted alert.
 func (a *Alert) Markdown() string {
-	return fmt.Sprintf("## 🚨 ProvidAPT Alert\n\n"+
+	return fmt.Sprintf("## 婵☆偓绲介崯顖炴儊?ProvidAPT Alert\n\n"+
 		"**Rule:** %s  \n"+
 		"**Severity:** `%s`  \n"+
 		"**Score:** %.1f  \n"+
@@ -80,7 +77,7 @@ func (a *Alert) Markdown() string {
 		a.SubgraphDesc, a.Timestamp.Format(time.RFC3339), a.SubgraphID)
 }
 
-// ─── Built-in rules (YAML) ──────────────────────────────────
+// Built-in rules (YAML)
 
 // DefaultRulesYAML returns the built-in detection rules.
 const DefaultRulesYAML = `
@@ -192,7 +189,7 @@ detection:
   UID: "!=0"
 
 ---
-title: "Memfd Exec — Process Hollowing"
+title: "Memfd Exec -Process Hollowing"
 id: "rule-memfd-001"
 description: "Process executes from memfd (fileless execution indicator)"
 level: critical
@@ -202,7 +199,7 @@ detection:
   TargetPath: /memfd:*
 
 ---
-title: "Defense Evasion — Log Clearing"
+title: "Defense Evasion -Log Clearing"
 id: "rule-logs-001"
 description: "Process clears system logs or audit trails"
 level: high
@@ -213,7 +210,7 @@ detection:
   Comm: "*rm*"
 
 ---
-title: "Credential Dumping — LSASS Access"
+title: "Credential Dumping -LSASS Access"
 id: "rule-creddump-001"
 description: "Non-LSASS process accesses LSASS memory or minidump"
 level: critical
@@ -224,7 +221,7 @@ detection:
   Comm: "*minikatz*"
 
 ---
-title: "Lateral Movement — SSH from Non-Standard Context"
+title: "Lateral Movement -SSH from Non-Standard Context"
 id: "rule-lateral-001"
 description: "SSH client executed from non-interactive context (web/app server)"
 level: high
@@ -257,7 +254,7 @@ detection:
   UID: "!=0"
 
 ---
-title: "Ransomware Indicators — Mass File Operations"
+title: "Ransomware Indicators -Mass File Operations"
 id: "rule-ransom-001"
 description: "Process rapidly creates, renames, or deletes many files in user directories"
 level: high
@@ -268,7 +265,7 @@ detection:
   Comm: "*encrypt*"
 
 ---
-title: "C2 Beacon — Suspicious Domain Connection"
+title: "C2 Beacon -Suspicious Domain Connection"
 id: "rule-c2-dns-001"
 description: "Process connects to dynamically-resolving or suspicious domains (DGA indicator)"
 level: medium

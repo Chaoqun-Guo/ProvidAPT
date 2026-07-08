@@ -13,11 +13,9 @@ import (
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Stream graph scanner
-// ═══════════════════════════════════════════════════════════════
-
-// ScannerConfig controls the scanner behaviour.
+//
+// ScannerConfig controls the scanner behavior.
 type ScannerConfig struct {
 	// EventCh is the input channel for events from the pipeline.
 	EventCh chan *pb.Event
@@ -34,12 +32,12 @@ type ScannerConfig struct {
 
 // Scanner processes events in real-time and matches them against rules.
 type Scanner struct {
-	cfg      ScannerConfig
-	rules    []*Rule
-	alerts   []*Alert
-	mu       sync.Mutex
-	stopCh   chan struct{}
-	stats    ScannerStats
+	cfg    ScannerConfig
+	rules  []*Rule
+	alerts []*Alert
+	mu     sync.Mutex
+	stopCh chan struct{}
+	stats  ScannerStats
 }
 
 // ScannerStats tracks scanner performance.
@@ -76,7 +74,7 @@ func (s *Scanner) Start() {
 	go s.loop()
 	log.Printf("[detect] scanner started: %d rules", len(s.rules))
 	for _, r := range s.rules {
-		log.Printf("  rule: %s [%s] — %s", r.ID, r.Level, r.Title)
+		log.Printf("  rule: %s [%s] -?%s", r.ID, r.Level, r.Title)
 	}
 }
 
@@ -205,7 +203,7 @@ func (s *Scanner) Stats() map[string]interface{} {
 	}
 }
 
-// ─── Event type name mapping ────────────────────────────────
+// Event type name mapping
 
 func eventTypeName(typ uint32) string {
 	switch typ {

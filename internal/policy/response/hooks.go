@@ -48,8 +48,8 @@ func DefaultConfig() *ResponseConfig {
 // ResponseHook is the main orchestrator.  It is called by the
 // analyzer when a finding exceeds the threat threshold.
 type ResponseHook struct {
-	cfg     *ResponseConfig
-	evmgr   *EvidenceManager
+	cfg   *ResponseConfig
+	evmgr *EvidenceManager
 }
 
 // New creates a response hook.
@@ -57,7 +57,9 @@ func New(cfg *ResponseConfig, store EvidenceStore) *ResponseHook {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	os.MkdirAll(cfg.OutputDir, 0700)
+	if err := os.MkdirAll(cfg.OutputDir, 0700); err != nil {
+		log.Printf("[response] create output dir %s: %v", cfg.OutputDir, err)
+	}
 
 	return &ResponseHook{
 		cfg:   cfg,
@@ -76,14 +78,14 @@ type AlertSummary struct {
 
 // ResponseResult summarises what was done.
 type ResponseResult struct {
-	AlertID     string  `json:"alert_id"`
-	Triggered   bool    `json:"triggered"`
-	CaseID      string  `json:"case_id,omitempty"`
+	AlertID     string          `json:"alert_id"`
+	Triggered   bool            `json:"triggered"`
+	CaseID      string          `json:"case_id,omitempty"`
 	Evidence    *EvidenceRecord `json:"evidence,omitempty"`
-	DumpDir     string  `json:"dump_dir,omitempty"`
-	CapFile     string  `json:"cap_file,omitempty"`
-	DumpHash    string  `json:"dump_hash,omitempty"`
-	CaptureHash string  `json:"capture_hash,omitempty"`
+	DumpDir     string          `json:"dump_dir,omitempty"`
+	CapFile     string          `json:"cap_file,omitempty"`
+	DumpHash    string          `json:"dump_hash,omitempty"`
+	CaptureHash string          `json:"capture_hash,omitempty"`
 }
 
 // OnAlert is called by the analyzer when a threat is detected.

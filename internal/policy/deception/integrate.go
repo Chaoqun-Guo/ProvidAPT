@@ -192,4 +192,3 @@ func AttrsForTrigger(t *HoneypotTrigger) map[string]string {
 		FrozenAt:    time.Now(),
 	})
 }
-

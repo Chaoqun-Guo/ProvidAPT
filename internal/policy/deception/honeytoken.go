@@ -4,6 +4,7 @@
 package deception
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
@@ -239,12 +240,18 @@ func (om *OverlayManager) mountOverlay(targetDir string, tokens []HoneytokenDef,
 	// Mount overlayfs.
 	// mount -t overlay overlay -o lowerdir=<target>,upperdir=<upper>,workdir=<work> <target>
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", targetDir, upperDir, workDir)
-	cmd := exec.Command("mount", "-t", "overlay", "overlay", "-o", opts, targetDir)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "mount", "-t", "overlay", "overlay", "-o", opts, targetDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Clean up dirs on failure.
-		os.RemoveAll(upperDir)
-		os.RemoveAll(workDir)
+		if removeErr := os.RemoveAll(upperDir); removeErr != nil {
+			log.Printf("[deception] cleanup upper dir %s: %v", upperDir, removeErr)
+		}
+		if removeErr := os.RemoveAll(workDir); removeErr != nil {
+			log.Printf("[deception] cleanup work dir %s: %v", workDir, removeErr)
+		}
 		return nil, fmt.Errorf("mount overlay: %w (output: %s)", err, string(output))
 	}
 
@@ -258,15 +265,21 @@ func (om *OverlayManager) mountOverlay(targetDir string, tokens []HoneytokenDef,
 }
 
 func (om *OverlayManager) unmountOverlay(m OverlayMount) error {
-	cmd := exec.Command("umount", m.MountedAt)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "umount", m.MountedAt)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("umount %s: %w (output: %s)", m.MountedAt, err, string(output))
 	}
 
 	// Clean up temp dirs.
-	os.RemoveAll(m.UpperDir)
-	os.RemoveAll(m.WorkDir)
+	if err := os.RemoveAll(m.UpperDir); err != nil {
+		return fmt.Errorf("remove upper dir %s: %w", m.UpperDir, err)
+	}
+	if err := os.RemoveAll(m.WorkDir); err != nil {
+		return fmt.Errorf("remove work dir %s: %w", m.WorkDir, err)
+	}
 
 	return nil
 }
@@ -275,8 +288,9 @@ func (om *OverlayManager) unmountOverlay(m OverlayMount) error {
 
 // registerInEBPF writes a honeytoken definition to the eBPF honeytoken_map.
 // The map uses:
-//   key = struct honeytoken_key { __u32 path_hash; }
-//   val = struct honeytoken_val { __u32 flags; __u32 pid; __u64 triggered_at; }
+//
+//	key = struct honeytoken_key { __u32 path_hash; }
+//	val = struct honeytoken_val { __u32 flags; __u32 pid; __u64 triggered_at; }
 func (om *OverlayManager) registerInEBPF(ht HoneytokenDef) error {
 	if om.bpfMap == nil {
 		return nil // no eBPF connection
@@ -296,7 +310,7 @@ func (om *OverlayManager) registerInEBPF(ht HoneytokenDef) error {
 	val := make([]byte, 16)
 	binary.LittleEndian.PutUint32(val[0:4], flags)
 	binary.LittleEndian.PutUint32(val[4:8], 0)  // pid=0 (not triggered yet)
-	binary.LittleEndian.PutUint64(val[8:16], 0)  // triggered_at=0
+	binary.LittleEndian.PutUint64(val[8:16], 0) // triggered_at=0
 
 	if err := om.bpfMap.Update(key, val, 0); err != nil {
 		return fmt.Errorf("honeytoken_map update: %w", err)
@@ -392,9 +406,9 @@ func (om *OverlayManager) Stats() map[string]interface{} {
 	om.mu.Lock()
 	defer om.mu.Unlock()
 	return map[string]interface{}{
-		"active":        om.active,
-		"mount_count":   len(om.mounts),
-		"token_count":   len(om.cfg.Honeytokens),
-		"map_present":   om.bpfMap != nil,
+		"active":      om.active,
+		"mount_count": len(om.mounts),
+		"token_count": len(om.cfg.Honeytokens),
+		"map_present": om.bpfMap != nil,
 	}
 }

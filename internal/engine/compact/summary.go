@@ -12,48 +12,47 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Semantic summary generation
 //
 // For provenance data older than 7 days, fine-grained I/O events
-// are abstracted into behaviour summaries that preserve causality
+// are abstracted into behavior summaries that preserve causality
 // while dramatically reducing storage.
 //
 // Example:
-//   100,000 raw events:
-//     read(nginx, access.log) x 50000
-//     write(nginx, access.log) x 50000
 //
-//   Summary:
-//     [Process: nginx] [File: access.log] [R+W 1.2GB]
-//     [Time range: 2025-01-01T00:00 ~ 2025-01-01T23:59]
-//     [Interactions: 100,000]
-// ═══════════════════════════════════════════════════════════════
-
+//	100,000 raw events:
+//	  read(nginx, access.log) x 50000
+//	  write(nginx, access.log) x 50000
+//
+//	Summary:
+//	  [Process: nginx] [File: access.log] [R+W 1.2GB]
+//	  [Time range: 2025-01-01T00:00 ~ 2025-01-01T23:59]
+//	  [Interactions: 100,000]
+//
 // BehaviourSummary is a compact representation of many I/O events.
 type BehaviourSummary struct {
-	ProcessID     string `json:"process_id"`
-	ProcessComm   string `json:"process_comm"`
-	TargetEntity  string `json:"target_entity"`
-	TargetType    string `json:"target_type"`
-	Operation     string `json:"operation"` // "READ", "WROTE", "R+W"
-	TotalCalls    int64  `json:"total_calls"`
-	TotalBytes    int64  `json:"total_bytes_estimated"`
-	TimeStart     string `json:"time_start"`
-	TimeEnd       string `json:"time_end"`
-	FirstEventID  string `json:"first_event_id,omitempty"`
-	LastEventID   string `json:"last_event_id,omitempty"`
+	ProcessID    string `json:"process_id"`
+	ProcessComm  string `json:"process_comm"`
+	TargetEntity string `json:"target_entity"`
+	TargetType   string `json:"target_type"`
+	Operation    string `json:"operation"` // "READ", "WROTE", "R+W"
+	TotalCalls   int64  `json:"total_calls"`
+	TotalBytes   int64  `json:"total_bytes_estimated"`
+	TimeStart    string `json:"time_start"`
+	TimeEnd      string `json:"time_end"`
+	FirstEventID string `json:"first_event_id,omitempty"`
+	LastEventID  string `json:"last_event_id,omitempty"`
 }
 
 // SummaryConfig controls summary generation.
 type SummaryConfig struct {
-	// MinEventsForSummary — minimum events to create a summary.
+	// MinEventsForSummary -?minimum events to create a summary.
 	MinEventsForSummary int
 
-	// SummaryAge — events older than this get summarised.
+	// SummaryAge -?events older than this get summarized.
 	SummaryAge time.Duration
 
-	// GroupByProcess — group by process identity.
+	// GroupByProcess -?group by process identity.
 	GroupByProcess bool
 }
 
@@ -66,7 +65,7 @@ func DefaultSummaryConfig() *SummaryConfig {
 	}
 }
 
-// SummaryEngine generates behaviour summaries from old data.
+// SummaryEngine generates behavior summaries from old data.
 type SummaryEngine struct {
 	cfg *SummaryConfig
 }
@@ -84,7 +83,7 @@ func NewSummaryEngine(cfg *SummaryConfig) *SummaryEngine {
 func (se *SummaryEngine) SummariseEdges(edges []*provenance.Edge, nodes []*provenance.Node) []*BehaviourSummary {
 	cutoff := time.Now().Add(-se.cfg.SummaryAge)
 
-groups := make(map[groupKey][]*provenance.Edge)
+	groups := make(map[groupKey][]*provenance.Edge)
 
 	for _, e := range edges {
 		if e.Timestamp.After(cutoff) {
@@ -100,10 +99,10 @@ groups := make(map[groupKey][]*provenance.Edge)
 			continue // too few events, keep raw
 		}
 
-		summary := se.buildSummary(key, group, nodes)
+		summary := se.buildSummary(key, nodes)
 		summary.TotalCalls = int64(len(group))
 
-		// Estimate total bytes: each event ≈ 332 bytes of I/O
+		// Estimate total bytes: each event -?332 bytes of I/O
 		summary.TotalBytes = int64(len(group)) * 332
 
 		// Time range
@@ -116,7 +115,7 @@ groups := make(map[groupKey][]*provenance.Edge)
 		summaries = append(summaries, summary)
 	}
 
-	log.Printf("[compact] generated %d behaviour summaries from %d edge groups",
+	log.Printf("[compact] generated %d behavior summaries from %d edge groups",
 		len(summaries), len(groups))
 
 	return summaries
@@ -128,7 +127,7 @@ type groupKey struct {
 }
 
 // buildSummary creates a single BehaviourSummary from a group.
-func (se *SummaryEngine) buildSummary(key groupKey, group []*provenance.Edge,
+func (se *SummaryEngine) buildSummary(key groupKey,
 	nodes []*provenance.Node) *BehaviourSummary {
 
 	summary := &BehaviourSummary{
@@ -169,10 +168,10 @@ func (bs *BehaviourSummary) SummaryText() string {
 
 // CompactionResult holds the combined reduction + summary result.
 type CompactionResult struct {
-	Reduction *ReductionMetrics   `json:"reduction"`
-	Summaries []*BehaviourSummary `json:"summaries"`
-	EdgesRemoved int             `json:"edges_removed"`
-	StorageSaved int64           `json:"storage_saved_bytes"`
+	Reduction    *ReductionMetrics   `json:"reduction"`
+	Summaries    []*BehaviourSummary `json:"summaries"`
+	EdgesRemoved int                 `json:"edges_removed"`
+	StorageSaved int64               `json:"storage_saved_bytes"`
 }
 
 // Combine returns a combined result from reduction and summary.
@@ -193,11 +192,11 @@ func Combine(reduction *ReductionMetrics, summaries []*BehaviourSummary) *Compac
 // Summary returns a human-readable compaction result.
 func (cr *CompactionResult) Summary() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Compaction: %d edges removed, %.1f MB saved\n",
-		cr.EdgesRemoved, float64(cr.StorageSaved)/1024/1024))
+	fmt.Fprintf(&b, "Compaction: %d edges removed, %.1f MB saved\n",
+		cr.EdgesRemoved, float64(cr.StorageSaved)/1024/1024)
 	if cr.Reduction != nil {
-		b.WriteString(fmt.Sprintf("  Reduction: %s\n", cr.Reduction.Summary()))
+		fmt.Fprintf(&b, "  Reduction: %s\n", cr.Reduction.Summary())
 	}
-	b.WriteString(fmt.Sprintf("  Summaries: %d behaviour summaries\n", len(cr.Summaries)))
+	fmt.Fprintf(&b, "  Summaries: %d behavior summaries\n", len(cr.Summaries))
 	return b.String()
 }

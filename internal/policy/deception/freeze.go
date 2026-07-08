@@ -153,7 +153,7 @@ func (f *Freezer) Freeze(trigger *HoneypotTrigger) (*FreezeRecord, error) {
 	f.records[pid] = record
 
 	if f.auditStore != nil {
-		f.auditStore.Log(audit.Entry{
+		if err := f.auditStore.Log(audit.Entry{
 			Category: audit.CatSecurity,
 			Severity: "CRITICAL",
 			Message:  fmt.Sprintf("Honeypot triggered by pid=%d comm=%s path=%s", pid, trigger.Comm, trigger.Path),
@@ -166,7 +166,9 @@ func (f *Freezer) Freeze(trigger *HoneypotTrigger) (*FreezeRecord, error) {
 				"trigger":  string(trigger.Trigger),
 				"tripwire": trigger.Tripwire,
 			},
-		})
+		}); err != nil {
+			log.Printf("[deception] audit freeze record: %v", err)
+		}
 	}
 
 	// 6. Call graph updater if configured.
@@ -380,4 +382,3 @@ func CleanupStaleCgroups(cfg *Config) error {
 	}
 	return nil
 }
-

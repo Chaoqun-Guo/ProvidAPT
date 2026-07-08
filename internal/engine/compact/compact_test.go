@@ -121,13 +121,13 @@ func TestSummariseEmpty(t *testing.T) {
 
 func TestBehaviourSummaryText(t *testing.T) {
 	bs := &BehaviourSummary{
-		ProcessComm: "nginx",
-		Operation:   "READ",
+		ProcessComm:  "nginx",
+		Operation:    "READ",
 		TargetEntity: "access.log",
-		TotalCalls:  50000,
-		TotalBytes:  50000 * 332,
-		TimeStart:   "2025-01-01T00:00:00Z",
-		TimeEnd:     "2025-01-01T23:59:59Z",
+		TotalCalls:   50000,
+		TotalBytes:   50000 * 332,
+		TimeStart:    "2025-01-01T00:00:00Z",
+		TimeEnd:      "2025-01-01T23:59:59Z",
 	}
 	text := bs.SummaryText()
 	if !strings.Contains(text, "nginx") || !strings.Contains(text, "50000") {

@@ -37,10 +37,10 @@ type SketchEdge struct {
 
 // DegreeInfo holds degree information for a single node.
 type DegreeInfo struct {
-	NodeID     string `json:"node_id"`
-	InDegree   int    `json:"in_degree"`
-	OutDegree  int    `json:"out_degree"`
-	Total      int    `json:"total"`
+	NodeID    string `json:"node_id"`
+	InDegree  int    `json:"in_degree"`
+	OutDegree int    `json:"out_degree"`
+	Total     int    `json:"total"`
 }
 
 // DegreeDistribution is a histogram mapping degree → number of nodes.
@@ -48,11 +48,11 @@ type DegreeDistribution map[int]int
 
 // DistributionStats summarizes a degree distribution.
 type DistributionStats struct {
-	Min      int     `json:"min"`
-	Max      int     `json:"max"`
-	Mean     float64 `json:"mean"`
-	Median   int     `json:"median"`
-	StdDev   float64 `json:"std_dev"`
+	Min    int     `json:"min"`
+	Max    int     `json:"max"`
+	Mean   float64 `json:"mean"`
+	Median int     `json:"median"`
+	StdDev float64 `json:"std_dev"`
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -61,9 +61,9 @@ type DistributionStats struct {
 
 // PathStats summarizes path properties of the graph.
 type PathStats struct {
-	MaxDepth         int     `json:"max_depth"`
-	AvgDepth         float64 `json:"avg_depth"`
-	ComponentCount   int     `json:"component_count"`
+	MaxDepth         int      `json:"max_depth"`
+	AvgDepth         float64  `json:"avg_depth"`
+	ComponentCount   int      `json:"component_count"`
 	LongestPathNodes []string `json:"longest_path_nodes,omitempty"`
 }
 
@@ -86,12 +86,12 @@ type GraphFeatureVector struct {
 	InOutRatio float64 `json:"in_out_ratio"`
 
 	// Degree distribution.
-	DegreeDist      DegreeDistribution `json:"degree_dist,omitempty"`
-	InDegreeDist    DegreeDistribution `json:"in_degree_dist,omitempty"`
-	OutDegreeDist   DegreeDistribution `json:"out_degree_dist,omitempty"`
-	DegreeStats     DistributionStats  `json:"degree_stats"`
-	InDegreeStats   DistributionStats  `json:"in_degree_stats"`
-	OutDegreeStats  DistributionStats  `json:"out_degree_stats"`
+	DegreeDist     DegreeDistribution `json:"degree_dist,omitempty"`
+	InDegreeDist   DegreeDistribution `json:"in_degree_dist,omitempty"`
+	OutDegreeDist  DegreeDistribution `json:"out_degree_dist,omitempty"`
+	DegreeStats    DistributionStats  `json:"degree_stats"`
+	InDegreeStats  DistributionStats  `json:"in_degree_stats"`
+	OutDegreeStats DistributionStats  `json:"out_degree_stats"`
 
 	// Path statistics.
 	PathStats PathStats `json:"path_stats"`
@@ -188,11 +188,11 @@ type EntropyResult struct {
 // UploadPayload is the wire format for sending feature vectors
 // to the central server for global clustering analysis.
 type UploadPayload struct {
-	HostID    string              `json:"host_id"`
-	AgentID   string              `json:"agent_id"`
+	HostID    string               `json:"host_id"`
+	AgentID   string               `json:"agent_id"`
 	Vectors   []GraphFeatureVector `json:"vectors"`
-	BatchSize int                 `json:"batch_size"`
-	SentAt    int64               `json:"sent_at_ns"`
+	BatchSize int                  `json:"batch_size"`
+	SentAt    int64                `json:"sent_at_ns"`
 }
 
 // ─────────────────────────────────────────────────────────────────

@@ -5,15 +5,14 @@ package response
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// FD and environment capture
-// ═══════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// FD and environment capture
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 // FDCapture represents a single open file descriptor.
 type FDCapture struct {
 	FD     int    `json:"fd"`
@@ -24,19 +23,19 @@ type FDCapture struct {
 
 // EnvCapture represents environment variables (values can be redacted).
 type EnvCapture struct {
-	Raw     []string `json:"raw,omitempty"`     // full key=value list
+	Raw      []string `json:"raw,omitempty"`      // full key=value list
 	Redacted []string `json:"redacted,omitempty"` // keys only, values hidden
-	Count   int      `json:"count"`
+	Count    int      `json:"count"`
 }
 
 // CaptureCapture holds all captured context for a process.
 type ProcessCapture struct {
-	PID         int           `json:"pid"`
-	Comm        string        `json:"comm"`
-	CmdLine     string        `json:"cmdline"`
+	PID         int               `json:"pid"`
+	Comm        string            `json:"comm"`
+	CmdLine     string            `json:"cmdline"`
 	Status      map[string]string `json:"status"`
-	OpenFDs     []FDCapture   `json:"open_fds"`
-	Environment EnvCapture    `json:"environment"`
+	OpenFDs     []FDCapture       `json:"open_fds"`
+	Environment EnvCapture        `json:"environment"`
 }
 
 // CaptureContext collects all runtime context for a process.
@@ -70,11 +69,17 @@ func CaptureContext(pid int) (*ProcessCapture, error) {
 
 	// Read open FDs
 	if fdDir, err := os.Open(fmt.Sprintf("/proc/%d/fd", pid)); err == nil {
-		defer fdDir.Close()
+		defer func() {
+			if err := fdDir.Close(); err != nil {
+				log.Printf("[response] close fd dir: %v", err)
+			}
+		}()
 		if entries, err := fdDir.Readdir(-1); err == nil {
 			for _, entry := range entries {
 				fdNum := 0
-				fmt.Sscanf(entry.Name(), "%d", &fdNum)
+				if _, err := fmt.Sscanf(entry.Name(), "%d", &fdNum); err != nil {
+					continue
+				}
 				target, _ := os.Readlink(fmt.Sprintf("/proc/%d/fd/%s", pid, entry.Name()))
 				pc.OpenFDs = append(pc.OpenFDs, FDCapture{
 					FD:     fdNum,
@@ -114,20 +119,20 @@ func SaveCapture(outDir string, pc *ProcessCapture) (string, error) {
 	}
 	path := filepath.Join(dir, "context.txt")
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("PID: %d\n", pc.PID))
-	b.WriteString(fmt.Sprintf("Comm: %s\n", pc.Comm))
-	b.WriteString(fmt.Sprintf("CmdLine: %s\n", pc.CmdLine))
+	fmt.Fprintf(&b, "PID: %d\n", pc.PID)
+	fmt.Fprintf(&b, "Comm: %s\n", pc.Comm)
+	fmt.Fprintf(&b, "CmdLine: %s\n", pc.CmdLine)
 	b.WriteString("\n=== Status ===\n")
 	for k, v := range pc.Status {
-		b.WriteString(fmt.Sprintf("%s: %s\n", k, v))
+		fmt.Fprintf(&b, "%s: %s\n", k, v)
 	}
-	b.WriteString(fmt.Sprintf("\n=== Open FDs (%d) ===\n", len(pc.OpenFDs)))
+	fmt.Fprintf(&b, "\n=== Open FDs (%d) ===\n", len(pc.OpenFDs))
 	for _, fd := range pc.OpenFDs {
-		b.WriteString(fmt.Sprintf("fd %d → %s\n", fd.FD, fd.Target))
+		fmt.Fprintf(&b, "fd %d -> %s\n", fd.FD, fd.Target)
 	}
-	b.WriteString(fmt.Sprintf("\n=== Environment (%d vars) ===\n", pc.Environment.Count))
+	fmt.Fprintf(&b, "\n=== Environment (%d vars) ===\n", pc.Environment.Count)
 	for _, e := range pc.Environment.Redacted {
-		b.WriteString(fmt.Sprintf("  %s\n", e))
+		fmt.Fprintf(&b, "  %s\n", e)
 	}
 	if err := os.WriteFile(path, []byte(b.String()), 0400); err != nil {
 		return "", err

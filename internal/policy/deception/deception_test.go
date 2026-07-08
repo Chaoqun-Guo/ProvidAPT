@@ -370,10 +370,10 @@ func TestNewDeceptionIntegrator(t *testing.T) {
 
 func TestDeceptionIntegratorCustomConfig(t *testing.T) {
 	cfg := &Config{
-		Enabled:     true,
-		CPUQuota:    5,
-		OverlayDir:  "/tmp/custom-honeypot",
-		CGroupName:  "custom-freeze",
+		Enabled:    true,
+		CPUQuota:   5,
+		OverlayDir: "/tmp/custom-honeypot",
+		CGroupName: "custom-freeze",
 	}
 	di := NewDeceptionIntegrator(cfg)
 	if di.cfg.CPUQuota != 5 {
@@ -409,13 +409,13 @@ func TestDeceptionIntegratorStartStop(t *testing.T) {
 
 func TestAttrsForTrigger(t *testing.T) {
 	tTrigger := &HoneypotTrigger{
-		PID:      100,
-		PPID:     50,
-		Comm:     "curl",
-		Path:     "/tmp/backup_credentials.xml",
+		PID:       100,
+		PPID:      50,
+		Comm:      "curl",
+		Path:      "/tmp/backup_credentials.xml",
 		TokenType: HoneytokenCredentials,
-		Trigger:  TrigOpen,
-		Tripwire: true,
+		Trigger:   TrigOpen,
+		Tripwire:  true,
 	}
 
 	attrs := AttrsForTrigger(tTrigger)
@@ -723,4 +723,3 @@ func TestPreserveContextDefault(t *testing.T) {
 		t.Error("PreserveContext should be true by default")
 	}
 }
-

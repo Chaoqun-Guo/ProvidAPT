@@ -287,7 +287,7 @@ func TestAlertString(t *testing.T) {
 		RuleID: "test-rule", Title: "Test Alert",
 		Severity: "high", RiskScore: 7.5,
 		SubgraphDesc: "PID 100 (bash) wrote /etc/passwd",
-		Timestamp: time.Now(),
+		Timestamp:    time.Now(),
 	}
 	s := a.String()
 	if !strings.Contains(s, "HIGH") {

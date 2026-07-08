@@ -26,13 +26,13 @@ var compiledRE = make(map[string]*regexp.Regexp)
 
 // Rule is a single detection rule (Sigma-inspired format).
 type Rule struct {
-	Title       string   `yaml:"title"`
-	ID          string   `yaml:"id"`
-	Description string   `yaml:"description"`
-	Author      string   `yaml:"author,omitempty"`
-	Date        string   `yaml:"date,omitempty"`
-	Level       string   `yaml:"level"` // low, medium, high, critical
-	Tags        []string `yaml:"tags,omitempty"`
+	Title       string    `yaml:"title"`
+	ID          string    `yaml:"id"`
+	Description string    `yaml:"description"`
+	Author      string    `yaml:"author,omitempty"`
+	Date        string    `yaml:"date,omitempty"`
+	Level       string    `yaml:"level"` // low, medium, high, critical
+	Tags        []string  `yaml:"tags,omitempty"`
 	Detection   Detection `yaml:"detection"`
 }
 
@@ -46,15 +46,16 @@ type Rule struct {
 //	  TargetPath: /etc/shadow
 //
 // (b) Named selections — multiple named groups, each with its own AND-conditions.
-//     The "condition" field is a boolean expression (AND, OR, NOT, parentheses)
-//     over the named selections.
 //
-//	detection:
-//	  sel1:
-//	    EventType: [10]
-//	  sel2:
-//	    TargetPath: /etc/shadow
-//	  condition: sel1 AND sel2
+//	    The "condition" field is a boolean expression (AND, OR, NOT, parentheses)
+//	    over the named selections.
+//
+//		detection:
+//		  sel1:
+//		    EventType: [10]
+//		  sel2:
+//		    TargetPath: /etc/shadow
+//		  condition: sel1 AND sel2
 type Detection struct {
 	// Selection is the single inline selection (backward compatible).
 	Selection Selection `yaml:",inline"`
@@ -206,7 +207,7 @@ func evaluateCondition(cond string, results map[string]bool) bool {
 type condTokenType int
 
 const (
-	tokIdent  condTokenType = iota
+	tokIdent condTokenType = iota
 	tokAND
 	tokOR
 	tokNOT
@@ -277,10 +278,8 @@ func (p *condParser) peek() condToken {
 	return p.tokens[p.pos]
 }
 
-func (p *condParser) advance() condToken {
-	tok := p.peek()
+func (p *condParser) advance() {
 	p.pos++
-	return tok
 }
 
 // expr   := term (OR term)*
@@ -417,35 +416,55 @@ func (r *Rule) matchSelection(sel Selection, evt *pb.Event) bool {
 func compareField(field string, value uint64) bool {
 	field = strings.TrimSpace(field)
 
+	parseCmp := func(raw string) (uint64, bool) {
+		var cmp uint64
+		if _, err := fmt.Sscanf(raw, "%d", &cmp); err != nil {
+			return 0, false
+		}
+		return cmp, true
+	}
+
 	switch {
 	case strings.HasPrefix(field, "!="):
-		var cmp uint64
-		fmt.Sscanf(field[2:], "%d", &cmp)
+		cmp, ok := parseCmp(field[2:])
+		if !ok {
+			return false
+		}
 		return value != cmp
 
 	case strings.HasPrefix(field, ">="):
-		var cmp uint64
-		fmt.Sscanf(field[2:], "%d", &cmp)
+		cmp, ok := parseCmp(field[2:])
+		if !ok {
+			return false
+		}
 		return value >= cmp
 
 	case strings.HasPrefix(field, "<="):
-		var cmp uint64
-		fmt.Sscanf(field[2:], "%d", &cmp)
+		cmp, ok := parseCmp(field[2:])
+		if !ok {
+			return false
+		}
 		return value <= cmp
 
 	case strings.HasPrefix(field, ">"):
-		var cmp uint64
-		fmt.Sscanf(field[1:], "%d", &cmp)
+		cmp, ok := parseCmp(field[1:])
+		if !ok {
+			return false
+		}
 		return value > cmp
 
 	case strings.HasPrefix(field, "<"):
-		var cmp uint64
-		fmt.Sscanf(field[1:], "%d", &cmp)
+		cmp, ok := parseCmp(field[1:])
+		if !ok {
+			return false
+		}
 		return value < cmp
 
 	default:
-		var cmp uint64
-		fmt.Sscanf(field, "%d", &cmp)
+		cmp, ok := parseCmp(field)
+		if !ok {
+			return false
+		}
 		return value == cmp
 	}
 }

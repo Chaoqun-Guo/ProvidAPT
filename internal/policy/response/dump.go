@@ -7,9 +7,9 @@
 // the ProvidAPT detection engine.  When an alert's threat score
 // exceeds a configurable threshold, the system can automatically:
 //
-//   1. Dump the process memory (via process_vm_readv)
-//   2. Capture open FDs and environment variables
-//   3. Lock the evidence with HMAC-SHA256 signing
+//  1. Dump the process memory (via process_vm_readv)
+//  2. Capture open FDs and environment variables
+//  3. Lock the evidence with HMAC-SHA256 signing
 //
 // The signed evidence record is stored in RocksDB and bound to
 // the provenance graph path for forensic admissibility.
@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"unsafe"
 )
+
 // SYS_PROCESS_VM_READV is linux/amd64 syscall 310 (not in Go 1.23+ syscall package).
 const SYS_PROCESS_VM_READV = 310
 
@@ -49,7 +50,11 @@ func ParseMaps(pid int) ([]MemRegion, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open maps: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("[response] close maps file: %v", err)
+		}
+	}()
 
 	var regions []MemRegion
 	scanner := bufio.NewScanner(f)

@@ -13,46 +13,45 @@ import (
 	"time"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Cold/hot data tiering
 //
 // Data lifecycle:
 //
-//   Hot (RocksDB):      Now ~ 7 days      — full granularity, fast query
-//   Warm (Local Parquet): 7 days ~ 3 months — summarised, columnar
-//   Cold (S3 Parquet):   3 months ~ 6+ months — archived, index only
+//	Hot (RocksDB):      Now ~ 7 days      -?full granularity, fast query
+//	Warm (Local Parquet): 7 days ~ 3 months -?summarized, columnar
+//	Cold (S3 Parquet):   3 months ~ 6+ months -?archived, index only
 //
 // Local index (RocksDB) retains minimal metadata for cold data:
-//   "cold:<entity_id>" → {"bucket":"providapt-prod","key":"...","count":N}
-// ═══════════════════════════════════════════════════════════════
-
+//
+//	"cold:<entity_id>" -?{"bucket":"providapt-prod","key":"...","count":N}
+//
 // TieringConfig for the data lifecycle manager.
 type TieringConfig struct {
-	// HotPath — RocksDB storage directory.
+	// HotPath -?RocksDB storage directory.
 	HotPath string
 
-	// WarmPath — local Parquet export directory.
+	// WarmPath -?local Parquet export directory.
 	WarmPath string
 
-	// ColdBucket — S3 bucket name for archival.
+	// ColdBucket -?S3 bucket name for archival.
 	ColdBucket string
 
-	// ColdPrefix — S3 key prefix.
+	// ColdPrefix -?S3 key prefix.
 	ColdPrefix string
 
-	// HotRetention — how long data stays in RocksDB (default 7d).
+	// HotRetention -?how long data stays in RocksDB (default 7d).
 	HotRetention time.Duration
 
-	// WarmRetention — how long data stays local (default 90d).
+	// WarmRetention -?how long data stays local (default 90d).
 	WarmRetention time.Duration
 
-	// ExportFormat — "parquet" or "json".
+	// ExportFormat -?"parquet" or "json".
 	ExportFormat string
 
-	// AWSEndpoint — S3-compatible endpoint (optional).
+	// AWSEndpoint -?S3-compatible endpoint (optional).
 	AWSEndpoint string
 
-	// DryRun — if true, log actions without executing.
+	// DryRun -?if true, log actions without executing.
 	DryRun bool
 }
 
@@ -115,7 +114,7 @@ func (tm *TieringManager) ArchiveHotToWarm(summaries []*BehaviourSummary) (int, 
 		}
 
 		if tm.cfg.DryRun {
-			log.Printf("[compact/tier] DRY RUN: archive %s → %s", s.ProcessID, tm.cfg.WarmPath)
+			log.Printf("[compact/tier] DRY RUN: archive %s -?%s", s.ProcessID, tm.cfg.WarmPath)
 			archived++
 			continue
 		}
@@ -176,7 +175,7 @@ func (tm *TieringManager) ArchiveWarmToCold() (int, error) {
 		}
 
 		if tm.cfg.DryRun {
-			log.Printf("[compact/tier] DRY RUN: upload %s → s3://%s/%s",
+			log.Printf("[compact/tier] DRY RUN: upload %s -?s3://%s/%s",
 				entry.Name(), tm.cfg.ColdBucket, tm.cfg.ColdPrefix)
 			archived++
 			continue
@@ -200,7 +199,9 @@ func (tm *TieringManager) ArchiveWarmToCold() (int, error) {
 		archived++
 
 		// Remove local warm file
-		os.Remove(filepath.Join(tm.cfg.WarmPath, entry.Name()))
+		if err := os.Remove(filepath.Join(tm.cfg.WarmPath, entry.Name())); err != nil {
+			log.Printf("[compact/tier] remove warm file %s: %v", entry.Name(), err)
+		}
 	}
 
 	log.Printf("[compact/tier] archived %d items to cold storage (s3://%s/%s)",
