@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/cockroachdb/pebble"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/secure"
+	"github.com/cockroachdb/pebble"
 )
 
 const (
@@ -19,7 +19,7 @@ const (
 	reverseEdgePrefix = "r:"
 )
 
-func nodeKey(id string) string        { return nodePrefix + id }
+func nodeKey(id string) string { return nodePrefix + id }
 func edgeKey(ts uint64, source, target string) string {
 	return fmt.Sprintf("e:%020d:%s:%s", ts, source, target)
 }
@@ -28,12 +28,12 @@ func reverseEdgeKey(ts uint64, target, source string) string {
 }
 
 type Store struct {
-	mu        sync.Mutex
-	db        *pebble.DB
-	wb        *pebble.Batch
-	wbCap     int
-	closed    bool
-	encKey    []byte // nil = no encryption
+	mu     sync.Mutex
+	db     *pebble.DB
+	wb     *pebble.Batch
+	wbCap  int
+	closed bool
+	encKey []byte // nil = no encryption
 }
 
 func Open(path string, encryptKey []byte) (*Store, error) {
@@ -42,9 +42,9 @@ func Open(path string, encryptKey []byte) (*Store, error) {
 		return nil, fmt.Errorf("pebble open %s: %w", path, err)
 	}
 	return &Store{
-		db:    db,
-		wb:    db.NewIndexedBatch(),
-		wbCap: 200,
+		db:     db,
+		wb:     db.NewIndexedBatch(),
+		wbCap:  200,
 		encKey: encryptKey,
 	}, nil
 }
@@ -81,7 +81,9 @@ func (s *Store) PutNode(n *provenance.Node) error {
 	if err != nil {
 		return err
 	}
-	s.wb.Set([]byte(nodeKey(n.ID)), enc, pebble.Sync)
+	if err := s.wb.Set([]byte(nodeKey(n.ID)), enc, pebble.Sync); err != nil {
+		return err
+	}
 	return s.autoFlush()
 }
 
@@ -95,7 +97,9 @@ func (s *Store) GetNode(id string) (*provenance.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer closer.Close()
+	defer func() {
+		_ = closer.Close()
+	}()
 	dec, err := s.decrypt(v)
 	if err != nil {
 		return nil, err
@@ -110,7 +114,9 @@ func (s *Store) GetNode(id string) (*provenance.Node, error) {
 func (s *Store) DeleteNode(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.wb.Delete([]byte(nodeKey(id)), pebble.NoSync)
+	if err := s.wb.Delete([]byte(nodeKey(id)), pebble.NoSync); err != nil {
+		return err
+	}
 	return s.autoFlush()
 }
 
@@ -131,15 +137,22 @@ func (s *Store) PutEdge(e *provenance.Edge) error {
 		return err
 	}
 	ts := uint64(e.Timestamp.UnixNano())
-	s.wb.Set([]byte(edgeKey(ts, e.Source, e.Target)), enc, pebble.Sync)
-	s.wb.Set([]byte(reverseEdgeKey(ts, e.Target, e.Source)), enc, pebble.Sync)
+	if err := s.wb.Set([]byte(edgeKey(ts, e.Source, e.Target)), enc, pebble.Sync); err != nil {
+		return err
+	}
+	if err := s.wb.Set([]byte(reverseEdgeKey(ts, e.Target, e.Source)), enc, pebble.Sync); err != nil {
+		return err
+	}
 	return s.autoFlush()
 }
 
 func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, error) {
 	// Flush pending writes so reads see the latest data.
 	s.mu.Lock()
-	s.flushLocked()
+	if err := s.flushLocked(); err != nil {
+		s.mu.Unlock()
+		return nil, err
+	}
 	s.mu.Unlock()
 
 	lo := []byte(edgeKey(start, "", ""))
@@ -149,7 +162,9 @@ func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, erro
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() {
+		_ = iter.Close()
+	}()
 
 	var out []*provenance.Edge
 	for iter.First(); iter.Valid(); iter.Next() {
@@ -169,7 +184,10 @@ func (s *Store) GetEdgesByTimeRange(start, end uint64) ([]*provenance.Edge, erro
 func (s *Store) GetEdgesByTarget(targetID string) ([]*provenance.Edge, error) {
 	// Flush pending writes so reads see the latest data.
 	s.mu.Lock()
-	s.flushLocked()
+	if err := s.flushLocked(); err != nil {
+		s.mu.Unlock()
+		return nil, err
+	}
 	s.mu.Unlock()
 
 	lo := []byte(fmt.Sprintf("r:%s:", targetID))
@@ -200,7 +218,10 @@ func (s *Store) GetEdgesByTarget(targetID string) ([]*provenance.Edge, error) {
 func (s *Store) EdgeCount() (int, error) {
 	// Flush pending writes so reads see the latest data.
 	s.mu.Lock()
-	s.flushLocked()
+	if err := s.flushLocked(); err != nil {
+		s.mu.Unlock()
+		return 0, err
+	}
 	s.mu.Unlock()
 
 	lo, hi := []byte(edgePrefix), []byte("e\xff")
@@ -208,7 +229,9 @@ func (s *Store) EdgeCount() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer iter.Close()
+	defer func() {
+		_ = iter.Close()
+	}()
 	count := 0
 	for iter.First(); iter.Valid(); iter.Next() {
 		count++

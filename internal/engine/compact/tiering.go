@@ -92,7 +92,9 @@ func NewTieringManager(cfg *TieringConfig) *TieringManager {
 	if cfg == nil {
 		cfg = DefaultTieringConfig()
 	}
-	os.MkdirAll(cfg.WarmPath, 0755)
+	if err := os.MkdirAll(cfg.WarmPath, 0755); err != nil {
+		log.Printf("[tiering] create warm path failed: %v", err)
+	}
 
 	return &TieringManager{
 		cfg:   cfg,

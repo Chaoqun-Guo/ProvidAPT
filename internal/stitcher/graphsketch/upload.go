@@ -73,17 +73,17 @@ type VectorUploader struct {
 	cfg    *UploadConfig
 	sender UploadSender
 
-	mu      sync.Mutex
-	buffer  []*GraphFeatureVector
-	stopCh  chan struct{}
-	wg      sync.WaitGroup
-	done    chan struct{}
+	mu     sync.Mutex
+	buffer []*GraphFeatureVector
+	stopCh chan struct{}
+	wg     sync.WaitGroup
+	done   chan struct{}
 
 	// Statistics.
-	totalSent     int64
-	totalBatches  int64
-	totalBytes    int64
-	anomalyCount  int64
+	totalSent    int64
+	totalBatches int64
+	totalBytes   int64
+	anomalyCount int64
 }
 
 // NewVectorUploader creates a vector uploader.
@@ -253,7 +253,9 @@ func DeserializePayload(data []byte) (*UploadPayload, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gzip reader: %w", err)
 	}
-	defer r.Close()
+	defer func() {
+		_ = r.Close()
+	}()
 
 	var payload UploadPayload
 	if err := json.NewDecoder(r).Decode(&payload); err != nil {
@@ -316,11 +318,10 @@ func (vu *VectorUploader) Stats() map[string]interface{} {
 	defer vu.mu.Unlock()
 
 	return map[string]interface{}{
-		"total_sent":     vu.totalSent,
-		"total_batches":  vu.totalBatches,
-		"total_bytes":    vu.totalBytes,
-		"buffer_size":    len(vu.buffer),
-		"anomaly_count":  vu.anomalyCount,
+		"total_sent":    vu.totalSent,
+		"total_batches": vu.totalBatches,
+		"total_bytes":   vu.totalBytes,
+		"buffer_size":   len(vu.buffer),
+		"anomaly_count": vu.anomalyCount,
 	}
 }
-
