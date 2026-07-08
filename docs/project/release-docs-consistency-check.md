@@ -12,6 +12,7 @@ Release: `v1.2.2`
 - `docs/developer/release-notes-v1.2.2.md`
 - `docs/developer/release-readiness.md`
 - `docs/project/documentation-audit.md`
+- `docs/project/commercial-release-checklist.md`
 - `docs/project/release-evidence-v1.2.2.md`
 - `docs/project/project-layout.md`
 - `DEVELOPMENT_PROGRESS.md`

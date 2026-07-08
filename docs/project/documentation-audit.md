@@ -6,6 +6,7 @@ This file groups the current documentation by audience and purpose.
 
 - `README.md` - project overview, navigation, build/test quick start
 - `CHANGELOG.md` - customer-visible release history
+- `docs/getting-started/evaluation.md` - customer evaluation and POC guide
 - `docs/developer/release-notes-v1.2.2.md` - current release notes
 
 ## Legal and Governance
@@ -36,6 +37,7 @@ This file groups the current documentation by audience and purpose.
 - `DEVELOPMENT_PROGRESS.md`
 - `COMMERCIALIZATION_ROADMAP.md`
 - `docs/project/release-evidence-v1.2.2.md`
+- `docs/project/commercial-release-checklist.md`
 
 ## Recommended Reading Paths
 

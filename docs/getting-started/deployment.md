@@ -28,7 +28,7 @@ cat /sys/kernel/security/lsm | grep bpf
 
 # Check kernel version
 uname -r
-# Expected: 鈮?5.11
+# Expected: 5.11+
 
 # Check eBPF features
 bpftool feature probe
@@ -50,9 +50,9 @@ reboot
 # Install dependencies (Ubuntu/Debian)
 apt install -y clang llvm libbpf-dev linux-headers-$(uname -r) build-essential pkg-config
 
-# Install Go 1.22+
-wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
-rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
+# Install Go 1.25+
+wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
 # Install sysbench (for performance testing)

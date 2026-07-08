@@ -1,21 +1,23 @@
 # Getting Started
 
-This section helps you quickly deploy and run ProvidAPT in different environments.
+This section helps you install, evaluate, deploy, and run ProvidAPT in different environments.
 
 ## Documents
 
 | Document | Description |
 | --- | --- |
-| [install.md](install.md) | Installation guide (English) [涓枃鐗圿(install.zh.md) |
-| [install.zh.md](install.zh.md) | 瀹夎鎸囧崡锛堜腑鏂囩増锛?|
-| [deployment.md](deployment.md) | Deployment guide (English) [涓枃鐗圿(deployment.zh.md) |
-| [deployment.zh.md](deployment.zh.md) | 閮ㄧ讲鎸囧崡锛堜腑鏂囩増锛?|
+| [install.md](install.md) | Installation guide |
+| [install.zh.md](install.zh.md) | Chinese installation guide |
+| [deployment.md](deployment.md) | Deployment guide |
+| [deployment.zh.md](deployment.zh.md) | Chinese deployment guide |
+| [evaluation.md](evaluation.md) | Customer evaluation and POC guide |
 
 ## Prerequisites
 
-- Linux kernel 鈮?5.10 (recommended 5.15+)
-- BTF support (`/sys/kernel/btf/vmlinux`)
-- `clang` 鈮?12.0, `libbpf` 鈮?1.0
+- Linux kernel 5.8+; 5.11+ recommended for BPF LSM.
+- BTF support, usually at `/sys/kernel/btf/vmlinux`.
+- `clang` 12+, `llvm-strip`, and `libbpf` 1.0+.
+- Go 1.25+.
 
 ## Quick Commands
 
