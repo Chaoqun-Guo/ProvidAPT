@@ -22,18 +22,18 @@ import (
 
 // Kallsyms holds the parsed symbol table.
 type Kallsyms struct {
-	entries map[string]uint64   // symbol name → address
-	byAddr  map[uint64]string   // address → symbol name
+	entries map[string]uint64 // symbol name → address
+	byAddr  map[uint64]string // address → symbol name
 }
 
 // SymbolType indicates the symbol type (T=t, D=data, etc.)
 type SymbolType string
 
 const (
-	SymbolText  SymbolType = "t"  // .text (local)
-	SymbolTextG SymbolType = "T"  // .text (global)
-	SymbolData  SymbolType = "d"  // .data
-	SymbolDataG SymbolType = "D"  // .data (global)
+	SymbolText  SymbolType = "t" // .text (local)
+	SymbolTextG SymbolType = "T" // .text (global)
+	SymbolData  SymbolType = "d" // .data
+	SymbolDataG SymbolType = "D" // .data (global)
 )
 
 // ReadKallsyms parses /proc/kallsyms into a lookup table.
@@ -43,7 +43,9 @@ func ReadKallsyms() (*Kallsyms, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open kallsyms: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	ks := &Kallsyms{
 		entries: make(map[string]uint64),
@@ -135,10 +137,10 @@ func (ks *Kallsyms) Stats() map[string]int {
 	secHooks := len(ks.LookupPrefix("security_"))
 	bpfSyms := len(ks.LookupPrefix("bpf_"))
 	return map[string]int{
-		"total":             ks.Count(),
-		"security_hooks":    secHooks,
-		"bpf_symbols":       bpfSyms,
-		"tracepoints":       len(ks.LookupPrefix("__tracepoint_")),
+		"total":          ks.Count(),
+		"security_hooks": secHooks,
+		"bpf_symbols":    bpfSyms,
+		"tracepoints":    len(ks.LookupPrefix("__tracepoint_")),
 	}
 }
 

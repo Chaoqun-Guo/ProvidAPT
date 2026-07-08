@@ -37,9 +37,9 @@ type BPFProgInfo struct {
 
 // BPFStats collects kernel-side eBPF performance data.
 type BPFStats struct {
-	Programs []BPFProgInfo `json:"programs"`
-	TotalRuns int64        `json:"total_runs"`
-	TotalTime int64        `json:"total_time_ns"`
+	Programs  []BPFProgInfo `json:"programs"`
+	TotalRuns int64         `json:"total_runs"`
+	TotalTime int64         `json:"total_time_ns"`
 }
 
 // CollectBPFStats queries bpftool for eBPF program statistics.
@@ -147,12 +147,12 @@ func extractAfter(s, prefix string) int64 {
 
 // StorageStats tracks RocksDB write performance.
 type StorageStats struct {
-	mu            sync.Mutex
-	nodesWritten  int64
-	edgesWritten  int64
-	totalLatency  int64 // nanoseconds
-	writeOps      int64
-	lastReset     time.Time
+	mu           sync.Mutex
+	nodesWritten int64
+	edgesWritten int64
+	totalLatency int64 // nanoseconds
+	writeOps     int64
+	lastReset    time.Time
 
 	// Rolling window
 	windowCount   int64
@@ -266,7 +266,9 @@ func CollectSystemStats() *SystemStats {
 	if fdDir, err := os.Open("/proc/self/fd"); err == nil {
 		fds, _ := fdDir.Readdirnames(-1)
 		stats.FDCount = len(fds)
-		fdDir.Close()
+		if err := fdDir.Close(); err != nil {
+			log.Printf("[profile] close fd dir failed: %v", err)
+		}
 	}
 
 	// CPU usage (simplified: based on process uptime and CPU time)

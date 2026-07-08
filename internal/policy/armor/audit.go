@@ -7,14 +7,14 @@
 // It protects against attacks that try to disable or bypass
 // eBPF monitoring, including:
 //
-//   1. Map integrity audit — detect unauthorised modifications
-//      to BPF maps via iter programs.
+//  1. Map integrity audit — detect unauthorised modifications
+//     to BPF maps via iter programs.
 //
-//   2. Kernel symbol monitoring — detect unknown modules or
-//      ftrace hooks that may be intercepting data flow.
+//  2. Kernel symbol monitoring — detect unknown modules or
+//     ftrace hooks that may be intercepting data flow.
 //
-//   3. Shadow monitoring — two mutually-watching eBPF modules
-//      that detect if the primary monitor is tampered with.
+//  3. Shadow monitoring — two mutually-watching eBPF modules
+//     that detect if the primary monitor is tampered with.
 package armor
 
 import (
@@ -104,7 +104,9 @@ func (ma *MapAuditor) AuditAgentMap() ([]AuditRecord, error) {
 		}
 		// Extract PID from "key: 1234  value: 1"
 		var pid uint32
-		fmt.Sscanf(line, `key: %d`, &pid)
+		if _, err := fmt.Sscanf(line, `key: %d`, &pid); err != nil {
+			continue
+		}
 
 		record := AuditRecord{
 			MapName:  "agent_pids",
@@ -145,7 +147,7 @@ func (ma *MapAuditor) Anomalies() []AuditRecord {
 				"match":    a.Match,
 			})
 		}
-		ma.auditStore.Log(audit.Entry{
+		if err := ma.auditStore.Log(audit.Entry{
 			Category: audit.CatSecurity,
 			Severity: "WARNING",
 			Message:  fmt.Sprintf("BPF map audit: %d anomalies detected", len(out)),
@@ -153,7 +155,9 @@ func (ma *MapAuditor) Anomalies() []AuditRecord {
 			Details: map[string]interface{}{
 				"anomalies": details,
 			},
-		})
+		}); err != nil {
+			log.Printf("[armor] audit log failed: %v", err)
+		}
 	}
 
 	return out
@@ -203,7 +207,11 @@ func (km *KallsymsMonitor) Capture() (*KallsymsSnapshot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open kallsyms: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("[armor] close kallsyms failed: %v", err)
+		}
+	}()
 
 	snap := &KallsymsSnapshot{
 		Symbols: make(map[string]uint64),
@@ -218,7 +226,9 @@ func (km *KallsymsMonitor) Capture() (*KallsymsSnapshot, error) {
 			continue
 		}
 		var addr uint64
-		fmt.Sscanf(parts[0], "%x", &addr)
+		if _, err := fmt.Sscanf(parts[0], "%x", &addr); err != nil {
+			continue
+		}
 		if addr != 0 {
 			snap.Symbols[parts[2]] = addr
 		}

@@ -118,7 +118,11 @@ func TestServerStats(t *testing.T) {
 	ts := httptest.NewServer(s.mux)
 	defer ts.Close()
 
-	resp, _ := ts.Client().Get(ts.URL + "/api/v1/stats")
+	resp, err := ts.Client().Get(ts.URL + "/api/v1/stats")
+	if err != nil {
+		t.Fatalf("stats request failed: %v", err)
+	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		t.Errorf("stats status = %d", resp.StatusCode)
 	}
@@ -157,15 +161,15 @@ func TestStitcherLateralMovement(t *testing.T) {
 
 	// Agent-a connects to agent-b's IP on SSH port
 	st.IngestSocketEvent(&SocketEvent{
-		AgentID:     "agent-a",
-		PID:         100,
-		Comm:        "ssh",
-		DstIP:       "10.0.0.2",
-		DstPort:     22,
-		Protocol:    6,
-		ConnStatus:  "ESTABLISHED",
-		SeqHash:     0xDEADBEEF,
-		Timestamp:   now.UnixNano(),
+		AgentID:    "agent-a",
+		PID:        100,
+		Comm:       "ssh",
+		DstIP:      "10.0.0.2",
+		DstPort:    22,
+		Protocol:   6,
+		ConnStatus: "ESTABLISHED",
+		SeqHash:    0xDEADBEEF,
+		Timestamp:  now.UnixNano(),
 	})
 
 	edges := st.StitchedEdges()
@@ -214,7 +218,10 @@ func TestConfidenceCalculation(t *testing.T) {
 }
 
 func TestIsNetworkService(t *testing.T) {
-	tests := []struct{ comm string; want bool }{
+	tests := []struct {
+		comm string
+		want bool
+	}{
 		{"sshd", true},
 		{"nginx", true},
 		{"bash", false},

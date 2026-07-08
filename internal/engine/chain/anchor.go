@@ -6,8 +6,8 @@ package chain
 import (
 	"fmt"
 	"log"
-	"sync"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -63,8 +63,8 @@ func NewAnchoringManager(cfg *AnchorConfig, chain *ChainStore) *AnchoringManager
 		cfg = DefaultAnchorConfig()
 	}
 	return &AnchoringManager{
-		cfg:   cfg,
-		chain: chain,
+		cfg:    cfg,
+		chain:  chain,
 		stopCh: make(chan struct{}),
 	}
 }
@@ -112,7 +112,9 @@ func (am *AnchoringManager) anchor() {
 			if _, err := f.WriteString(msg); err != nil {
 				log.Printf("[anchor] kmsg write failed: %v", err)
 			}
-			f.Close()
+			if err := f.Close(); err != nil {
+				log.Printf("[anchor] kmsg close failed: %v", err)
+			}
 			log.Printf("[anchor] wrote to /dev/kmsg: root=%s len=%d", rootHash[:16], chainLen)
 			am.addAnchor(now, rootHash, chainLen, "kmsg")
 		} else {
@@ -122,7 +124,9 @@ func (am *AnchoringManager) anchor() {
 				if _, err := f.WriteString(msg); err != nil {
 					log.Printf("[anchor] fallback write failed: %v", err)
 				}
-				f.Close()
+				if err := f.Close(); err != nil {
+					log.Printf("[anchor] fallback close failed: %v", err)
+				}
 				log.Printf("[anchor] wrote to anchor.log: root=%s", rootHash[:16])
 				am.addAnchor(now, rootHash, chainLen, "fallback")
 			}

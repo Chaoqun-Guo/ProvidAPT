@@ -248,7 +248,9 @@ func (ac *AdaptiveController) OnAlert(pid int, score float64, reason string) Lev
 			ps.DowngradeAt = time.Now().Add(5 * time.Minute)
 		}
 		if ac.bpfMap != nil {
-			ac.bpfMap.Put(uint32(pid), uint32(LevelInvestigating))
+			if err := ac.bpfMap.Put(uint32(pid), uint32(LevelInvestigating)); err != nil {
+				log.Printf("[adaptive] bpf map put failed for pid=%d: %v", pid, err)
+			}
 		}
 		log.Printf("[adaptive] FAST UPGRADE pid=%d → INVESTIGATING (score=%.1f, reason=%s)",
 			pid, score, reason)
