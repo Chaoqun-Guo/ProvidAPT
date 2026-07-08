@@ -18,9 +18,9 @@ type memStore struct {
 	data map[string][]byte
 }
 
-func newMemStore() *memStore { return &memStore{data: make(map[string][]byte)} }
+func newMemStore() *memStore                           { return &memStore{data: make(map[string][]byte)} }
 func (m *memStore) Put(key string, value []byte) error { m.data[key] = value; return nil }
-func (m *memStore) Get(key string) ([]byte, error) { v, _ := m.data[key]; return v, nil }
+func (m *memStore) Get(key string) ([]byte, error)     { v, _ := m.data[key]; return v, nil }
 
 // ── Dump tests ─────────────────────────────────────────────
 
@@ -55,7 +55,10 @@ func TestReadProcessMemory(t *testing.T) {
 }
 
 func TestFormatDumpSize(t *testing.T) {
-	tests := []struct{ bytes int; want string }{
+	tests := []struct {
+		bytes int
+		want  string
+	}{
 		{500, "500 B"},
 		{2048, "2.0 KB"},
 		{5 * 1024 * 1024, "5.0 MB"},
@@ -94,8 +97,8 @@ func TestSaveCapture(t *testing.T) {
 			{FD: 1, Target: "pipe:[12345]"},
 		},
 		Environment: EnvCapture{
-			Raw:    []string{"PATH=/usr/bin", "HOME=/root"},
-			Count:  2,
+			Raw:   []string{"PATH=/usr/bin", "HOME=/root"},
+			Count: 2,
 		},
 	}
 	dir := t.TempDir()

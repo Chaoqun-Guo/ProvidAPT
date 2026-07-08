@@ -76,7 +76,7 @@ type AlertSummary struct {
 	GraphPath   string // summary of the provenance path
 }
 
-// ResponseResult summarises what was done.
+// ResponseResult summarizes what was done.
 type ResponseResult struct {
 	AlertID     string          `json:"alert_id"`
 	Triggered   bool            `json:"triggered"`

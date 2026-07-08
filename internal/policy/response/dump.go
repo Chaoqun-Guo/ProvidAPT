@@ -161,7 +161,7 @@ func readProcessMemory(pid int, addr uint64, buf []byte) (int, error) {
 		0,
 	)
 	if errno != 0 {
-		return 0, fmt.Errorf("process_vm_readv: %v", errno)
+		return 0, fmt.Errorf("process_vm_readv: %w", errno)
 	}
 	return int(n), nil
 }
@@ -174,7 +174,7 @@ func SaveDump(outDir string, pid int, regions map[string][]byte) (string, error)
 	}
 
 	for name, data := range regions {
-		// Sanitise filename
+		// Sanitize filename
 		fname := strings.ReplaceAll(name, "/", "_")
 		fname = strings.ReplaceAll(fname, " ", "_")
 		fname = strings.ReplaceAll(fname, "..", "_")
