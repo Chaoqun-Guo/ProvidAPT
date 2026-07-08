@@ -100,9 +100,13 @@ func (bw *BatchWriter) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				bw.Flush()
+				if err := bw.Flush(); err != nil {
+					log.Printf("[batchwriter] periodic flush failed: %v", err)
+				}
 			case <-bw.stopCh:
-				bw.Flush()
+				if err := bw.Flush(); err != nil {
+					log.Printf("[batchwriter] final flush failed: %v", err)
+				}
 				return
 			}
 		}

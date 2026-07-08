@@ -52,7 +52,7 @@ func (h *Healer) recordReloadFailure(msg string) {
 	}
 
 	if h.auditStore != nil {
-		h.auditStore.Log(audit.Entry{
+		if err := h.auditStore.Log(audit.Entry{
 			Category: audit.CatIntegrity,
 			Severity: "CRITICAL",
 			Message:  msg,
@@ -61,7 +61,9 @@ func (h *Healer) recordReloadFailure(msg string) {
 				"consecutive_failures": h.cbFailures,
 				"circuit_breaker_open": !h.cbTrippedAt.IsZero(),
 			},
-		})
+		}); err != nil {
+			log.Printf("[heal] audit log failed: %v", err)
+		}
 	}
 }
 

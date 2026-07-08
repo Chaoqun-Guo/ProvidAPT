@@ -15,7 +15,7 @@ import (
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
-// ─── Constants ──────────────────────────────────────────────
+// 鈹€鈹€鈹€ Constants 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // MergeWindow is the time window for edge deduplication.
 const MergeWindow = 5 * time.Second
@@ -28,16 +28,16 @@ var neverMergeTypes = map[uint32]bool{
 	1:  true, // EV_PROCESS_FORK
 }
 
-// ─── CachedEdge ─────────────────────────────────────────────
+// 鈹€鈹€鈹€ CachedEdge 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // CachedEdge represents an edge in the merge cache.
 type CachedEdge struct {
-	Source        string
-	Target        string
-	Relation      string
-	Count         int64
-	FirstSeen     time.Time
-	LastSeen      time.Time
+	Source    string
+	Target    string
+	Relation  string
+	Count     int64
+	FirstSeen time.Time
+	LastSeen  time.Time
 
 	// list element for LRU eviction
 	element *list.Element
@@ -48,18 +48,18 @@ func (ce *CachedEdge) Key() string {
 	return fmt.Sprintf("%s|%s|%s", ce.Source, ce.Target, ce.Relation)
 }
 
-// ─── EdgeReducer ────────────────────────────────────────────
+// 鈹€鈹€鈹€ EdgeReducer 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // EdgeReducer implements sliding-window edge deduplication.
 // It maintains an LRU cache of recently seen edges and merges
 // duplicates within a 5-second window.
 type EdgeReducer struct {
-	mu       sync.Mutex
-	cache    map[string]*CachedEdge
-	lru      *list.List
-	maxSize  int
-	window   time.Duration
-	stats    ReducerStats
+	mu      sync.Mutex
+	cache   map[string]*CachedEdge
+	lru     *list.List
+	maxSize int
+	window  time.Duration
+	stats   ReducerStats
 
 	// Flush callback: called for each edge that needs persistence.
 	flushFn func(*CachedEdge) error
@@ -67,9 +67,9 @@ type EdgeReducer struct {
 
 // ReducerStats tracks performance.
 type ReducerStats struct {
-	TotalEdges    int64
-	MergedEdges   int64
-	FlushedEdges  int64
+	TotalEdges     int64
+	MergedEdges    int64
+	FlushedEdges   int64
 	CacheEvictions int64
 }
 
@@ -94,7 +94,7 @@ func NewEdgeReducer(maxSize int, window time.Duration, flushFn func(*CachedEdge)
 	}
 }
 
-// ─── Core logic ─────────────────────────────────────────────
+// 鈹€鈹€鈹€ Core logic 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // Ingest processes an event and decides whether to merge or persist.
 //
@@ -110,7 +110,7 @@ func (er *EdgeReducer) Ingest(evt *pb.Event) (*CachedEdge, bool, error) {
 
 	// Never merge critical events
 	if neverMergeTypes[evt.Type] {
-		log.Printf("[reducer] critical event type=%d — no merge", evt.Type)
+		log.Printf("[reducer] critical event type=%d 鈥?no merge", evt.Type)
 		// For critical events, still pass through but force flush
 		edge := &CachedEdge{
 			Source:   fmt.Sprintf("p:%d", evt.Pid),
@@ -144,9 +144,10 @@ func (er *EdgeReducer) Ingest(evt *pb.Event) (*CachedEdge, bool, error) {
 			er.stats.MergedEdges++
 			return existing, true, nil
 		}
-
-		// Outside window — flush old, create new
-		er.flushLocked(existing)
+		// Outside window: flush old, create new
+		if err := er.flushLocked(existing); err != nil {
+			return nil, false, err
+		}
 	}
 
 	// Create new cache entry
@@ -164,7 +165,9 @@ func (er *EdgeReducer) Ingest(evt *pb.Event) (*CachedEdge, bool, error) {
 		back := er.lru.Back()
 		if back != nil {
 			evict := back.Value.(*CachedEdge)
-			er.flushLocked(evict)
+			if err := er.flushLocked(evict); err != nil {
+				return nil, false, err
+			}
 			delete(er.cache, evict.Key())
 			er.lru.Remove(back)
 			er.stats.CacheEvictions++
@@ -178,7 +181,7 @@ func (er *EdgeReducer) Ingest(evt *pb.Event) (*CachedEdge, bool, error) {
 	return ce, false, nil
 }
 
-// ─── Flush ──────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Flush 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // FlushAll drains the cache and persists all remaining edges.
 func (er *EdgeReducer) FlushAll() int {
@@ -228,7 +231,7 @@ func (er *EdgeReducer) flushLocked(ce *CachedEdge) error {
 	return er.flushFn(ce)
 }
 
-// ─── Event mapping ──────────────────────────────────────────
+// 鈹€鈹€鈹€ Event mapping 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 // targetFor computes the target node ID from an event.
 func (er *EdgeReducer) targetFor(evt *pb.Event) string {
@@ -261,7 +264,7 @@ func (er *EdgeReducer) relationFor(evt *pb.Event) string {
 	}
 }
 
-// ─── Helpers ────────────────────────────────────────────────
+// 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func intToIP(ip uint32) string {
 	return fmt.Sprintf("%d.%d.%d.%d", ip>>24, (ip>>16)&0xFF, (ip>>8)&0xFF, ip&0xFF)

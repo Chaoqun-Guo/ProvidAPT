@@ -93,7 +93,9 @@ func (ws *WebhookSender) Send(summary *AlertSummary) error {
 			time.Sleep(time.Second * time.Duration(i+1))
 			continue
 		}
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[webhook] response body close failed: %v", err)
+		}
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			log.Printf("[webhook] alert sent to %s (status=%d)", ws.cfg.URL, resp.StatusCode)
@@ -288,7 +290,7 @@ func (ap *AlertPipeline) Tick(graph *provenance.Graph) {
 			log.Printf("[alert] webhook error: %v", err)
 		}
 		log.Printf("[alert] %s", summary.Text())
-			ap.sendToAlertCh(summary)
+		ap.sendToAlertCh(summary)
 	}
 
 	// 5. Send storm summary if any alerts were suppressed
@@ -297,7 +299,7 @@ func (ap *AlertPipeline) Tick(graph *provenance.Graph) {
 			log.Printf("[alert] storm webhook error: %v", err)
 		}
 		log.Printf("[alert] STORM: %s", stormSummary.Description)
-			ap.sendToAlertCh(stormSummary)
+		ap.sendToAlertCh(stormSummary)
 	}
 }
 

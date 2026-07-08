@@ -87,7 +87,7 @@ type Healer struct {
 	cbFirstFailAt time.Time // first failure in the current window
 
 	// eBPF object collection loaded from .o file
-	bpfSpec  *ebpf.CollectionSpec // loaded spec for program/map verification
+	bpfSpec  *ebpf.CollectionSpec     // loaded spec for program/map verification
 	bpfProgs map[string]*ebpf.Program // loaded programs by section name
 	bpfMaps  map[string]*ebpf.Map     // loaded maps by name
 }
@@ -245,7 +245,7 @@ func (h *Healer) runCheck() {
 		log.Printf("[heal] CRITICAL: %d eBPF programs missing: %v", len(missing), missing)
 
 		if h.auditStore != nil {
-			h.auditStore.Log(audit.Entry{
+			if err := h.auditStore.Log(audit.Entry{
 				Category: audit.CatIntegrity,
 				Severity: "CRITICAL",
 				Message:  fmt.Sprintf("eBPF programs missing: %s", strings.Join(missing, ", ")),
@@ -254,7 +254,9 @@ func (h *Healer) runCheck() {
 					"missing": missing,
 					"checks":  h.checkCnt,
 				},
-			})
+			}); err != nil {
+				log.Printf("[heal] audit log failed: %v", err)
+			}
 		}
 	}
 	h.mu.Unlock()
@@ -352,7 +354,7 @@ func (h *Healer) reloadPrograms() {
 	})
 
 	if h.auditStore != nil {
-		h.auditStore.Log(audit.Entry{
+		if err := h.auditStore.Log(audit.Entry{
 			Category: audit.CatIntegrity,
 			Severity: "WARNING",
 			Message:  "Initiating eBPF program reload",
@@ -360,7 +362,9 @@ func (h *Healer) reloadPrograms() {
 			Details: map[string]interface{}{
 				"reload_count": h.reloadCnt,
 			},
-		})
+		}); err != nil {
+			log.Printf("[heal] audit log failed: %v", err)
+		}
 	}
 
 	// Try cilium/ebpf library reload first.

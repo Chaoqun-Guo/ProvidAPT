@@ -25,26 +25,26 @@ import (
 
 // AppProbe describes a single uprobe attachment point.
 type AppProbe struct {
-	AppName string // "nginx", "apache2", "mysql", "go"
-	Symbol  string // function to probe (e.g., "SSL_read")
-	Type    string // "entry", "return"
+	AppName string   // "nginx", "apache2", "mysql", "go"
+	Symbol  string   // function to probe (e.g., "SSL_read")
+	Type    string   // "entry", "return"
 	Args    []ArgDef // function arguments to capture
 }
 
 // ArgDef describes a function argument to capture.
 type ArgDef struct {
-	Index  int    // argument position (0-based)
-	Name   string // semantic name (e.g., "buf", "len", "fd")
-	IsStr  bool   // true if this is a string pointer
-	Size   int    // max bytes to read for strings
+	Index int    // argument position (0-based)
+	Name  string // semantic name (e.g., "buf", "len", "fd")
+	IsStr bool   // true if this is a string pointer
+	Size  int    // max bytes to read for strings
 }
 
 // DetectedApp holds information about a running application.
 type DetectedApp struct {
-	PID      int
-	AppName  string
-	Binary   string // path to the binary (for uprobe)
-	Probes   []AppProbe
+	PID     int
+	AppName string
+	Binary  string // path to the binary (for uprobe)
+	Probes  []AppProbe
 }
 
 // ProbeManager handles uprobe injection and lifecycle.
@@ -214,6 +214,8 @@ func (pm *ProbeManager) probesForApp(appName string) []AppProbe {
 
 func parsePID(s string) int {
 	var pid int
-	fmt.Sscanf(s, "%d", &pid)
+	if _, err := fmt.Sscanf(s, "%d", &pid); err != nil {
+		return 0
+	}
 	return pid
 }

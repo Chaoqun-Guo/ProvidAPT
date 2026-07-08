@@ -11,19 +11,19 @@
 //
 // Architecture:
 //
-//   RingBuf → Pipeline.AddEvent()
-//               │
-//               ├→ cache.LRU (hot nodes)
-//               │    └→ store.Store (cold nodes on eviction)
-//               │
-//               ├→ pipeline.MergeWindow (5s window dedup)
-//               │    └→ store.Store (edges on flush)
-//               │
-//               ├→ provenance.Graph (in-memory DAG)
-//               │
-//               └→ pipeline.PressureMonitor (background)
-//                      ├→ force eviction + flush at 70%
-//                      └→ request slow-down at 85%
+//	RingBuf → Pipeline.AddEvent()
+//	            │
+//	            ├→ cache.LRU (hot nodes)
+//	            │    └→ store.Store (cold nodes on eviction)
+//	            │
+//	            ├→ pipeline.MergeWindow (5s window dedup)
+//	            │    └→ store.Store (edges on flush)
+//	            │
+//	            ├→ provenance.Graph (in-memory DAG)
+//	            │
+//	            └→ pipeline.PressureMonitor (background)
+//	                   ├→ force eviction + flush at 70%
+//	                   └→ request slow-down at 85%
 package pipeline
 
 import (
@@ -31,11 +31,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/cache"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/store"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/cache"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/store"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
 )
 
@@ -110,13 +110,13 @@ func New(graph *provenance.Graph, cfg *Config) (*Pipeline, error) {
 	}
 
 	p := &Pipeline{
-		graph:     graph,
-		store:     st,
-		cfg:       cfg,
-		pauseCh:   make(chan struct{}, 1),
-		resumeCh:  make(chan struct{}, 1),
+		graph:       graph,
+		store:       st,
+		cfg:         cfg,
+		pauseCh:     make(chan struct{}, 1),
+		resumeCh:    make(chan struct{}, 1),
 		flushTicker: time.NewTicker(cfg.FlushInterval),
-		stopCh:    make(chan struct{}),
+		stopCh:      make(chan struct{}),
 	}
 
 	// LRU cache: eviction persists nodes to RocksDB
@@ -128,7 +128,9 @@ func New(graph *provenance.Graph, cfg *Config) (*Pipeline, error) {
 		return p.store.PutNode(n)
 	})
 	if err != nil {
-		st.Close()
+		if closeErr := st.Close(); closeErr != nil {
+			log.Printf("[pipeline] store close failed after init error: %v", closeErr)
+		}
 		return nil, err
 	}
 
@@ -282,7 +284,7 @@ func (p *Pipeline) onHighPressure() {
 	if !p.paused {
 		p.paused = true
 		p.pauseCh <- struct{}{}
-	metrics.PipelineBackpressure.Inc()
+		metrics.PipelineBackpressure.Inc()
 		log.Printf("[pipeline] HIGH PRESSURE — pausing ingestion")
 	}
 	p.mu.Unlock()
@@ -362,10 +364,10 @@ func (p *Pipeline) Stats() map[string]interface{} {
 	paused := p.paused
 	p.mu.Unlock()
 	return map[string]interface{}{
-		"cache":   p.hotCache.Stats(),
-		"merger":  p.merger.Stats(),
-		"store":   p.store.Stats(),
-		"graph":   p.graph.Stats(),
-		"paused":  paused,
+		"cache":  p.hotCache.Stats(),
+		"merger": p.merger.Stats(),
+		"store":  p.store.Stats(),
+		"graph":  p.graph.Stats(),
+		"paused": paused,
 	}
 }
