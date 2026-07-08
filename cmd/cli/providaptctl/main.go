@@ -83,6 +83,9 @@ EXAMPLES
 
     providaptctl -release-check -release-checksums dist/checksums.txt
         Validate release artifact checksum manifest format.
+
+    providaptctl -release-check -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json
+        Validate SPDX or CycloneDX SBOM evidence files.
 `)
 }
 
@@ -130,6 +133,7 @@ func main() {
 		evidencePath  = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
 		waiverPath    = flag.String("release-waivers", "", "Release warning waiver JSON file")
 		checksumsPath = flag.String("release-checksums", "", "Release artifact checksums file")
+		sbomPaths     = flag.String("release-sbom", "", "Release SBOM JSON file(s), separated by comma or semicolon")
 		releaseOut    = flag.String("release-check-out", "", "Write release check report (.md or .json)")
 	)
 	flag.Usage = usage
@@ -183,7 +187,7 @@ func main() {
 		cmdConfigCheck(*cfgPath)
 		os.Exit(0)
 	case *releaseCheck:
-		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *checksumsPath, *releaseOut))
+		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *checksumsPath, splitReleasePaths(*sbomPaths), *releaseOut))
 	case *backupFlag:
 		cmdBackup(*cfgPath, *backupOut)
 		os.Exit(0)
@@ -421,12 +425,13 @@ func cmdDiagnose(outDir string) {
 	t.Render()
 }
 
-func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, reportPath string) int {
+func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath string, sbomPaths []string, reportPath string) int {
 	report := releasecheck.Run(releasecheck.Options{
 		ConfigPath:    cfgPath,
 		EvidencePath:  evidencePath,
 		WaiverPath:    waiverPath,
 		ChecksumsPath: checksumsPath,
+		SBOMPaths:     sbomPaths,
 		Version:       version.Version,
 		Commit:        version.Commit,
 		BuildDate:     version.Date,
@@ -489,6 +494,22 @@ func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, reportPat
 		clioutput.Printf("%s\n", clioutput.Okf("Release check report written: %s", reportPath))
 	}
 	return 0
+}
+
+func splitReleasePaths(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';'
+	})
+	paths := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if path := strings.TrimSpace(field); path != "" {
+			paths = append(paths, path)
+		}
+	}
+	return paths
 }
 
 func cmdPurge(cfgPath, mode, cutoff string, maxBytes int64, dryRun bool) {

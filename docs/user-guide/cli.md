@@ -42,6 +42,7 @@ providaptctl -release-check \
   -release-evidence docs/project/release-evidence-v1.2.2.md \
   -release-waivers build/release-waivers.json \
   -release-checksums dist/checksums.txt \
+  -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json \
   -release-check-out build/release-readiness.md \
   -json
 ```
@@ -54,6 +55,9 @@ to active `WARN` checks; expired or malformed waivers fail the release check.
 
 `-release-checksums` validates that the release checksum manifest exists,
 contains at least one artifact entry, and uses `<sha256> <artifact>` rows.
+
+`-release-sbom` validates one or more SPDX/CycloneDX JSON SBOM files. Separate
+multiple paths with commas or semicolons.
 
 ```json
 {

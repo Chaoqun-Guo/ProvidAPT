@@ -156,7 +156,7 @@ func TestCmdReleaseCheckReturnCodes(t *testing.T) {
 	if err := os.WriteFile(goodCfg, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if code := cmdReleaseCheck(goodCfg, "", "", "", ""); code != 0 {
+	if code := cmdReleaseCheck(goodCfg, "", "", "", nil, ""); code != 0 {
 		t.Fatalf("good release check code = %d, want 0", code)
 	}
 
@@ -164,7 +164,7 @@ func TestCmdReleaseCheckReturnCodes(t *testing.T) {
 	if err := os.WriteFile(badCfg, []byte("output:\n  format: xml\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if code := cmdReleaseCheck(badCfg, "", "", "", ""); code == 0 {
+	if code := cmdReleaseCheck(badCfg, "", "", "", nil, ""); code == 0 {
 		t.Fatal("bad release check should return non-zero")
 	}
 }
@@ -176,11 +176,24 @@ func TestCmdReleaseCheckWritesReport(t *testing.T) {
 	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if code := cmdReleaseCheck(cfgPath, "", "", "", reportPath); code != 0 {
+	if code := cmdReleaseCheck(cfgPath, "", "", "", nil, reportPath); code != 0 {
 		t.Fatalf("release check code = %d, want 0", code)
 	}
 	if _, err := os.Stat(reportPath); err != nil {
 		t.Fatalf("report not written: %v", err)
+	}
+}
+
+func TestSplitReleasePaths(t *testing.T) {
+	got := splitReleasePaths(" dist/sbom.spdx.json, dist/sbom.cdx.json; ")
+	want := []string{"dist/sbom.spdx.json", "dist/sbom.cdx.json"}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("path[%d] = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
 

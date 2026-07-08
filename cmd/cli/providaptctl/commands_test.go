@@ -138,12 +138,13 @@ func TestFlagParsingDiagnose(t *testing.T) {
 }
 
 func TestFlagParsingReleaseCheck(t *testing.T) {
-	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-waivers", "/tmp/waivers.json", "-release-checksums", "/tmp/checksums.txt", "-release-check-out", "/tmp/report.md"}
+	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-waivers", "/tmp/waivers.json", "-release-checksums", "/tmp/checksums.txt", "-release-sbom", "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json", "-release-check-out", "/tmp/report.md"}
 	flag.CommandLine = flag.NewFlagSet("providaptctl", flag.ContinueOnError)
 	releaseCheck := flag.Bool("release-check", false, "")
 	evidencePath := flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "")
 	waiverPath := flag.String("release-waivers", "", "")
 	checksumsPath := flag.String("release-checksums", "", "")
+	sbomPaths := flag.String("release-sbom", "", "")
 	reportPath := flag.String("release-check-out", "", "")
 	flag.Parse()
 	if !*releaseCheck {
@@ -157,6 +158,9 @@ func TestFlagParsingReleaseCheck(t *testing.T) {
 	}
 	if *checksumsPath != "/tmp/checksums.txt" {
 		t.Errorf("got release-checksums=%q", *checksumsPath)
+	}
+	if *sbomPaths != "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json" {
+		t.Errorf("got release-sbom=%q", *sbomPaths)
 	}
 	if *reportPath != "/tmp/report.md" {
 		t.Errorf("got release-check-out=%q", *reportPath)

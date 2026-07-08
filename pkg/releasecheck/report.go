@@ -57,6 +57,9 @@ func RenderMarkdown(report Report) string {
 	if report.ChecksumsPath != "" {
 		fmt.Fprintf(&b, "| Checksums Path | `%s` |\n", escapePipe(report.ChecksumsPath))
 	}
+	if len(report.SBOMPaths) > 0 {
+		fmt.Fprintf(&b, "| SBOM Paths | `%s` |\n", escapePipe(strings.Join(report.SBOMPaths, ", ")))
+	}
 	fmt.Fprintf(&b, "| Version | `%s` |\n", escapePipe(report.Version))
 	fmt.Fprintf(&b, "| Commit | `%s` |\n", escapePipe(report.Commit))
 	fmt.Fprintf(&b, "| Build Date | `%s` |\n", escapePipe(report.BuildDate))

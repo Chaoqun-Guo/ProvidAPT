@@ -265,6 +265,72 @@ func TestRunFailsMalformedChecksums(t *testing.T) {
 	}
 }
 
+func TestRunValidatesSBOMs(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	spdxPath := filepath.Join(dir, "sbom.spdx.json")
+	cdxPath := filepath.Join(dir, "sbom.cdx.json")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(spdxPath, []byte(`{"spdxVersion":"SPDX-2.3","packages":[{"name":"providapt"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cdxPath, []byte(`{"bomFormat":"CycloneDX","specVersion":"1.5","components":[{"name":"providapt"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath: cfgPath,
+		SBOMPaths:  []string{spdxPath, cdxPath},
+		Version:    "1.2.2",
+		Commit:     "abcdef0",
+		BuildDate:  "2026-07-08T00:00:00Z",
+	})
+
+	matches := 0
+	for _, check := range report.Checks {
+		if check.Name == "release_sbom" && check.Status == StatusPass {
+			matches++
+		}
+	}
+	if matches != 2 {
+		t.Fatalf("release_sbom pass count = %d, want 2: %+v", matches, report.Checks)
+	}
+	if report.HasFailures() {
+		t.Fatalf("unexpected failures: %+v", report.Checks)
+	}
+}
+
+func TestRunFailsUnrecognizedSBOM(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	sbomPath := filepath.Join(dir, "sbom.json")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sbomPath, []byte(`{"name":"not an sbom"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath: cfgPath,
+		SBOMPaths:  []string{sbomPath},
+		Version:    "1.2.2",
+		Commit:     "abcdef0",
+		BuildDate:  "2026-07-08T00:00:00Z",
+	})
+
+	if !report.HasFailures() {
+		t.Fatalf("expected unrecognized SBOM failure: %+v", report.Checks)
+	}
+	if findCheck(t, report, "release_sbom").Status != StatusFail {
+		t.Fatalf("expected SBOM fail: %+v", report.Checks)
+	}
+}
+
 func findCheck(t *testing.T, report Report, name string) Check {
 	t.Helper()
 	for _, check := range report.Checks {

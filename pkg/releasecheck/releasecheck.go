@@ -27,6 +27,7 @@ type Options struct {
 	EvidencePath  string
 	WaiverPath    string
 	ChecksumsPath string
+	SBOMPaths     []string
 	Version       string
 	Commit        string
 	BuildDate     string
@@ -56,6 +57,7 @@ type Report struct {
 	EvidencePath    string    `json:"evidence_path,omitempty"`
 	WaiverPath      string    `json:"waiver_path,omitempty"`
 	ChecksumsPath   string    `json:"checksums_path,omitempty"`
+	SBOMPaths       []string  `json:"sbom_paths,omitempty"`
 	Version         string    `json:"version"`
 	Commit          string    `json:"commit"`
 	BuildDate       string    `json:"build_date"`
@@ -76,6 +78,7 @@ func Run(opts Options) Report {
 		EvidencePath:  opts.EvidencePath,
 		WaiverPath:    opts.WaiverPath,
 		ChecksumsPath: opts.ChecksumsPath,
+		SBOMPaths:     opts.SBOMPaths,
 		Version:       opts.Version,
 		Commit:        opts.Commit,
 		BuildDate:     opts.BuildDate,
@@ -88,6 +91,7 @@ func Run(opts Options) Report {
 	}
 	checkReleaseEvidence(&report, opts.EvidencePath)
 	checkChecksums(&report, opts.ChecksumsPath)
+	checkSBOMs(&report, opts.SBOMPaths)
 	applyWaivers(&report, opts.WaiverPath)
 
 	report.ReleaseReady = report.Failed == 0
