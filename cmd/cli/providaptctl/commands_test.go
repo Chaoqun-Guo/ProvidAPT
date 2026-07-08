@@ -138,10 +138,11 @@ func TestFlagParsingDiagnose(t *testing.T) {
 }
 
 func TestFlagParsingReleaseCheck(t *testing.T) {
-	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-check-out", "/tmp/report.md"}
+	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-waivers", "/tmp/waivers.json", "-release-check-out", "/tmp/report.md"}
 	flag.CommandLine = flag.NewFlagSet("providaptctl", flag.ContinueOnError)
 	releaseCheck := flag.Bool("release-check", false, "")
 	evidencePath := flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "")
+	waiverPath := flag.String("release-waivers", "", "")
 	reportPath := flag.String("release-check-out", "", "")
 	flag.Parse()
 	if !*releaseCheck {
@@ -149,6 +150,9 @@ func TestFlagParsingReleaseCheck(t *testing.T) {
 	}
 	if *evidencePath != "/tmp/evidence.md" {
 		t.Errorf("got release-evidence=%q", *evidencePath)
+	}
+	if *waiverPath != "/tmp/waivers.json" {
+		t.Errorf("got release-waivers=%q", *waiverPath)
 	}
 	if *reportPath != "/tmp/report.md" {
 		t.Errorf("got release-check-out=%q", *reportPath)

@@ -40,12 +40,29 @@ For release evidence capture, combine the readiness check with JSON output:
 providaptctl -release-check \
   -config /etc/providapt/providapt.toml \
   -release-evidence docs/project/release-evidence-v1.2.2.md \
+  -release-waivers build/release-waivers.json \
   -release-check-out build/release-readiness.md \
   -json
 ```
 
 `-release-check-out` writes Markdown by default, or structured JSON when the
 path ends in `.json`.
+
+`-release-waivers` accepts reviewed warning waivers in JSON. Waivers only apply
+to active `WARN` checks; expired or malformed waivers fail the release check.
+
+```json
+{
+  "waivers": [
+    {
+      "check": "api_auth",
+      "reason": "isolated customer acceptance environment",
+      "approved_by": "release-manager",
+      "expires": "2026-12-31"
+    }
+  ]
+}
+```
 
 Control-plane support APIs:
 

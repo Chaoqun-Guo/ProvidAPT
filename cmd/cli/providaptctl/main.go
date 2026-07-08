@@ -77,6 +77,9 @@ EXAMPLES
 
     providaptctl -release-check -release-check-out release-readiness.md
         Write a Markdown or JSON release readiness evidence report.
+
+    providaptctl -release-check -release-waivers release-waivers.json
+        Apply reviewed warning waivers during commercial readiness checks.
 `)
 }
 
@@ -122,6 +125,7 @@ func main() {
 		configCheck   = flag.Bool("config-check", false, "Validate config file and exit")
 		releaseCheck  = flag.Bool("release-check", false, "Run commercial release readiness checks")
 		evidencePath  = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
+		waiverPath    = flag.String("release-waivers", "", "Release warning waiver JSON file")
 		releaseOut    = flag.String("release-check-out", "", "Write release check report (.md or .json)")
 	)
 	flag.Usage = usage
@@ -175,7 +179,7 @@ func main() {
 		cmdConfigCheck(*cfgPath)
 		os.Exit(0)
 	case *releaseCheck:
-		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *releaseOut))
+		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *releaseOut))
 	case *backupFlag:
 		cmdBackup(*cfgPath, *backupOut)
 		os.Exit(0)
@@ -413,10 +417,11 @@ func cmdDiagnose(outDir string) {
 	t.Render()
 }
 
-func cmdReleaseCheck(cfgPath, evidencePath, reportPath string) int {
+func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, reportPath string) int {
 	report := releasecheck.Run(releasecheck.Options{
 		ConfigPath:   cfgPath,
 		EvidencePath: evidencePath,
+		WaiverPath:   waiverPath,
 		Version:      version.Version,
 		Commit:       version.Commit,
 		BuildDate:    version.Date,
@@ -448,12 +453,20 @@ func cmdReleaseCheck(cfgPath, evidencePath, reportPath string) int {
 			status = clioutput.Okf("PASS")
 		case releasecheck.StatusWarn:
 			status = clioutput.Warnf("WARN")
+		case releasecheck.StatusWaived:
+			status = clioutput.Warnf("WAIVED")
 		case releasecheck.StatusFail:
 			status = clioutput.Errf("FAIL")
 		}
 		detail := check.Message
 		if check.FixSuggestion != "" {
 			detail += " | fix: " + check.FixSuggestion
+		}
+		if check.Waiver != nil {
+			detail += fmt.Sprintf(" | waiver: approved by %s, reason: %s", check.Waiver.ApprovedBy, check.Waiver.Reason)
+			if check.Waiver.Expires != "" {
+				detail += ", expires: " + check.Waiver.Expires
+			}
 		}
 		table.AddRow(status, check.Name, detail)
 	}

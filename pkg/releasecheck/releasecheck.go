@@ -15,26 +15,37 @@ import (
 )
 
 const (
-	StatusPass = "pass"
-	StatusWarn = "warn"
-	StatusFail = "fail"
+	StatusPass   = "pass"
+	StatusWarn   = "warn"
+	StatusWaived = "waived"
+	StatusFail   = "fail"
 )
 
 // Options controls release readiness checks.
 type Options struct {
 	ConfigPath   string
 	EvidencePath string
+	WaiverPath   string
 	Version      string
 	Commit       string
 	BuildDate    string
 }
 
+// Waiver records a reviewed release readiness exception.
+type Waiver struct {
+	Check      string `json:"check"`
+	Reason     string `json:"reason"`
+	ApprovedBy string `json:"approved_by"`
+	Expires    string `json:"expires,omitempty"`
+}
+
 // Check records one release readiness check outcome.
 type Check struct {
-	Name          string `json:"name"`
-	Status        string `json:"status"`
-	Message       string `json:"message"`
-	FixSuggestion string `json:"fix_suggestion,omitempty"`
+	Name          string  `json:"name"`
+	Status        string  `json:"status"`
+	Message       string  `json:"message"`
+	FixSuggestion string  `json:"fix_suggestion,omitempty"`
+	Waiver        *Waiver `json:"waiver,omitempty"`
 }
 
 // Report aggregates release readiness checks.
@@ -42,12 +53,14 @@ type Report struct {
 	GeneratedAt     time.Time `json:"generated_at"`
 	ConfigPath      string    `json:"config_path"`
 	EvidencePath    string    `json:"evidence_path,omitempty"`
+	WaiverPath      string    `json:"waiver_path,omitempty"`
 	Version         string    `json:"version"`
 	Commit          string    `json:"commit"`
 	BuildDate       string    `json:"build_date"`
 	Checks          []Check   `json:"checks"`
 	Passed          int       `json:"passed"`
 	Warnings        int       `json:"warnings"`
+	Waived          int       `json:"waived"`
 	Failed          int       `json:"failed"`
 	ReleaseReady    bool      `json:"release_ready"`
 	CommercialReady bool      `json:"commercial_ready"`
@@ -59,6 +72,7 @@ func Run(opts Options) Report {
 		GeneratedAt:  time.Now().UTC(),
 		ConfigPath:   opts.ConfigPath,
 		EvidencePath: opts.EvidencePath,
+		WaiverPath:   opts.WaiverPath,
 		Version:      opts.Version,
 		Commit:       opts.Commit,
 		BuildDate:    opts.BuildDate,
@@ -70,6 +84,7 @@ func Run(opts Options) Report {
 		checkCommercialConfig(&report, cfg)
 	}
 	checkReleaseEvidence(&report, opts.EvidencePath)
+	applyWaivers(&report, opts.WaiverPath)
 
 	report.ReleaseReady = report.Failed == 0
 	report.CommercialReady = report.Failed == 0 && report.Warnings == 0
@@ -84,7 +99,7 @@ func (r Report) Summary() string {
 	} else if r.ReleaseReady {
 		state = "ready with warnings"
 	}
-	return fmt.Sprintf("%s: %d passed, %d warnings, %d failed", state, r.Passed, r.Warnings, r.Failed)
+	return fmt.Sprintf("%s: %d passed, %d warnings, %d waived, %d failed", state, r.Passed, r.Warnings, r.Waived, r.Failed)
 }
 
 // HasFailures reports whether any release-blocking issue exists.

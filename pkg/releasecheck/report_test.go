@@ -33,7 +33,7 @@ func TestRenderMarkdown(t *testing.T) {
 	if !strings.Contains(out, "# ProvidAPT Release Readiness Report") {
 		t.Fatalf("missing title: %s", out)
 	}
-	if !strings.Contains(out, "| PASS | `config_valid` | configuration loads |  |") {
+	if !strings.Contains(out, "| PASS | `config_valid` | configuration loads |  |  |") {
 		t.Fatalf("missing check row: %s", out)
 	}
 }

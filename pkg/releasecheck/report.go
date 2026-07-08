@@ -51,6 +51,9 @@ func RenderMarkdown(report Report) string {
 	if report.EvidencePath != "" {
 		fmt.Fprintf(&b, "| Evidence Path | `%s` |\n", escapePipe(report.EvidencePath))
 	}
+	if report.WaiverPath != "" {
+		fmt.Fprintf(&b, "| Waiver Path | `%s` |\n", escapePipe(report.WaiverPath))
+	}
 	fmt.Fprintf(&b, "| Version | `%s` |\n", escapePipe(report.Version))
 	fmt.Fprintf(&b, "| Commit | `%s` |\n", escapePipe(report.Commit))
 	fmt.Fprintf(&b, "| Build Date | `%s` |\n", escapePipe(report.BuildDate))
@@ -59,17 +62,32 @@ func RenderMarkdown(report Report) string {
 	fmt.Fprintf(&b, "| Commercial Ready | %t |\n\n", report.CommercialReady)
 
 	fmt.Fprintf(&b, "## Checks\n\n")
-	fmt.Fprintf(&b, "| Status | Check | Message | Fix Suggestion |\n")
-	fmt.Fprintf(&b, "|---|---|---|---|\n")
+	fmt.Fprintf(&b, "| Status | Check | Message | Fix Suggestion | Waiver |\n")
+	fmt.Fprintf(&b, "|---|---|---|---|---|\n")
 	for _, check := range report.Checks {
-		fmt.Fprintf(&b, "| %s | `%s` | %s | %s |\n",
+		fmt.Fprintf(&b, "| %s | `%s` | %s | %s | %s |\n",
 			strings.ToUpper(check.Status),
 			escapePipe(check.Name),
 			escapePipe(check.Message),
 			escapePipe(check.FixSuggestion),
+			escapePipe(formatWaiver(check.Waiver)),
 		)
 	}
 	return b.String()
+}
+
+func formatWaiver(waiver *Waiver) string {
+	if waiver == nil {
+		return ""
+	}
+	parts := []string{
+		fmt.Sprintf("approved by %s", waiver.ApprovedBy),
+		fmt.Sprintf("reason: %s", waiver.Reason),
+	}
+	if waiver.Expires != "" {
+		parts = append(parts, fmt.Sprintf("expires: %s", waiver.Expires))
+	}
+	return strings.Join(parts, "; ")
 }
 
 func escapePipe(value string) string {
