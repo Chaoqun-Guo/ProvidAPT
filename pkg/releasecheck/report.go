@@ -60,6 +60,9 @@ func RenderMarkdown(report Report) string {
 	if report.ChecksumsSignaturePath != "" {
 		fmt.Fprintf(&b, "| Checksums Signature Path | `%s` |\n", escapePipe(report.ChecksumsSignaturePath))
 	}
+	if report.ArtifactsDir != "" {
+		fmt.Fprintf(&b, "| Artifacts Dir | `%s` |\n", escapePipe(report.ArtifactsDir))
+	}
 	if len(report.SBOMPaths) > 0 {
 		fmt.Fprintf(&b, "| SBOM Paths | `%s` |\n", escapePipe(strings.Join(report.SBOMPaths, ", ")))
 	}

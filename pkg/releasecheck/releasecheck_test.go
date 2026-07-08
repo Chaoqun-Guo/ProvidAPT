@@ -4,6 +4,8 @@
 package releasecheck
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -262,6 +264,83 @@ func TestRunFailsMalformedChecksums(t *testing.T) {
 	}
 	if findCheck(t, report, "release_checksums").Status != StatusFail {
 		t.Fatalf("expected checksums fail: %+v", report.Checks)
+	}
+}
+
+func TestRunVerifiesArtifactHashes(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	distDir := filepath.Join(dir, "dist")
+	checksumsPath := filepath.Join(distDir, "checksums.txt")
+	artifactName := "providapt_linux_amd64.tar.gz"
+	artifactData := []byte("release artifact")
+
+	if err := os.MkdirAll(distDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(distDir, artifactName), artifactData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(artifactData)
+	line := fmt.Sprintf("%x  %s\n", sum, artifactName)
+	if err := os.WriteFile(checksumsPath, []byte(line), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:    cfgPath,
+		ChecksumsPath: checksumsPath,
+		ArtifactsDir:  distDir,
+		Version:       "1.2.2",
+		Commit:        "abcdef0",
+		BuildDate:     "2026-07-08T00:00:00Z",
+	})
+
+	if findCheck(t, report, "release_artifact_hashes").Status != StatusPass {
+		t.Fatalf("expected artifact hashes pass: %+v", report.Checks)
+	}
+	if report.HasFailures() {
+		t.Fatalf("unexpected failures: %+v", report.Checks)
+	}
+}
+
+func TestRunFailsArtifactHashMismatch(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	distDir := filepath.Join(dir, "dist")
+	checksumsPath := filepath.Join(distDir, "checksums.txt")
+
+	if err := os.MkdirAll(distDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(distDir, "providapt.tar.gz"), []byte("actual artifact"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	line := strings.Repeat("0", 64) + "  providapt.tar.gz\n"
+	if err := os.WriteFile(checksumsPath, []byte(line), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:    cfgPath,
+		ChecksumsPath: checksumsPath,
+		ArtifactsDir:  distDir,
+		Version:       "1.2.2",
+		Commit:        "abcdef0",
+		BuildDate:     "2026-07-08T00:00:00Z",
+	})
+
+	if !report.HasFailures() {
+		t.Fatalf("expected artifact hash mismatch failure: %+v", report.Checks)
+	}
+	if findCheck(t, report, "release_artifact_hashes").Status != StatusFail {
+		t.Fatalf("expected artifact hashes fail: %+v", report.Checks)
 	}
 }
 

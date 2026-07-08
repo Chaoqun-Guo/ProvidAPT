@@ -138,13 +138,14 @@ func TestFlagParsingDiagnose(t *testing.T) {
 }
 
 func TestFlagParsingReleaseCheck(t *testing.T) {
-	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-waivers", "/tmp/waivers.json", "-release-checksums", "/tmp/checksums.txt", "-release-checksums-signature", "/tmp/checksums.txt.sig", "-release-sbom", "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json", "-release-check-out", "/tmp/report.md"}
+	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-waivers", "/tmp/waivers.json", "-release-checksums", "/tmp/checksums.txt", "-release-checksums-signature", "/tmp/checksums.txt.sig", "-release-artifacts-dir", "/tmp/dist", "-release-sbom", "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json", "-release-check-out", "/tmp/report.md"}
 	flag.CommandLine = flag.NewFlagSet("providaptctl", flag.ContinueOnError)
 	releaseCheck := flag.Bool("release-check", false, "")
 	evidencePath := flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "")
 	waiverPath := flag.String("release-waivers", "", "")
 	checksumsPath := flag.String("release-checksums", "", "")
 	checksumsSigPath := flag.String("release-checksums-signature", "", "")
+	artifactsDir := flag.String("release-artifacts-dir", "", "")
 	sbomPaths := flag.String("release-sbom", "", "")
 	reportPath := flag.String("release-check-out", "", "")
 	flag.Parse()
@@ -162,6 +163,9 @@ func TestFlagParsingReleaseCheck(t *testing.T) {
 	}
 	if *checksumsSigPath != "/tmp/checksums.txt.sig" {
 		t.Errorf("got release-checksums-signature=%q", *checksumsSigPath)
+	}
+	if *artifactsDir != "/tmp/dist" {
+		t.Errorf("got release-artifacts-dir=%q", *artifactsDir)
 	}
 	if *sbomPaths != "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json" {
 		t.Errorf("got release-sbom=%q", *sbomPaths)

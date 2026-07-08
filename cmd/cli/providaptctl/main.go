@@ -87,6 +87,9 @@ EXAMPLES
     providaptctl -release-check -release-checksums-signature dist/checksums.txt.sig
         Validate release checksum detached signature evidence.
 
+    providaptctl -release-check -release-artifacts-dir dist
+        Verify release artifact hashes against the checksum manifest.
+
     providaptctl -release-check -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json
         Validate SPDX or CycloneDX SBOM evidence files.
 `)
@@ -137,6 +140,7 @@ func main() {
 		waiverPath       = flag.String("release-waivers", "", "Release warning waiver JSON file")
 		checksumsPath    = flag.String("release-checksums", "", "Release artifact checksums file")
 		checksumsSigPath = flag.String("release-checksums-signature", "", "Release checksums detached signature file")
+		artifactsDir     = flag.String("release-artifacts-dir", "", "Release artifact directory for checksum verification")
 		sbomPaths        = flag.String("release-sbom", "", "Release SBOM JSON file(s), separated by comma or semicolon")
 		releaseOut       = flag.String("release-check-out", "", "Write release check report (.md or .json)")
 	)
@@ -191,7 +195,7 @@ func main() {
 		cmdConfigCheck(*cfgPath)
 		os.Exit(0)
 	case *releaseCheck:
-		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *checksumsPath, *checksumsSigPath, splitReleasePaths(*sbomPaths), *releaseOut))
+		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *checksumsPath, *checksumsSigPath, *artifactsDir, splitReleasePaths(*sbomPaths), *releaseOut))
 	case *backupFlag:
 		cmdBackup(*cfgPath, *backupOut)
 		os.Exit(0)
@@ -429,13 +433,14 @@ func cmdDiagnose(outDir string) {
 	t.Render()
 }
 
-func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, checksumsSigPath string, sbomPaths []string, reportPath string) int {
+func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, checksumsSigPath, artifactsDir string, sbomPaths []string, reportPath string) int {
 	report := releasecheck.Run(releasecheck.Options{
 		ConfigPath:             cfgPath,
 		EvidencePath:           evidencePath,
 		WaiverPath:             waiverPath,
 		ChecksumsPath:          checksumsPath,
 		ChecksumsSignaturePath: checksumsSigPath,
+		ArtifactsDir:           artifactsDir,
 		SBOMPaths:              sbomPaths,
 		Version:                version.Version,
 		Commit:                 version.Commit,
