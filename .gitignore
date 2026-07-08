@@ -40,7 +40,9 @@ go.work.sum
 *.so
 *.a
 *.d
-*.mod*
+*.mod
+*.mod.c
+!go.mod
 *.cmd
 .tmp_versions/
 modules.order
