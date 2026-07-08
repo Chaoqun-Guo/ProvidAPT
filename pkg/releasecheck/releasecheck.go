@@ -23,14 +23,15 @@ const (
 
 // Options controls release readiness checks.
 type Options struct {
-	ConfigPath    string
-	EvidencePath  string
-	WaiverPath    string
-	ChecksumsPath string
-	SBOMPaths     []string
-	Version       string
-	Commit        string
-	BuildDate     string
+	ConfigPath             string
+	EvidencePath           string
+	WaiverPath             string
+	ChecksumsPath          string
+	ChecksumsSignaturePath string
+	SBOMPaths              []string
+	Version                string
+	Commit                 string
+	BuildDate              string
 }
 
 // Waiver records a reviewed release readiness exception.
@@ -52,36 +53,38 @@ type Check struct {
 
 // Report aggregates release readiness checks.
 type Report struct {
-	GeneratedAt     time.Time `json:"generated_at"`
-	ConfigPath      string    `json:"config_path"`
-	EvidencePath    string    `json:"evidence_path,omitempty"`
-	WaiverPath      string    `json:"waiver_path,omitempty"`
-	ChecksumsPath   string    `json:"checksums_path,omitempty"`
-	SBOMPaths       []string  `json:"sbom_paths,omitempty"`
-	Version         string    `json:"version"`
-	Commit          string    `json:"commit"`
-	BuildDate       string    `json:"build_date"`
-	Checks          []Check   `json:"checks"`
-	Passed          int       `json:"passed"`
-	Warnings        int       `json:"warnings"`
-	Waived          int       `json:"waived"`
-	Failed          int       `json:"failed"`
-	ReleaseReady    bool      `json:"release_ready"`
-	CommercialReady bool      `json:"commercial_ready"`
+	GeneratedAt            time.Time `json:"generated_at"`
+	ConfigPath             string    `json:"config_path"`
+	EvidencePath           string    `json:"evidence_path,omitempty"`
+	WaiverPath             string    `json:"waiver_path,omitempty"`
+	ChecksumsPath          string    `json:"checksums_path,omitempty"`
+	ChecksumsSignaturePath string    `json:"checksums_signature_path,omitempty"`
+	SBOMPaths              []string  `json:"sbom_paths,omitempty"`
+	Version                string    `json:"version"`
+	Commit                 string    `json:"commit"`
+	BuildDate              string    `json:"build_date"`
+	Checks                 []Check   `json:"checks"`
+	Passed                 int       `json:"passed"`
+	Warnings               int       `json:"warnings"`
+	Waived                 int       `json:"waived"`
+	Failed                 int       `json:"failed"`
+	ReleaseReady           bool      `json:"release_ready"`
+	CommercialReady        bool      `json:"commercial_ready"`
 }
 
 // Run executes all release readiness checks.
 func Run(opts Options) Report {
 	report := Report{
-		GeneratedAt:   time.Now().UTC(),
-		ConfigPath:    opts.ConfigPath,
-		EvidencePath:  opts.EvidencePath,
-		WaiverPath:    opts.WaiverPath,
-		ChecksumsPath: opts.ChecksumsPath,
-		SBOMPaths:     opts.SBOMPaths,
-		Version:       opts.Version,
-		Commit:        opts.Commit,
-		BuildDate:     opts.BuildDate,
+		GeneratedAt:            time.Now().UTC(),
+		ConfigPath:             opts.ConfigPath,
+		EvidencePath:           opts.EvidencePath,
+		WaiverPath:             opts.WaiverPath,
+		ChecksumsPath:          opts.ChecksumsPath,
+		ChecksumsSignaturePath: opts.ChecksumsSignaturePath,
+		SBOMPaths:              opts.SBOMPaths,
+		Version:                opts.Version,
+		Commit:                 opts.Commit,
+		BuildDate:              opts.BuildDate,
 	}
 
 	cfg, configLoaded := checkConfig(&report, opts.ConfigPath)
@@ -91,6 +94,7 @@ func Run(opts Options) Report {
 	}
 	checkReleaseEvidence(&report, opts.EvidencePath)
 	checkChecksums(&report, opts.ChecksumsPath)
+	checkChecksumsSignature(&report, opts.ChecksumsSignaturePath)
 	checkSBOMs(&report, opts.SBOMPaths)
 	applyWaivers(&report, opts.WaiverPath)
 

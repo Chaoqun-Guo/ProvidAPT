@@ -265,6 +265,62 @@ func TestRunFailsMalformedChecksums(t *testing.T) {
 	}
 }
 
+func TestRunValidatesChecksumsSignature(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	signaturePath := filepath.Join(dir, "checksums.txt.sig")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(signaturePath, []byte("detached signature"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:             cfgPath,
+		ChecksumsSignaturePath: signaturePath,
+		Version:                "1.2.2",
+		Commit:                 "abcdef0",
+		BuildDate:              "2026-07-08T00:00:00Z",
+	})
+
+	if findCheck(t, report, "release_checksums_signature").Status != StatusPass {
+		t.Fatalf("expected checksums signature pass: %+v", report.Checks)
+	}
+	if report.HasFailures() {
+		t.Fatalf("unexpected failures: %+v", report.Checks)
+	}
+}
+
+func TestRunFailsEmptyChecksumsSignature(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	signaturePath := filepath.Join(dir, "checksums.txt.sig")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(signaturePath, nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:             cfgPath,
+		ChecksumsSignaturePath: signaturePath,
+		Version:                "1.2.2",
+		Commit:                 "abcdef0",
+		BuildDate:              "2026-07-08T00:00:00Z",
+	})
+
+	if !report.HasFailures() {
+		t.Fatalf("expected empty signature failure: %+v", report.Checks)
+	}
+	if findCheck(t, report, "release_checksums_signature").Status != StatusFail {
+		t.Fatalf("expected checksums signature fail: %+v", report.Checks)
+	}
+}
+
 func TestRunValidatesSBOMs(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "providapt.toml")

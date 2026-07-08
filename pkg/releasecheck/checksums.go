@@ -92,6 +92,47 @@ func checkChecksums(report *Report, path string) {
 	})
 }
 
+func checkChecksumsSignature(report *Report, path string) {
+	if strings.TrimSpace(path) == "" {
+		return
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		add(report, Check{
+			Name:          "release_checksums_signature",
+			Status:        StatusWarn,
+			Message:       fmt.Sprintf("checksums signature file unavailable: %v", err),
+			FixSuggestion: "Sign dist/checksums.txt and pass the detached signature with -release-checksums-signature.",
+		})
+		return
+	}
+	if info.IsDir() {
+		add(report, Check{
+			Name:          "release_checksums_signature",
+			Status:        StatusFail,
+			Message:       "checksums signature path is a directory",
+			FixSuggestion: "Pass the detached signature file for dist/checksums.txt.",
+		})
+		return
+	}
+	if info.Size() == 0 {
+		add(report, Check{
+			Name:          "release_checksums_signature",
+			Status:        StatusFail,
+			Message:       "checksums signature file is empty",
+			FixSuggestion: "Regenerate the detached signature for dist/checksums.txt.",
+		})
+		return
+	}
+
+	add(report, Check{
+		Name:    "release_checksums_signature",
+		Status:  StatusPass,
+		Message: fmt.Sprintf("checksums signature file is present: %s", path),
+	})
+}
+
 func isSHA256Hex(value string) bool {
 	if len(value) != 64 {
 		return false
