@@ -31,6 +31,17 @@ jobs:
 
       # golangci-lint-action@v9 handles go mod download internally.
 
+      - name: Verify module workspace
+        run: |
+          pwd
+          ls -la
+          test -f go.mod || {
+            listing="$(pwd; ls -la)"
+            message="$(printf '%s' "$listing" | head -c 8000 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+            echo "::error title=go.mod not found in lint workspace::$message"
+            exit 1
+          }
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:

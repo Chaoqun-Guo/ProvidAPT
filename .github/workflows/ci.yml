@@ -29,9 +29,17 @@ jobs:
       - name: Download module dependencies
         run: |
           set -o pipefail
+          pwd
+          ls -la
+          test -f go.mod || {
+            listing="$(pwd; ls -la)"
+            message="$(printf '%s' "$listing" | head -c 8000 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+            echo "::error title=go.mod not found in CI workspace::$message"
+            exit 1
+          }
           go version
           go env GOVERSION GOTOOLCHAIN GOPROXY GOSUMDB
-          if ! output="$(go mod download 2>&1)"; then
+          if ! output="$(go mod download all 2>&1)"; then
             echo "$output"
             message="$(printf '%s' "$output" | head -c 8000 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
             echo "::error title=go mod download failed::$message"
