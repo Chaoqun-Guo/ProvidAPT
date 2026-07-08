@@ -23,11 +23,11 @@ import (
 // provaptManagementServer implements the ProvidAPTManagement gRPC service
 // wired to real backend dependencies.
 type provaptManagementServer struct {
-	startedAt  time.Time
-	graph      *provenance.Graph
-	pipeline   *pipeline.Pipeline
-	alertPipe  *alert.AlertPipeline
-	version    string
+	startedAt time.Time
+	graph     *provenance.Graph
+	pipeline  *pipeline.Pipeline
+	alertPipe *alert.AlertPipeline
+	version   string
 }
 
 // Compile-time interface check.
@@ -50,9 +50,9 @@ func (s *provaptManagementServer) Query(ctx context.Context, req *pb.QueryReques
 
 	if s.graph == nil {
 		return &pb.QueryResponse{
-			ResultCount:  0,
-			ResultsJson:  `{"error":"graph not connected"}`,
-			QueryTimeNs:  time.Since(start).Nanoseconds(),
+			ResultCount: 0,
+			ResultsJson: `{"error":"graph not connected"}`,
+			QueryTimeNs: time.Since(start).Nanoseconds(),
 		}, nil
 	}
 
@@ -128,9 +128,9 @@ func (s *provaptManagementServer) Query(ctx context.Context, req *pb.QueryReques
 		req.Query, len(nodes), len(edges), time.Since(start).Milliseconds())
 
 	return &pb.QueryResponse{
-		ResultCount:  int32(len(nodes) + len(edges)),
-		ResultsJson:  string(data),
-		QueryTimeNs:  time.Since(start).Nanoseconds(),
+		ResultCount: int32(len(nodes) + len(edges)),
+		ResultsJson: string(data),
+		QueryTimeNs: time.Since(start).Nanoseconds(),
 	}, nil
 }
 

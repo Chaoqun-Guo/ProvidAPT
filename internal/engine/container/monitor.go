@@ -144,7 +144,7 @@ func (m *Monitor) scanProc(cgroupID uint64) *ResolvedInfo {
 			continue
 		}
 
-		info := m.parseProcCgroup(pid, cgroupID)
+		info := m.parseProcCgroup(pid)
 		if info != nil {
 			info.CgroupID = cgroupID
 			return info
@@ -153,7 +153,7 @@ func (m *Monitor) scanProc(cgroupID uint64) *ResolvedInfo {
 	return nil
 }
 
-func (m *Monitor) parseProcCgroup(pid string, targetCgroupID uint64) *ResolvedInfo {
+func (m *Monitor) parseProcCgroup(pid string) *ResolvedInfo {
 	data, err := os.ReadFile(filepath.Join("/proc", pid, "cgroup"))
 	if err != nil {
 		return nil

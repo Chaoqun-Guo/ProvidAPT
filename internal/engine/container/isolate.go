@@ -22,24 +22,24 @@ import (
 
 // CrossPodEdge represents a provenance edge between two pods.
 type CrossPodEdge struct {
-	SourcePod       string `json:"source_pod"`
-	SourceNamespace string `json:"source_namespace"`
-	TargetPod       string `json:"target_pod"`
-	TargetNamespace string `json:"target_namespace"`
-	Relation        string `json:"relation"`  // "connect", "fork", "file_access"
-	PID             uint32 `json:"pid"`
-	Comm            string `json:"comm"`
+	SourcePod       string    `json:"source_pod"`
+	SourceNamespace string    `json:"source_namespace"`
+	TargetPod       string    `json:"target_pod"`
+	TargetNamespace string    `json:"target_namespace"`
+	Relation        string    `json:"relation"` // "connect", "fork", "file_access"
+	PID             uint32    `json:"pid"`
+	Comm            string    `json:"comm"`
 	Timestamp       time.Time `json:"timestamp"`
-	Suspicious      bool   `json:"suspicious"`
-	Reason          string `json:"reason,omitempty"`
+	Suspicious      bool      `json:"suspicious"`
+	Reason          string    `json:"reason,omitempty"`
 }
 
 // IsolationAnalyzer detects unexpected inter-pod communications.
 type IsolationAnalyzer struct {
-	mu          sync.Mutex
-	edges       []CrossPodEdge
-	alerts      []CrossPodAlert
-	namespaces  map[string]bool // known namespaces
+	mu         sync.Mutex
+	edges      []CrossPodEdge
+	alerts     []CrossPodAlert
+	namespaces map[string]bool // known namespaces
 }
 
 // CrossPodAlert is emitted when suspicious inter-pod activity is detected.
@@ -87,10 +87,10 @@ func (ia *IsolationAnalyzer) RecordEdge(src, dst *EnrichedEvent, relation string
 // checkViolation examines whether an inter-pod edge is suspicious.
 //
 // Rules:
-//   1. cross-namespace connect → suspicious (lateral movement)
-//   2. host process → pod connect → moderate (container escape)
-//   3. pod → pod same-ns exec → normal (expected)
-//   4. pod → host file write → suspicious (container escape)
+//  1. cross-namespace connect → suspicious (lateral movement)
+//  2. host process → pod connect → moderate (container escape)
+//  3. pod → pod same-ns exec → normal (expected)
+//  4. pod → host file write → suspicious (container escape)
 func (ia *IsolationAnalyzer) checkViolation(src, dst *EnrichedEvent, relation string) *CrossPodAlert {
 	// Same pod → always normal
 	if src.PodLabel() == dst.PodLabel() && src.Namespace == dst.Namespace {

@@ -19,15 +19,15 @@ import (
 
 // Result summarizes an archive operation.
 type Result struct {
-	InputDir    string        `json:"input_dir"`
-	OutputDir   string        `json:"output_dir"`
-	FilesArchived int         `json:"files_archived"`
-	FilesSkipped  int         `json:"files_skipped"`
-	BytesBefore  int64        `json:"bytes_before"`
-	BytesAfter   int64        `json:"bytes_after"`
-	ArchivePath  string       `json:"archive_path,omitempty"`
-	Duration     time.Duration `json:"duration"`
-	DryRun       bool         `json:"dry_run"`
+	InputDir      string        `json:"input_dir"`
+	OutputDir     string        `json:"output_dir"`
+	FilesArchived int           `json:"files_archived"`
+	FilesSkipped  int           `json:"files_skipped"`
+	BytesBefore   int64         `json:"bytes_before"`
+	BytesAfter    int64         `json:"bytes_after"`
+	ArchivePath   string        `json:"archive_path,omitempty"`
+	Duration      time.Duration `json:"duration"`
+	DryRun        bool          `json:"dry_run"`
 }
 
 // Option configures the archive operation.
@@ -154,13 +154,13 @@ func createTarGz(path string, files []string) error {
 	if err != nil {
 		return fmt.Errorf("create archive file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	gw := gzip.NewWriter(f)
-	defer gw.Close()
 
 	tw := tar.NewWriter(gw)
-	defer tw.Close()
 
 	for _, file := range files {
 		if err := addFileToTar(tw, file); err != nil {
@@ -168,6 +168,12 @@ func createTarGz(path string, files []string) error {
 		}
 	}
 
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("close tar writer: %w", err)
+	}
+	if err := gw.Close(); err != nil {
+		return fmt.Errorf("close gzip writer: %w", err)
+	}
 	return nil
 }
 
@@ -176,7 +182,9 @@ func addFileToTar(tw *tar.Writer, path string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	fi, err := f.Stat()
 	if err != nil {

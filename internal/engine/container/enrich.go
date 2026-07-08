@@ -26,19 +26,19 @@ type Enricher struct {
 // EnrichedEvent holds the original event plus K8s metadata.
 type EnrichedEvent struct {
 	// Original event fields (simplified)
-	PID        uint32 `json:"pid"`
-	Comm       string `json:"comm"`
-	Pathname   string `json:"pathname,omitempty"`
-	EventType  uint32 `json:"event_type"`
+	PID       uint32 `json:"pid"`
+	Comm      string `json:"comm"`
+	Pathname  string `json:"pathname,omitempty"`
+	EventType uint32 `json:"event_type"`
 
 	// Container context from eBPF
-	CgroupID   uint64 `json:"cgroup_id"`
+	CgroupID uint64 `json:"cgroup_id"`
 
 	// K8s metadata (enriched)
-	PodName      string `json:"pod_name,omitempty"`
-	Namespace    string `json:"namespace,omitempty"`
-	ContainerID  string `json:"container_id,omitempty"`
-	Image        string `json:"image,omitempty"`
+	PodName     string `json:"pod_name,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	ContainerID string `json:"container_id,omitempty"`
+	Image       string `json:"image,omitempty"`
 }
 
 // NewEnricher creates an enricher attached to a K8s listener.

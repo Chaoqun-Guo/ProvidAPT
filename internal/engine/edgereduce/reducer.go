@@ -164,7 +164,11 @@ func (er *EdgeReducer) Ingest(evt *pb.Event) (*CachedEdge, bool, error) {
 	if er.lru.Len() >= er.maxSize {
 		back := er.lru.Back()
 		if back != nil {
-			evict := back.Value.(*CachedEdge)
+			evict, ok := back.Value.(*CachedEdge)
+			if !ok {
+				er.lru.Remove(back)
+				return nil, false, fmt.Errorf("unexpected cache entry type %T", back.Value)
+			}
 			if err := er.flushLocked(evict); err != nil {
 				return nil, false, err
 			}

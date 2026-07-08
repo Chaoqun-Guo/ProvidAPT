@@ -11,7 +11,7 @@ import (
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
-// ─── Tests ──────────────────────────────────────────────────
+// -光偓-光偓-光偓 Tests -光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓
 
 func TestNewEdgeReducer(t *testing.T) {
 	r := NewEdgeReducer(100, time.Second, nil)
@@ -71,13 +71,13 @@ func TestIngestMergeDuplicate(t *testing.T) {
 		TimestampNs: uint64(time.Now().UnixNano()),
 	}
 
-	// First — new
+	// First -?new
 	_, merged1, _ := r.Ingest(evt)
 	if merged1 {
 		t.Error("first should not be merged")
 	}
 
-	// Second — within window, same source/target/type
+	// Second -?within window, same source/target/type
 	ce, merged2, _ := r.Ingest(evt)
 	if !merged2 {
 		t.Error("second should be merged")
@@ -98,7 +98,7 @@ func TestIngestOutsideWindow(t *testing.T) {
 
 	r.Ingest(evt)
 	time.Sleep(2 * time.Millisecond)
-	evt.TimestampNs = uint64(uint64(time.Now().UnixNano()))
+	evt.TimestampNs = uint64(time.Now().UnixNano())
 
 	ce, merged, _ := r.Ingest(evt)
 	if merged {
@@ -155,7 +155,7 @@ func TestFlushAll(t *testing.T) {
 			Type: 10, Pid: uint32(100 + i),
 			Pathname: "/tmp/test", Inode: uint64(i),
 			DevMajor: 8, DevMinor: 3,
-			TimestampNs: uint64(uint64(time.Now().UnixNano())),
+			TimestampNs: uint64(time.Now().UnixNano()),
 		})
 	}
 
@@ -172,23 +172,23 @@ func TestEviction(t *testing.T) {
 		return nil
 	})
 
-	// Insert 5 different edges → 3 fit, 2 evicted
+	// Insert 5 different edges -?3 fit, 2 evicted
 	for i := 0; i < 5; i++ {
 		r.Ingest(&pb.Event{
 			Type: 10, Pid: uint32(100 + i),
 			Pathname: "/tmp/file", Inode: uint64(1000 + i),
 			DevMajor: 8, DevMinor: 3,
-			TimestampNs: uint64(uint64(time.Now().UnixNano())),
+			TimestampNs: uint64(time.Now().UnixNano()),
 		})
 	}
 
 	if flushed < 2 {
-		t.Errorf("expected ≥2 evictions, got %d", flushed)
+		t.Errorf("expected -? evictions, got %d", flushed)
 	}
 
 	stats := r.Stats()
 	if stats["cache_size"].(int) > 3 {
-		t.Errorf("cache size = %d, want ≤3", stats["cache_size"])
+		t.Errorf("cache size = %d, want -?", stats["cache_size"])
 	}
 }
 

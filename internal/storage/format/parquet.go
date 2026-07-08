@@ -6,6 +6,7 @@ package format
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -29,14 +30,14 @@ import (
 //
 // In production, swap for github.com/xitongsys/parquet-go or segmentio/parquet-go.
 type ParquetWriter struct {
-	mu        sync.Mutex
-	f         *os.File
-	dir       string
-	filename  string
-	rowCount  uint64
-	colBufs   [][]byte // one buffer per column
-	colSizes  []int    // fixed size per entry for each column
-	colCount  int
+	mu       sync.Mutex
+	f        *os.File
+	dir      string
+	filename string
+	rowCount uint64
+	colBufs  [][]byte // one buffer per column
+	colSizes []int    // fixed size per entry for each column
+	colCount int
 }
 
 // column schema indices
@@ -90,14 +91,14 @@ func NewParquetWriter(dir string) (*ParquetWriter, error) {
 
 	// Write header
 	if _, err := f.Write(magicHeader); err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, fmt.Errorf("write header: %w", err)
 	}
 	// Version
 	var ver [4]byte
 	binary.LittleEndian.PutUint32(ver[:], 1)
 	if _, err := f.Write(ver[:]); err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, fmt.Errorf("write version: %w", err)
 	}
 
@@ -132,7 +133,7 @@ func (pw *ParquetWriter) Write(evt *collector.Event) error {
 	pw.colBufs[colComm] = append(pw.colBufs[colComm], comm...)
 
 	var flags [4]byte
-	binary.LittleEndian.PutUint32(flags[:], uint32(evt.Flags))
+	binary.LittleEndian.PutUint32(flags[:], evt.Flags)
 	pw.colBufs[colFlags] = append(pw.colBufs[colFlags], flags[:]...)
 
 	fname := []byte(evt.Pathname)
@@ -175,8 +176,14 @@ func (pw *ParquetWriter) Close() {
 	// Magic trailer position
 	trailerOff := offset
 	binary.LittleEndian.PutUint64(footerBuf[8+8*numColumns:8+8*numColumns+8], trailerOff)
-	pw.f.Write(footerBuf[:])
-	pw.f.Write(magicFooter)
-	pw.f.Close()
+	if _, err := pw.f.Write(footerBuf[:]); err != nil {
+		log.Printf("[format/parquet] write footer: %v", err)
+	}
+	if _, err := pw.f.Write(magicFooter); err != nil {
+		log.Printf("[format/parquet] write magic footer: %v", err)
+	}
+	if err := pw.f.Close(); err != nil {
+		log.Printf("[format/parquet] close file: %v", err)
+	}
 	pw.f = nil
 }

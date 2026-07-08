@@ -4,12 +4,13 @@
 // Package container — Kubernetes-aware container metadata resolution.
 //
 // Provides:
-//   1. CRI listener — watches containerd socket for pod events
-//   2. Cgroup→PodName/Namespace/Image mapping table
-//   3. K8s API integration for rich metadata
+//  1. CRI listener — watches containerd socket for pod events
+//  2. Cgroup→PodName/Namespace/Image mapping table
+//  3. K8s API integration for rich metadata
 package container
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -30,15 +31,15 @@ import (
 
 // PodInfo holds K8s pod metadata resolved from a cgroup ID.
 type PodInfo struct {
-	CgroupID    uint64 `json:"cgroup_id"`
-	PodName     string `json:"pod_name"`
-	PodUID      string `json:"pod_uid"`
-	Namespace   string `json:"namespace"`
-	ContainerID string `json:"container_id"`
-	ContainerName string `json:"container_name"`
-	Image       string `json:"image"`
-	NodeName    string `json:"node_name"`
-	Labels      map[string]string `json:"labels,omitempty"`
+	CgroupID      uint64            `json:"cgroup_id"`
+	PodName       string            `json:"pod_name"`
+	PodUID        string            `json:"pod_uid"`
+	Namespace     string            `json:"namespace"`
+	ContainerID   string            `json:"container_id"`
+	ContainerName string            `json:"container_name"`
+	Image         string            `json:"image"`
+	NodeName      string            `json:"node_name"`
+	Labels        map[string]string `json:"labels,omitempty"`
 
 	// Security context
 	ServiceAccount string `json:"service_account,omitempty"`
@@ -59,14 +60,14 @@ type PodInfo struct {
 //   - /proc/*/cgroup (process-level cgroup scanning)
 //   - K8s API server (optional, for rich metadata)
 type K8sListener struct {
-	mu           sync.RWMutex
-	podMap       map[uint64]*PodInfo // cgroupID → pod info
-	nsMap        map[string]bool     // known namespaces
+	mu            sync.RWMutex
+	podMap        map[uint64]*PodInfo       // cgroupID → pod info
+	nsMap         map[string]bool           // known namespaces
 	containerMeta map[string]*containerMeta // namespace/pod/container → image+podUID
-	enabled      bool
+	enabled       bool
 
-	stopCh  chan struct{}
-	wg      sync.WaitGroup
+	stopCh chan struct{}
+	wg     sync.WaitGroup
 }
 
 type containerMeta struct {
@@ -198,8 +199,9 @@ func (kl *K8sListener) registerPod(namespace, podName, podUID, containerName, me
 		var meta struct {
 			Image string `json:"image"`
 		}
-		json.Unmarshal(data, &meta)
-		image = meta.Image
+		if err := json.Unmarshal(data, &meta); err == nil {
+			image = meta.Image
+		}
 	}
 
 	kl.mu.Lock()
@@ -291,11 +293,11 @@ func (kl *K8sListener) parseAndMap(pid, cgroupData string) {
 
 		kl.mu.Lock()
 		kl.podMap[uint64(parsePID(pid))] = &PodInfo{
-			PodName:      podName,
-			PodUID:       podUID,
-			ContainerID:  containerID,
-			Image:        img,
-			LastSeen:     time.Now(),
+			PodName:     podName,
+			PodUID:      podUID,
+			ContainerID: containerID,
+			Image:       img,
+			LastSeen:    time.Now(),
 		}
 		kl.mu.Unlock()
 
@@ -335,7 +337,9 @@ func (kl *K8sListener) resolvePodName(podUID string) string {
 
 	url := fmt.Sprintf("https://%s/api/v1/pods?fieldSelector=metadata.uid%%3D%s",
 		net.JoinHostPort(apiServer, apiPort), podUID)
-	req, err := http.NewRequest("GET", url, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return syntheticPodName(podUID)
 	}
@@ -359,7 +363,9 @@ func (kl *K8sListener) resolvePodName(podUID string) string {
 	if err != nil {
 		return syntheticPodName(podUID)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	var podList struct {
 		Items []struct {
@@ -404,7 +410,7 @@ func (kl *K8sListener) lookupContainerImage(podUID, podName, containerID string)
 
 func isHex(s string) bool {
 	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
 			return false
 		}
 	}
@@ -413,7 +419,9 @@ func isHex(s string) bool {
 
 func parsePID(s string) int {
 	var pid int
-	fmt.Sscanf(s, "%d", &pid)
+	if _, err := fmt.Sscanf(s, "%d", &pid); err != nil {
+		return 0
+	}
 	return pid
 }
 
@@ -422,8 +430,8 @@ func (kl *K8sListener) Stats() map[string]interface{} {
 	kl.mu.RLock()
 	defer kl.mu.RUnlock()
 	return map[string]interface{}{
-		"pods_mapped":  len(kl.podMap),
-		"namespaces":   len(kl.nsMap),
-		"enabled":      kl.enabled,
+		"pods_mapped": len(kl.podMap),
+		"namespaces":  len(kl.nsMap),
+		"enabled":     kl.enabled,
 	}
 }

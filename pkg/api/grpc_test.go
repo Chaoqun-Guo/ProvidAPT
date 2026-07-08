@@ -38,13 +38,13 @@ type mockWatchAlertsStream struct {
 	ctx context.Context
 }
 
-func (m *mockWatchAlertsStream) Send(*pb.AlertEvent) error { return nil }
-func (m *mockWatchAlertsStream) Context() context.Context   { return m.ctx }
-func (m *mockWatchAlertsStream) SetHeader(metadata.MD) error     { return nil }
-func (m *mockWatchAlertsStream) SendHeader(metadata.MD) error    { return nil }
-func (m *mockWatchAlertsStream) SetTrailer(metadata.MD)          {}
-func (m *mockWatchAlertsStream) SendMsg(interface{}) error       { return nil }
-func (m *mockWatchAlertsStream) RecvMsg(interface{}) error       { return nil }
+func (m *mockWatchAlertsStream) Send(*pb.AlertEvent) error    { return nil }
+func (m *mockWatchAlertsStream) Context() context.Context     { return m.ctx }
+func (m *mockWatchAlertsStream) SetHeader(metadata.MD) error  { return nil }
+func (m *mockWatchAlertsStream) SendHeader(metadata.MD) error { return nil }
+func (m *mockWatchAlertsStream) SetTrailer(metadata.MD)       {}
+func (m *mockWatchAlertsStream) SendMsg(interface{}) error    { return nil }
+func (m *mockWatchAlertsStream) RecvMsg(interface{}) error    { return nil }
 
 var _ grpc.ServerStream = (*mockWatchAlertsStream)(nil)
 

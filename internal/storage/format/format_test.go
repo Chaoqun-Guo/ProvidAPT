@@ -175,4 +175,3 @@ func BenchmarkJSONWriterWrite(b *testing.B) {
 		w.Write(evt)
 	}
 }
-

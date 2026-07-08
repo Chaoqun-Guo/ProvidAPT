@@ -6,6 +6,7 @@ package format
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -56,6 +57,8 @@ func (w *JSONWriter) Close() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.f != nil {
-		w.f.Close()
+		if err := w.f.Close(); err != nil {
+			log.Printf("[format/json] close file: %v", err)
+		}
 	}
 }
