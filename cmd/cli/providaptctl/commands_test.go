@@ -137,6 +137,20 @@ func TestFlagParsingDiagnose(t *testing.T) {
 	}
 }
 
+func TestFlagParsingReleaseCheck(t *testing.T) {
+	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md"}
+	flag.CommandLine = flag.NewFlagSet("providaptctl", flag.ContinueOnError)
+	releaseCheck := flag.Bool("release-check", false, "")
+	evidencePath := flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "")
+	flag.Parse()
+	if !*releaseCheck {
+		t.Error("expected -release-check=true")
+	}
+	if *evidencePath != "/tmp/evidence.md" {
+		t.Errorf("got release-evidence=%q", *evidencePath)
+	}
+}
+
 // ─── Formatting helper tests ─────────────────────────────────────
 
 func TestYesNo(t *testing.T) {
@@ -157,8 +171,8 @@ func TestYesNo(t *testing.T) {
 
 func TestFormatRateLimit(t *testing.T) {
 	tests := []struct {
-		rate  float64
-		want  string
+		rate float64
+		want string
 	}{
 		{0, "disabled"},
 		{-1, "disabled"},

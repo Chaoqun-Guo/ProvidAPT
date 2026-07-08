@@ -55,6 +55,7 @@ jobs:
         run: |
           go test ./pkg/ticketing ./pkg/config ./pkg/api ./pkg/notify ./pkg/telemetry ./pkg/alertflow
           go test ./pkg/archive ./internal/storage/format ./internal/engine/container
+          go test ./pkg/releasecheck ./cmd/cli/providaptctl
           go test ./internal/policy/rulescanner ./internal/policy/response ./internal/policy/deception
           go test ./internal/storage/store ./internal/engine/compact ./internal/stitcher/graphsketch ./internal/engine/edgereduce
           GOOS=linux go test -c ./cmd/agent/daemon

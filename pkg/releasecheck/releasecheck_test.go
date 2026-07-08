@@ -1,0 +1,109 @@
+// Copyright (c) 2026 Chaoqun-Guo
+// SPDX-License-Identifier: Apache-2.0
+
+package releasecheck
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestRunReportsCommercialWarnings(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	evidencePath := filepath.Join(dir, "release-evidence.md")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(evidencePath, []byte("| status | _pending_ |\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:   cfgPath,
+		EvidencePath: evidencePath,
+		Version:      "dev",
+		Commit:       "none",
+		BuildDate:    "unknown",
+	})
+
+	if report.HasFailures() {
+		t.Fatalf("unexpected failures: %+v", report.Checks)
+	}
+	if report.Warnings == 0 {
+		t.Fatalf("expected commercial warnings: %+v", report.Checks)
+	}
+	if report.CommercialReady {
+		t.Fatal("expected commercial_ready=false with warnings")
+	}
+	if !report.ReleaseReady {
+		t.Fatal("expected release_ready=true without failures")
+	}
+}
+
+func TestRunFailsInvalidConfig(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "bad.toml")
+	if err := os.WriteFile(cfgPath, []byte("output:\n  format: xml\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath: cfgPath,
+		Version:    "1.2.2",
+		Commit:     "abcdef0",
+		BuildDate:  "2026-07-08T00:00:00Z",
+	})
+
+	if !report.HasFailures() {
+		t.Fatalf("expected invalid config failure: %+v", report.Checks)
+	}
+	if report.ReleaseReady {
+		t.Fatal("expected release_ready=false")
+	}
+}
+
+func TestRunCommercialReady(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	evidencePath := filepath.Join(dir, "release-evidence.md")
+
+	cfg := []byte(`
+output:
+  dir: /tmp/providapt
+api:
+  auth_enabled: true
+  cors_origins: ["https://soc.example.com"]
+storage:
+  encrypt: true
+  key_file: /etc/providapt/key
+support_bundle:
+  redact_archives: true
+  retain_archives: 5
+license:
+  path: /etc/providapt/license.json
+`)
+	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(evidencePath, []byte("| status | pass |\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:   cfgPath,
+		EvidencePath: evidencePath,
+		Version:      "1.2.2",
+		Commit:       "abcdef0",
+		BuildDate:    "2026-07-08T00:00:00Z",
+	})
+
+	if !report.CommercialReady {
+		t.Fatalf("expected commercial ready: %+v", report)
+	}
+	if report.Summary() == "" {
+		t.Fatal("summary should not be empty")
+	}
+}

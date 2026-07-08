@@ -66,6 +66,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 - Confirm `checksums.txt` is generated and signed
 - Confirm release binaries embed version, commit, and build date
+- Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.2.md`
 - Confirm SBOM artifacts are generated in SPDX and CycloneDX formats
 - Confirm container image labels include source, version, and revision
 - Confirm release artifacts can be verified from a clean machine

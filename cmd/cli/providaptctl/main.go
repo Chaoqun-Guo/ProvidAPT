@@ -22,6 +22,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/diagnose"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/purge"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/releasecheck"
 )
 
 const (
@@ -70,6 +71,9 @@ EXAMPLES
 
     providaptctl -config /custom/path/providapt.toml -status
         Check status with a non-default config path.
+
+    providaptctl -release-check -config /etc/providapt/providapt.toml
+        Run commercial release readiness checks for handoff.
 `)
 }
 
@@ -113,13 +117,15 @@ func main() {
 		restoreFlag   = flag.Bool("restore", false, "Restore store from tar.gz backup")
 		restoreIn     = flag.String("restore-in", "", "Backup input path (.tar.gz)")
 		configCheck   = flag.Bool("config-check", false, "Validate config file and exit")
+		releaseCheck  = flag.Bool("release-check", false, "Run commercial release readiness checks")
+		evidencePath  = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
 	)
 	flag.Usage = usage
 	flag.Parse()
 
 	clioutput.Init(*jsonOut)
 
-	hasAction := *status || *stop || *restart || *reload || *report || *dashboard || *diagnose || *bpf || *verify || *purge || *audit || *replay || *archive || *genrules || *profileFlag || *backupFlag || *restoreFlag || *configCheck
+	hasAction := *status || *stop || *restart || *reload || *report || *dashboard || *diagnose || *bpf || *verify || *purge || *audit || *replay || *archive || *genrules || *profileFlag || *backupFlag || *restoreFlag || *configCheck || *releaseCheck
 	if !hasAction {
 		flag.Usage()
 		os.Exit(1)
@@ -164,6 +170,8 @@ func main() {
 	case *configCheck:
 		cmdConfigCheck(*cfgPath)
 		os.Exit(0)
+	case *releaseCheck:
+		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath))
 	case *backupFlag:
 		cmdBackup(*cfgPath, *backupOut)
 		os.Exit(0)
@@ -399,6 +407,54 @@ func cmdDiagnose(outDir string) {
 	t.AddRow("Path", path)
 	t.AddRow("Size", size)
 	t.Render()
+}
+
+func cmdReleaseCheck(cfgPath, evidencePath string) int {
+	report := releasecheck.Run(releasecheck.Options{
+		ConfigPath:   cfgPath,
+		EvidencePath: evidencePath,
+		Version:      version.Version,
+		Commit:       version.Commit,
+		BuildDate:    version.Date,
+	})
+
+	if clioutput.IsJSONMode() {
+		clioutput.PrintJSON(report)
+		if report.HasFailures() {
+			return 2
+		}
+		return 0
+	}
+
+	clioutput.Printf("%s\n", clioutput.Infof("Release readiness: %s", report.Summary()))
+	table := clioutput.NewTable("Status", "Check", "Detail")
+	for _, check := range report.Checks {
+		status := check.Status
+		switch check.Status {
+		case releasecheck.StatusPass:
+			status = clioutput.Okf("PASS")
+		case releasecheck.StatusWarn:
+			status = clioutput.Warnf("WARN")
+		case releasecheck.StatusFail:
+			status = clioutput.Errf("FAIL")
+		}
+		detail := check.Message
+		if check.FixSuggestion != "" {
+			detail += " | fix: " + check.FixSuggestion
+		}
+		table.AddRow(status, check.Name, detail)
+	}
+	table.Render()
+
+	if report.CommercialReady {
+		clioutput.Printf("%s\n", clioutput.Okf("Commercial release checks passed"))
+	} else if report.ReleaseReady {
+		clioutput.Printf("%s\n", clioutput.Warnf("Release checks passed with commercial warnings"))
+	} else {
+		clioutput.Printf("%s\n", clioutput.Errf("Release checks failed"))
+		return 2
+	}
+	return 0
 }
 
 func cmdPurge(cfgPath, mode, cutoff string, maxBytes int64, dryRun bool) {

@@ -15,6 +15,7 @@ Primary CLI for daemon management and operational checks.
 | Restart | `-restart` | Stop then start |
 | Config | `-config <path>` | Specify config file |
 | Diagnose | `-diagnose` | Collect diagnostic bundle |
+| Release Check | `-release-check` | Run commercial handoff readiness checks |
 | Purge | `-purge` | Purge stored data |
 | eBPF Inspect | `-bpf` | Inspect eBPF programs and pinned maps |
 | Verify Store | `-verify` | Check Pebble store consistency |
@@ -28,8 +29,18 @@ providaptctl -status
 providaptctl -restart
 providaptctl -config /etc/providapt/providapt.toml -status
 providaptctl -diagnose
+providaptctl -release-check -config /etc/providapt/providapt.toml
 providaptctl -verify -json
 providaptctl -audit -audit-cat=admin -json
+```
+
+For release evidence capture, combine the readiness check with JSON output:
+
+```bash
+providaptctl -release-check \
+  -config /etc/providapt/providapt.toml \
+  -release-evidence docs/project/release-evidence-v1.2.2.md \
+  -json
 ```
 
 Control-plane support APIs:

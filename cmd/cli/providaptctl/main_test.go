@@ -150,6 +150,25 @@ func TestConfigSyntacticLoad(t *testing.T) {
 	}
 }
 
+func TestCmdReleaseCheckReturnCodes(t *testing.T) {
+	dir := t.TempDir()
+	goodCfg := filepath.Join(dir, "good.toml")
+	if err := os.WriteFile(goodCfg, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if code := cmdReleaseCheck(goodCfg, ""); code != 0 {
+		t.Fatalf("good release check code = %d, want 0", code)
+	}
+
+	badCfg := filepath.Join(dir, "bad.toml")
+	if err := os.WriteFile(badCfg, []byte("output:\n  format: xml\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if code := cmdReleaseCheck(badCfg, ""); code == 0 {
+		t.Fatal("bad release check should return non-zero")
+	}
+}
+
 func TestFindDaemonPIDNoDaemon(t *testing.T) {
 	// With no PID file and no running process, findDaemonPID should return 0
 	pid := findDaemonPID()
@@ -157,4 +176,3 @@ func TestFindDaemonPIDNoDaemon(t *testing.T) {
 		t.Logf("findDaemonPID returned %d (may have running daemon)", pid)
 	}
 }
-
