@@ -54,6 +54,9 @@ func RenderMarkdown(report Report) string {
 	if report.WaiverPath != "" {
 		fmt.Fprintf(&b, "| Waiver Path | `%s` |\n", escapePipe(report.WaiverPath))
 	}
+	if report.ChecksumsPath != "" {
+		fmt.Fprintf(&b, "| Checksums Path | `%s` |\n", escapePipe(report.ChecksumsPath))
+	}
 	fmt.Fprintf(&b, "| Version | `%s` |\n", escapePipe(report.Version))
 	fmt.Fprintf(&b, "| Commit | `%s` |\n", escapePipe(report.Commit))
 	fmt.Fprintf(&b, "| Build Date | `%s` |\n", escapePipe(report.BuildDate))

@@ -41,6 +41,7 @@ providaptctl -release-check \
   -config /etc/providapt/providapt.toml \
   -release-evidence docs/project/release-evidence-v1.2.2.md \
   -release-waivers build/release-waivers.json \
+  -release-checksums dist/checksums.txt \
   -release-check-out build/release-readiness.md \
   -json
 ```
@@ -50,6 +51,9 @@ path ends in `.json`.
 
 `-release-waivers` accepts reviewed warning waivers in JSON. Waivers only apply
 to active `WARN` checks; expired or malformed waivers fail the release check.
+
+`-release-checksums` validates that the release checksum manifest exists,
+contains at least one artifact entry, and uses `<sha256> <artifact>` rows.
 
 ```json
 {

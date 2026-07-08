@@ -6,6 +6,7 @@ package releasecheck
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -204,6 +205,63 @@ func TestRunFailsExpiredWaiver(t *testing.T) {
 
 	if !report.HasFailures() {
 		t.Fatalf("expected expired waiver failure: %+v", report.Checks)
+	}
+}
+
+func TestRunValidatesChecksums(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	checksumsPath := filepath.Join(dir, "checksums.txt")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	line := strings.Repeat("a", 64) + "  providapt_linux_amd64.tar.gz\n"
+	if err := os.WriteFile(checksumsPath, []byte(line), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:    cfgPath,
+		ChecksumsPath: checksumsPath,
+		Version:       "1.2.2",
+		Commit:        "abcdef0",
+		BuildDate:     "2026-07-08T00:00:00Z",
+	})
+
+	if findCheck(t, report, "release_checksums").Status != StatusPass {
+		t.Fatalf("expected checksums pass: %+v", report.Checks)
+	}
+	if report.HasFailures() {
+		t.Fatalf("unexpected failures: %+v", report.Checks)
+	}
+}
+
+func TestRunFailsMalformedChecksums(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	checksumsPath := filepath.Join(dir, "checksums.txt")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(checksumsPath, []byte("not-a-sha providapt.tar.gz\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:    cfgPath,
+		ChecksumsPath: checksumsPath,
+		Version:       "1.2.2",
+		Commit:        "abcdef0",
+		BuildDate:     "2026-07-08T00:00:00Z",
+	})
+
+	if !report.HasFailures() {
+		t.Fatalf("expected malformed checksums failure: %+v", report.Checks)
+	}
+	if findCheck(t, report, "release_checksums").Status != StatusFail {
+		t.Fatalf("expected checksums fail: %+v", report.Checks)
 	}
 }
 

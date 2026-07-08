@@ -23,12 +23,13 @@ const (
 
 // Options controls release readiness checks.
 type Options struct {
-	ConfigPath   string
-	EvidencePath string
-	WaiverPath   string
-	Version      string
-	Commit       string
-	BuildDate    string
+	ConfigPath    string
+	EvidencePath  string
+	WaiverPath    string
+	ChecksumsPath string
+	Version       string
+	Commit        string
+	BuildDate     string
 }
 
 // Waiver records a reviewed release readiness exception.
@@ -54,6 +55,7 @@ type Report struct {
 	ConfigPath      string    `json:"config_path"`
 	EvidencePath    string    `json:"evidence_path,omitempty"`
 	WaiverPath      string    `json:"waiver_path,omitempty"`
+	ChecksumsPath   string    `json:"checksums_path,omitempty"`
 	Version         string    `json:"version"`
 	Commit          string    `json:"commit"`
 	BuildDate       string    `json:"build_date"`
@@ -69,13 +71,14 @@ type Report struct {
 // Run executes all release readiness checks.
 func Run(opts Options) Report {
 	report := Report{
-		GeneratedAt:  time.Now().UTC(),
-		ConfigPath:   opts.ConfigPath,
-		EvidencePath: opts.EvidencePath,
-		WaiverPath:   opts.WaiverPath,
-		Version:      opts.Version,
-		Commit:       opts.Commit,
-		BuildDate:    opts.BuildDate,
+		GeneratedAt:   time.Now().UTC(),
+		ConfigPath:    opts.ConfigPath,
+		EvidencePath:  opts.EvidencePath,
+		WaiverPath:    opts.WaiverPath,
+		ChecksumsPath: opts.ChecksumsPath,
+		Version:       opts.Version,
+		Commit:        opts.Commit,
+		BuildDate:     opts.BuildDate,
 	}
 
 	cfg, configLoaded := checkConfig(&report, opts.ConfigPath)
@@ -84,6 +87,7 @@ func Run(opts Options) Report {
 		checkCommercialConfig(&report, cfg)
 	}
 	checkReleaseEvidence(&report, opts.EvidencePath)
+	checkChecksums(&report, opts.ChecksumsPath)
 	applyWaivers(&report, opts.WaiverPath)
 
 	report.ReleaseReady = report.Failed == 0

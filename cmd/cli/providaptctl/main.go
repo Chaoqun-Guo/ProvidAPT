@@ -80,6 +80,9 @@ EXAMPLES
 
     providaptctl -release-check -release-waivers release-waivers.json
         Apply reviewed warning waivers during commercial readiness checks.
+
+    providaptctl -release-check -release-checksums dist/checksums.txt
+        Validate release artifact checksum manifest format.
 `)
 }
 
@@ -126,6 +129,7 @@ func main() {
 		releaseCheck  = flag.Bool("release-check", false, "Run commercial release readiness checks")
 		evidencePath  = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
 		waiverPath    = flag.String("release-waivers", "", "Release warning waiver JSON file")
+		checksumsPath = flag.String("release-checksums", "", "Release artifact checksums file")
 		releaseOut    = flag.String("release-check-out", "", "Write release check report (.md or .json)")
 	)
 	flag.Usage = usage
@@ -179,7 +183,7 @@ func main() {
 		cmdConfigCheck(*cfgPath)
 		os.Exit(0)
 	case *releaseCheck:
-		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *releaseOut))
+		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *checksumsPath, *releaseOut))
 	case *backupFlag:
 		cmdBackup(*cfgPath, *backupOut)
 		os.Exit(0)
@@ -417,14 +421,15 @@ func cmdDiagnose(outDir string) {
 	t.Render()
 }
 
-func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, reportPath string) int {
+func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, reportPath string) int {
 	report := releasecheck.Run(releasecheck.Options{
-		ConfigPath:   cfgPath,
-		EvidencePath: evidencePath,
-		WaiverPath:   waiverPath,
-		Version:      version.Version,
-		Commit:       version.Commit,
-		BuildDate:    version.Date,
+		ConfigPath:    cfgPath,
+		EvidencePath:  evidencePath,
+		WaiverPath:    waiverPath,
+		ChecksumsPath: checksumsPath,
+		Version:       version.Version,
+		Commit:        version.Commit,
+		BuildDate:     version.Date,
 	})
 
 	if err := releasecheck.WriteReport(reportPath, report); err != nil {

@@ -66,8 +66,9 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 - Confirm `checksums.txt` is generated and signed
 - Confirm release binaries embed version, commit, and build date
-- Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.2.md -release-waivers build/release-waivers.json -release-check-out build/release-readiness.md`
+- Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.2.md -release-waivers build/release-waivers.json -release-checksums dist/checksums.txt -release-check-out build/release-readiness.md`
 - If a commercial warning is intentionally accepted, capture it in `build/release-waivers.json` with `check`, `reason`, `approved_by`, and optional `expires`
+- Confirm `dist/checksums.txt` contains one SHA-256 entry per published release artifact
 - Confirm SBOM artifacts are generated in SPDX and CycloneDX formats
 - Confirm container image labels include source, version, and revision
 - Confirm release artifacts can be verified from a clean machine
