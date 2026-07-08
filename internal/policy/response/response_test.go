@@ -12,7 +12,7 @@ import (
 	"unsafe"
 )
 
-// ── Test helpers ────────────────────────────────────────────
+// Test helpers
 
 type memStore struct {
 	data map[string][]byte
@@ -20,9 +20,9 @@ type memStore struct {
 
 func newMemStore() *memStore                           { return &memStore{data: make(map[string][]byte)} }
 func (m *memStore) Put(key string, value []byte) error { m.data[key] = value; return nil }
-func (m *memStore) Get(key string) ([]byte, error)     { v, _ := m.data[key]; return v, nil }
+func (m *memStore) Get(key string) ([]byte, error)     { return m.data[key], nil }
 
-// ── Dump tests ─────────────────────────────────────────────
+// Dump tests
 
 func TestParseMaps(t *testing.T) {
 	// Can't rely on real /proc/self/maps in all environments
