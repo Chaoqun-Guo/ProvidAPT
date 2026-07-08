@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -211,11 +212,58 @@ func checkChecksumsSignature(report *Report, path string) {
 		return
 	}
 
+	data, err := os.ReadFile(path)
+	if err != nil {
+		add(report, Check{
+			Name:          "release_checksums_signature",
+			Status:        StatusFail,
+			Message:       fmt.Sprintf("cannot read checksums signature file: %v", err),
+			FixSuggestion: "Fix filesystem permissions or regenerate the detached signature for dist/checksums.txt.",
+		})
+		return
+	}
+	format := classifySignatureFormat(data)
 	add(report, Check{
 		Name:    "release_checksums_signature",
 		Status:  StatusPass,
-		Message: fmt.Sprintf("checksums signature file is present: %s", path),
+		Message: fmt.Sprintf("checksums signature file is present: %s (format: %s)", path, format),
 	})
+}
+
+func classifySignatureFormat(data []byte) string {
+	trimmed := strings.TrimSpace(string(data))
+	switch {
+	case strings.HasPrefix(trimmed, "-----BEGIN PGP SIGNATURE-----"):
+		return "gpg-armored"
+	case strings.HasPrefix(trimmed, "untrusted comment:") && strings.Contains(trimmed, "\ntrusted comment:"):
+		return "minisign"
+	case looksLikeCosignBundle(data):
+		return "cosign-bundle"
+	default:
+		return "unknown-or-binary"
+	}
+}
+
+func looksLikeCosignBundle(data []byte) bool {
+	var obj map[string]any
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return false
+	}
+	if mediaType, ok := obj["mediaType"].(string); ok && strings.Contains(strings.ToLower(mediaType), "cosign") {
+		return true
+	}
+	if _, ok := obj["verificationMaterial"]; ok {
+		return true
+	}
+	if _, ok := obj["dsseEnvelope"]; ok {
+		return true
+	}
+	if _, ok := obj["Payload"]; ok {
+		if _, hasSignature := obj["Base64Signature"]; hasSignature {
+			return true
+		}
+	}
+	return false
 }
 
 func isSHA256Hex(value string) bool {

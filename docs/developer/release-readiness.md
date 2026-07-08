@@ -70,7 +70,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - If a commercial warning is intentionally accepted, capture it in `build/release-waivers.json` with `check`, `reason`, `approved_by`, and optional `expires`
 - Confirm `dist/checksums.txt` contains one SHA-256 entry per published release artifact
 - Confirm every artifact listed in `dist/checksums.txt` exists under `dist/` and matches its SHA-256 digest
-- Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured
+- Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured; GPG armored, Minisign, and Cosign bundle evidence are recognized in release reports
 - Confirm SBOM artifacts are generated in SPDX and CycloneDX JSON formats
 - Confirm container image labels include source, version, and revision
 - Confirm release artifacts can be verified from a clean machine

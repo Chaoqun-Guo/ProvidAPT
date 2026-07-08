@@ -62,7 +62,8 @@ contains at least one artifact entry, and uses `<sha256> <artifact>` rows.
 listed in the checksum manifest.
 
 `-release-checksums-signature` validates that a detached signature file for the
-checksum manifest is present and non-empty.
+checksum manifest is present and non-empty. Recognized evidence formats include
+GPG armored signatures, Minisign signatures, and Cosign bundle JSON.
 
 `-release-sbom` validates one or more SPDX/CycloneDX JSON SBOM files. Separate
 multiple paths with commas or semicolons.

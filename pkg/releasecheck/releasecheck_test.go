@@ -372,6 +372,56 @@ func TestRunValidatesChecksumsSignature(t *testing.T) {
 	}
 }
 
+func TestRunReportsChecksumsSignatureFormat(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	signaturePath := filepath.Join(dir, "checksums.txt.sig")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	signature := []byte("-----BEGIN PGP SIGNATURE-----\nabc\n-----END PGP SIGNATURE-----\n")
+	if err := os.WriteFile(signaturePath, signature, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:             cfgPath,
+		ChecksumsSignaturePath: signaturePath,
+		Version:                "1.2.2",
+		Commit:                 "abcdef0",
+		BuildDate:              "2026-07-08T00:00:00Z",
+	})
+
+	check := findCheck(t, report, "release_checksums_signature")
+	if check.Status != StatusPass {
+		t.Fatalf("expected checksums signature pass: %+v", report.Checks)
+	}
+	if !strings.Contains(check.Message, "format: gpg-armored") {
+		t.Fatalf("expected gpg-armored format in message: %q", check.Message)
+	}
+}
+
+func TestClassifySignatureFormat(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{name: "gpg armored", data: []byte("-----BEGIN PGP SIGNATURE-----\nabc\n"), want: "gpg-armored"},
+		{name: "minisign", data: []byte("untrusted comment: signature\nabc\ntrusted comment: timestamp\nsig\n"), want: "minisign"},
+		{name: "cosign bundle", data: []byte(`{"mediaType":"application/vnd.dev.cosign.bundle.v0.3+json","verificationMaterial":{}}`), want: "cosign-bundle"},
+		{name: "unknown binary", data: []byte{0x00, 0x01, 0x02}, want: "unknown-or-binary"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := classifySignatureFormat(tt.data); got != tt.want {
+				t.Fatalf("classifySignatureFormat() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRunFailsEmptyChecksumsSignature(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "providapt.toml")
