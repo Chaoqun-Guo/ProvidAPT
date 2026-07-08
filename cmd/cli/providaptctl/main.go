@@ -74,6 +74,9 @@ EXAMPLES
 
     providaptctl -release-check -config /etc/providapt/providapt.toml
         Run commercial release readiness checks for handoff.
+
+    providaptctl -release-check -release-check-out release-readiness.md
+        Write a Markdown or JSON release readiness evidence report.
 `)
 }
 
@@ -119,6 +122,7 @@ func main() {
 		configCheck   = flag.Bool("config-check", false, "Validate config file and exit")
 		releaseCheck  = flag.Bool("release-check", false, "Run commercial release readiness checks")
 		evidencePath  = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
+		releaseOut    = flag.String("release-check-out", "", "Write release check report (.md or .json)")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -171,7 +175,7 @@ func main() {
 		cmdConfigCheck(*cfgPath)
 		os.Exit(0)
 	case *releaseCheck:
-		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath))
+		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *releaseOut))
 	case *backupFlag:
 		cmdBackup(*cfgPath, *backupOut)
 		os.Exit(0)
@@ -409,7 +413,7 @@ func cmdDiagnose(outDir string) {
 	t.Render()
 }
 
-func cmdReleaseCheck(cfgPath, evidencePath string) int {
+func cmdReleaseCheck(cfgPath, evidencePath, reportPath string) int {
 	report := releasecheck.Run(releasecheck.Options{
 		ConfigPath:   cfgPath,
 		EvidencePath: evidencePath,
@@ -417,6 +421,15 @@ func cmdReleaseCheck(cfgPath, evidencePath string) int {
 		Commit:       version.Commit,
 		BuildDate:    version.Date,
 	})
+
+	if err := releasecheck.WriteReport(reportPath, report); err != nil {
+		if clioutput.IsJSONMode() {
+			clioutput.PrintJSON(map[string]string{"error": err.Error()})
+		} else {
+			clioutput.Printf("%s\n", clioutput.Errf("Failed to write release report: %v", err))
+		}
+		return 2
+	}
 
 	if clioutput.IsJSONMode() {
 		clioutput.PrintJSON(report)
@@ -453,6 +466,9 @@ func cmdReleaseCheck(cfgPath, evidencePath string) int {
 	} else {
 		clioutput.Printf("%s\n", clioutput.Errf("Release checks failed"))
 		return 2
+	}
+	if reportPath != "" {
+		clioutput.Printf("%s\n", clioutput.Okf("Release check report written: %s", reportPath))
 	}
 	return 0
 }

@@ -40,8 +40,12 @@ For release evidence capture, combine the readiness check with JSON output:
 providaptctl -release-check \
   -config /etc/providapt/providapt.toml \
   -release-evidence docs/project/release-evidence-v1.2.2.md \
+  -release-check-out build/release-readiness.md \
   -json
 ```
+
+`-release-check-out` writes Markdown by default, or structured JSON when the
+path ends in `.json`.
 
 Control-plane support APIs:
 

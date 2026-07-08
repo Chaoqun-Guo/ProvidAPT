@@ -156,7 +156,7 @@ func TestCmdReleaseCheckReturnCodes(t *testing.T) {
 	if err := os.WriteFile(goodCfg, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if code := cmdReleaseCheck(goodCfg, ""); code != 0 {
+	if code := cmdReleaseCheck(goodCfg, "", ""); code != 0 {
 		t.Fatalf("good release check code = %d, want 0", code)
 	}
 
@@ -164,8 +164,23 @@ func TestCmdReleaseCheckReturnCodes(t *testing.T) {
 	if err := os.WriteFile(badCfg, []byte("output:\n  format: xml\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if code := cmdReleaseCheck(badCfg, ""); code == 0 {
+	if code := cmdReleaseCheck(badCfg, "", ""); code == 0 {
 		t.Fatal("bad release check should return non-zero")
+	}
+}
+
+func TestCmdReleaseCheckWritesReport(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	reportPath := filepath.Join(dir, "release-readiness.md")
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if code := cmdReleaseCheck(cfgPath, "", reportPath); code != 0 {
+		t.Fatalf("release check code = %d, want 0", code)
+	}
+	if _, err := os.Stat(reportPath); err != nil {
+		t.Fatalf("report not written: %v", err)
 	}
 }
 

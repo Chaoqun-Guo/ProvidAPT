@@ -138,16 +138,20 @@ func TestFlagParsingDiagnose(t *testing.T) {
 }
 
 func TestFlagParsingReleaseCheck(t *testing.T) {
-	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md"}
+	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-check-out", "/tmp/report.md"}
 	flag.CommandLine = flag.NewFlagSet("providaptctl", flag.ContinueOnError)
 	releaseCheck := flag.Bool("release-check", false, "")
 	evidencePath := flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "")
+	reportPath := flag.String("release-check-out", "", "")
 	flag.Parse()
 	if !*releaseCheck {
 		t.Error("expected -release-check=true")
 	}
 	if *evidencePath != "/tmp/evidence.md" {
 		t.Errorf("got release-evidence=%q", *evidencePath)
+	}
+	if *reportPath != "/tmp/report.md" {
+		t.Errorf("got release-check-out=%q", *reportPath)
 	}
 }
 
