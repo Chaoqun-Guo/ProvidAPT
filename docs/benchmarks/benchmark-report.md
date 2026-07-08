@@ -30,8 +30,8 @@ ProvidAPT's eBPF-based event collection adds measurable but controlled overhead.
 
 | Component | Version |
 |-----------|---------|
-| ProvidAPT | `v1.2.1` |
-| Go | `1.22` |
+| ProvidAPT | `v1.2.2` |
+| Go | `1.25` |
 | eBPF | CO-RE with BTF |
 | Pebble | `v1.1.1` |
 | sysbench | `1.0.20` |

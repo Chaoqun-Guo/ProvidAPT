@@ -10,8 +10,8 @@
 | [data-schema.md](data-schema.md) | Protobuf 数据模型、事件类型与关系结构 |
 | [testing.md](testing.md) | 单元测试、集成测试与性能测试说明 |
 | [upgrade-guide.md](upgrade-guide.md) | 当前发布线升级、预检、回滚说明 |
-| [release-readiness.md](release-readiness.md) | 发版前最终检查清单 |
-| [release-notes-v1.2.1.md](release-notes-v1.2.1.md) | `v1.2.1` 发布说明 |
+| [release-readiness.md](release-readiness.md) | 发布前最终检查清单 |
+| [release-notes-v1.2.2.md](release-notes-v1.2.2.md) | `v1.2.2` 发布说明 |
 | [changelog.md](changelog.md) | 工程侧变更记录 |
 
 ## 快速开发

@@ -91,7 +91,7 @@ variable "backup_retention_days" {
 variable "providapt_version" {
   description = "ProvidAPT release version to deploy"
   type        = string
-  default     = "v1.2.1"
+  default     = "v1.2.2"
 }
 
 variable "domain_name" {

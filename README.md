@@ -2,8 +2,8 @@
 
 ProvidAPT is a Linux provenance-based threat detection platform built on eBPF and BPF LSM. It captures kernel-level activity, builds a provenance graph, and supports detection, investigation, audit, support, ticketing, license, and upgrade workflows for production operations.
 
-[![Go Version](https://img.shields.io/badge/Go-1.22+-blue)](https://golang.org)
-[![Release](https://img.shields.io/badge/Release-v1.2.1-brightgreen)](CHANGELOG.md)
+[![Go Version](https://img.shields.io/badge/Go-1.25+-blue)](https://golang.org)
+[![Release](https://img.shields.io/badge/Release-v1.2.2-brightgreen)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache--2.0-green)](LICENSE)
 
 ## Overview
@@ -79,8 +79,8 @@ build/ebpf/*.bpf.o            # Compiled eBPF programs
 
 ## Release Status
 
-- Current release target: `v1.2.1`
-- Release notes: `docs/developer/release-notes-v1.2.1.md`
+- Current release target: `v1.2.2`
+- Release notes: `docs/developer/release-notes-v1.2.2.md`
 - Release checklist: `docs/developer/release-readiness.md`
 - Product changelog: `CHANGELOG.md`
 
@@ -90,7 +90,7 @@ build/ebpf/*.bpf.o            # Compiled eBPF programs
 - BTF support (`CONFIG_DEBUG_INFO_BTF=y`)
 - clang 12+, llvm-strip
 - libbpf 1.0+
-- Go 1.22+
+- Go 1.25+
 
 ## License
 

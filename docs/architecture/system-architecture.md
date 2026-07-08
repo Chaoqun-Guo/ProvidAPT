@@ -1,6 +1,6 @@
 # ProvidAPT System Architecture
 
-This document describes the current production architecture of ProvidAPT for the `v1.2.1` release line.
+This document describes the current production architecture of ProvidAPT for the `v1.2.2` release line.
 
 ## Layered Model
 

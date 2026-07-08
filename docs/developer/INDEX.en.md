@@ -11,7 +11,7 @@ This section is for engineers extending, integrating, testing, or releasing Prov
 | [testing.md](testing.md) | Unit, integration, and benchmark guidance |
 | [upgrade-guide.md](upgrade-guide.md) | Release-line upgrade and rollback guide |
 | [release-readiness.md](release-readiness.md) | Final pre-release checklist |
-| [release-notes-v1.2.1.md](release-notes-v1.2.1.md) | `v1.2.1` release notes |
+| [release-notes-v1.2.2.md](release-notes-v1.2.2.md) | `v1.2.2` release notes |
 | [changelog.md](changelog.md) | Engineering-facing change log |
 
 ## Quick Development

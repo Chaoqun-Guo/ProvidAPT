@@ -1,4 +1,4 @@
-# 鈹€鈹€ ProvidAPT Ansible Inventory 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ProvidAPT Ansible Inventory
 # Basic inventory for provisioning ProvidAPT nodes.
 # Usage:
 #   ansible-playbook -i inventory.yml playbook.yml
@@ -30,7 +30,7 @@ all:
     # ProvidAPT configuration
     providapt_config_path: /etc/providapt/providapt.toml
     providapt_data_dir: /var/log/providapt
-    providapt_version: v1.2.1
+    providapt_version: v1.2.2
     providapt_image: ghcr.io/chaoqun-guo/providapt
 
     # API settings

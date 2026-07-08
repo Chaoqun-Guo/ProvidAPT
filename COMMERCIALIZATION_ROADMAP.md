@@ -1,19 +1,19 @@
 # Commercialization Roadmap
 
 Last Updated: `2026-06-09`
-Release Line: `v1.2.1`
+Release Line: `v1.2.2`
 
 ## Goal
 
-ProvidAPT has completed the core product-hardening work needed for the `v1.2.1` release line. The next phase focuses on turning the current release-ready engineering baseline into a repeatable commercial delivery model.
+ProvidAPT has completed the core product-hardening work needed for the `v1.2.2` release line. The next phase focuses on turning the current release-ready engineering baseline into a repeatable commercial delivery model.
 
 ## Current Status
 
 ### Completed Foundation
 
 - Core build flow standardized around `make build-core`, `make build-ebpf`, `make build-userspace`, and `make install-local`
-- Release-facing documentation aligned to `v1.2.1`
-- Installer, Helm, Terraform, and Ansible defaults aligned to `v1.2.1`
+- Release-facing documentation aligned to `v1.2.2`
+- Installer, Helm, Terraform, and Ansible defaults aligned to `v1.2.2`
 - Control-plane APIs for support bundles, license checks, upgrade readiness, policy management, alert workflow, and delivery recovery are in place
 - Local release-quality validation completed with `go test ./...`, `go vet ./...`, and doc consistency review
 - CI workflows updated for current GitHub Actions runtime expectations
@@ -40,7 +40,7 @@ These items are considered release-blocking or immediate post-release hardening 
 
 ## P1 Priorities
 
-These items improve commercial usability and adoption without blocking the `v1.2.1` release.
+These items improve commercial usability and adoption without blocking the `v1.2.2` release.
 
 1. Polish dashboard and operator workflows for fleet, alerts, support bundles, and delivery recovery
 2. Expand role-based access control and audit visibility
@@ -50,19 +50,19 @@ These items improve commercial usability and adoption without blocking the `v1.2
 
 ## Phase Plan
 
-### Phase 1 ? Release Hardening
+### Phase 1 - Release Hardening
 
 - Finalize release documents and validation evidence
 - Keep package defaults and deployment manifests version-aligned
 - Ensure project layout and documentation placement remain stable
 
-### Phase 2 ? Operator Experience
+### Phase 2 - Operator Experience
 
 - Refine dashboard summaries and control-plane workflows
 - Add clearer runbooks for support, upgrade, alert handling, and evidence export
 - Reduce operator friction in day-2 operations
 
-### Phase 3 ? Commercial Scale
+### Phase 3 - Commercial Scale
 
 - Expand fleet management and multi-node operational patterns
 - Improve enterprise integration depth for ticketing, delivery recovery, and audit review
@@ -82,6 +82,6 @@ The roadmap milestone is considered complete when:
 
 - `DEVELOPMENT_PROGRESS.md`
 - `CHANGELOG.md`
-- `docs/developer/release-notes-v1.2.1.md`
+- `docs/developer/release-notes-v1.2.2.md`
 - `docs/project/documentation-audit.md`
 - `docs/project/release-docs-consistency-check.md`

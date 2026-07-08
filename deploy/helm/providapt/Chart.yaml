@@ -13,7 +13,7 @@ type: application
 version: 0.1.0
 
 # App version correlates to the ProvidAPT release tag
-appVersion: v1.2.1
+appVersion: v1.2.2
 
 keywords:
   - security

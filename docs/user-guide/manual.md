@@ -1,6 +1,6 @@
 # ProvidAPT User Manual
 
-**Release Line:** `v1.2.1`
+**Release Line:** `v1.2.2`
 
 This manual covers day-to-day operation of ProvidAPT, including command-line workflows, provenance investigation, policy operations, reporting, and cleanup guidance.
 

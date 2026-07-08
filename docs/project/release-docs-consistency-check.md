@@ -1,7 +1,7 @@
 # Release Docs Consistency Check
 
 Date: 2026-06-09
-Release: `v1.2.1`
+Release: `v1.2.2`
 
 ## Scope Checked
 
@@ -9,9 +9,10 @@ Release: `v1.2.1`
 - `CHANGELOG.md`
 - `docs/developer/INDEX.md`
 - `docs/developer/changelog.md`
-- `docs/developer/release-notes-v1.2.1.md`
+- `docs/developer/release-notes-v1.2.2.md`
 - `docs/developer/release-readiness.md`
 - `docs/project/documentation-audit.md`
+- `docs/project/release-evidence-v1.2.2.md`
 - `docs/project/project-layout.md`
 - `DEVELOPMENT_PROGRESS.md`
 - `COMMERCIALIZATION_ROADMAP.md`
@@ -19,9 +20,9 @@ Release: `v1.2.1`
 
 ## Verified Alignment
 
-- Release identifier is consistently `v1.2.1`
+- Release identifier is consistently `v1.2.2`
 - Build/test command references use `build-core`, `build-ebpf`, `build-userspace`, `install-local`, and `test-core`
-- Deployment defaults and installer examples align with `v1.2.1`
+- Deployment defaults and installer examples align with `v1.2.2`
 - Release notes, changelog, and workflow files describe the same release train
 
 ## Open Editorial Notes

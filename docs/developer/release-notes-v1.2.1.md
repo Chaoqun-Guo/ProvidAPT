@@ -1,4 +1,4 @@
-# Release Notes — v1.2.1
+# Release Notes - v1.2.1
 
 Date: 2026-06-09
 Status: Ready for release

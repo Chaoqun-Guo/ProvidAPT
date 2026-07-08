@@ -4,7 +4,7 @@ This guide covers upgrade preparation for the current maintained release line.
 
 ## Target Release
 
-- Current release: `v1.2.1`
+- Current release: `v1.2.2`
 - Recommended upgrade mode: in-place package upgrade with preflight validation
 
 ## Pre-Upgrade Checklist

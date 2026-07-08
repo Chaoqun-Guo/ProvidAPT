@@ -1,4 +1,4 @@
-# Release Notes — v1.2.2
+# Release Notes - v1.2.2
 
 Date: 2026-06-09
 Status: Released
@@ -7,7 +7,7 @@ Version: `v1.2.2`
 ## Summary
 
 Patch release fixing the `golangci-lint` v2 migration regression and resolving
-several CI and workflow compatibility issues identified during the v1.2.1→v1.2.2
+several CI and workflow compatibility issues identified during the v1.2.1-to-v1.2.2
 release cycle.
 
 ## Fixed

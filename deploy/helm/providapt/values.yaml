@@ -1,11 +1,11 @@
-# 鈹€鈹€ ProvidAPT Helm Chart Values 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ProvidAPT Helm Chart Values
 # This file contains the default configuration for the ProvidAPT
 # DaemonSet deployment on Kubernetes.
 
 # -- Image settings
 image:
   repository: ghcr.io/chaoqun-guo/providapt
-  tag: v1.2.1
+  tag: v1.2.2
   pullPolicy: IfNotPresent
 
 # -- Node selection

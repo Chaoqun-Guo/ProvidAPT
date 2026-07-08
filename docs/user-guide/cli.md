@@ -1,6 +1,6 @@
 # CLI Reference
 
-This document covers the main ProvidAPT command-line tools in the `v1.2.1` release line.
+This document covers the main ProvidAPT command-line tools in the `v1.2.2` release line.
 
 ## Tools
 
