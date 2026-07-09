@@ -847,6 +847,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/graph/export", s.jsonHandler(s.handleExport))
 	mux.HandleFunc("/api/v1/graph/node/", s.jsonHandler(s.handleNode)) // parsed from path
 	mux.HandleFunc("/api/v1/alerts", s.jsonHandler(s.handleAlerts))
+	mux.HandleFunc("/api/v1/alerts/", s.jsonHandler(s.handleAlerts))
 	mux.HandleFunc("/api/v1/admin/reload", s.jsonHandler(s.handleReload))
 	mux.HandleFunc("/api/v1/events/search", s.jsonHandler(s.handleEventSearch))
 	mux.HandleFunc("/dashboard", s.handleDashboard)

@@ -1336,6 +1336,20 @@ func TestAlertsEndpoint(t *testing.T) {
 	t.Logf("alerts response: %v", resp)
 }
 
+func TestAlertSVGSubroute(t *testing.T) {
+	ts := testServer(t)
+	w := apiGet(ts, "/api/v1/alerts/p%3A100/svg")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); got != "image/svg+xml" {
+		t.Fatalf("content-type = %q", got)
+	}
+	if !strings.Contains(w.Body.String(), "<svg") {
+		t.Fatal("expected SVG response body")
+	}
+}
+
 func TestCORSHeaders(t *testing.T) {
 	ts := testServer(t)
 	handler := corsMiddleware([]string{"*"})(ts.mux)
