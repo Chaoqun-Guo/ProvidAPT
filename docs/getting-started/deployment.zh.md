@@ -1,6 +1,6 @@
 # 部署指南
 
-**单机部署 & Kubernetes** | 环境准备、安装步骤、分布式配置
+**单机部署与 Kubernetes 部署**：环境准备、安装步骤、分布式配置与上线验证。
 
 ---
 
@@ -9,17 +9,17 @@
 ### 1.1 最低要求
 
 | 资源 | 最低配置 | 推荐配置 |
-|------|---------|---------|
+| --- | --- | --- |
 | CPU | 2 核 | 8+ 核 |
 | 内存 | 2 GB | 16+ GB |
-| 磁盘 | 10 GB | 200+ GB (SSD) |
+| 磁盘 | 10 GB | 200+ GB SSD |
 | 内核 | 5.11+ | 6.2+ |
 | eBPF | BTF 支持 | CO-RE 能力 |
 
 ### 1.2 内核验证
 
 ```bash
-# 检查 BTF 支持（CO-RE 必需）
+# 检查 BTF 支持，CO-RE 必需
 ls /sys/kernel/btf/vmlinux
 
 # 检查 LSM 配置
@@ -49,7 +49,7 @@ reboot
 git clone https://github.com/Chaoqun-Guo/ProvidAPT
 cd ProvidAPT
 
-# 完整构建（eBPF + 用户空间）
+# 完整构建：eBPF + 用户空间
 make build-core
 
 # 安装到系统
@@ -88,7 +88,7 @@ sudo providaptctl -status
 ```ini
 # /etc/systemd/system/providapt.service
 [Unit]
-Description=ProvidAPT 溯源监控器
+Description=ProvidAPT Provenance Monitor
 After=network.target
 
 [Service]
@@ -109,10 +109,10 @@ WantedBy=multi-user.target
 
 ## 3. 分布式配置
 
-### 3.1 中央服务器设置
+### 3.1 中央服务配置
 
 ```bash
-# 安装中央服务器组件
+# 安装中央服务组件
 make cluster
 
 # 在 /etc/providapt/collectors.toml 中配置收集器
@@ -129,7 +129,7 @@ cert = "/etc/providapt/certs/collector-1.pem"
 openssl genrsa -out ca.key 4096
 openssl req -new -x509 -days 3650 -key ca.key -out ca.crt
 
-# 服务器证书
+# 服务端证书
 openssl genrsa -out server.key 4096
 openssl req -new -key server.key -out server.csr
 openssl x509 -req -days 365 -in server.csr -CA ca.crt -CAkey ca.key -out server.crt
@@ -187,6 +187,17 @@ bpftool prog list | grep providapt
 # 3. 检查事件摄入
 tail -f /var/log/providapt/providapt.log | grep "scan complete"
 
-# 4. 运行验证
+# 4. 运行数据校验
 providapt-verify -data /var/lib/providapt/store
+```
+
+## 6. 回滚与清理
+
+```bash
+sudo systemctl stop providapt
+sudo systemctl disable providapt
+sudo rm -f /etc/systemd/system/providapt.service
+sudo rm -rf /var/lib/providapt/store
+sudo rm -rf /var/log/providapt
+sudo systemctl daemon-reload
 ```

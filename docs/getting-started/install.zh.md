@@ -17,9 +17,8 @@
 ## 2. 环境检查
 
 ```bash
-# 检查内核版本
+# 检查内核版本，建议 5.11+
 uname -r
-# 预期：5.8+，推荐 5.11+
 
 # 检查 BTF
 ls -la /sys/kernel/btf/vmlinux
@@ -97,7 +96,7 @@ make build-core
 build/bin/providaptd          # 主 daemon
 build/bin/providaptctl        # 控制 CLI
 build/bin/providapt-watchdog  # watchdog
-build/bin/providapt-verify    # 数据完整性验证
+build/bin/providapt-verify    # 数据完整性校验
 build/bin/providapt-deanon    # 去匿名化工具
 build/bin/providapt-heal      # 自愈工具
 build/ebpf/*.bpf.o            # eBPF 对象文件
@@ -166,7 +165,7 @@ sudo -E providaptd -config /etc/providapt/providapt.toml
 | BTF 不可用 | 内核未启用 BTF 或缺少调试信息 | 检查 `/sys/kernel/btf/vmlinux`，必要时使用发行版 BTF 包 |
 | LSM 不包含 `bpf` | GRUB LSM 参数未配置 | 配置 `lsm=lockdown,capability,selinux,bpf` 并重启 |
 | 事件丢失 | 事件量超过消费能力 | 调整采集范围、ring buffer 或下游处理能力 |
-| 权限不足 | eBPF、cgroup 或 host path 权限不够 | 确认以 root 运行或授予所需 capability |
+| 权限不足 | eBPF、cgroup 或 host path 权限不足 | 确认以 root 运行或授予所需 capability |
 
 当出现 `no precompiled eBPF object found` 时：
 

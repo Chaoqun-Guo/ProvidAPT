@@ -727,7 +727,7 @@ async function loadAlertWorkflow() {
         const sev = a.severity || 'info';
         return '<div class="alert-item">' +
           '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
-          '<span class="alert-msg">' + (a.headline || a.pattern || 'Alert') + ' 路 ' + (a.status || 'open') + (a.assignee ? (' 路 ' + a.assignee) : '') + ' 路 x' + (a.count || 1) + '</span>' +
+          '<span class="alert-msg">' + (a.headline || a.pattern || 'Alert') + ' · ' + (a.status || 'open') + (a.assignee ? (' · ' + a.assignee) : '') + ' · x' + (a.count || 1) + '</span>' +
           '<span class="alert-time">' + formatTime(a.last_seen || a.last_notified_at) + '</span>' +
           '</div>';
       }).join('');
@@ -978,6 +978,3 @@ setInterval(refresh, 5000);
 </script>
 </body>
 </html>
-
-
-

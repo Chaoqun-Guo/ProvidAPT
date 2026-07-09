@@ -1,19 +1,19 @@
 # ProvidAPT 用户手册
 
-**发布线：** `v1.2.2`
+**发布版本：** `v1.2.2`
 
-本文档覆盖 ProvidAPT 的日常操作，包括命令行工作流、溯源调查、策略操作、报告和清理指南。
+本文档覆盖 ProvidAPT 的日常使用流程，包括命令行操作、溯源调查、策略控制、报告导出、性能调优和清理步骤。
 
-## 1. ?????
+## 1. 命令行工具
 
-ProvidAPT ?????????
+ProvidAPT 提供以下主要工具：
 
-- `providaptctl`??????????
-- `providaptd`??????
-- `providapt-watchdog`???????
-- `providapt-verify`????????
-- `providapt-deanon`?????????
-- `providapt-heal`??????????
+- `providaptctl`：控制与诊断 CLI。
+- `providaptd`：主守护进程。
+- `providapt-watchdog`：守护与健康检查工具。
+- `providapt-verify`：数据完整性校验工具。
+- `providapt-deanon`：去匿名化辅助工具。
+- `providapt-heal`：进程隔离、回滚和自愈工具。
 
 ### `providaptctl`
 
@@ -33,15 +33,15 @@ sudo providaptd -config /etc/providapt/providapt.toml
 sudo providaptd -v
 ```
 
-????????
+启动时会自动检查：
 
-- ???? `BPF LSM`
-- ????????? `kprobe` ??
-- ???????????
+- 当前内核是否启用 `BPF LSM`。
+- 是否可以使用 `kprobe` fallback。
+- eBPF 对象文件是否存在于默认路径：
   - `build/ebpf/lsm_hooks.bpf.o`
   - `/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o`
 
-??????????
+也可以显式指定 eBPF 对象路径：
 
 ```bash
 export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
@@ -55,10 +55,10 @@ sudo providapt-verify -data /var/lib/providapt/store
 sudo providapt-verify -data /var/lib/providapt/store -verbose
 ```
 
-??????
+常见退出码：
 
-- `0`?????
-- `2`???????????
+- `0`：校验通过。
+- `2`：发现完整性错误或证据链异常。
 
 ### `providapt-heal`
 
@@ -68,9 +68,9 @@ providapt-heal -pid 1234 -rollback -dry-run=false
 providapt-heal -pid 1234 -firewall
 ```
 
-## 2. ProvQL ????
+## 2. ProvQL 调查示例
 
-### ????????
+### 查询读取 `/etc/shadow` 的进程
 
 ```sql
 MATCH (p:Process)-[:READ]->(f:File)
@@ -78,7 +78,7 @@ WHERE f.path = '/etc/shadow'
 RETURN p.pid, p.comm, f.path
 ```
 
-### ?? SSH ????
+### 查询 SSH 外联行为
 
 ```sql
 MATCH (p:Process)-[:CONNECTED]->(n:Network)
@@ -86,7 +86,7 @@ WHERE n.label CONTAINS ':22' AND p.comm = 'ssh'
 RETURN p.pid, p.comm, n.label
 ```
 
-### ?? `curl -> ???? -> bash`
+### 查询 `curl -> 临时文件 -> bash` 链路
 
 ```sql
 MATCH (a:Process)-[:WROTE]->(f:File)-[:READ]->(b:Process)
@@ -96,7 +96,9 @@ WHERE f.path STARTSWITH '/tmp'
 RETURN a.comm, f.path, b.comm
 ```
 
-## 3. ???????
+## 3. 运维 API
+
+常用接口：
 
 - `GET /api/v1/status`
 - `GET /api/v1/graph/export`
@@ -108,23 +110,25 @@ RETURN a.comm, f.path, b.comm
 - `GET /api/v1/control/upgrade`
 - `POST /api/v1/control/upgrade`
 
-## 4. ?????
+## 4. 报告与证据
 
-???????
+报告通常包含：
 
-- ?????
-- MITRE ?????
-- ??????
-- ?????
+- 攻击链时间线。
+- MITRE ATT&CK 技术映射。
+- 进程、文件、网络与权限变化证据。
+- 审计日志、原始事件和完整性校验结果。
 
-## 5. ????
+建议在告警处置完成后导出报告，并将报告、校验结果和相关原始事件一起归档。
 
-- ???????? SSD ?? Pebble ????
-- ?????????
-- ???? ring buffer ???????
-- ??????? `go test ./...`
+## 5. 性能调优
 
-## 6. ?????
+- 将数据目录放在 SSD 上，减少写入延迟。
+- 对高频事件启用采样或策略过滤。
+- 根据事件量调整 ring buffer 与下游处理能力。
+- 发布前运行 `go test ./...` 和 release-scoped 测试。
+
+## 6. 卸载与清理
 
 ```bash
 providaptctl -stop
