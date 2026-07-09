@@ -129,7 +129,7 @@ func searchEvents(dir string, p SearchParams) ([]EventRecord, error) {
 		return nil, err
 	}
 
-	var results []EventRecord
+	results := []EventRecord{}
 	for _, f := range files {
 		recs, err := searchFile(f, p)
 		if err != nil {
@@ -149,7 +149,7 @@ func recentEvents(dir string, limit int) ([]EventRecord, error) {
 		return nil, err
 	}
 
-	var results []EventRecord
+	results := []EventRecord{}
 	// Read files in reverse order (most recent first)
 	for i := len(files) - 1; i >= 0; i-- {
 		recs, err := tailFile(files[i], limit-len(results))
@@ -192,7 +192,7 @@ func searchFile(path string, p SearchParams) ([]EventRecord, error) {
 	}
 	defer func() { _ = f.Close() }()
 
-	var results []EventRecord
+	results := []EventRecord{}
 	scanner := bufio.NewScanner(f)
 	// Use a larger buffer for potentially long lines
 	scanner.Buffer(make([]byte, 0, 64*1024), 256*1024)
@@ -250,7 +250,7 @@ func tailFile(path string, n int) ([]EventRecord, error) {
 		start = len(lines) - n
 	}
 
-	var results []EventRecord
+	results := []EventRecord{}
 	for _, line := range lines[start:] {
 		if len(line) == 0 {
 			continue
