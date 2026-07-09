@@ -67,6 +67,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .error { color: #f85149; text-align: center; padding: 12px; font-size: 13px; }
 .mini-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .mini-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
+.mini-card.clickable, .policy-item.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
+.mini-card.clickable:hover, .policy-item.clickable:hover { border-color: #58a6ff; transform: translateY(-1px); }
 .mini-card .value { font-size: 22px; font-weight: 700; color: #58a6ff; }
 .mini-card .label { margin-top: 4px; font-size: 11px; color: #8b949e; text-transform: uppercase; }
 .agents-list { display: grid; gap: 10px; }
@@ -74,6 +76,9 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .agent-name { font-weight: 600; color: #c9d1d9; }
 .agent-meta { margin-top: 8px; font-size: 12px; color: #8b949e; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
+.agent-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.agent-actions button { background: #30363d; color: #c9d1d9; border: 1px solid #484f58; border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 11px; }
+.agent-actions button:hover { border-color: #58a6ff; color: #58a6ff; }
 .fleet-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
 .fleet-toolbar input { flex: 1; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; }
 .fleet-toolbar button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
@@ -128,9 +133,9 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h2>Control Plane Summary</h2>
     <div class="panel-body">
       <div class="mini-metrics">
-        <div class="mini-card"><div class="value" id="mAgents">--</div><div class="label">Agents</div></div>
-        <div class="mini-card"><div class="value" id="mHealthyAgents">--</div><div class="label">Healthy</div></div>
-        <div class="mini-card"><div class="value" id="mDegradedAgents">--</div><div class="label">Degraded</div></div>
+        <div class="mini-card clickable" onclick="showFleetStatus('all')"><div class="value" id="mAgents">--</div><div class="label">Agents</div></div>
+        <div class="mini-card clickable" onclick="showFleetStatus('healthy')"><div class="value" id="mHealthyAgents">--</div><div class="label">Healthy</div></div>
+        <div class="mini-card clickable" onclick="showFleetStatus('degraded')"><div class="value" id="mDegradedAgents">--</div><div class="label">Degraded</div></div>
       </div>
     </div>
   </div>
@@ -158,10 +163,10 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h2>Support Bundle</h2>
     <div class="panel-body">
       <div class="policy-grid">
-        <div class="policy-item"><div class="value" id="sbStatus">--</div><div class="label">Last Status</div></div>
-        <div class="policy-item"><div class="value" id="sbTime">--</div><div class="label">Last Export</div></div>
-        <div class="policy-item"><div class="value" id="sbActor">--</div><div class="label">Last Actor</div></div>
-        <div class="policy-item"><div class="value" id="sbHistoryCount">--</div><div class="label">History</div></div>
+        <div class="policy-item clickable" onclick="showSupportDetails('status')"><div class="value" id="sbStatus">--</div><div class="label">Last Status</div></div>
+        <div class="policy-item clickable" onclick="showSupportDetails('export')"><div class="value" id="sbTime">--</div><div class="label">Last Export</div></div>
+        <div class="policy-item clickable" onclick="showSupportDetails('actor')"><div class="value" id="sbActor">--</div><div class="label">Last Actor</div></div>
+        <div class="policy-item clickable" onclick="showSupportDetails('history')"><div class="value" id="sbHistoryCount">--</div><div class="label">History</div></div>
       </div>
       <div class="action-row">
         <button id="exportSupportBundleBtn" onclick="prepareSupportBundleAction()">Export Support Bundle</button>
@@ -181,10 +186,10 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h2>License & Upgrade</h2>
     <div class="panel-body">
       <div class="policy-grid">
-        <div class="policy-item"><div class="value" id="licensePresent">--</div><div class="label">License File</div></div>
-        <div class="policy-item"><div class="value" id="licenseChecked">--</div><div class="label">License Expiry</div></div>
-        <div class="policy-item"><div class="value" id="upgradeVersion">--</div><div class="label">Current Version</div></div>
-        <div class="policy-item"><div class="value" id="upgradeAction">--</div><div class="label">Package Verify</div></div>
+        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('license')"><div class="value" id="licensePresent">--</div><div class="label">License File</div></div>
+        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('expiry')"><div class="value" id="licenseChecked">--</div><div class="label">License Expiry</div></div>
+        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('version')"><div class="value" id="upgradeVersion">--</div><div class="label">Current Version</div></div>
+        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('package')"><div class="value" id="upgradeAction">--</div><div class="label">Package Verify</div></div>
       </div>
       <div class="action-row">
         <button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate License</button>
@@ -206,10 +211,10 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h2>Policy Center</h2>
     <div class="panel-body">
       <div class="policy-grid">
-        <div class="policy-item"><div class="value" id="pCurrentVersion">--</div><div class="label">Current Version</div></div>
-        <div class="policy-item"><div class="value" id="pDraftState">--</div><div class="label">Draft State</div></div>
-        <div class="policy-item"><div class="value" id="pActiveRules">--</div><div class="label">Active Rules</div></div>
-        <div class="policy-item"><div class="value" id="pHistoryCount">--</div><div class="label">History</div></div>
+        <div class="policy-item clickable" onclick="showPolicyDetails('current')"><div class="value" id="pCurrentVersion">--</div><div class="label">Current Version</div></div>
+        <div class="policy-item clickable" onclick="showPolicyDetails('draft')"><div class="value" id="pDraftState">--</div><div class="label">Draft State</div></div>
+        <div class="policy-item clickable" onclick="showPolicyDetails('rules')"><div class="value" id="pActiveRules">--</div><div class="label">Active Rules</div></div>
+        <div class="policy-item clickable" onclick="showPolicyDetails('history')"><div class="value" id="pHistoryCount">--</div><div class="label">History</div></div>
       </div>
       <div class="action-row">
         <button id="publishPolicyBtn" onclick="preparePolicyAction('publish')">Publish Policy</button>
@@ -226,10 +231,10 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h2>Alert Workflow</h2>
     <div class="panel-body">
       <div class="policy-grid">
-        <div class="policy-item"><div class="value" id="awOpen">--</div><div class="label">Open</div></div>
-        <div class="policy-item"><div class="value" id="awAssigned">--</div><div class="label">Assigned</div></div>
-        <div class="policy-item"><div class="value" id="awSuppressed">--</div><div class="label">Suppressed</div></div>
-        <div class="policy-item"><div class="value" id="awClosed">--</div><div class="label">Closed</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="awOpen">--</div><div class="label">Open</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('assigned')"><div class="value" id="awAssigned">--</div><div class="label">Assigned</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('suppressed')"><div class="value" id="awSuppressed">--</div><div class="label">Suppressed</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('closed')"><div class="value" id="awClosed">--</div><div class="label">Closed</div></div>
       </div>
       <div class="alerts-list" id="workflowAlertsList">
         <div class="loading">Loading workflow alerts...</div>
@@ -244,10 +249,10 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h2>Delivery Health</h2>
     <div class="panel-body">
       <div class="policy-grid">
-        <div class="policy-item"><div class="value" id="dDelivered">--</div><div class="label">Delivered</div></div>
-        <div class="policy-item"><div class="value" id="dRetrying">--</div><div class="label">Retrying</div></div>
-        <div class="policy-item"><div class="value" id="dDeadLetters">--</div><div class="label">Dead Letters</div></div>
-        <div class="policy-item"><div class="value" id="dRecentCount">--</div><div class="label">Recent Attempts</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('delivered')"><div class="value" id="dDelivered">--</div><div class="label">Delivered</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('retrying')"><div class="value" id="dRetrying">--</div><div class="label">Retrying</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="dDeadLetters">--</div><div class="label">Dead Letters</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('recent')"><div class="value" id="dRecentCount">--</div><div class="label">Recent Attempts</div></div>
       </div>
       <div class="action-row">
         <button id="replayAllBtn" onclick="prepareDeliveryAction('replay_all')">Replay All Dead Letters</button>
@@ -291,11 +296,32 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 <script>
 let lastStatus = 'unknown';
 let currentRole = 'admin';
+let latestFleet = { agents: [], history: [] };
+let latestOverview = { agents: [] };
+let latestSupport = {};
+let latestLicense = {};
+let latestUpgrade = {};
+let latestPolicies = {};
+let latestWorkflow = { alerts: [], history: [] };
+let latestDeliveries = { recent: [], dead_letters: [], history: [] };
 
 async function fetchJSON(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(r.statusText);
   return r.json();
+}
+
+async function postJSON(url, payload) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText);
+  }
+  return data;
 }
 
 async function fetchJSONAnyStatus(url) {
@@ -310,6 +336,10 @@ function escapeHTML(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function jsString(value) {
+  return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 function handleCardKey(event, fn) {
@@ -462,6 +492,8 @@ async function loadControlOverview() {
     if (tag) params.set('tag', tag);
     const fleet = await fetchJSON('/api/v1/control/fleet' + (params.toString() ? '?' + params.toString() : ''));
     const data = await fetchJSON('/api/v1/control/overview');
+    latestFleet = fleet;
+    latestOverview = data;
     document.getElementById('mAgents').textContent = data.total_agents || 0;
     document.getElementById('mHealthyAgents').textContent = data.healthy_agents || 0;
     document.getElementById('mDegradedAgents').textContent = data.degraded_agents || 0;
@@ -477,9 +509,12 @@ async function loadControlOverview() {
         const status = (a.status || 'unknown').toLowerCase();
         const reportAge = a.last_report_age_seconds != null ? formatAgeSeconds(a.last_report_age_seconds) : '--';
         const reason = a.status_reason ? (' · ' + a.status_reason) : '';
+        const agentIDRaw = a.agent_id || 'unknown';
+        const agentID = escapeHTML(agentIDRaw);
+        const agentArg = jsString(agentIDRaw);
         return '<div class="agent-card">' +
           '<div class="agent-head">' +
-            '<span class="agent-name">' + (a.agent_id || 'unknown') + '</span>' +
+            '<span class="agent-name">' + agentID + '</span>' +
             '<span class="status-badge ' + status + '"><span class="status-dot"></span><span>' + (a.status || 'UNKNOWN') + '</span></span>' +
           '</div>' +
           '<div class="agent-meta">' +
@@ -492,7 +527,12 @@ async function loadControlOverview() {
             '<span>Last report: ' + formatTime(a.last_report_at) + '</span>' +
             '<span>Report age: ' + reportAge + reason + '</span>' +
           '</div>' +
-          (((a.tags || []).length > 0) ? ('<div class="tag-list">' + a.tags.map(t => '<span class="tag-chip">' + t + '</span>').join('') + '</div>') : '') +
+          (((a.tags || []).length > 0) ? ('<div class="tag-list">' + a.tags.map(t => '<span class="tag-chip">' + escapeHTML(t) + '</span>').join('') + '</div>') : '') +
+          '<div class="agent-actions">' +
+            '<button onclick="showAgentDetails(\'' + agentArg + '\')">Details</button>' +
+            '<button onclick="applyFleetInputs(\'' + agentArg + '\')">Apply Group/Tag</button>' +
+            '<button onclick="markAgentReviewed(\'' + agentArg + '\')">Mark Reviewed</button>' +
+          '</div>' +
         '</div>';
       }).join('');
     }
@@ -521,9 +561,90 @@ async function loadControlOverview() {
   }
 }
 
+function renderAgentInvestigation(agent, label) {
+  const status = (agent.status || 'UNKNOWN').toLowerCase();
+  const tags = (agent.tags || []).join(', ') || '--';
+  return '<div class="alert-item">' +
+    '<span class="alert-sev ' + (status === 'healthy' ? 'sev-low' : (status === 'degraded' ? 'sev-high' : 'sev-critical')) + '">' + escapeHTML(label || status) + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(agent.agent_id || 'unknown') +
+      ' · group ' + escapeHTML(agent.group || '--') +
+      ' · tags ' + escapeHTML(tags) +
+      ' · version ' + escapeHTML(agent.version || '--') +
+      ' · events ' + ((agent.events_ingested || 0).toLocaleString()) +
+      ' · dropped ' + ((agent.events_dropped || 0).toLocaleString()) +
+      (agent.status_reason ? (' · ' + escapeHTML(agent.status_reason)) : '') +
+    '</span>' +
+    '<span class="alert-time">' + formatTime(agent.last_report_at) + '</span>' +
+    '</div>';
+}
+
+async function showFleetStatus(status) {
+  setInvestigationLoading('Filtering fleet: ' + status + '...');
+  try {
+    const data = await fetchJSON('/api/v1/control/overview');
+    latestOverview = data;
+    const agents = data.agents || latestFleet.agents || [];
+    const selected = status === 'all'
+      ? agents
+      : agents.filter(agent => String(agent.status || '').toLowerCase() === status);
+    setInvestigationItems(selected.map(agent => renderAgentInvestigation(agent, status)), 'No ' + status + ' agents found');
+  } catch (e) {
+    setInvestigationLoading('Fleet filter unavailable: ' + e.message);
+  }
+}
+
+function showAgentDetails(agentID) {
+  const agents = (latestFleet.agents || []).concat(latestOverview.agents || []);
+  const agent = agents.find(item => item.agent_id === agentID);
+  if (!agent) {
+    setInvestigationLoading('Agent not found in latest snapshot: ' + agentID);
+    return;
+  }
+  setInvestigationItems([
+    renderAgentInvestigation(agent, 'agent'),
+    '<div class="alert-item"><span class="alert-sev sev-medium">runtime</span><span class="alert-msg">mode ' + escapeHTML(agent.attachment_mode || '--') + ' · memory ' + formatBytes(agent.memory_bytes || 0) + ' · report age ' + escapeHTML(formatAgeSeconds(agent.last_report_age_seconds)) + '</span><span class="alert-time">details</span></div>',
+  ], 'Agent details unavailable');
+}
+
+async function updateFleetAgent(payload) {
+  await postJSON('/api/v1/control/fleet', payload);
+  await loadControlOverview();
+  showAgentDetails(payload.agent_id);
+}
+
+async function applyFleetInputs(agentID) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const group = document.getElementById('fleetGroup').value.trim();
+  const tag = document.getElementById('fleetTag').value.trim();
+  const payload = { agent_id: agentID, note: 'dashboard fleet update' };
+  if (group) payload.group = group;
+  if (tag) payload.tags = [tag];
+  try {
+    setInvestigationLoading('Updating fleet metadata for ' + agentID + '...');
+    await updateFleetAgent(payload);
+  } catch (e) {
+    setInvestigationLoading('Fleet update failed: ' + e.message);
+  }
+}
+
+async function markAgentReviewed(agentID) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  try {
+    setInvestigationLoading('Marking agent reviewed: ' + agentID + '...');
+    await updateFleetAgent({ agent_id: agentID, note: 'dashboard reviewed' });
+  } catch (e) {
+    setInvestigationLoading('Agent review failed: ' + e.message);
+  }
+}
+
 async function loadPolicies() {
   try {
     const data = await fetchJSON('/api/v1/control/policies');
+    latestPolicies = data;
     document.getElementById('pCurrentVersion').textContent = (data.current && data.current.version) || '--';
     document.getElementById('pDraftState').textContent = (data.draft && data.draft.state) || '--';
     document.getElementById('pActiveRules').textContent = (data.current && data.current.active_rules) || 0;
@@ -551,10 +672,46 @@ async function loadPolicies() {
   }
 }
 
+function renderKVItem(label, value, timeLabel) {
+  return '<div class="alert-item">' +
+    '<span class="alert-sev sev-low">' + escapeHTML(label) + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(value == null || value === '' ? '--' : value) + '</span>' +
+    '<span class="alert-time">' + escapeHTML(timeLabel || '') + '</span>' +
+    '</div>';
+}
+
+function showPolicyDetails(scope) {
+  const data = latestPolicies || {};
+  const current = data.current || {};
+  const draft = data.draft || {};
+  const history = data.history || [];
+  const actions = data.actions || [];
+  let items = [];
+  if (scope === 'current') {
+    items = [
+      renderKVItem('current', 'version ' + (current.version || '--') + ' · state ' + (current.state || '--') + ' · rules ' + (current.active_rules || 0), formatTime(current.published_at || current.updated_at)),
+      renderKVItem('sigma', (current.sigma_rule_ids || []).join(', ') || '--', 'rules'),
+    ];
+  } else if (scope === 'draft') {
+    items = [renderKVItem('draft', 'version ' + (draft.version || '--') + ' · state ' + (draft.state || '--') + ' · rules ' + (draft.active_rules || 0), formatTime(draft.updated_at))];
+  } else if (scope === 'rules') {
+    items = [
+      renderKVItem('active', current.active_rules || 0, 'rules'),
+      renderKVItem('whitelist', current.whitelist_count || 0, 'entries'),
+      renderKVItem('taint sources', current.taint_source_count || 0, 'entries'),
+    ];
+  } else {
+    items = history.slice(0, 10).map(item => renderKVItem('v' + (item.version || '--'), (item.state || '--') + ' · rules ' + (item.active_rules || 0) + (item.notes ? (' · ' + item.notes) : ''), formatTime(item.published_at || item.updated_at)));
+    items = items.concat(actions.slice(0, 5).map(item => renderKVItem(item.action || 'action', (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : ''), formatTime(item.performed_at))));
+  }
+  setInvestigationItems(items, 'No policy details available');
+}
+
 async function loadSupportBundles() {
   try {
     const data = await fetchJSON('/api/v1/control/support');
     const auditData = await fetchJSON('/api/v1/control/audit?category=admin&source=supportbundle&limit=8');
+    latestSupport = Object.assign({}, data, { audit_entries: (auditData && auditData.entries) || [] });
     const history = data.history || [];
     document.getElementById('sbStatus').textContent = data.last_status || '--';
     document.getElementById('sbTime').textContent = data.last_bundle_at ? formatTime(data.last_bundle_at) : '--';
@@ -617,6 +774,23 @@ async function loadSupportBundles() {
   }
 }
 
+function showSupportDetails(scope) {
+  const data = latestSupport || {};
+  const history = data.history || [];
+  const audit = data.audit_entries || [];
+  const items = [
+    renderKVItem('status', data.last_status || '--', formatTime(data.last_bundle_at || data.last_archive_at)),
+    renderKVItem('bundle', data.last_bundle_path || '--', data.redacted ? 'redacted' : 'raw'),
+    renderKVItem('archive', data.last_archive_path || '--', data.download_url || ''),
+    renderKVItem('actor', data.last_actor || '--', data.last_role || ''),
+  ];
+  if (scope === 'history') {
+    history.slice(0, 8).forEach(item => items.push(renderKVItem(item.action || 'action', (item.message || item.status || 'done') + (item.note ? (' · ' + item.note) : ''), formatTime(item.performed_at))));
+    audit.slice(0, 8).forEach(item => items.push(renderKVItem(item.category || 'audit', item.message || 'audit event', formatTime(item.timestamp))));
+  }
+  setInvestigationItems(items, 'No support bundle details available');
+}
+
 async function runSupportBundleAction(payload) {
   const status = document.getElementById('supportBundleStatus');
   const exportBtn = document.getElementById('exportSupportBundleBtn');
@@ -665,6 +839,8 @@ async function loadLicenseAndUpgrade() {
   try {
     const license = await fetchJSON('/api/v1/control/license');
     const upgrade = await fetchJSON('/api/v1/control/upgrade');
+    latestLicense = license;
+    latestUpgrade = upgrade;
     document.getElementById('licensePresent').textContent = license.present ? 'Present' : 'Missing';
     document.getElementById('licenseChecked').textContent = license.expires_at ? (license.expired ? 'Expired' : formatTime(license.expires_at)) : '--';
     document.getElementById('upgradeVersion').textContent = upgrade.current_version || '--';
@@ -700,6 +876,30 @@ async function loadLicenseAndUpgrade() {
   } catch (e) {
     document.getElementById('licenseUpgradeList').innerHTML = '<div class="loading">License and upgrade state unavailable</div>';
   }
+}
+
+function showLicenseUpgradeDetails(scope) {
+  const license = latestLicense || {};
+  const upgrade = latestUpgrade || {};
+  let items = [];
+  if (scope === 'license' || scope === 'expiry') {
+    items = [
+      renderKVItem('license', (license.present ? 'present' : 'missing') + ' · ' + (license.path || 'path not configured'), formatTime(license.modified_at || license.updated_at)),
+      renderKVItem('customer', (license.customer || '--') + ' · ' + (license.edition || '--'), license.license_id || ''),
+      renderKVItem('expiry', license.expires_at ? ((license.expired ? 'expired' : 'valid') + ' · ' + license.expires_at + ' · ' + (license.days_remaining || 0) + ' day(s) left') : '--', license.in_grace_period ? 'grace' : ''),
+      renderKVItem('signature', license.signature_present ? (license.signature_verified ? 'verified' : 'mismatch') : 'not present', license.revoked ? 'revoked' : 'not revoked'),
+    ];
+    (license.history || []).slice(0, 5).forEach(item => items.push(renderKVItem(item.action || 'license', item.message || item.status || 'done', formatTime(item.performed_at))));
+  } else {
+    items = [
+      renderKVItem('version', upgrade.current_version || '--', 'current'),
+      renderKVItem('package', (upgrade.package_path || '--') + ' · ' + (upgrade.package_verified ? 'verified' : 'not verified'), upgrade.package_sha256 ? upgrade.package_sha256.slice(0, 12) : ''),
+      renderKVItem('signature', upgrade.signature_path || '--', upgrade.signature_verified ? 'verified' : (upgrade.signature_present ? 'mismatch' : 'not present')),
+      renderKVItem('preflight', upgrade.preflight_ready ? 'ready' : 'not ready', upgrade.rollback_ready ? 'rollback ready' : 'rollback not ready'),
+    ];
+    (upgrade.history || []).slice(0, 5).forEach(item => items.push(renderKVItem(item.action || 'upgrade', item.message || item.status || 'done', formatTime(item.performed_at))));
+  }
+  setInvestigationItems(items, 'No license or upgrade details available');
 }
 
 async function runLicenseAction(payload) {
@@ -772,6 +972,7 @@ function prepareUpgradeAction(action) {
 async function loadAlertWorkflow() {
   try {
     const data = await fetchJSON('/api/v1/control/alerts');
+    latestWorkflow = data;
     const summary = data.summary || {};
     document.getElementById('awOpen').textContent = summary.open || 0;
     document.getElementById('awAssigned').textContent = summary.assigned || 0;
@@ -785,16 +986,7 @@ async function loadAlertWorkflow() {
     if (alerts.length === 0) {
       list.innerHTML = '<div class="loading">No workflow alerts</div>';
     } else {
-      list.innerHTML = alerts.slice(0, 8).map(a => {
-        const sev = a.severity || 'info';
-        const actions = alertTraceActions(a);
-        return '<div class="alert-item">' +
-          '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
-          '<span class="alert-msg">' + (a.headline || a.pattern || 'Alert') + ' · ' + (a.status || 'open') + (a.assignee ? (' · ' + a.assignee) : '') + ' · x' + (a.count || 1) + '</span>' +
-          '<span class="alert-time">' + formatTime(a.last_seen || a.last_notified_at) + '</span>' +
-          actions +
-          '</div>';
-      }).join('');
+      list.innerHTML = alerts.slice(0, 8).map(a => renderWorkflowAlert(a)).join('');
     }
     if (historyList) {
       if (history.length === 0) {
@@ -818,6 +1010,75 @@ async function loadAlertWorkflow() {
     if (historyList) {
       historyList.innerHTML = '<div class="loading">Workflow action history unavailable</div>';
     }
+  }
+}
+
+function workflowActionButtons(alert) {
+  if (currentRole !== 'admin') {
+    return '';
+  }
+  const id = jsString(alert.id || '');
+  const status = String(alert.status || '').toLowerCase();
+  const assign = "<button onclick=\"runAlertWorkflowAction('assign', 'REPLACE_ID')\">Assign</button>";
+  const silence = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('silence', 'REPLACE_ID')\">Silence 30m</button>";
+  const unsilence = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('unsilence', 'REPLACE_ID')\">Unsilence</button>";
+  const close = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('close', 'REPLACE_ID')\">Close</button>";
+  const reopen = "<button onclick=\"runAlertWorkflowAction('reopen', 'REPLACE_ID')\">Reopen</button>";
+  const actions = [];
+  if (status !== 'assigned') actions.push(assign);
+  if (status === 'suppressed') actions.push(unsilence); else actions.push(silence);
+  if (status === 'closed') actions.push(reopen); else actions.push(close);
+  return '<span class="delivery-inline-actions">' + actions.join('').replace(/REPLACE_ID/g, id) + '</span>';
+}
+
+function renderWorkflowAlert(a) {
+  const sev = a.severity || 'info';
+  const actions = alertTraceActions(a);
+  return '<div class="alert-item">' +
+    '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(a.headline || a.pattern || 'Alert') + ' · ' + escapeHTML(a.status || 'open') + (a.assignee ? (' · ' + escapeHTML(a.assignee)) : '') + ' · x' + (a.count || 1) + workflowActionButtons(a) + '</span>' +
+    '<span class="alert-time">' + formatTime(a.last_seen || a.last_notified_at) + '</span>' +
+    actions +
+    '</div>';
+}
+
+async function loadAlertWorkflowFiltered(status) {
+  try {
+    const data = await fetchJSON('/api/v1/control/alerts?status=' + encodeURIComponent(status));
+    latestWorkflow = data;
+    const alerts = data.alerts || [];
+    document.getElementById('workflowAlertsList').innerHTML = alerts.length === 0
+      ? '<div class="loading">No ' + escapeHTML(status) + ' workflow alerts</div>'
+      : alerts.slice(0, 12).map(a => renderWorkflowAlert(a)).join('');
+    setInvestigationItems(alerts.slice(0, 20).map(a => renderWorkflowAlert(a)), 'No ' + status + ' workflow alerts');
+  } catch (e) {
+    setInvestigationLoading('Workflow filter failed: ' + e.message);
+  }
+}
+
+async function runAlertWorkflowAction(action, alertID) {
+  if (currentRole !== 'admin' || !alertID) {
+    return;
+  }
+  const payload = {
+    action: action,
+    alert_id: alertID,
+    note: 'dashboard ' + action,
+  };
+  if (action === 'assign') {
+    payload.assignee = currentRole + '-operator';
+  }
+  if (action === 'silence') {
+    payload.duration = '30m';
+  }
+  try {
+    setInvestigationLoading('Running alert workflow action: ' + action + '...');
+    await postJSON('/api/v1/control/alerts', payload);
+    await loadAlertWorkflow();
+    const updated = (latestWorkflow.alerts || []).find(item => item.id === alertID);
+    setInvestigationItems(updated ? [renderWorkflowAlert(updated)] : [], 'Alert action completed');
+  } catch (e) {
+    setInvestigationLoading('Alert workflow action failed: ' + e.message);
   }
 }
 
@@ -853,14 +1114,19 @@ function preparePolicyAction(action) {
   }
   const payload = { action: action, notes: 'dashboard ' + action };
   if (action === 'rollback') {
-    const version = window.prompt('Rollback to which policy version?', '');
-    if (!version) {
+    const currentVersion = latestPolicies && latestPolicies.current ? Number(latestPolicies.current.version || 0) : 0;
+    const candidates = (latestPolicies.history || [])
+      .map(item => Number(item.version || 0))
+      .filter(version => version > 0 && version !== currentVersion)
+      .sort((a, b) => b - a);
+    if (candidates.length === 0) {
+      const status = document.getElementById('policyActionStatus');
+      if (status) {
+        status.textContent = 'Rollback unavailable: no previous policy version';
+      }
       return;
     }
-    payload.target_version = Number(version);
-    if (!payload.target_version) {
-      return;
-    }
+    payload.target_version = candidates[0];
   }
   runPolicyAction(payload);
 }
@@ -868,6 +1134,7 @@ function preparePolicyAction(action) {
 async function loadDeliveries() {
   try {
     const data = await fetchJSON('/api/v1/control/deliveries');
+    latestDeliveries = data;
     const summary = data.summary || {};
     document.getElementById('dDelivered').textContent = summary.delivered || 0;
     document.getElementById('dRetrying').textContent = summary.retrying || 0;
@@ -928,6 +1195,29 @@ async function loadDeliveries() {
       historyList.innerHTML = '<div class="loading">Delivery action history unavailable</div>';
     }
   }
+}
+
+function renderDeliveryItem(item, label) {
+  const ticket = item.ticket_key ? (' · ticket ' + item.ticket_key) : '';
+  return '<div class="alert-item">' +
+    '<span class="alert-sev ' + (item.status === 'dead_letter' ? 'sev-critical' : 'sev-medium') + '">' + escapeHTML(label || item.status || 'delivery') + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(item.id || '--') + ' · ' + escapeHTML(item.notifier || 'notifier') + ' · ' + escapeHTML(item.pattern || 'alert') + ' · attempt ' + (item.attempt || 1) + '/' + (item.max_attempts || 1) + escapeHTML(ticket) + (item.error ? (' · ' + escapeHTML(item.error)) : '') + '</span>' +
+    '<span class="alert-time">' + formatTime(item.last_attempt_at) + '</span>' +
+    '</div>';
+}
+
+function showDeliveriesByStatus(status) {
+  const data = latestDeliveries || {};
+  const recent = data.recent || [];
+  const dead = data.dead_letters || [];
+  const all = recent.concat(dead);
+  const selected = status === 'recent' ? recent : all.filter(item => String(item.status || '').toLowerCase() === status);
+  const items = selected.slice(0, 20).map(item => renderDeliveryItem(item, status));
+  const history = data.history || [];
+  if (status === 'recent') {
+    history.slice(0, 5).forEach(item => items.push(renderKVItem(item.action || 'delivery action', item.message || item.status || 'done', formatTime(item.performed_at))));
+  }
+  setInvestigationItems(items, 'No ' + status + ' deliveries found');
 }
 
 async function runDeliveryAction(payload) {
@@ -1071,8 +1361,9 @@ async function loadAlerts() {
       const sev = a.severity || 'info';
       return '<div class="alert-item">' +
         '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
-        '<span class="alert-msg">' + (a.headline || a.pattern || a.message || 'Alert') + '</span>' +
+        '<span class="alert-msg">' + escapeHTML(a.headline || a.pattern || a.message || 'Alert') + '</span>' +
         '<span class="alert-time">' + formatTime(a.detected_at || a.timestamp) + '</span>' +
+        alertTraceActions(a) +
         '</div>';
     }).join('');
   } catch(e) {

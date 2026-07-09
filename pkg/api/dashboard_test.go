@@ -77,3 +77,41 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		}
 	}
 }
+
+func TestDashboardModuleActions(t *testing.T) {
+	forbidden := []string{
+		"window.prompt",
+		"prompt(",
+		"window.alert",
+		"alert(",
+		"coming soon",
+		"not implemented",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard should not contain placeholder interaction %q", item)
+		}
+	}
+
+	expected := []string{
+		"showFleetStatus('healthy')",
+		"showFleetStatus('degraded')",
+		"showAgentDetails",
+		"applyFleetInputs",
+		"markAgentReviewed",
+		"showSupportDetails('history')",
+		"showLicenseUpgradeDetails('package')",
+		"showPolicyDetails('history')",
+		"loadAlertWorkflowFiltered('open')",
+		"runAlertWorkflowAction('assign'",
+		"runAlertWorkflowAction('silence'",
+		"runAlertWorkflowAction('close'",
+		"showDeliveriesByStatus('dead_letter')",
+		"alertTraceActions(a)",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing module action %q", item)
+		}
+	}
+}
