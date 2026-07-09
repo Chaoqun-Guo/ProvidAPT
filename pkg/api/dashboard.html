@@ -81,6 +81,9 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .delivery-inline-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .delivery-inline-actions button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
 .delivery-inline-actions button.secondary { background: #30363d; }
+.trace-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-left: 8px; }
+.trace-actions a { color: #58a6ff; border: 1px solid #30363d; border-radius: 999px; padding: 2px 7px; font-size: 11px; text-decoration: none; white-space: nowrap; }
+.trace-actions a:hover { background: #1a1f27; border-color: #58a6ff; text-decoration: none; }
 </style>
 </head>
 <body>
@@ -311,6 +314,21 @@ function formatSeverity(sev) {
   const s = (sev || '').toUpperCase();
   if (s === 'CRITICAL' || s === 'HIGH' || s === 'MEDIUM') return s;
   return 'INFO';
+}
+
+function alertTraceActions(a) {
+  const id = a.id || '';
+  if (!id) {
+    return '';
+  }
+  const encodedID = encodeURIComponent(id);
+  const eventPattern = encodeURIComponent(a.headline || a.pattern || id);
+  return '<span class="trace-actions">' +
+    '<a href="/api/v1/alerts/' + encodedID + '/svg" target="_blank" rel="noreferrer" title="Open SVG attack path">Trace SVG</a>' +
+    '<a href="/api/v1/graph/node/' + encodedID + '/backward?depth=8" target="_blank" rel="noreferrer" title="Trace upstream provenance">Backward</a>' +
+    '<a href="/api/v1/graph/node/' + encodedID + '/forward?depth=8" target="_blank" rel="noreferrer" title="Trace downstream impact">Forward</a>' +
+    '<a href="/api/v1/events/search?pattern=' + eventPattern + '&limit=50" target="_blank" rel="noreferrer" title="Search related raw events">Events</a>' +
+    '</span>';
 }
 
 function updateStatus(status) {
@@ -725,10 +743,12 @@ async function loadAlertWorkflow() {
     } else {
       list.innerHTML = alerts.slice(0, 8).map(a => {
         const sev = a.severity || 'info';
+        const actions = alertTraceActions(a);
         return '<div class="alert-item">' +
           '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
           '<span class="alert-msg">' + (a.headline || a.pattern || 'Alert') + ' · ' + (a.status || 'open') + (a.assignee ? (' · ' + a.assignee) : '') + ' · x' + (a.count || 1) + '</span>' +
           '<span class="alert-time">' + formatTime(a.last_seen || a.last_notified_at) + '</span>' +
+          actions +
           '</div>';
       }).join('');
     }
