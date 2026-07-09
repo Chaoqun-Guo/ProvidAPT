@@ -70,7 +70,7 @@ type AgentTelemetrySnapshot struct {
 	Status          string    `json:"status"`
 	StatusReason    string    `json:"status_reason,omitempty"`
 	LastReportAt    time.Time `json:"last_report_at"`
-	LastReportAge   int64     `json:"last_report_age_seconds,omitempty"`
+	LastReportAge   int64     `json:"last_report_age_seconds"`
 	EventsIngested  uint64    `json:"events_ingested,omitempty"`
 	EventsDropped   uint64    `json:"events_dropped,omitempty"`
 	MemoryBytes     uint64    `json:"memory_bytes,omitempty"`
