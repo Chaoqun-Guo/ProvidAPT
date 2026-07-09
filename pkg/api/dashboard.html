@@ -7,7 +7,7 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
-header { background: #161b22; border-bottom: 1px solid #30363d; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+header { background: #161b22; border-bottom: 1px solid #30363d; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 header h1 { color: #58a6ff; font-size: 20px; }
 header .subtitle { color: #8b949e; font-size: 12px; margin-top: 2px; }
 .role-info { color: #8b949e; font-size: 11px; margin-top: 4px; }
@@ -27,23 +27,34 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .unknown .status-dot { background: #d29922; }
 .refresh-info { color: #8b949e; font-size: 10px; }
 
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 20px 24px; }
-.card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
+.header-right { display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end; }
+.top-license { display:grid; grid-template-columns: repeat(4, auto); gap: 6px; align-items:center; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:5px 6px; }
+.top-license .policy-item { padding: 5px 8px; min-width: 78px; }
+.top-license .policy-item .value { font-size: 13px; }
+.top-license .policy-item .label { font-size: 9px; margin-top: 1px; }
+.top-upgrade-actions { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width: 360px; }
+.top-upgrade-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:4px 7px; cursor:pointer; font-size:10px; }
+.top-upgrade-actions button:first-child { background:#1f6feb; color:white; border-color:#1f6feb; }
+.top-upgrade-actions button:disabled { opacity:0.5; cursor:not-allowed; }
+.metrics { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; padding: 12px 18px; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 10px; min-height: 82px; }
 .card.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
 .card.clickable:hover { border-color: #58a6ff; transform: translateY(-1px); }
 .card.clickable:focus { outline: 2px solid #58a6ff; outline-offset: 2px; }
-.card .value { font-size: 28px; font-weight: 700; color: #58a6ff; }
+.card .value { font-size: 22px; font-weight: 700; color: #58a6ff; }
 .card .label { font-size: 11px; color: #8b949e; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .card .sub { font-size: 11px; color: #484f58; margin-top: 2px; }
 
-.content { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 24px 24px; }
-@media (max-width: 900px) { .content { grid-template-columns: 1fr; } }
-.overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 24px 16px; }
-@media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } }
+.content { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 18px 18px; align-items:start; }
+@media (max-width: 1200px) { .content { grid-template-columns: repeat(2, minmax(0, 1fr)); } .metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
+@media (max-width: 760px) { .content, .metrics { grid-template-columns: 1fr; } .top-license { grid-template-columns: repeat(2, auto); } }
+.overview-grid { display: contents; }
 
 .panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
-.panel h2 { font-size: 13px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; border-bottom: 1px solid #21262d; }
-.panel-body { padding: 12px 16px; }
+.panel h2 { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 12px; border-bottom: 1px solid #21262d; }
+.panel-body { padding: 10px 12px; }
+.span-2 { grid-column: span 2; }
+.span-4 { grid-column: 1 / -1; }
 
 .console-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .console-toolbar button { background: #30363d; color: #c9d1d9; border: 1px solid #484f58; border-radius: 6px; padding: 7px 10px; cursor: pointer; font-size: 12px; }
@@ -52,8 +63,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .console-link { color: #58a6ff; text-decoration: none; }
 .console-link:hover { text-decoration: underline; }
 
-.alerts-list { max-height: 360px; overflow-y: auto; }
-.alert-item { padding: 8px 12px; border-bottom: 1px solid #21262d; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+.alerts-list { max-height: 190px; overflow-y: auto; }
+.alert-item { padding: 6px 8px; border-bottom: 1px solid #21262d; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .alert-item:last-child { border-bottom: none; }
 .alert-sev { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
 .sev-critical { background: #3a1a1a; color: #f85149; }
@@ -63,19 +74,19 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .alert-time { color: #484f58; font-size: 11px; }
 .alert-msg { flex: 1; margin: 0 12px; }
 
-.loading { color: #8b949e; text-align: center; padding: 24px; font-size: 13px; }
+.loading { color: #8b949e; text-align: center; padding: 12px; font-size: 12px; }
 .error { color: #f85149; text-align: center; padding: 12px; font-size: 13px; }
-.mini-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.mini-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
+.mini-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mini-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px; }
 .mini-card.clickable, .policy-item.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
 .mini-card.clickable:hover, .policy-item.clickable:hover { border-color: #58a6ff; transform: translateY(-1px); }
-.mini-card .value { font-size: 22px; font-weight: 700; color: #58a6ff; }
+.mini-card .value { font-size: 18px; font-weight: 700; color: #58a6ff; }
 .mini-card .label { margin-top: 4px; font-size: 11px; color: #8b949e; text-transform: uppercase; }
 .agents-list { display: grid; gap: 10px; }
-.agent-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
+.agent-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px; }
 .agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .agent-name { font-weight: 600; color: #c9d1d9; }
-.agent-meta { margin-top: 8px; font-size: 12px; color: #8b949e; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
+.agent-meta { margin-top: 6px; font-size: 11px; color: #8b949e; display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px; }
 .agent-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .agent-actions button { background: #30363d; color: #c9d1d9; border: 1px solid #484f58; border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 11px; }
 .agent-actions button:hover { border-color: #58a6ff; color: #58a6ff; }
@@ -84,12 +95,15 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .fleet-toolbar button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
 .tag-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .tag-chip { background: #1a1f27; border: 1px solid #30363d; color: #8b949e; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
-.policy-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.policy-item { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; }
-.policy-item .value { font-size: 20px; font-weight: 700; color: #58a6ff; }
+.policy-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.policy-item { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px; }
+.policy-item .value { font-size: 17px; font-weight: 700; color: #58a6ff; }
 .policy-item .label { margin-top: 4px; font-size: 11px; color: #8b949e; text-transform: uppercase; }
-.action-row { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
-.action-row button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 12px; }
+.action-row { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+.action-row button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 6px 9px; cursor: pointer; font-size: 11px; }
+.policy-editor { display:grid; grid-template-columns: 1fr auto; gap: 8px; margin: 8px 0; }
+.policy-editor textarea { min-height: 54px; resize: vertical; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:8px; font-size:12px; }
+.delivery-summary { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
 .action-row button.secondary { background: #30363d; }
 .action-row button:disabled { opacity: 0.5; cursor: not-allowed; }
 .ticket-link { color: #58a6ff; text-decoration: none; }
@@ -110,11 +124,26 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <div class="subtitle">Provenance-driven APT Detection</div>
     <div class="role-info" id="roleInfo">Role: --</div>
   </div>
-  <div style="display:flex;align-items:center;gap:12px">
+  <div class="header-right">
     <span class="status-badge unknown" id="statusBadge">
       <span class="status-dot"></span>
       <span id="statusText">Loading</span>
     </span>
+    <div class="top-license" aria-label="License and upgrade summary">
+      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('license')"><div class="value" id="licensePresent">--</div><div class="label">License</div></div>
+      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('expiry')"><div class="value" id="licenseChecked">--</div><div class="label">Expiry</div></div>
+      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('version')"><div class="value" id="upgradeVersion">--</div><div class="label">Version</div></div>
+      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('package')"><div class="value" id="upgradeAction">--</div><div class="label">Package</div></div>
+    </div>
+    <div class="top-upgrade-actions">
+      <button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate</button>
+      <button id="checkUpgradeBtn" onclick="prepareUpgradeAction('check')">Check</button>
+      <button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Preflight</button>
+      <button id="downloadUpgradeBtn" onclick="prepareUpgradeAction('download')">Download</button>
+      <button id="recordUpgradeBtn" onclick="prepareUpgradeAction('record')">Note</button>
+    </div>
+    <span class="refresh-info" id="licenseUpgradeStatus"></span>
+    <div class="alerts-list" id="licenseUpgradeList" style="display:none"></div>
     <span class="refresh-info" id="refreshInfo">--</span>
   </div>
 </header>
@@ -128,18 +157,19 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
   <div class="card clickable" tabindex="0" role="button" onclick="showRuntimeDetails('uptime')" onkeydown="handleCardKey(event, () => showRuntimeDetails('uptime'))"><div class="value" id="mUptime">--</div><div class="label">Uptime</div><div class="sub">Click for health details</div></div>
 </div>
 
-<div class="overview-grid">
+<div class="content">
   <div class="panel">
     <h2>Control Plane Summary</h2>
     <div class="panel-body">
       <div class="mini-metrics">
         <div class="mini-card clickable" onclick="showFleetStatus('all')"><div class="value" id="mAgents">--</div><div class="label">Agents</div></div>
-        <div class="mini-card clickable" onclick="showFleetStatus('healthy')"><div class="value" id="mHealthyAgents">--</div><div class="label">Healthy</div></div>
         <div class="mini-card clickable" onclick="showFleetStatus('degraded')"><div class="value" id="mDegradedAgents">--</div><div class="label">Degraded</div></div>
+        <div class="mini-card clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="awOpen">--</div><div class="label">Open Alerts</div></div>
+        <div class="mini-card clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="dDeadLetters">--</div><div class="label">Dead Letters</div></div>
       </div>
     </div>
   </div>
-  <div class="panel">
+  <div class="panel span-2">
     <h2>Agent Overview</h2>
     <div class="panel-body">
       <div class="fleet-toolbar">
@@ -156,9 +186,6 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       </div>
     </div>
   </div>
-</div>
-
-<div class="overview-grid" style="padding-top:0;">
   <div class="panel">
     <h2>Support Bundle</h2>
     <div class="panel-body">
@@ -183,31 +210,6 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     </div>
   </div>
   <div class="panel">
-    <h2>License & Upgrade</h2>
-    <div class="panel-body">
-      <div class="policy-grid">
-        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('license')"><div class="value" id="licensePresent">--</div><div class="label">License File</div></div>
-        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('expiry')"><div class="value" id="licenseChecked">--</div><div class="label">License Expiry</div></div>
-        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('version')"><div class="value" id="upgradeVersion">--</div><div class="label">Current Version</div></div>
-        <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('package')"><div class="value" id="upgradeAction">--</div><div class="label">Package Verify</div></div>
-      </div>
-      <div class="action-row">
-        <button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate License</button>
-        <button id="checkUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('check')">Record Upgrade Check</button>
-        <button id="preflightUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('preflight')">Run Upgrade Preflight</button>
-        <button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download Upgrade Artifact</button>
-        <button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Upgrade Note</button>
-      </div>
-      <div class="loading" id="licenseUpgradeStatus"></div>
-      <div class="alerts-list" id="licenseUpgradeList">
-        <div class="loading">Loading license and upgrade state...</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="content">
-  <div class="panel">
     <h2>Policy Center</h2>
     <div class="panel-body">
       <div class="policy-grid">
@@ -217,8 +219,17 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <div class="policy-item clickable" onclick="showPolicyDetails('history')"><div class="value" id="pHistoryCount">--</div><div class="label">History</div></div>
       </div>
       <div class="action-row">
-        <button id="publishPolicyBtn" onclick="preparePolicyAction('publish')">Publish Policy</button>
-        <button id="rollbackPolicyBtn" class="secondary" onclick="preparePolicyAction('rollback')">Rollback Policy</button>
+        <button onclick="showPolicyDetails('current')">Browse Current</button>
+        <button class="secondary" onclick="showPolicyDetails('draft')">Browse Draft</button>
+        <button class="secondary" onclick="showPolicyDetails('rules')">Browse Rules</button>
+        <button class="secondary" onclick="showPolicyDetails('history')">Audit Trail</button>
+      </div>
+      <div class="policy-editor">
+        <textarea id="policyEditNotes" placeholder="Edit policy release notes, rule change reason, or deployment instruction"></textarea>
+        <div class="action-row" style="margin:0;align-content:start;">
+          <button id="publishPolicyBtn" onclick="preparePolicyAction('publish')">Publish Draft</button>
+          <button id="rollbackPolicyBtn" class="secondary" onclick="preparePolicyAction('rollback')">Rollback</button>
+        </div>
       </div>
       <div class="loading" id="policyActionStatus"></div>
       <div class="loading" style="margin-top:12px;">Recent Policy Actions</div>
@@ -231,7 +242,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h2>Alert Workflow</h2>
     <div class="panel-body">
       <div class="policy-grid">
-        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="awOpen">--</div><div class="label">Open</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="awOpenDetail">--</div><div class="label">Open</div></div>
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('assigned')"><div class="value" id="awAssigned">--</div><div class="label">Assigned</div></div>
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('suppressed')"><div class="value" id="awSuppressed">--</div><div class="label">Suppressed</div></div>
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('closed')"><div class="value" id="awClosed">--</div><div class="label">Closed</div></div>
@@ -251,8 +262,13 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       <div class="policy-grid">
         <div class="policy-item clickable" onclick="showDeliveriesByStatus('delivered')"><div class="value" id="dDelivered">--</div><div class="label">Delivered</div></div>
         <div class="policy-item clickable" onclick="showDeliveriesByStatus('retrying')"><div class="value" id="dRetrying">--</div><div class="label">Retrying</div></div>
-        <div class="policy-item clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="dDeadLetters">--</div><div class="label">Dead Letters</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="dDeadLettersDetail">--</div><div class="label">Dead Letters</div></div>
         <div class="policy-item clickable" onclick="showDeliveriesByStatus('recent')"><div class="value" id="dRecentCount">--</div><div class="label">Recent Attempts</div></div>
+      </div>
+      <div class="delivery-summary">
+        <div class="mini-card clickable" onclick="showDeliveryRisk('channels')"><div class="value" id="dChannels">--</div><div class="label">Channels</div></div>
+        <div class="mini-card clickable" onclick="showDeliveryRisk('tickets')"><div class="value" id="dTickets">--</div><div class="label">Tickets</div></div>
+        <div class="mini-card clickable" onclick="showDeliveryRisk('errors')"><div class="value" id="dErrors">--</div><div class="label">Error Types</div></div>
       </div>
       <div class="action-row">
         <button id="replayAllBtn" onclick="prepareDeliveryAction('replay_all')">Replay All Dead Letters</button>
@@ -285,7 +301,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       </div>
     </div>
   </div>
-  <div class="panel">
+  <div class="panel span-2">
     <h2>Operations Summary</h2>
     <div class="panel-body">
       <div class="policy-grid">
@@ -344,6 +360,13 @@ function escapeHTML(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function setText(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value;
+  }
 }
 
 function jsString(value) {
@@ -502,9 +525,8 @@ async function loadControlOverview() {
     const data = await fetchJSON('/api/v1/control/overview');
     latestFleet = fleet;
     latestOverview = data;
-    document.getElementById('mAgents').textContent = data.total_agents || 0;
-    document.getElementById('mHealthyAgents').textContent = data.healthy_agents || 0;
-    document.getElementById('mDegradedAgents').textContent = data.degraded_agents || 0;
+    setText('mAgents', data.total_agents || 0);
+    setText('mDegradedAgents', data.degraded_agents || 0);
 
     const list = document.getElementById('agentsList');
     const historyList = document.getElementById('fleetHistoryList');
@@ -520,10 +542,13 @@ async function loadControlOverview() {
         const agentIDRaw = a.agent_id || 'unknown';
         const agentID = escapeHTML(agentIDRaw);
         const agentArg = jsString(agentIDRaw);
+        const statusBadge = status && status !== 'healthy'
+          ? '<span class="status-badge ' + status + '"><span class="status-dot"></span><span>' + (a.status || 'UNKNOWN') + '</span></span>'
+          : '<span class="alert-time">Last report ' + reportAge + '</span>';
         return '<div class="agent-card">' +
           '<div class="agent-head">' +
             '<span class="agent-name">' + agentID + '</span>' +
-            '<span class="status-badge ' + status + '"><span class="status-dot"></span><span>' + (a.status || 'UNKNOWN') + '</span></span>' +
+            statusBadge +
           '</div>' +
           '<div class="agent-meta">' +
             '<span>Group: ' + (a.group || '--') + '</span>' +
@@ -982,10 +1007,11 @@ async function loadAlertWorkflow() {
     const data = await fetchJSON('/api/v1/control/alerts');
     latestWorkflow = data;
     const summary = data.summary || {};
-    document.getElementById('awOpen').textContent = summary.open || 0;
-    document.getElementById('awAssigned').textContent = summary.assigned || 0;
-    document.getElementById('awSuppressed').textContent = summary.suppressed || 0;
-    document.getElementById('awClosed').textContent = summary.closed || 0;
+    setText('awOpen', summary.open || 0);
+    setText('awOpenDetail', summary.open || 0);
+    setText('awAssigned', summary.assigned || 0);
+    setText('awSuppressed', summary.suppressed || 0);
+    setText('awClosed', summary.closed || 0);
 
     const list = document.getElementById('workflowAlertsList');
     const historyList = document.getElementById('workflowHistoryList');
@@ -1120,7 +1146,9 @@ function preparePolicyAction(action) {
   if (currentRole !== 'admin') {
     return;
   }
-  const payload = { action: action, notes: 'dashboard ' + action };
+  const notesInput = document.getElementById('policyEditNotes');
+  const notes = notesInput && notesInput.value.trim() ? notesInput.value.trim() : 'dashboard ' + action;
+  const payload = { action: action, notes: notes };
   if (action === 'rollback') {
     const currentVersion = latestPolicies && latestPolicies.current ? Number(latestPolicies.current.version || 0) : 0;
     const candidates = (latestPolicies.history || [])
@@ -1144,15 +1172,23 @@ async function loadDeliveries() {
     const data = await fetchJSON('/api/v1/control/deliveries');
     latestDeliveries = data;
     const summary = data.summary || {};
-    document.getElementById('dDelivered').textContent = summary.delivered || 0;
-    document.getElementById('dRetrying').textContent = summary.retrying || 0;
-    document.getElementById('dDeadLetters').textContent = summary.dead_letter || 0;
-    document.getElementById('dRecentCount').textContent = (data.recent || []).length;
+    setText('dDelivered', summary.delivered || 0);
+    setText('dRetrying', summary.retrying || 0);
+    setText('dDeadLetters', summary.dead_letter || 0);
+    setText('dDeadLettersDetail', summary.dead_letter || 0);
+    setText('dRecentCount', (data.recent || []).length);
     const list = document.getElementById('deliveryList');
     const historyList = document.getElementById('deliveryHistoryList');
     const deadLetters = data.dead_letters || [];
     const recent = data.recent || [];
     const history = data.history || [];
+    const allDeliveries = recent.concat(deadLetters);
+    const channels = countBy(allDeliveries, item => item.notifier);
+    const ticketed = allDeliveries.filter(item => item.ticket_key).length;
+    const errorTypes = countBy(allDeliveries.filter(item => item.error), item => String(item.error || '').split(':')[0].slice(0, 40));
+    setText('dChannels', channels.length);
+    setText('dTickets', ticketed);
+    setText('dErrors', errorTypes.length);
     const source = deadLetters.length > 0 ? deadLetters : recent;
     if (source.length === 0) {
       list.innerHTML = '<div class="loading">No delivery attempts yet</div>';
@@ -1226,6 +1262,21 @@ function showDeliveriesByStatus(status) {
     history.slice(0, 5).forEach(item => items.push(renderKVItem(item.action || 'delivery action', item.message || item.status || 'done', formatTime(item.performed_at))));
   }
   setInvestigationItems(items, 'No ' + status + ' deliveries found');
+}
+
+function showDeliveryRisk(scope) {
+  const data = latestDeliveries || {};
+  const all = (data.recent || []).concat(data.dead_letters || []);
+  let groups = [];
+  if (scope === 'channels') {
+    groups = countBy(all, item => item.notifier);
+  } else if (scope === 'tickets') {
+    groups = countBy(all.filter(item => item.ticket_key), item => item.ticket_key);
+  } else {
+    groups = countBy(all.filter(item => item.error), item => String(item.error || '').split(':')[0].slice(0, 40));
+  }
+  const items = groups.map(group => renderKVItem(scope, group.key + ' · ' + group.count + ' record(s)', 'delivery'));
+  setInvestigationItems(items, 'No delivery ' + scope + ' risk found');
 }
 
 async function runDeliveryAction(payload) {

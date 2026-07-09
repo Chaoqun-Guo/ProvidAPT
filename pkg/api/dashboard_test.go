@@ -103,7 +103,6 @@ func TestDashboardModuleActions(t *testing.T) {
 	}
 
 	expected := []string{
-		"showFleetStatus('healthy')",
 		"showFleetStatus('degraded')",
 		"showAgentDetails",
 		"applyFleetInputs",
@@ -111,11 +110,17 @@ func TestDashboardModuleActions(t *testing.T) {
 		"showSupportDetails('history')",
 		"showLicenseUpgradeDetails('package')",
 		"showPolicyDetails('history')",
+		"policyEditNotes",
+		"Publish Draft",
+		"Browse Rules",
 		"loadAlertWorkflowFiltered('open')",
 		"runAlertWorkflowAction('assign'",
 		"runAlertWorkflowAction('silence'",
 		"runAlertWorkflowAction('close'",
 		"showDeliveriesByStatus('dead_letter')",
+		"showDeliveryRisk('channels')",
+		"showDeliveryRisk('tickets')",
+		"showDeliveryRisk('errors')",
 		"alertTraceActions(a)",
 	}
 	for _, item := range expected {
