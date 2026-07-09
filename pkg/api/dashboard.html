@@ -28,11 +28,11 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .refresh-info { color: #8b949e; font-size: 10px; }
 
 .header-right { display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end; }
-.top-license { display:grid; grid-template-columns: repeat(4, auto); gap: 6px; align-items:center; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:5px 6px; }
+.top-license { display:grid; grid-template-columns: repeat(2, auto); gap: 6px; align-items:center; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:5px 6px; }
 .top-license .policy-item { padding: 5px 8px; min-width: 78px; }
 .top-license .policy-item .value { font-size: 13px; }
 .top-license .policy-item .label { font-size: 9px; margin-top: 1px; }
-.top-upgrade-actions { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width: 360px; }
+.top-upgrade-actions { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width: 220px; }
 .top-upgrade-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:4px 7px; cursor:pointer; font-size:10px; }
 .top-upgrade-actions button:first-child { background:#1f6feb; color:white; border-color:#1f6feb; }
 .top-upgrade-actions button:disabled { opacity:0.5; cursor:not-allowed; }
@@ -45,15 +45,15 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .card .label { font-size: 11px; color: #8b949e; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .card .sub { font-size: 11px; color: #484f58; margin-top: 2px; }
 
-.content { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 18px 18px; align-items:start; }
-@media (max-width: 1200px) { .content { grid-template-columns: repeat(2, minmax(0, 1fr)); } .metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
+.content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 18px 18px; align-items:start; }
+@media (max-width: 1200px) { .metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
 @media (max-width: 760px) { .content, .metrics { grid-template-columns: 1fr; } .top-license { grid-template-columns: repeat(2, auto); } }
 .overview-grid { display: contents; }
 
 .panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
 .panel h2 { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 12px; border-bottom: 1px solid #21262d; }
 .panel-body { padding: 10px 12px; }
-.span-2 { grid-column: span 2; }
+.span-2 { grid-column: auto; }
 .span-4 { grid-column: 1 / -1; }
 
 .console-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -130,17 +130,12 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       <span id="statusText">Loading</span>
     </span>
     <div class="top-license" aria-label="License and upgrade summary">
-      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('license')"><div class="value" id="licensePresent">--</div><div class="label">License</div></div>
-      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('expiry')"><div class="value" id="licenseChecked">--</div><div class="label">Expiry</div></div>
-      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('version')"><div class="value" id="upgradeVersion">--</div><div class="label">Version</div></div>
-      <div class="policy-item clickable" onclick="showLicenseUpgradeDetails('package')"><div class="value" id="upgradeAction">--</div><div class="label">Package</div></div>
+      <div class="policy-item clickable" onclick="openLicenseUpgradePage('activation')"><div class="value" id="activationState">--</div><div class="label">Activation</div></div>
+      <div class="policy-item clickable" onclick="openLicenseUpgradePage('upgrade')"><div class="value" id="topVersion">--</div><div class="label">Version</div></div>
     </div>
     <div class="top-upgrade-actions">
-      <button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate</button>
-      <button id="checkUpgradeBtn" onclick="prepareUpgradeAction('check')">Check</button>
-      <button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Preflight</button>
-      <button id="downloadUpgradeBtn" onclick="prepareUpgradeAction('download')">Download</button>
-      <button id="recordUpgradeBtn" onclick="prepareUpgradeAction('record')">Note</button>
+      <button onclick="openLicenseUpgradePage('activation')">Activation</button>
+      <button onclick="openLicenseUpgradePage('upgrade')">Version Update</button>
     </div>
     <span class="refresh-info" id="licenseUpgradeStatus"></span>
     <div class="alerts-list" id="licenseUpgradeList" style="display:none"></div>
@@ -874,10 +869,8 @@ async function loadLicenseAndUpgrade() {
     const upgrade = await fetchJSON('/api/v1/control/upgrade');
     latestLicense = license;
     latestUpgrade = upgrade;
-    document.getElementById('licensePresent').textContent = license.present ? 'Present' : 'Missing';
-    document.getElementById('licenseChecked').textContent = license.expires_at ? (license.expired ? 'Expired' : formatTime(license.expires_at)) : '--';
-    document.getElementById('upgradeVersion').textContent = upgrade.current_version || '--';
-    document.getElementById('upgradeAction').textContent = upgrade.preflight_ready ? 'Ready' : (upgrade.package_verified ? 'Verified' : (upgrade.expected_sha256 ? 'Mismatch' : '--'));
+    setText('activationState', license.present ? (license.expired ? 'Expired' : 'Active') : 'Inactive');
+    setText('topVersion', upgrade.current_version || '--');
 
     const list = document.getElementById('licenseUpgradeList');
     const items = [];
@@ -906,9 +899,45 @@ async function loadLicenseAndUpgrade() {
         '</div>');
     });
     list.innerHTML = items.join('');
+    if (location.hash === '#license-activation') {
+      renderLicenseUpgradePage('activation');
+    } else if (location.hash === '#version-update') {
+      renderLicenseUpgradePage('upgrade');
+    }
   } catch (e) {
     document.getElementById('licenseUpgradeList').innerHTML = '<div class="loading">License and upgrade state unavailable</div>';
   }
+}
+
+function openLicenseUpgradePage(scope) {
+  location.hash = scope === 'activation' ? 'license-activation' : 'version-update';
+  renderLicenseUpgradePage(scope);
+}
+
+function renderLicenseUpgradePage(scope) {
+  const license = latestLicense || {};
+  const upgrade = latestUpgrade || {};
+  const isActivation = scope === 'activation';
+  const title = isActivation ? 'License Activation' : 'Version Update';
+  const actionHTML = isActivation
+    ? `<span class="delivery-inline-actions"><button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate Activation</button><button class="secondary" onclick="showLicenseUpgradeDetails('license')">View Evidence</button></span>`
+    : `<span class="delivery-inline-actions"><button id="checkUpgradeBtn" onclick="prepareUpgradeAction('check')">Record Check</button><button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Run Preflight</button><button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download</button><button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Note</button></span>`;
+  const items = isActivation ? [
+    renderKVItem('page', title, 'activation'),
+    renderKVItem('state', license.present ? (license.expired ? 'expired' : 'active') : 'inactive', license.license_id || ''),
+    renderKVItem('customer', (license.customer || '--') + ' · ' + (license.edition || '--'), license.path || 'path not configured'),
+    renderKVItem('expiry', license.expires_at ? (license.expires_at + ' · ' + (license.days_remaining || 0) + ' day(s) left') : '--', license.in_grace_period ? 'grace period' : ''),
+    renderKVItem('signature', license.signature_present ? (license.signature_verified ? 'verified' : 'mismatch') : 'not present', license.revoked ? 'revoked' : 'not revoked'),
+    '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg">' + actionHTML + '</span><span class="alert-time">admin</span></div>',
+  ] : [
+    renderKVItem('page', title, 'upgrade'),
+    renderKVItem('current', upgrade.current_version || '--', 'version'),
+    renderKVItem('package', (upgrade.package_path || '--') + ' · ' + (upgrade.package_verified ? 'verified' : 'not verified'), upgrade.package_sha256 ? upgrade.package_sha256.slice(0, 12) : ''),
+    renderKVItem('signature', upgrade.signature_path || '--', upgrade.signature_verified ? 'verified' : (upgrade.signature_present ? 'mismatch' : 'not present')),
+    renderKVItem('readiness', upgrade.preflight_ready ? 'preflight ready' : 'preflight required', upgrade.rollback_ready ? 'rollback ready' : 'rollback not ready'),
+    '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg">' + actionHTML + '</span><span class="alert-time">admin</span></div>',
+  ];
+  setInvestigationItems(items, title + ' details unavailable');
 }
 
 function showLicenseUpgradeDetails(scope) {
