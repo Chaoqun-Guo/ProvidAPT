@@ -208,6 +208,58 @@ func (ctl *Controller) ExcludeComms(comms []string) (int, error) {
 	return excluded, nil
 }
 
+// ExcludeCommsExcept scans /proc and excludes all running processes whose comm
+// is not in the provided include list.
+func (ctl *Controller) ExcludeCommsExcept(comms []string) (int, error) {
+	if len(comms) == 0 {
+		return 0, nil
+	}
+	included := make(map[string]struct{}, len(comms))
+	for _, comm := range comms {
+		trimmed := strings.TrimSpace(comm)
+		if trimmed == "" {
+			continue
+		}
+		included[trimmed] = struct{}{}
+	}
+	if len(included) == 0 {
+		return 0, nil
+	}
+
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return 0, fmt.Errorf("scan /proc: %w", err)
+	}
+
+	var excluded int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		pid, err := strconv.ParseUint(e.Name(), 10, 32)
+		if err != nil {
+			continue
+		}
+
+		commData, err := os.ReadFile(filepath.Join("/proc", e.Name(), "comm"))
+		if err != nil {
+			continue
+		}
+		comm := strings.TrimSpace(string(commData))
+		if _, ok := included[comm]; ok {
+			continue
+		}
+
+		if err := ctl.ExcludePID(uint32(pid)); err != nil {
+			log.Printf("[control] failed to exclude PID %d (%s): %v", pid, comm, err)
+			continue
+		}
+		excluded++
+	}
+
+	return excluded, nil
+}
+
 // ── Hot path management ─────────────────────────────────────
 
 // AddHotPath registers a path prefix for mandatory full reporting.

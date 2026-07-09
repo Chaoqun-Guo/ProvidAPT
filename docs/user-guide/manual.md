@@ -48,6 +48,32 @@ export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
 sudo -E providaptd -config /etc/providapt/providapt.toml
 ```
 
+### Monitoring Only Specific Commands
+
+Use `capture.include_comms` when a client should focus on specific process
+names instead of monitoring every running process:
+
+```yaml
+capture:
+  include_comms:
+    - curl
+    - wget
+    - ssh
+```
+
+The same setting can be supplied through the environment:
+
+```bash
+export PROVIDAPT_CAPTURE_INCLUDE_COMMS=curl,wget,ssh
+sudo -E providaptd -config /etc/providapt/providapt.yaml
+```
+
+`include_comms` is enforced before events enter the provenance graph, storage,
+and alert pipeline. At startup, ProvidAPT also excludes currently running
+non-matching processes in the kernel PID exclusion map. Combine this allow-list
+with rules and hot paths when you need higher-fidelity detection for those
+commands.
+
 ### `providapt-watchdog`
 
 ```bash

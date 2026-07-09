@@ -155,6 +155,10 @@ log:
 api:
   rest: ":9090"
   grpc: ":50052"
+capture:
+  include_comms:
+    - curl
+    - ssh
 `
 	path := writeTempFile(t, "config.*.yaml", yaml)
 	cfg, err := Load(path)
@@ -169,6 +173,9 @@ api:
 	}
 	if cfg.API.REST != ":9090" {
 		t.Errorf("rest addr = %q", cfg.API.REST)
+	}
+	if len(cfg.Capture.IncludeComms) != 2 || cfg.Capture.IncludeComms[0] != "curl" || cfg.Capture.IncludeComms[1] != "ssh" {
+		t.Errorf("include_comms = %#v, want [curl ssh]", cfg.Capture.IncludeComms)
 	}
 }
 
@@ -194,6 +201,7 @@ func TestEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_LOG_LEVEL", "error")
 	os.Setenv("PROVIDAPT_OUTPUT_DIR", "/env/test")
 	os.Setenv("PROVIDAPT_CAPTURE_ENABLE_NET", "false")
+	os.Setenv("PROVIDAPT_CAPTURE_INCLUDE_COMMS", "curl, ssh")
 	os.Setenv("PROVIDAPT_KERNEL_ATTACHMENT_MODE", "kprobe")
 	os.Setenv("PROVIDAPT_TELEMETRY_ENDPOINT", "127.0.0.1:5444")
 	os.Setenv("PROVIDAPT_TELEMETRY_ENABLE_TLS", "true")
@@ -201,6 +209,7 @@ func TestEnvOverrides(t *testing.T) {
 		os.Unsetenv("PROVIDAPT_LOG_LEVEL")
 		os.Unsetenv("PROVIDAPT_OUTPUT_DIR")
 		os.Unsetenv("PROVIDAPT_CAPTURE_ENABLE_NET")
+		os.Unsetenv("PROVIDAPT_CAPTURE_INCLUDE_COMMS")
 		os.Unsetenv("PROVIDAPT_KERNEL_ATTACHMENT_MODE")
 		os.Unsetenv("PROVIDAPT_TELEMETRY_ENDPOINT")
 		os.Unsetenv("PROVIDAPT_TELEMETRY_ENABLE_TLS")
@@ -227,6 +236,9 @@ capture:
 	}
 	if cfg.Capture.EnableNet != false {
 		t.Errorf("env override: enable_net = %v, want false", cfg.Capture.EnableNet)
+	}
+	if len(cfg.Capture.IncludeComms) != 2 || cfg.Capture.IncludeComms[0] != "curl" || cfg.Capture.IncludeComms[1] != "ssh" {
+		t.Errorf("env override: include_comms = %#v, want [curl ssh]", cfg.Capture.IncludeComms)
 	}
 	if cfg.Kernel.AttachmentMode != "kprobe" {
 		t.Errorf("env override: attachment_mode = %q, want kprobe", cfg.Kernel.AttachmentMode)

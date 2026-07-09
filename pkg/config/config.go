@@ -41,6 +41,7 @@ type Config struct {
 		AutoExcludeNoisy bool     `json:"auto_exclude_noisy" yaml:"auto_exclude_noisy"`
 		ExcludePIDs      []uint32 `json:"exclude_pids" yaml:"exclude_pids"`
 		ExcludeComms     []string `json:"exclude_comms" yaml:"exclude_comms"`
+		IncludeComms     []string `json:"include_comms" yaml:"include_comms"`
 		HotPaths         []string `json:"hot_paths" yaml:"hot_paths"`
 	} `json:"capture" yaml:"capture"`
 
@@ -420,6 +421,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
 	overrideUint32Slice(&cfg.Capture.ExcludePIDs, "PROVIDAPT_CAPTURE_EXCLUDE_PIDS")
 	overrideStringSlice(&cfg.Capture.ExcludeComms, "PROVIDAPT_CAPTURE_EXCLUDE_COMMS")
+	overrideStringSlice(&cfg.Capture.IncludeComms, "PROVIDAPT_CAPTURE_INCLUDE_COMMS")
 	overrideStringSlice(&cfg.Capture.HotPaths, "PROVIDAPT_CAPTURE_HOT_PATHS")
 }
 

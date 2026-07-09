@@ -48,6 +48,27 @@ export PROVIDAPT_BPF_OBJECT_PATH=/opt/providapt/ebpf/lsm_hooks.bpf.o
 sudo -E providaptd -config /etc/providapt/providapt.toml
 ```
 
+### 仅监控特定命令
+
+如果客户端只需要关注少量命令，可以在配置中使用 `capture.include_comms`：
+
+```yaml
+capture:
+  include_comms:
+    - curl
+    - wget
+    - ssh
+```
+
+也可以通过环境变量设置：
+
+```bash
+export PROVIDAPT_CAPTURE_INCLUDE_COMMS=curl,wget,ssh
+sudo -E providaptd -config /etc/providapt/providapt.yaml
+```
+
+事件进入溯源图、存储和告警管线前会先经过 `include_comms` 白名单过滤。启动时，ProvidAPT 还会扫描当前 `/proc`，将 `comm` 不在白名单中的已运行进程加入内核 PID 排除表。建议同时配合检测规则和 `hot_paths` 使用，以便对这些命令保留更高质量的事件和溯源证据。
+
 ### `providapt-verify`
 
 ```bash

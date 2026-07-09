@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ProvidAPT Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
@@ -30,6 +29,9 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 20px 24px; }
 .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
+.card.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
+.card.clickable:hover { border-color: #58a6ff; transform: translateY(-1px); }
+.card.clickable:focus { outline: 2px solid #58a6ff; outline-offset: 2px; }
 .card .value { font-size: 28px; font-weight: 700; color: #58a6ff; }
 .card .label { font-size: 11px; color: #8b949e; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .card .sub { font-size: 11px; color: #484f58; margin-top: 2px; }
@@ -43,7 +45,12 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .panel h2 { font-size: 13px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; border-bottom: 1px solid #21262d; }
 .panel-body { padding: 12px 16px; }
 
-#graph-container { height: 400px; background: #0d1117; }
+.console-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.console-toolbar button { background: #30363d; color: #c9d1d9; border: 1px solid #484f58; border-radius: 6px; padding: 7px 10px; cursor: pointer; font-size: 12px; }
+.console-toolbar button:hover { border-color: #58a6ff; color: #58a6ff; }
+.console-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.console-link { color: #58a6ff; text-decoration: none; }
+.console-link:hover { text-decoration: underline; }
 
 .alerts-list { max-height: 360px; overflow-y: auto; }
 .alert-item { padding: 8px 12px; border-bottom: 1px solid #21262d; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
@@ -108,12 +115,12 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 </header>
 
 <div class="metrics" id="metrics">
-  <div class="card"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div></div>
-  <div class="card"><div class="value" id="mEdges">--</div><div class="label">Graph Edges</div></div>
-  <div class="card"><div class="value" id="mEvents">--</div><div class="label">Events Ingested</div></div>
-  <div class="card"><div class="value" id="mDropped">--</div><div class="label">Events Dropped</div></div>
-  <div class="card"><div class="value" id="mMemory">--</div><div class="label">Memory</div></div>
-  <div class="card"><div class="value" id="mUptime">--</div><div class="label">Uptime</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div><div class="sub">Click to inspect node types</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('edges')" onkeydown="handleCardKey(event, () => showGraphSummary('edges'))"><div class="value" id="mEdges">--</div><div class="label">Graph Edges</div><div class="sub">Click to inspect edge types</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showRecentEvents()" onkeydown="handleCardKey(event, showRecentEvents)"><div class="value" id="mEvents">--</div><div class="label">Events Ingested</div><div class="sub">Click to view recent events</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showDroppedEvents()" onkeydown="handleCardKey(event, showDroppedEvents)"><div class="value" id="mDropped">--</div><div class="label">Events Dropped</div><div class="sub">Click to search drop signals</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showRuntimeDetails('memory')" onkeydown="handleCardKey(event, () => showRuntimeDetails('memory'))"><div class="value" id="mMemory">--</div><div class="label">Memory</div><div class="sub">Click for runtime details</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showRuntimeDetails('uptime')" onkeydown="handleCardKey(event, () => showRuntimeDetails('uptime'))"><div class="value" id="mUptime">--</div><div class="label">Uptime</div><div class="sub">Click for health details</div></div>
 </div>
 
 <div class="overview-grid">
@@ -258,8 +265,20 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     </div>
   </div>
   <div class="panel">
-    <h2>Provenance Graph</h2>
-    <div id="graph-container"></div>
+    <h2>Investigation Console</h2>
+    <div class="panel-body">
+      <div class="console-toolbar">
+        <button onclick="showGraphSummary('nodes')">Graph Nodes</button>
+        <button onclick="showGraphSummary('edges')">Graph Edges</button>
+        <button onclick="showRecentEvents()">Recent Events</button>
+        <button onclick="showDroppedEvents()">Dropped Events</button>
+        <button onclick="showRuntimeDetails('runtime')">Runtime</button>
+        <button onclick="window.open('/api/v1/graph/export', '_blank', 'noreferrer')">Export Graph JSON</button>
+      </div>
+      <div class="alerts-list" id="investigationList">
+        <div class="loading">Click a metric or action to inspect filtered data.</div>
+      </div>
+    </div>
   </div>
   <div class="panel">
     <h2>Recent Alerts</h2>
@@ -270,7 +289,6 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 </div>
 
 <script>
-let cy = null;
 let lastStatus = 'unknown';
 let currentRole = 'admin';
 
@@ -278,6 +296,46 @@ async function fetchJSON(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(r.statusText);
   return r.json();
+}
+
+async function fetchJSONAnyStatus(url) {
+  const r = await fetch(url);
+  return r.json();
+}
+
+function escapeHTML(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function handleCardKey(event, fn) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    fn();
+  }
+}
+
+function setInvestigationLoading(message) {
+  const list = document.getElementById('investigationList');
+  if (list) {
+    list.innerHTML = '<div class="loading">' + escapeHTML(message) + '</div>';
+  }
+}
+
+function setInvestigationItems(items, emptyMessage) {
+  const list = document.getElementById('investigationList');
+  if (!list) {
+    return;
+  }
+  if (!items || items.length === 0) {
+    list.innerHTML = '<div class="loading">' + escapeHTML(emptyMessage || 'No matching data') + '</div>';
+    return;
+  }
+  list.innerHTML = items.join('');
 }
 
 function formatBytes(b) {
@@ -593,9 +651,7 @@ function prepareSupportBundleAction() {
   if (currentRole !== 'admin') {
     return;
   }
-  const reason = window.prompt('Optional reason for exporting a support bundle:', '') || '';
-  const note = window.prompt('Optional operator note for this support bundle export:', '') || '';
-  runSupportBundleAction({ reason: reason, note: note });
+  runSupportBundleAction({ reason: 'dashboard', note: 'dashboard export' });
 }
 
 function downloadSupportBundle() {
@@ -676,8 +732,7 @@ function prepareLicenseAction() {
   if (currentRole !== 'admin') {
     return;
   }
-  const note = window.prompt('Optional note for this license validation:', '') || '';
-  runLicenseAction({ action: 'validate', note: note });
+  runLicenseAction({ action: 'validate', note: 'dashboard validation' });
 }
 
 async function runUpgradeAction(payload) {
@@ -710,31 +765,7 @@ function prepareUpgradeAction(action) {
   if (currentRole !== 'admin') {
     return;
   }
-  const notePrompt = action === 'record' ? 'Record upgrade note:' : 'Optional note for this readiness check:';
-  const note = window.prompt(notePrompt, '') || '';
-  const payload = { action: action, note: note };
-  const packagePath = window.prompt('Optional upgrade package path override:', '') || '';
-  if (packagePath) {
-    payload.package_path = packagePath;
-  }
-  const downloadURL = window.prompt('Optional upgrade download URL override:', '') || '';
-  if (downloadURL) {
-    payload.download_url = downloadURL;
-  }
-  const expectedSHA256 = window.prompt('Optional expected SHA256 override:', '') || '';
-  if (expectedSHA256) {
-    payload.expected_sha256 = expectedSHA256;
-  }
-  const signaturePath = window.prompt('Optional upgrade signature path override:', '') || '';
-  if (signaturePath) {
-    payload.signature_path = signaturePath;
-  }
-  if (action === 'record') {
-    const rollbackPlan = window.prompt('Optional rollback plan:', '') || '';
-    if (rollbackPlan) {
-      payload.rollback_plan = rollbackPlan;
-    }
-  }
+  const payload = { action: action, note: 'dashboard ' + action };
   runUpgradeAction(payload);
 }
 
@@ -820,11 +851,7 @@ function preparePolicyAction(action) {
   if (currentRole !== 'admin') {
     return;
   }
-  const payload = { action: action };
-  const note = window.prompt('Optional operator note for this policy action:', '') || '';
-  if (note) {
-    payload.notes = note;
-  }
+  const payload = { action: action, notes: 'dashboard ' + action };
   if (action === 'rollback') {
     const version = window.prompt('Rollback to which policy version?', '');
     if (!version) {
@@ -940,42 +967,95 @@ async function runDeliveryAction(payload) {
 }
 
 function prepareDeliveryAction(action, deliveryID) {
-  let note = '';
-  if (action === 'replay' || action === 'create_ticket' || action === 'replay_all' || action === 'create_ticket_all') {
-    note = window.prompt('Optional operator note for this action:', '') || '';
-  }
   const payload = {
     action: action,
-    note: note,
+    note: 'dashboard ' + action,
   };
   if (deliveryID) {
     payload.delivery_id = deliveryID;
   }
   runDeliveryAction(payload);
 }
-async function loadGraph() {
+function countBy(items, pick) {
+  const counts = {};
+  items.forEach(item => {
+    const key = pick(item) || 'unknown';
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return Object.keys(counts).sort().map(key => ({ key: key, count: counts[key] }));
+}
+
+async function showGraphSummary(kind) {
   if (currentRole === 'auditor') {
-    document.getElementById('graph-container').innerHTML = '<div class="loading">Graph view is hidden for auditor role</div>';
+    setInvestigationLoading('Graph export is hidden for auditor role');
     return;
   }
+  setInvestigationLoading('Loading graph ' + kind + '...');
   try {
     const data = await fetchJSON('/api/v1/graph/export');
-    if (!data.elements || data.elements.length === 0) return;
-    if (cy) { cy.destroy(); }
-    cy = cytoscape({
-      container: document.getElementById('graph-container'),
-      elements: data.elements,
-      style: [
-        { selector: 'node', style: { 'background-color': '#58a6ff', label: 'data(label)', 'color': '#c9d1d9', 'font-size': '10px', 'text-valign': 'bottom', 'text-halign': 'center', 'width': 24, 'height': 24 } },
-        { selector: 'edge', style: { 'line-color': '#30363d', 'target-arrow-color': '#30363d', 'width': 1.5, 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'label': 'data(label)', 'color': '#484f58', 'font-size': '8px' } },
-        { selector: 'node[type="process"]', style: { 'background-color': '#d29922' } },
-        { selector: 'node[type="file"]', style: { 'background-color': '#58a6ff' } },
-        { selector: 'node[type="net"]', style: { 'background-color': '#3fb950' } },
-      ],
-      layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.2 },
-      wheelSensitivity: 0.3,
-    });
-  } catch(e) { /* no graph data */ }
+    const elements = data.elements || [];
+    const nodes = elements.filter(item => !item.data || !item.data.source);
+    const edges = elements.filter(item => item.data && item.data.source);
+    const selected = kind === 'edges' ? edges : nodes;
+    const groups = countBy(selected, item => item.data && (item.data.type || item.data.label || item.group));
+    const items = groups.map(group => '<div class="alert-item">' +
+      '<span class="alert-sev sev-medium">' + escapeHTML(kind) + '</span>' +
+      '<span class="alert-msg">' + escapeHTML(group.key) + ' · ' + group.count + ' item(s)' +
+      ' · <a class="console-link" href="/api/v1/graph/export" target="_blank" rel="noreferrer">export JSON</a></span>' +
+      '<span class="alert-time">' + nodes.length + ' nodes / ' + edges.length + ' edges</span>' +
+      '</div>');
+    setInvestigationItems(items, 'No graph ' + kind + ' available');
+  } catch (e) {
+    setInvestigationLoading('Graph summary unavailable: ' + e.message);
+  }
+}
+
+function renderEventItem(event, label) {
+  const when = event.timestamp || event.time || event.detected_at || event.last_seen;
+  const message = event.message || event.pattern || event.comm || event.path || event.id || JSON.stringify(event).slice(0, 180);
+  return '<div class="alert-item">' +
+    '<span class="alert-sev sev-low">' + escapeHTML(label) + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(message) + '</span>' +
+    '<span class="alert-time">' + formatTime(when) + '</span>' +
+    '</div>';
+}
+
+async function showRecentEvents() {
+  setInvestigationLoading('Loading recent events...');
+  try {
+    const data = await fetchJSON('/api/v1/events/recent?limit=50');
+    const events = data.events || data.items || [];
+    setInvestigationItems(events.slice(0, 20).map(event => renderEventItem(event, 'event')), 'No recent events found');
+  } catch (e) {
+    setInvestigationLoading('Recent events unavailable: ' + e.message);
+  }
+}
+
+async function showDroppedEvents() {
+  setInvestigationLoading('Searching dropped event signals...');
+  try {
+    const data = await fetchJSON('/api/v1/events/search?pattern=dropped&limit=50');
+    const events = data.events || data.items || [];
+    setInvestigationItems(events.slice(0, 20).map(event => renderEventItem(event, 'dropped')), 'No dropped event records found');
+  } catch (e) {
+    setInvestigationLoading('Dropped event search unavailable: ' + e.message);
+  }
+}
+
+async function showRuntimeDetails(scope) {
+  setInvestigationLoading('Loading runtime details...');
+  try {
+    const status = await fetchJSON('/api/v1/status');
+    const health = await fetchJSONAnyStatus('/health');
+    const items = [
+      '<div class="alert-item"><span class="alert-sev sev-medium">status</span><span class="alert-msg">State: ' + escapeHTML(lastStatus) + ' · Role: ' + escapeHTML(currentRole) + '</span><span class="alert-time">' + escapeHTML(scope) + '</span></div>',
+      '<div class="alert-item"><span class="alert-sev sev-low">api</span><span class="alert-msg">Version: ' + escapeHTML(status.version || '--') + ' · Build: ' + escapeHTML(status.build || '--') + '</span><span class="alert-time">status</span></div>',
+      '<div class="alert-item"><span class="alert-sev sev-low">health</span><span class="alert-msg">' + escapeHTML(JSON.stringify(health).slice(0, 220)) + '</span><span class="alert-time">health</span></div>',
+    ];
+    setInvestigationItems(items, 'Runtime details unavailable');
+  } catch (e) {
+    setInvestigationLoading('Runtime details unavailable: ' + e.message);
+  }
 }
 
 async function loadAlerts() {
@@ -1003,7 +1083,7 @@ async function loadAlerts() {
 async function refresh() {
   const now = new Date();
   document.getElementById('refreshInfo').textContent = 'Updated: ' + now.toLocaleTimeString();
-  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadAlerts(), loadGraph()]);
+  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadAlerts()]);
 }
 
 refresh();

@@ -46,3 +46,34 @@ func TestDashboardAgentMonitoringFields(t *testing.T) {
 		}
 	}
 }
+
+func TestDashboardInvestigationConsole(t *testing.T) {
+	forbidden := []string{
+		"Provenance Graph",
+		"graph-container",
+		"cytoscape",
+		"loadGraph",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard should not render main provenance graph content %q", item)
+		}
+	}
+
+	expected := []string{
+		"Investigation Console",
+		"showGraphSummary('nodes')",
+		"showGraphSummary('edges')",
+		"showRecentEvents()",
+		"showDroppedEvents()",
+		"showRuntimeDetails",
+		"class=\"card clickable\"",
+		"/api/v1/events/recent?limit=50",
+		"/api/v1/graph/export",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing investigation console content %q", item)
+		}
+	}
+}

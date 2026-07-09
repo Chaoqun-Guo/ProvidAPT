@@ -827,6 +827,11 @@ func main() {
 		} else if excluded > 0 {
 			logx.System().Info("capture exclude comms applied", "count", excluded)
 		}
+		if excluded, err := bpfLoader.Ctrl.ExcludeCommsExcept(cfg.Capture.IncludeComms); err != nil {
+			logx.System().Warn("capture include comms failed", "error", err)
+		} else if excluded > 0 {
+			logx.System().Info("capture include comms applied", "allowed", len(cfg.Capture.IncludeComms), "excluded", excluded)
+		}
 		for _, prefix := range cfg.Capture.HotPaths {
 			if err := bpfLoader.Ctrl.AddHotPath(prefix); err != nil {
 				logx.System().Warn("capture hot path failed", "path", prefix, "error", err)
@@ -837,6 +842,7 @@ func main() {
 			"auto_exclude_noisy", cfg.Capture.AutoExcludeNoisy,
 			"configured_exclude_pids", len(cfg.Capture.ExcludePIDs),
 			"configured_exclude_comms", len(cfg.Capture.ExcludeComms),
+			"configured_include_comms", len(cfg.Capture.IncludeComms),
 			"configured_hot_paths", len(cfg.Capture.HotPaths),
 			"pid_whitelist_entries", controlStats["pid_whitelist_entries"],
 			"tainted_processes", controlStats["tainted_processes"],
@@ -1972,6 +1978,12 @@ func main() {
 	)
 
 	eventCount := 0
+	includeComms := make(map[string]struct{}, len(cfg.Capture.IncludeComms))
+	for _, comm := range cfg.Capture.IncludeComms {
+		if trimmed := strings.TrimSpace(comm); trimmed != "" {
+			includeComms[trimmed] = struct{}{}
+		}
+	}
 	metricsTicker := time.NewTicker(15 * time.Second)
 	defer metricsTicker.Stop()
 
@@ -1987,6 +1999,11 @@ loop:
 			if evt == nil {
 				logx.System().Warn("collector emitted nil event")
 				continue
+			}
+			if len(includeComms) > 0 {
+				if _, ok := includeComms[evt.Comm]; !ok {
+					continue
+				}
 			}
 			pipe.AddEvent(evt)
 			if err := writer.Write(evt); err != nil {
@@ -2087,6 +2104,12 @@ loop:
 					newAptCfg.EnablePatterns = append(newAptCfg.EnablePatterns, analyzer.PatternID(p))
 				}
 				apt.ReloadConfig(newAptCfg)
+				includeComms = make(map[string]struct{}, len(newCfg.Capture.IncludeComms))
+				for _, comm := range newCfg.Capture.IncludeComms {
+					if trimmed := strings.TrimSpace(comm); trimmed != "" {
+						includeComms[trimmed] = struct{}{}
+					}
+				}
 
 				// Reload taint seeds
 				if newCfg.TaintSecrets.UntrustedComms != nil || newCfg.TaintSecrets.NetworkTools != nil {
