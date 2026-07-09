@@ -105,7 +105,7 @@ func TestParseRawEvent_ProcessExec(t *testing.T) {
 	data := makeRawEvent(t, func(buf []byte) {
 		le := binary.LittleEndian
 		le.PutUint32(buf[0:4], uint32(syscall.EventProcessExec))
-		le.PutUint32(buf[4:8], uint32(syscall.EventFlagExecSetuid))
+		le.PutUint32(buf[4:8], syscall.EventFlagExecSetuid)
 		copy(buf[68:84], "bash\x00")
 		copy(buf[84:], "/usr/bin/bash\x00")
 	})
@@ -118,7 +118,7 @@ func TestParseRawEvent_ProcessExec(t *testing.T) {
 	if evt.Type != syscall.EventProcessExec {
 		t.Errorf("Type = %d", evt.Type)
 	}
-	if evt.Flags != uint32(syscall.EventFlagExecSetuid) {
+	if evt.Flags != syscall.EventFlagExecSetuid {
 		t.Errorf("Flags = %d, want %d", evt.Flags, syscall.EventFlagExecSetuid)
 	}
 	if evt.Comm != "bash" {

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ─── Event distribution ─────────────────────────────────────
@@ -29,16 +29,16 @@ import (
 //   FileRename        2%   mv, atomic writes
 
 var eventWeights = []struct {
-	typ   syscall.EventType
+	typ    syscall.EventType
 	weight int
 }{
-	{syscall.EventFileOpen,    40},
-	{syscall.EventFileModify,  20},
-	{syscall.EventFileCreate,   5},
+	{syscall.EventFileOpen, 40},
+	{syscall.EventFileModify, 20},
+	{syscall.EventFileCreate, 5},
 	{syscall.EventProcessFork, 20},
 	{syscall.EventProcessExec, 10},
-	{syscall.EventFileDelete,   3},
-	{syscall.EventFileRename,   2},
+	{syscall.EventFileDelete, 3},
+	{syscall.EventFileRename, 2},
 }
 
 // ─── Process tree simulation ────────────────────────────────
@@ -54,13 +54,13 @@ type simulatedProcess struct {
 
 var processPool = []simulatedProcess{
 	{1, "systemd", 0},
-	{100, "nginx", 0},     {101, "nginx", 0},
-	{200, "sshd", 0},      {201, "sshd", 0},
-	{300, "bash", 1000},   {301, "bash", 1000},
-	{400, "curl", 1000},   {401, "wget", 1000},
-	{500, "python3", 1000},{501, "node", 1000},
-	{600, "apache2", 33},  {601, "php-fpm", 33},
-	{700, "dockerd", 0},   {701, "containerd", 0},
+	{100, "nginx", 0}, {101, "nginx", 0},
+	{200, "sshd", 0}, {201, "sshd", 0},
+	{300, "bash", 1000}, {301, "bash", 1000},
+	{400, "curl", 1000}, {401, "wget", 1000},
+	{500, "python3", 1000}, {501, "node", 1000},
+	{600, "apache2", 33}, {601, "php-fpm", 33},
+	{700, "dockerd", 0}, {701, "containerd", 0},
 }
 
 var filePaths = []string{

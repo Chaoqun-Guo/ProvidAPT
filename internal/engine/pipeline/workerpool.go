@@ -30,8 +30,8 @@ import (
 
 // WorkerPoolConfig for the parallel parser.
 type WorkerPoolConfig struct {
-	NumWorkers   int  // number of parser goroutines (0 = GOMAXPROCS)
-	QueueSize    int  // per-worker queue size
+	NumWorkers int // number of parser goroutines (0 = GOMAXPROCS)
+	QueueSize  int // per-worker queue size
 }
 
 // DefaultWorkerPoolConfig returns a configuration with one worker
@@ -45,14 +45,14 @@ func DefaultWorkerPoolConfig() *WorkerPoolConfig {
 
 // WorkerPool manages parallel event parsers.
 type WorkerPool struct {
-	cfg        *WorkerPoolConfig
-	dispatcher *Dispatcher
-	workers    []*Worker
-	eventCh    chan *collector.Event
-	errCh      chan error
-	started    atomic.Bool
-	stopCh     chan struct{}
-	wg         sync.WaitGroup
+	cfg          *WorkerPoolConfig
+	dispatcher   *Dispatcher
+	workers      []*Worker
+	eventCh      chan *collector.Event
+	errCh        chan error
+	started      atomic.Bool
+	stopCh       chan struct{}
+	wg           sync.WaitGroup
 	eventsParsed atomic.Int64
 }
 
@@ -70,7 +70,6 @@ type Worker struct {
 	id    int
 	queue *LockFreeQueue
 	pool  *WorkerPool
-	seq   uint64
 }
 
 // NewWorkerPool creates a pool of parallel event parsers.
@@ -153,7 +152,7 @@ func (wp *WorkerPool) Stop() {
 func (wp *WorkerPool) Stats() map[string]interface{} {
 	return map[string]interface{}{
 		"workers":          len(wp.workers),
-		"events_parsed":   wp.eventsParsed.Load(),
+		"events_parsed":    wp.eventsParsed.Load(),
 		"dispatcher_drops": wp.dispatcher.dropped.Load(),
 	}
 }

@@ -10,18 +10,17 @@ import (
 	"time"
 )
 
-// ─── PressureMonitor ────────────────────────────────────────
-
 // PressureMonitor watches Go runtime memory metrics and triggers
 // callbacks when thresholds are exceeded.
 //
 // Watermark thresholds:
-//   Low (50%)  — start logging memory stats
-//   Mid (70%)  — force cache eviction & DB flush
-//   High (85%) — request caller to slow ingestion
+//
+//	Low (50%)  -start logging memory stats
+//	Mid (70%)  -force cache eviction & DB flush
+//	High (85%) -request caller to slow ingestion
 type PressureMonitor struct {
-	mu       sync.Mutex
-	maxMem   uint64 // bytes (0 = auto-detect from system total)
+	mu     sync.Mutex
+	maxMem uint64 // bytes (0 = auto-detect from system total)
 
 	// Watermarks (fraction of maxMem)
 	lowMark  float64
@@ -39,9 +38,9 @@ type PressureMonitor struct {
 
 // NewPressureMonitor creates a pressure monitor.
 //
-//   maxMemMB  — max memory in MB (0 = auto-detect 75% of total system RAM)
-//   onMid     — called at 70% utilisation (force flush/evict)
-//   onHigh    — called at 85% utilisation (slow down)
+//	maxMemMB  -max memory in MB (0 = auto-detect 75% of total system RAM)
+//	onMid     -called at 70% utilization (force flush/evict)
+//	onHigh    -called at 85% utilization (slow down)
 func NewPressureMonitor(maxMemMB uint64, onMid, onHigh func()) *PressureMonitor {
 	m := &PressureMonitor{
 		lowMark:  0.50,
@@ -92,14 +91,12 @@ func (pm *PressureMonitor) loop() {
 }
 
 // Stop the monitoring goroutine.
-// Safe to call multiple times — subsequent calls are no-ops.
+// Safe to call multiple times -subsequent calls are no-ops.
 func (pm *PressureMonitor) Stop() {
 	pm.stopOnce.Do(func() {
 		close(pm.stopCh)
 	})
 }
-
-// ── Pressure check ──────────────────────────────────────────
 
 func (pm *PressureMonitor) check() {
 	var mem runtime.MemStats
@@ -110,14 +107,14 @@ func (pm *PressureMonitor) check() {
 	fraction := float64(mem.Alloc) / float64(pm.maxMem)
 
 	if fraction < pm.lowMark {
-		return // nominal — nothing to do
+		return // nominal -nothing to do
 	}
 
 	log.Printf("[pressure] memory: %d MB / %d MB (%.0f%%)",
 		allocMB, maxMB, fraction*100)
 
 	if fraction >= pm.highMark {
-		log.Printf("[pressure] HIGH — forcing flush + slow-down")
+		log.Printf("[pressure] HIGH -forcing flush + slow-down")
 		if pm.onHigh != nil {
 			pm.onHigh()
 		}
@@ -125,7 +122,7 @@ func (pm *PressureMonitor) check() {
 			pm.onMid()
 		}
 	} else if fraction >= pm.midMark {
-		log.Printf("[pressure] MID — evicting cold nodes")
+		log.Printf("[pressure] MID -evicting cold nodes")
 		if pm.onMid != nil {
 			pm.onMid()
 		}
@@ -142,8 +139,6 @@ func (pm *PressureMonitor) Pressure() float64 {
 	return float64(mem.Alloc) / float64(pm.maxMem)
 }
 
-// ── Platform helpers ────────────────────────────────────────
-
 // detectSystemMemory attempts to determine total system RAM.
 // Falls back to 4 GB if detection fails.
 func detectSystemMemory() uint64 {
@@ -158,7 +153,7 @@ func detectSystemMemory() uint64 {
 }
 
 func parseMemInfo() (uint64, error) {
-	// This is a simplified read — in production you'd parse /proc/meminfo
+	// This is a simplified read -in production you'd parse /proc/meminfo
 	// or use gopsutil.  For now, use a reasonable default.
 	return 8 * 1024 * 1024 * 1024, nil // 8 GB default
 }

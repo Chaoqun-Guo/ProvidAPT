@@ -13,17 +13,15 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/store"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Batch persistence writer
 //
-// Optimises RocksDB/Pebble writes through:
-//   1. Large write batches (200 → 1000 ops)
-//   2. WAL disabling when acceptable (2-3x throughput gain)
-//   3. Periodic SST file ingestion for bulk data
-//   4. Configurable sync frequency
-// ═══════════════════════════════════════════════════════════════
-
-// BatchWriterConfig tunes the batch persistence behaviour.
+// Optimizes RocksDB/Pebble writes through:
+//  1. Large write batches (200 ->1000 ops)
+//  2. WAL disabling when acceptable (2-3x throughput gain)
+//  3. Periodic SST file ingestion for bulk data
+//  4. Configurable sync frequency
+//
+// BatchWriterConfig tunes the batch persistence behavior.
 type BatchWriterConfig struct {
 	// BatchSize is the number of edges per batch before flush.
 	BatchSize int
@@ -136,7 +134,7 @@ func (bw *BatchWriter) Flush() error {
 		return nil
 	}
 	if bw.store == nil {
-		bw.pending = edges // put back for retry — still under lock
+		bw.pending = edges // put back for retry -still under lock
 		bw.mu.Unlock()
 		return fmt.Errorf("store not initialized")
 	}
@@ -170,7 +168,7 @@ func (bw *BatchWriter) Flush() error {
 }
 
 // Stop flushes pending data and shuts down.
-// Safe to call multiple times — subsequent calls are no-ops.
+// Safe to call multiple times -subsequent calls are no-ops.
 func (bw *BatchWriter) Stop() {
 	bw.stopOnce.Do(func() {
 		close(bw.stopCh)

@@ -11,35 +11,35 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
-const eventSize = 332
+const eventSize = 340
 
 // makeTestEvent creates a properly-sized ring buffer record for testing.
 func makeTestEvent(eventType byte) []byte {
 	raw := make([]byte, eventSize)
-	raw[0] = eventType       // type at offset 0
-	raw[4] = 0               // flags at offset 4
-	raw[16] = 42             // pid (LSB) at offset 16
-	raw[28] = 0xE8           // uid=1000 (LSB)
-	raw[29] = 0x03           // uid=1000 (MSB)
-	raw[60] = 't'            // comm[0] at offset 60
-	raw[61] = 'e'
-	raw[62] = 's'
-	raw[63] = 't'
-	raw[64] = 0              // NUL terminator
-	raw[76] = '/'            // pathname[0] at offset 76
-	raw[77] = 'e'
-	raw[78] = 't'
-	raw[79] = 'c'
-	raw[80] = '/'
-	raw[81] = 'h'
-	raw[82] = 'o'
-	raw[83] = 's'
-	raw[84] = 't'
-	raw[85] = 'n'
-	raw[86] = 'a'
-	raw[87] = 'm'
-	raw[88] = 'e'
-	raw[89] = 0              // NUL terminator
+	raw[0] = eventType // type at offset 0
+	raw[4] = 0         // flags at offset 4
+	raw[16] = 42       // pid (LSB) at offset 16
+	raw[28] = 0xE8     // uid=1000 (LSB)
+	raw[29] = 0x03     // uid=1000 (MSB)
+	raw[68] = 't'      // comm[0] at offset 68
+	raw[69] = 'e'
+	raw[70] = 's'
+	raw[71] = 't'
+	raw[72] = 0   // NUL terminator
+	raw[84] = '/' // pathname[0] at offset 84
+	raw[85] = 'e'
+	raw[86] = 't'
+	raw[87] = 'c'
+	raw[88] = '/'
+	raw[89] = 'h'
+	raw[90] = 'o'
+	raw[91] = 's'
+	raw[92] = 't'
+	raw[93] = 'n'
+	raw[94] = 'a'
+	raw[95] = 'm'
+	raw[96] = 'e'
+	raw[97] = 0 // NUL terminator
 	return raw
 }
 

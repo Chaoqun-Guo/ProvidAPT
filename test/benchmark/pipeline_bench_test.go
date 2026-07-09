@@ -15,8 +15,6 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
-// ─── Setup ───────────────────────────────────────────────────
-
 func benchPipeline(b *testing.B) (*pipeline.Pipeline, *provenance.Graph, func()) {
 	graph := provenance.NewGraph()
 	dir, err := os.MkdirTemp("", "providapt-bench-*")
@@ -43,10 +41,8 @@ func benchPipeline(b *testing.B) (*pipeline.Pipeline, *provenance.Graph, func())
 	return pipe, graph, cleanup
 }
 
-// ─── Benchmarks ─────────────────────────────────────────────
-
 // BenchmarkPipelineThroughput measures end-to-end event processing
-// rate: raw event → pipeline → cache → merge → RocksDB.
+// rate: raw event ->pipeline ->cache ->merge ->RocksDB.
 func BenchmarkPipelineThroughput(b *testing.B) {
 	pipe, _, cleanup := benchPipeline(b)
 	defer cleanup()
@@ -144,7 +140,7 @@ func BenchmarkPipeline50K(b *testing.B) {
 	b.Logf("RocksDB disk: %v bytes", pipeStats["store"].(map[string]interface{})["disk_bytes"])
 }
 
-// BenchmarkMemoryAlloc measures allocation behaviour of the pipeline.
+// BenchmarkMemoryAlloc measures allocation behavior of the pipeline.
 func BenchmarkMemoryAlloc(b *testing.B) {
 	pipe, _, cleanup := benchPipeline(b)
 	defer cleanup()
@@ -171,8 +167,6 @@ func BenchmarkMemoryAlloc(b *testing.B) {
 	b.ReportMetric(float64(memAfter.NumGC-memBefore.NumGC), "GC_cycles")
 }
 
-// ─── CPU profile ─────────────────────────────────────────────
-
 func BenchmarkCPUProfile(b *testing.B) {
 	f, err := os.Create("cpu.prof")
 	if err != nil {
@@ -192,8 +186,6 @@ func BenchmarkCPUProfile(b *testing.B) {
 		pipe.AddEvent(evt)
 	}
 }
-
-// ─── Heap profile ────────────────────────────────────────────
 
 func BenchmarkHeapProfile(b *testing.B) {
 	pipe, _, cleanup := benchPipeline(b)
@@ -217,8 +209,6 @@ func BenchmarkHeapProfile(b *testing.B) {
 	}
 	b.Logf("heap profile written to heap.prof")
 }
-
-// ─── Memory stability over time ──────────────────────────────
 
 func BenchmarkMemoryStability(b *testing.B) {
 	if testing.Short() {
@@ -283,7 +273,7 @@ loop:
 	elapsed := time.Since(start)
 	rate := float64(processed) / elapsed.Seconds()
 
-	// Analyse memory growth
+	// Analyze memory growth
 	if len(samples) >= 2 {
 		firstAlloc := samples[0].Alloc
 		lastAlloc := samples[len(samples)-1].Alloc
@@ -299,21 +289,19 @@ loop:
 		b.Logf("Memory growth: %.2f MB over %.1f hours (%.3f MB/hr)",
 			growthMB, hours, growthMB/hours)
 		if growthMB/hours > 10 {
-			b.Logf("WARNING: Memory growing at %.2f MB/hr — possible leak", growthMB/hours)
+			b.Logf("WARNING: Memory growing at %.2f MB/hr -possible leak", growthMB/hours)
 		} else {
-			b.Logf("Memory stable — growth rate %.3f MB/hr is acceptable", growthMB/hours)
+			b.Logf("Memory stable -growth rate %.3f MB/hr is acceptable", growthMB/hours)
 		}
 	}
 
 	// Final stats
 	stats := graph.Stats()
 	pipeStats := pipe.Stats()
-	b.Logf("Final — Graph: %d nodes, %d edges", stats.Nodes, stats.Edges)
+	b.Logf("Final -Graph: %d nodes, %d edges", stats.Nodes, stats.Edges)
 	b.Logf("Cache: %v", pipeStats["cache"])
 	b.Logf("Store: %v", pipeStats["store"])
 }
-
-// ─── Short sanity test (always runs) ─────────────────────────
 
 func BenchmarkPipelineSanity(b *testing.B) {
 	pipe, _, cleanup := benchPipeline(b)

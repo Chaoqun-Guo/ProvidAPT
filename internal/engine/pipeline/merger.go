@@ -11,8 +11,6 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
-// ─── MergedEdge ─────────────────────────────────────────────
-
 // MergedEdge accumulates repeated occurrences of the same logical
 // edge (same source, target, relation) within a sliding window.
 type MergedEdge struct {
@@ -24,7 +22,7 @@ type MergedEdge struct {
 	LastSeen  time.Time
 }
 
-// toEdge materialises the merged state as a provenance.Edge with
+// toEdge materializes the merged state as a provenance.Edge with
 // the accumulated count.
 func (m *MergedEdge) toEdge() *provenance.Edge {
 	return &provenance.Edge{
@@ -37,13 +35,9 @@ func (m *MergedEdge) toEdge() *provenance.Edge {
 	}
 }
 
-// ─── mergeKey ───────────────────────────────────────────────
-
 func mergeKey(e *provenance.Edge) string {
 	return fmt.Sprintf("%s|%s|%s", e.Source, e.Target, e.Relation)
 }
-
-// ─── MergeWindow ────────────────────────────────────────────
 
 // MergeWindow implements sliding-window deduplication and merging
 // of repeated provenance edges.  Within a configurable window (default
@@ -51,7 +45,7 @@ func mergeKey(e *provenance.Edge) string {
 // merged by incrementing Count and updating LastSeen instead of
 // inserting duplicate records.
 //
-// On each Tick(), all accumulated merged edges are materialised and
+// On each Tick(), all accumulated merged edges are materialized and
 // the caller is expected to persist them to RocksDB via the callback.
 type MergeWindow struct {
 	mu        sync.Mutex
@@ -63,8 +57,8 @@ type MergeWindow struct {
 
 // NewMergeWindow creates a merge window.
 //
-//   windowDur — sliding window duration (0 = 5s)
-//   flushFn   — called for each merged edge on Flush
+//	windowDur -sliding window duration (0 = 5s)
+//	flushFn   -called for each merged edge on Flush
 func NewMergeWindow(windowDur time.Duration, flushFn func(*provenance.Edge) error) *MergeWindow {
 	if windowDur <= 0 {
 		windowDur = 5 * time.Second
@@ -87,7 +81,7 @@ func (mw *MergeWindow) TryMerge(e *provenance.Edge) bool {
 
 	existing, ok := mw.entries[key]
 	if !ok {
-		// First occurrence in this window — start tracking
+		// First occurrence in this window -start tracking
 		mw.entries[key] = &MergedEdge{
 			Source:    e.Source,
 			Target:    e.Target,
@@ -104,10 +98,10 @@ func (mw *MergeWindow) TryMerge(e *provenance.Edge) bool {
 	if e.Timestamp.After(existing.LastSeen) {
 		existing.LastSeen = e.Timestamp
 	}
-	return true // merged — no write needed
+	return true // merged -no write needed
 }
 
-// Flush materialises all pending merged edges and sends them through
+// Flush materializes all pending merged edges and sends them through
 // the flush callback.  Returns the number of edges flushed.
 func (mw *MergeWindow) Flush() (int, error) {
 	mw.mu.Lock()

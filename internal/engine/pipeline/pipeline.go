@@ -11,19 +11,15 @@
 //
 // Architecture:
 //
-//	RingBuf → Pipeline.AddEvent()
-//	            │
-//	            ├→ cache.LRU (hot nodes)
-//	            │    └→ store.Store (cold nodes on eviction)
-//	            │
-//	            ├→ pipeline.MergeWindow (5s window dedup)
-//	            │    └→ store.Store (edges on flush)
-//	            │
-//	            ├→ provenance.Graph (in-memory DAG)
-//	            │
-//	            └→ pipeline.PressureMonitor (background)
-//	                   ├→ force eviction + flush at 70%
-//	                   └→ request slow-down at 85%
+//	RingBuf -> Pipeline.AddEvent()
+//	            |-> cache.LRU (hot nodes)
+//	            |   `-> store.Store (cold nodes on eviction)
+//	            |-> pipeline.MergeWindow (5s window dedup)
+//	            |   `-> store.Store (edges on flush)
+//	            |-> provenance.Graph (in-memory DAG)
+//	            `-> pipeline.PressureMonitor (background)
+//	                |-> force eviction + flush at 70%
+//	                `-> request slow-down at 85%
 package pipeline
 
 import (
@@ -38,8 +34,6 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/store"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
 )
-
-// ─── Config ──────────────────────────────────────────────────
 
 type Config struct {
 	// MaxCacheSize is the maximum number of hot nodes kept in the LRU cache.
@@ -71,8 +65,6 @@ func DefaultConfig() *Config {
 		FlushInterval: 5 * time.Second,
 	}
 }
-
-// ─── Pipeline ────────────────────────────────────────────────
 
 // Pipeline is the central event ingestion path.  It owns the cache,
 // the persistent store, the merge window, the pressure monitor, and
@@ -134,7 +126,7 @@ func New(graph *provenance.Graph, cfg *Config) (*Pipeline, error) {
 		return nil, err
 	}
 
-	// Merge window: flush materialises merged edges to RocksDB
+	// Merge window: flush materializes merged edges to RocksDB
 	p.merger = NewMergeWindow(cfg.MergeWindow, func(e *provenance.Edge) error {
 		return p.store.PutEdge(e)
 	})
@@ -149,8 +141,6 @@ func New(graph *provenance.Graph, cfg *Config) (*Pipeline, error) {
 
 	return p, nil
 }
-
-// ── Event ingestion ─────────────────────────────────────────
 
 // AddEvent processes a single event through the entire pipeline.
 func (p *Pipeline) AddEvent(evt *collector.Event) {
@@ -200,7 +190,7 @@ func (p *Pipeline) mergeEdges(evt *collector.Event) {
 		if merged {
 			continue
 		}
-		// First occurrence in window — write to RocksDB directly
+		// First occurrence in window -write to RocksDB directly
 		if err := p.store.PutEdge(e); err != nil {
 			log.Printf("[pipeline] put edge: %v", err)
 		}
@@ -256,10 +246,8 @@ func fileIDFromEvent(evt *collector.Event) string {
 	return provenance.NodeIDFilePath(evt.Pathname)
 }
 
-// ── Backpressure handlers ───────────────────────────────────
-
 func (p *Pipeline) onMidPressure() {
-	log.Printf("[pipeline] mid pressure — evicting cold nodes from cache")
+	log.Printf("[pipeline] mid pressure -evicting cold nodes from cache")
 	cnt, err := p.hotCache.EvictColdSync(256)
 	if err != nil {
 		log.Printf("[pipeline] eviction error: %v", err)
@@ -279,18 +267,16 @@ func (p *Pipeline) onMidPressure() {
 }
 
 func (p *Pipeline) onHighPressure() {
-	// Request backpressure — pause the event ingestion loop
+	// Request backpressure -pause the event ingestion loop
 	p.mu.Lock()
 	if !p.paused {
 		p.paused = true
 		p.pauseCh <- struct{}{}
 		metrics.PipelineBackpressure.Inc()
-		log.Printf("[pipeline] HIGH PRESSURE — pausing ingestion")
+		log.Printf("[pipeline] HIGH PRESSURE -pausing ingestion")
 	}
 	p.mu.Unlock()
 }
-
-// ── Pause / Resume control ──────────────────────────────────
 
 func (p *Pipeline) checkPause() {
 	p.mu.Lock()
@@ -317,8 +303,6 @@ func (p *Pipeline) PauseCh() <-chan struct{} { return p.pauseCh }
 // can resume.
 func (p *Pipeline) ResumeCh() <-chan struct{} { return p.resumeCh }
 
-// ── Lifecycle ───────────────────────────────────────────────
-
 // Start background goroutines (periodic edge flush).
 func (p *Pipeline) Start() {
 	p.wg.Add(1)
@@ -340,7 +324,7 @@ func (p *Pipeline) Start() {
 }
 
 // Stop cleanly shuts down the pipeline (flush + close store).
-// Safe to call multiple times — subsequent calls are no-ops.
+// Safe to call multiple times -subsequent calls are no-ops.
 func (p *Pipeline) Stop() error {
 	var err error
 	p.stopOnce.Do(func() {
@@ -356,8 +340,6 @@ func (p *Pipeline) Stop() error {
 	})
 	return err
 }
-
-// ── Stats ───────────────────────────────────────────────────
 
 func (p *Pipeline) Stats() map[string]interface{} {
 	p.mu.Lock()

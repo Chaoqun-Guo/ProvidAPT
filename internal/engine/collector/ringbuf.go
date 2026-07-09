@@ -25,9 +25,11 @@ import (
 //	    28  uid            u32             4
 //	    32  gid            u32             4
 //	    36  payload        union [24]byte  24
-//	    60  comm           char[16]       16
-//	    76  pathname       char[256]     256
-//	──────────────────────────────────────── 332 total
+//	    60  sample_hook_id u32             4
+//	    64  sample_count   u32             4
+//	    68  comm           char[16]       16
+//	    84  pathname       char[256]     256
+//	──────────────────────────────────────── 340 total
 //
 // union payload layout (file oriented):
 //	   36  inode          u64             8
@@ -134,7 +136,7 @@ func Start(rb *ringbuf.Reader) (<-chan *Event, <-chan error) {
 }
 
 // ParseRawEvent decodes a binary ring buffer record into an Event.
-// The input must be exactly struct event (332 bytes) from the kernel side.
+// The input must be at least struct event (340 bytes) from the kernel side.
 func ParseRawEvent(data []byte) (*Event, error) {
 	if len(data) < eventTotalSize {
 		return nil, fmt.Errorf("event too short: %d bytes, need %d",

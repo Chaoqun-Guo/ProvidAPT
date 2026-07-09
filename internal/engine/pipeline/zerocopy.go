@@ -4,6 +4,7 @@
 package pipeline
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -26,9 +27,9 @@ import (
 
 // ZeroCopyReader wraps ringbuf.Reader with zero-allocation reads.
 type ZeroCopyReader struct {
-	rb     *ringbuf.Reader
-	pool   *RawSamplePool
-	stats  ReaderStats
+	rb    *ringbuf.Reader
+	pool  *RawSamplePool
+	stats ReaderStats
 }
 
 // ReaderStats tracks zero-copy reader performance.
@@ -52,7 +53,7 @@ func NewZeroCopyReader(rb *ringbuf.Reader) *ZeroCopyReader {
 func (z *ZeroCopyReader) ReadRaw() ([]byte, error) {
 	record, err := z.rb.Read()
 	if err != nil {
-		if err == ringbuf.ErrClosed {
+		if errors.Is(err, ringbuf.ErrClosed) {
 			return nil, err
 		}
 		z.stats.Errors.Add(1)
@@ -86,7 +87,6 @@ func (z *ZeroCopyReader) Stats() map[string]int64 {
 // samples.  It reduces GC pressure by reusing allocations.
 type RawSamplePool struct {
 	pool sync.Pool
-	size int
 }
 
 // NewRawSamplePool creates a pool with an initial capacity.
@@ -94,7 +94,7 @@ func NewRawSamplePool(prealloc int) *RawSamplePool {
 	return &RawSamplePool{
 		pool: sync.Pool{
 			New: func() interface{} {
-				buf := make([]byte, 0, 332) // typical event size
+				buf := make([]byte, 0, 340) // typical event size
 				return &buf
 			},
 		},
@@ -103,7 +103,12 @@ func NewRawSamplePool(prealloc int) *RawSamplePool {
 
 // Get returns a reusable byte slice.
 func (p *RawSamplePool) Get() *[]byte {
-	return p.pool.Get().(*[]byte)
+	buf, ok := p.pool.Get().(*[]byte)
+	if !ok || buf == nil {
+		fallback := make([]byte, 0, 340)
+		return &fallback
+	}
+	return buf
 }
 
 // Put returns a byte slice to the pool.

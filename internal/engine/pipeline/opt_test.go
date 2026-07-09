@@ -11,9 +11,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Zero-copy reader tests ──────────────────────────────────
@@ -259,7 +259,7 @@ func TestSpinWait(t *testing.T) {
 // ── Performance: raw event parsing via worker pool ──────────
 
 func BenchmarkRawEventParsing(b *testing.B) {
-	raw := make([]byte, 332)
+	raw := make([]byte, 340)
 	raw[0] = byte(syscall.EventFileOpen)
 
 	b.ResetTimer()
