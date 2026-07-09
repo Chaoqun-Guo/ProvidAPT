@@ -231,7 +231,7 @@ func checkDeepTaint(te *TaintEngine, minDepth int) []*Alert {
 			Pattern:  PatDeepTaint,
 			Severity: SeverityMedium,
 			Headline: fmt.Sprintf("%s taint depth=%d: %s",
-				node.Label, tn.Depth, strings.Join(pathLabels, " → ")),
+				node.Label, tn.Depth, strings.Join(pathLabels, " -> ")),
 			AlertNodeID: id,
 			Reason: fmt.Sprintf(
 				"taint propagation depth=%d from initial source; "+
@@ -321,12 +321,12 @@ func checkMemoryAnomaly(te *TaintEngine) []*Alert {
 			if s, isStr := v.(string); isStr {
 				switch s {
 				case "mprotect_rx":
-					reasons = append(reasons, "内存段权限从 RW 变更为 RX")
+					reasons = append(reasons, "memory protection changed RW->RX")
 					if severity < SeverityCritical {
 						severity = SeverityCritical
 					}
 				case "memfd_create":
-					reasons = append(reasons, "匿名内存文件创建 (memfd_create)")
+					reasons = append(reasons, "anonymous memory file created (memfd_create)")
 					if severity < SeverityHigh {
 						severity = SeverityHigh
 					}
@@ -336,7 +336,7 @@ func checkMemoryAnomaly(te *TaintEngine) []*Alert {
 
 		if v, ok := node.Attributes["pipe_reader"]; ok {
 			if b, isBool := v.(bool); isBool && b {
-				reasons = append(reasons, "管道读取 — 可能的无文件链")
+				reasons = append(reasons, "pipe read - possible fileless chain")
 				if severity < SeverityMedium {
 					severity = SeverityMedium
 				}
@@ -344,7 +344,7 @@ func checkMemoryAnomaly(te *TaintEngine) []*Alert {
 		}
 		if v, ok := node.Attributes["pipe_writer"]; ok {
 			if b, isBool := v.(bool); isBool && b {
-				reasons = append(reasons, "管道写入")
+				reasons = append(reasons, "pipe write")
 			}
 		}
 
@@ -355,9 +355,9 @@ func checkMemoryAnomaly(te *TaintEngine) []*Alert {
 		alerts = append(alerts, &Alert{
 			Pattern:     PatMemoryAnomaly,
 			Severity:    severity,
-			Headline:    fmt.Sprintf("%s 内存异常: %s", node.Label, reasons[0]),
+			Headline:    fmt.Sprintf("%s memory anomaly: %s", node.Label, reasons[0]),
 			AlertNodeID: id,
-			Reason: fmt.Sprintf("进程 %s (污点等级=%s depth=%d): %v",
+			Reason: fmt.Sprintf("process %s (taint=%s depth=%d): %v",
 				id, tn.Level, tn.Depth, reasons),
 		})
 	}

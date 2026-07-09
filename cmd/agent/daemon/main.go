@@ -2213,16 +2213,16 @@ func toAPIPolicySummary(revision mgmt.PolicyRevision) api.PolicySummary {
 func toAPIAlertWorkflowItem(item alertflow.Alert) api.AlertWorkflowItem {
 	out := api.AlertWorkflowItem{
 		ID:       item.ID,
-		Severity: item.Severity,
-		Pattern:  item.Pattern,
-		Headline: item.Headline,
-		Reason:   item.Reason,
-		Source:   item.Source,
+		Severity: cleanWorkflowText(item.Severity),
+		Pattern:  cleanWorkflowText(item.Pattern),
+		Headline: cleanWorkflowText(item.Headline),
+		Reason:   cleanWorkflowText(item.Reason),
+		Source:   cleanWorkflowText(item.Source),
 		Status:   string(item.Status),
-		Assignee: item.Assignee,
+		Assignee: cleanWorkflowText(item.Assignee),
 		Count:    item.Count,
-		Note:     item.Note,
-		Details:  cloneStringMap(item.Details),
+		Note:     cleanWorkflowText(item.Note),
+		Details:  cleanWorkflowDetails(item.Details),
 	}
 	if !item.FirstSeen.IsZero() {
 		out.FirstSeen = item.FirstSeen.UTC().Format(time.RFC3339)
@@ -2460,6 +2460,48 @@ func cloneStringMap(input map[string]string) map[string]string {
 		out[key] = value
 	}
 	return out
+}
+
+func cleanWorkflowDetails(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(input))
+	for key, value := range input {
+		out[cleanWorkflowText(key)] = cleanWorkflowText(value)
+	}
+	return out
+}
+
+func cleanWorkflowText(input string) string {
+	arrowQuestion := mojibakeToken(0x922b, "?")
+	arrowDash := mojibakeToken(0x922b, "-")
+	dashQuestion := mojibakeToken(0x9225, "?")
+	dashDash := mojibakeToken(0x9225, "-")
+	legacyDash := mojibakeToken(0x95b3, "?")
+	alertArrow := mojibakeToken(0x920c, "?")
+	replacer := strings.NewReplacer(
+		" "+arrowQuestion+" ", " -> ",
+		" "+arrowQuestion, " -> ",
+		arrowQuestion+" ", " -> ",
+		arrowQuestion, "->",
+		" "+arrowDash+" ", " -> ",
+		" "+arrowDash, " -> ",
+		arrowDash+" ", " -> ",
+		arrowDash, "->",
+		dashQuestion, "-",
+		dashDash, "-",
+		legacyDash, "-",
+		" "+alertArrow+" ", " -> ",
+		" "+alertArrow, " -> ",
+		alertArrow+" ", " -> ",
+		alertArrow, "->",
+	)
+	return replacer.Replace(input)
+}
+
+func mojibakeToken(codepoint rune, suffix string) string {
+	return string(codepoint) + suffix
 }
 
 // sdNotifyWatchdog sends a systemd watchdog heartbeat via NOTIFY_SOCKET.
