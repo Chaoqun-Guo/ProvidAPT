@@ -31,3 +31,18 @@ func TestDashboardAlertWorkflowTraceLinks(t *testing.T) {
 		}
 	}
 }
+
+func TestDashboardAgentMonitoringFields(t *testing.T) {
+	expected := []string{
+		"last_report_age_seconds",
+		"status_reason",
+		"Report age:",
+		".status-badge.offline",
+		".status-badge.stale",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing agent monitoring content %q", item)
+		}
+	}
+}

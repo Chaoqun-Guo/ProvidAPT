@@ -16,11 +16,15 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .status-badge.healthy { background: #1a3a2a; color: #3fb950; border: 1px solid #238636; }
 .status-badge.degraded { background: #3a2a1a; color: #d29922; border: 1px solid #9e6a03; }
 .status-badge.unhealthy { background: #3a1a1a; color: #f85149; border: 1px solid #da3633; }
+.status-badge.stale { background: #3a2a1a; color: #d29922; border: 1px solid #9e6a03; }
+.status-badge.offline { background: #3a1a1a; color: #f85149; border: 1px solid #da3633; }
 .status-badge.unknown { background: #1a1a2a; color: #d29922; border: 1px solid #9e6a03; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .healthy .status-dot { background: #3fb950; }
 .degraded .status-dot { background: #d29922; }
 .unhealthy .status-dot { background: #f85149; }
+.stale .status-dot { background: #d29922; }
+.offline .status-dot { background: #f85149; }
 .unknown .status-dot { background: #d29922; }
 .refresh-info { color: #8b949e; font-size: 10px; }
 
@@ -296,6 +300,12 @@ function formatUptime(s) {
   return parts.join(' ');
 }
 
+function formatAgeSeconds(s) {
+  if (s == null || s < 0) return '--';
+  if (s < 60) return Math.floor(s) + 's';
+  return formatUptime(s);
+}
+
 function formatTime(ts) {
   if (!ts) return '--';
   const d = new Date(ts);
@@ -407,6 +417,8 @@ async function loadControlOverview() {
     } else {
       list.innerHTML = agents.map(a => {
         const status = (a.status || 'unknown').toLowerCase();
+        const reportAge = a.last_report_age_seconds != null ? formatAgeSeconds(a.last_report_age_seconds) : '--';
+        const reason = a.status_reason ? (' · ' + a.status_reason) : '';
         return '<div class="agent-card">' +
           '<div class="agent-head">' +
             '<span class="agent-name">' + (a.agent_id || 'unknown') + '</span>' +
@@ -420,6 +432,7 @@ async function loadControlOverview() {
             '<span>Dropped: ' + ((a.events_dropped || 0).toLocaleString()) + '</span>' +
             '<span>Memory: ' + formatBytes(a.memory_bytes || 0) + '</span>' +
             '<span>Last report: ' + formatTime(a.last_report_at) + '</span>' +
+            '<span>Report age: ' + reportAge + reason + '</span>' +
           '</div>' +
           (((a.tags || []).length > 0) ? ('<div class="tag-list">' + a.tags.map(t => '<span class="tag-chip">' + t + '</span>').join('') + '</div>') : '') +
         '</div>';

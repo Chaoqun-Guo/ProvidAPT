@@ -61,8 +61,10 @@ type ClusterAgent struct {
 	Group           string   `json:"group,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	Status          string   `json:"status"`
+	StatusReason    string   `json:"status_reason,omitempty"`
 	Version         string   `json:"version,omitempty"`
 	LastReportAt    string   `json:"last_report_at,omitempty"`
+	LastReportAge   int64    `json:"last_report_age_seconds,omitempty"`
 	EventsIngested  uint64   `json:"events_ingested,omitempty"`
 	EventsDropped   uint64   `json:"events_dropped,omitempty"`
 	MemoryBytes     uint64   `json:"memory_bytes,omitempty"`

@@ -81,3 +81,35 @@ sudo systemctl start providapt
 ```bash
 providapt-verify -data /var/lib/providapt/store -verbose
 ```
+
+## 6. Server-Side Agent Monitoring
+
+The control plane monitors every reporting agent through the gRPC telemetry
+stream and exposes the fleet state in the dashboard and API.
+
+Dashboard:
+
+```text
+http://<server>:18080/
+```
+
+Fleet APIs:
+
+```bash
+curl http://<server>:18080/api/v1/control/overview
+curl http://<server>:18080/api/v1/control/fleet
+curl "http://<server>:18080/api/v1/control/fleet?group=prod&tag=linux"
+```
+
+Agent status values:
+
+| Status | Meaning |
+|--------|---------|
+| `HEALTHY` | The server recently received a healthy agent summary |
+| `DEGRADED` | The agent reports unhealthy pipeline or store state |
+| `STALE` | No summary was received for the stale threshold |
+| `OFFLINE` | No summary was received for the offline threshold |
+
+The fleet response includes `last_report_at`, `last_report_age_seconds`, and
+`status_reason`, so operators can distinguish a healthy agent from one that has
+stopped reporting.

@@ -301,6 +301,55 @@ func TestFleetMetadata(t *testing.T) {
 	}
 }
 
+func TestFleetAgentStaleAndOfflineStatus(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	cfg.AgentStaleAfter = time.Minute
+	cfg.AgentOfflineAfter = 2 * time.Minute
+	s, _ := NewServer(cfg)
+
+	s.telemetry.mu.Lock()
+	s.telemetry.Agents["fresh"] = AgentTelemetrySnapshot{
+		AgentID:         "fresh",
+		Status:          "HEALTHY",
+		LastReportAt:    time.Now().Add(-30 * time.Second),
+		PipelineHealthy: true,
+		StoreHealthy:    true,
+	}
+	s.telemetry.Agents["stale"] = AgentTelemetrySnapshot{
+		AgentID:         "stale",
+		Status:          "HEALTHY",
+		LastReportAt:    time.Now().Add(-90 * time.Second),
+		PipelineHealthy: true,
+		StoreHealthy:    true,
+	}
+	s.telemetry.Agents["offline"] = AgentTelemetrySnapshot{
+		AgentID:         "offline",
+		Status:          "HEALTHY",
+		LastReportAt:    time.Now().Add(-3 * time.Minute),
+		PipelineHealthy: true,
+		StoreHealthy:    true,
+	}
+	s.telemetry.mu.Unlock()
+
+	byID := map[string]AgentTelemetrySnapshot{}
+	for _, item := range s.FleetSnapshot(FleetFilter{}) {
+		byID[item.AgentID] = item
+	}
+	if byID["fresh"].Status != "HEALTHY" {
+		t.Fatalf("fresh status = %q", byID["fresh"].Status)
+	}
+	if byID["stale"].Status != "STALE" {
+		t.Fatalf("stale status = %q", byID["stale"].Status)
+	}
+	if byID["offline"].Status != "OFFLINE" {
+		t.Fatalf("offline status = %q", byID["offline"].Status)
+	}
+	if byID["offline"].LastReportAge < 120 {
+		t.Fatalf("offline age = %d", byID["offline"].LastReportAge)
+	}
+}
+
 func TestPolicyCenterPublishRollback(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.EnableTLS = false

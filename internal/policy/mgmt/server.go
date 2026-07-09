@@ -68,7 +68,9 @@ type AgentTelemetrySnapshot struct {
 	Tags            []string  `json:"tags,omitempty"`
 	Version         string    `json:"version,omitempty"`
 	Status          string    `json:"status"`
+	StatusReason    string    `json:"status_reason,omitempty"`
 	LastReportAt    time.Time `json:"last_report_at"`
+	LastReportAge   int64     `json:"last_report_age_seconds,omitempty"`
 	EventsIngested  uint64    `json:"events_ingested,omitempty"`
 	EventsDropped   uint64    `json:"events_dropped,omitempty"`
 	MemoryBytes     uint64    `json:"memory_bytes,omitempty"`
@@ -138,6 +140,12 @@ type ServerConfig struct {
 
 	// EnableTLS 鈥-if true, use TLS (mTLS if RequireClientCert).
 	EnableTLS bool
+
+	// AgentStaleAfter marks agents as STALE when no summary is received.
+	AgentStaleAfter time.Duration
+
+	// AgentOfflineAfter marks agents as OFFLINE when no summary is received.
+	AgentOfflineAfter time.Duration
 }
 
 // SetController attaches the eBPF controller for runtime policy operations.
@@ -230,6 +238,20 @@ func DefaultServerConfig() *ServerConfig {
 		ListenAddr:        ":50051",
 		RequireClientCert: true,
 		EnableTLS:         true,
+		AgentStaleAfter:   2 * time.Minute,
+		AgentOfflineAfter: 5 * time.Minute,
+	}
+}
+
+func normalizeAgentMonitorConfig(cfg *ServerConfig) {
+	if cfg.AgentStaleAfter <= 0 {
+		cfg.AgentStaleAfter = 2 * time.Minute
+	}
+	if cfg.AgentOfflineAfter <= 0 {
+		cfg.AgentOfflineAfter = 5 * time.Minute
+	}
+	if cfg.AgentOfflineAfter < cfg.AgentStaleAfter {
+		cfg.AgentOfflineAfter = cfg.AgentStaleAfter
 	}
 }
 
@@ -238,6 +260,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	if cfg == nil {
 		cfg = DefaultServerConfig()
 	}
+	normalizeAgentMonitorConfig(cfg)
 	s := &Server{
 		addr:    cfg.ListenAddr,
 		config:  cfg,
@@ -503,8 +526,9 @@ func (s *Server) TelemetryOverview() []AgentTelemetrySnapshot {
 	defer s.telemetry.mu.Unlock()
 
 	agents := make([]AgentTelemetrySnapshot, 0, len(s.telemetry.Agents))
+	now := time.Now()
 	for _, snapshot := range s.telemetry.Agents {
-		agents = append(agents, snapshot)
+		agents = append(agents, s.agentSnapshotStatus(snapshot, now))
 	}
 	return agents
 }
@@ -529,7 +553,9 @@ func (s *Server) FleetSnapshot(filter FleetFilter) []AgentTelemetrySnapshot {
 	defer s.telemetry.mu.Unlock()
 
 	agents := make([]AgentTelemetrySnapshot, 0, len(s.telemetry.Agents))
+	now := time.Now()
 	for _, snapshot := range s.telemetry.Agents {
+		snapshot = s.agentSnapshotStatus(snapshot, now)
 		if filter.Group != "" && !strings.EqualFold(snapshot.Group, filter.Group) {
 			continue
 		}
@@ -539,6 +565,44 @@ func (s *Server) FleetSnapshot(filter FleetFilter) []AgentTelemetrySnapshot {
 		agents = append(agents, snapshot)
 	}
 	return agents
+}
+
+func (s *Server) agentSnapshotStatus(snapshot AgentTelemetrySnapshot, now time.Time) AgentTelemetrySnapshot {
+	if snapshot.AgentID == "" {
+		return snapshot
+	}
+	if snapshot.LastReportAt.IsZero() {
+		snapshot.Status = "OFFLINE"
+		snapshot.StatusReason = "no telemetry summary received"
+		return snapshot
+	}
+	age := now.Sub(snapshot.LastReportAt)
+	if age < 0 {
+		age = 0
+	}
+	snapshot.LastReportAge = int64(age.Seconds())
+	if age >= s.config.AgentOfflineAfter {
+		snapshot.Status = "OFFLINE"
+		snapshot.StatusReason = fmt.Sprintf("last report %s ago", age.Round(time.Second))
+		return snapshot
+	}
+	if age >= s.config.AgentStaleAfter {
+		snapshot.Status = "STALE"
+		snapshot.StatusReason = fmt.Sprintf("last report %s ago", age.Round(time.Second))
+		return snapshot
+	}
+	if snapshot.Status == "" {
+		snapshot.Status = "HEALTHY"
+	}
+	if !snapshot.PipelineHealthy || !snapshot.StoreHealthy {
+		if !strings.EqualFold(snapshot.Status, "ERROR") {
+			snapshot.Status = "DEGRADED"
+		}
+		snapshot.StatusReason = "agent reported unhealthy pipeline or store"
+		return snapshot
+	}
+	snapshot.StatusReason = ""
+	return snapshot
 }
 
 func (s *Server) PolicyCenter() PolicyCenterSnapshot {
