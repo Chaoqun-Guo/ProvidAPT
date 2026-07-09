@@ -1350,6 +1350,24 @@ func TestAlertSVGSubroute(t *testing.T) {
 	}
 }
 
+func TestEventSearchMissingOutputDirReturnsEmptyResults(t *testing.T) {
+	t.Setenv("PROVIDAPT_OUTPUT_DIR", filepath.Join(t.TempDir(), "missing"))
+	ts := testServer(t)
+	for _, path := range []string{"/api/v1/events/search?pattern=dropped&limit=50", "/api/v1/events/recent?limit=50"} {
+		w := apiGet(ts, path)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s status = %d body = %s", path, w.Code, w.Body.String())
+		}
+		var resp SearchResult
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode %s: %v", path, err)
+		}
+		if resp.Total != 0 || len(resp.Results) != 0 {
+			t.Fatalf("%s got total=%d results=%d, want empty", path, resp.Total, len(resp.Results))
+		}
+	}
+}
+
 func TestCORSHeaders(t *testing.T) {
 	ts := testServer(t)
 	handler := corsMiddleware([]string{"*"})(ts.mux)

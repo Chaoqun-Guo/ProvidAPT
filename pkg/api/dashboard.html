@@ -286,9 +286,17 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     </div>
   </div>
   <div class="panel">
-    <h2>Recent Alerts</h2>
-    <div class="alerts-list" id="alertsList">
-      <div class="loading">Loading alerts...</div>
+    <h2>Operations Summary</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showFleetStatus('all')"><div class="value" id="opFleet">--</div><div class="label">Fleet Posture</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="opWorkflow">--</div><div class="label">Workflow Queue</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="opDelivery">--</div><div class="label">Delivery Risk</div></div>
+        <div class="policy-item clickable" onclick="showRecentEvents()"><div class="value" id="opEvidence">--</div><div class="label">Evidence State</div></div>
+      </div>
+      <div class="alerts-list" id="operationsSummaryList">
+        <div class="loading">Loading operational summary...</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1314,7 +1322,7 @@ async function showRecentEvents() {
   setInvestigationLoading('Loading recent events...');
   try {
     const data = await fetchJSON('/api/v1/events/recent?limit=50');
-    const events = data.events || data.items || [];
+    const events = data.results || data.events || data.items || [];
     setInvestigationItems(events.slice(0, 20).map(event => renderEventItem(event, 'event')), 'No recent events found');
   } catch (e) {
     setInvestigationLoading('Recent events unavailable: ' + e.message);
@@ -1325,7 +1333,7 @@ async function showDroppedEvents() {
   setInvestigationLoading('Searching dropped event signals...');
   try {
     const data = await fetchJSON('/api/v1/events/search?pattern=dropped&limit=50');
-    const events = data.events || data.items || [];
+    const events = data.results || data.events || data.items || [];
     setInvestigationItems(events.slice(0, 20).map(event => renderEventItem(event, 'dropped')), 'No dropped event records found');
   } catch (e) {
     setInvestigationLoading('Dropped event search unavailable: ' + e.message);
@@ -1348,33 +1356,40 @@ async function showRuntimeDetails(scope) {
   }
 }
 
-async function loadAlerts() {
-  try {
-    const data = await fetchJSON('/api/v1/alerts');
-    const list = document.getElementById('alertsList');
-    const alerts = data.alerts || [];
-    if (alerts.length === 0) {
-      list.innerHTML = '<div class="loading">No alerts</div>';
-      return;
-    }
-    list.innerHTML = alerts.slice(0, 20).map(a => {
-      const sev = a.severity || 'info';
-      return '<div class="alert-item">' +
-        '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
-        '<span class="alert-msg">' + escapeHTML(a.headline || a.pattern || a.message || 'Alert') + '</span>' +
-        '<span class="alert-time">' + formatTime(a.detected_at || a.timestamp) + '</span>' +
-        alertTraceActions(a) +
-        '</div>';
-    }).join('');
-  } catch(e) {
-    document.getElementById('alertsList').innerHTML = '<div class="loading">No alerts available</div>';
-  }
+function loadOperationsSummary() {
+  const overview = latestOverview || {};
+  const workflow = latestWorkflow || {};
+  const deliveries = latestDeliveries || {};
+  const support = latestSupport || {};
+  const license = latestLicense || {};
+  const upgrade = latestUpgrade || {};
+  const workflowSummary = workflow.summary || {};
+  const deliverySummary = deliveries.summary || {};
+  const totalAgents = overview.total_agents || (overview.agents || []).length || 0;
+  const healthyAgents = overview.healthy_agents || 0;
+  const openWorkflow = workflowSummary.open || 0;
+  const deadLetters = deliverySummary.dead_letter || 0;
+  const evidenceReady = support.last_status === 'success' || support.last_archive_path || support.last_bundle_path;
+
+  document.getElementById('opFleet').textContent = totalAgents ? healthyAgents + '/' + totalAgents : '--';
+  document.getElementById('opWorkflow').textContent = openWorkflow;
+  document.getElementById('opDelivery').textContent = deadLetters;
+  document.getElementById('opEvidence').textContent = evidenceReady ? 'Ready' : 'Pending';
+
+  const items = [
+    '<div class="alert-item"><span class="alert-sev ' + (totalAgents && healthyAgents === totalAgents ? 'sev-low' : 'sev-high') + '">fleet</span><span class="alert-msg">' + healthyAgents + ' healthy / ' + totalAgents + ' total agents' + (overview.degraded_agents ? (' · ' + overview.degraded_agents + ' degraded') : '') + '</span><span class="alert-time">control</span></div>',
+    '<div class="alert-item"><span class="alert-sev ' + (openWorkflow > 0 ? 'sev-high' : 'sev-low') + '">workflow</span><span class="alert-msg">' + openWorkflow + ' open · ' + (workflowSummary.assigned || 0) + ' assigned · ' + (workflowSummary.suppressed || 0) + ' suppressed</span><span class="alert-time">triage</span></div>',
+    '<div class="alert-item"><span class="alert-sev ' + (deadLetters > 0 ? 'sev-critical' : 'sev-low') + '">delivery</span><span class="alert-msg">' + (deliverySummary.delivered || 0) + ' delivered · ' + (deliverySummary.retrying || 0) + ' retrying · ' + deadLetters + ' dead letters</span><span class="alert-time">notify</span></div>',
+    '<div class="alert-item"><span class="alert-sev ' + (evidenceReady ? 'sev-low' : 'sev-medium') + '">evidence</span><span class="alert-msg">support bundle ' + (support.last_status || 'pending') + ' · license ' + (license.present ? 'present' : 'missing') + ' · upgrade ' + (upgrade.preflight_ready ? 'preflight ready' : 'not ready') + '</span><span class="alert-time">readiness</span></div>',
+  ];
+  document.getElementById('operationsSummaryList').innerHTML = items.join('');
 }
 
 async function refresh() {
   const now = new Date();
   document.getElementById('refreshInfo').textContent = 'Updated: ' + now.toLocaleTimeString();
-  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadAlerts()]);
+  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries()]);
+  loadOperationsSummary();
 }
 
 refresh();

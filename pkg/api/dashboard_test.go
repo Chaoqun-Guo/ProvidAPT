@@ -53,6 +53,9 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"graph-container",
 		"cytoscape",
 		"loadGraph",
+		"Recent Alerts",
+		"alertsList",
+		"loadAlerts",
 	}
 	for _, item := range forbidden {
 		if strings.Contains(dashboardHTML, item) {
@@ -62,6 +65,12 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 
 	expected := []string{
 		"Investigation Console",
+		"Operations Summary",
+		"opFleet",
+		"opWorkflow",
+		"opDelivery",
+		"opEvidence",
+		"loadOperationsSummary",
 		"showGraphSummary('nodes')",
 		"showGraphSummary('edges')",
 		"showRecentEvents()",

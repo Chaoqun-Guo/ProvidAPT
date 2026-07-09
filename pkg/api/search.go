@@ -167,6 +167,9 @@ func recentEvents(dir string, limit int) ([]EventRecord, error) {
 func findEventFiles(dir string) ([]string, error) {
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
 		return nil, err
 	}
 	var files []string
@@ -337,5 +340,8 @@ func mapToRecord(raw map[string]interface{}) EventRecord {
 }
 
 func resolveOutputDir() string {
+	if dir := strings.TrimSpace(os.Getenv("PROVIDAPT_OUTPUT_DIR")); dir != "" {
+		return dir
+	}
 	return "/var/log/providapt"
 }
