@@ -45,14 +45,18 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .card .label { font-size: 11px; color: #8b949e; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .card .sub { font-size: 11px; color: #484f58; margin-top: 2px; }
 
-.content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 18px 18px; align-items:start; }
+.content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 18px 18px; align-items:stretch; grid-auto-rows: minmax(360px, auto); }
 @media (max-width: 1200px) { .metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
 @media (max-width: 760px) { .content, .metrics { grid-template-columns: 1fr; } .top-license { grid-template-columns: repeat(2, auto); } }
 .overview-grid { display: contents; }
 
-.panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
+.panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; min-height: 360px; height: 100%; display: flex; flex-direction: column; }
 .panel h2 { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 12px; border-bottom: 1px solid #21262d; }
-.panel-body { padding: 10px 12px; }
+.dashboard-panel h2 { cursor: move; user-select: none; display:flex; justify-content:space-between; align-items:center; }
+.dashboard-panel h2::after { content: 'drag'; color:#484f58; font-size:9px; letter-spacing:0.8px; text-transform:uppercase; }
+.dashboard-panel.dragging { opacity:0.55; border-color:#58a6ff; }
+.dashboard-panel.drag-over { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
+.panel-body { padding: 10px 12px; flex: 1; display:flex; flex-direction:column; }
 .span-2 { grid-column: auto; }
 .span-4 { grid-column: 1 / -1; }
 
@@ -931,10 +935,8 @@ function renderLicenseUpgradePage(scope) {
     '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg">' + actionHTML + '</span><span class="alert-time">admin</span></div>',
   ] : [
     renderKVItem('page', title, 'upgrade'),
-    renderKVItem('current', upgrade.current_version || '--', 'version'),
-    renderKVItem('package', (upgrade.package_path || '--') + ' · ' + (upgrade.package_verified ? 'verified' : 'not verified'), upgrade.package_sha256 ? upgrade.package_sha256.slice(0, 12) : ''),
-    renderKVItem('signature', upgrade.signature_path || '--', upgrade.signature_verified ? 'verified' : (upgrade.signature_present ? 'mismatch' : 'not present')),
-    renderKVItem('readiness', upgrade.preflight_ready ? 'preflight ready' : 'preflight required', upgrade.rollback_ready ? 'rollback ready' : 'rollback not ready'),
+    renderKVItem('version', upgrade.current_version || '--', 'current'),
+    renderKVItem('status', upgrade.preflight_ready ? 'ready to upgrade' : 'preflight required', upgrade.package_verified ? 'package verified' : 'package pending'),
     '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg">' + actionHTML + '</span><span class="alert-time">admin</span></div>',
   ];
   setInvestigationItems(items, title + ' details unavailable');
@@ -1465,6 +1467,84 @@ function loadOperationsSummary() {
   document.getElementById('operationsSummaryList').innerHTML = items.join('');
 }
 
+function panelID(panel) {
+  return (panel.dataset.panelId || '')
+    || ((panel.querySelector('h2') || {}).textContent || 'panel').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function applyPanelOrder(order) {
+  const content = document.querySelector('.content');
+  if (!content) return;
+  const panels = Array.from(content.querySelectorAll('.panel'));
+  const byID = new Map(panels.map(panel => [panelID(panel), panel]));
+  order.forEach(id => {
+    const panel = byID.get(id);
+    if (panel) content.appendChild(panel);
+  });
+  panels.forEach(panel => {
+    if (!order.includes(panelID(panel))) content.appendChild(panel);
+  });
+}
+
+function savePanelOrder() {
+  const panels = Array.from(document.querySelectorAll('.content .panel'));
+  localStorage.setItem('providaptDashboardPanelOrder', JSON.stringify(panels.map(panelID)));
+}
+
+function initializePanelLayout() {
+  const content = document.querySelector('.content');
+  if (!content) return;
+  const defaultOrder = [
+    'control-plane-summary',
+    'operations-summary',
+    'agent-overview',
+    'policy-center',
+    'alert-workflow',
+    'delivery-health',
+    'support-bundle',
+    'investigation-console',
+  ];
+  Array.from(content.querySelectorAll('.panel')).forEach(panel => {
+    panel.dataset.panelId = panelID(panel);
+    panel.classList.add('dashboard-panel');
+    const header = panel.querySelector('h2');
+    if (!header) return;
+    header.setAttribute('draggable', 'true');
+    header.addEventListener('dragstart', event => {
+      panel.classList.add('dragging');
+      event.dataTransfer.setData('text/plain', panel.dataset.panelId);
+      event.dataTransfer.effectAllowed = 'move';
+    });
+    header.addEventListener('dragend', () => {
+      panel.classList.remove('dragging');
+      Array.from(content.querySelectorAll('.drag-over')).forEach(item => item.classList.remove('drag-over'));
+      savePanelOrder();
+    });
+    panel.addEventListener('dragover', event => {
+      event.preventDefault();
+      panel.classList.add('drag-over');
+    });
+    panel.addEventListener('dragleave', () => panel.classList.remove('drag-over'));
+    panel.addEventListener('drop', event => {
+      event.preventDefault();
+      panel.classList.remove('drag-over');
+      const draggedID = event.dataTransfer.getData('text/plain');
+      const dragged = content.querySelector('[data-panel-id="' + draggedID + '"]');
+      if (!dragged || dragged === panel) return;
+      const rect = panel.getBoundingClientRect();
+      const placeAfter = event.clientY > rect.top + rect.height / 2;
+      content.insertBefore(dragged, placeAfter ? panel.nextSibling : panel);
+      savePanelOrder();
+    });
+  });
+  try {
+    const saved = JSON.parse(localStorage.getItem('providaptDashboardPanelOrder') || '[]');
+    applyPanelOrder(saved.length ? saved : defaultOrder);
+  } catch (e) {
+    applyPanelOrder(defaultOrder);
+  }
+}
+
 async function refresh() {
   const now = new Date();
   document.getElementById('refreshInfo').textContent = 'Updated: ' + now.toLocaleTimeString();
@@ -1472,6 +1552,7 @@ async function refresh() {
   loadOperationsSummary();
 }
 
+initializePanelLayout();
 refresh();
 setInterval(refresh, 5000);
 </script>
