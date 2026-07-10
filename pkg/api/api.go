@@ -58,6 +58,12 @@ type HealthCheckFunc func() HealthStatus
 
 type ClusterAgent struct {
 	AgentID         string   `json:"agent_id"`
+	Hostname        string   `json:"hostname,omitempty"`
+	OS              string   `json:"os,omitempty"`
+	OSVersion       string   `json:"os_version,omitempty"`
+	Kernel          string   `json:"kernel,omitempty"`
+	Architecture    string   `json:"architecture,omitempty"`
+	CPUCount        int      `json:"cpu_count,omitempty"`
 	Group           string   `json:"group,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	Status          string   `json:"status"`

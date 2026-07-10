@@ -87,10 +87,15 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .mini-card .value { font-size: 18px; font-weight: 700; color: #58a6ff; }
 .mini-card .label { margin-top: 4px; font-size: 11px; color: #8b949e; text-transform: uppercase; }
 .agents-list { display: grid; gap: 10px; }
+.agent-overview-panel .panel-body { height: 520px; overflow: hidden; }
+.agent-overview-panel .agents-list { max-height: 300px; overflow-y: auto; padding-right: 4px; }
+.agent-overview-panel #fleetHistoryList { max-height: 120px; overflow-y: auto; }
 .agent-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px; }
 .agent-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .agent-name { font-weight: 600; color: #c9d1d9; }
 .agent-meta { margin-top: 6px; font-size: 11px; color: #8b949e; display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px; }
+.agent-env { margin-top: 8px; padding-top: 7px; border-top: 1px solid #21262d; font-size: 11px; color: #8b949e; display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px; }
+.agent-env span:first-child { grid-column: 1 / -1; }
 .agent-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .agent-actions button { background: #30363d; color: #c9d1d9; border: 1px solid #484f58; border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 11px; }
 .agent-actions button:hover { border-color: #58a6ff; color: #58a6ff; }
@@ -168,7 +173,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       </div>
     </div>
   </div>
-  <div class="panel span-2">
+  <div class="panel span-2 agent-overview-panel">
     <h2>Agent Overview</h2>
     <div class="panel-body">
       <div class="fleet-toolbar">
@@ -541,6 +546,9 @@ async function loadControlOverview() {
         const agentIDRaw = a.agent_id || 'unknown';
         const agentID = escapeHTML(agentIDRaw);
         const agentArg = jsString(agentIDRaw);
+        const osLabel = [a.os_version || a.os || '--', a.architecture || '--'].filter(Boolean).join(' · ');
+        const cpuLabel = a.cpu_count ? (a.cpu_count + ' CPU') : '--';
+        const hostLabel = a.hostname || agentIDRaw || '--';
         const statusBadge = status && status !== 'healthy'
           ? '<span class="status-badge ' + status + '"><span class="status-dot"></span><span>' + (a.status || 'UNKNOWN') + '</span></span>'
           : '<span class="alert-time">Last report ' + reportAge + '</span>';
@@ -558,6 +566,13 @@ async function loadControlOverview() {
             '<span>Memory: ' + formatBytes(a.memory_bytes || 0) + '</span>' +
             '<span>Last report: ' + formatTime(a.last_report_at) + '</span>' +
             '<span>Report age: ' + reportAge + reason + '</span>' +
+          '</div>' +
+          '<div class="agent-env">' +
+            '<span>Environment: ' + escapeHTML(osLabel) + '</span>' +
+            '<span>Hostname: ' + escapeHTML(hostLabel) + '</span>' +
+            '<span>Kernel: ' + escapeHTML(a.kernel || '--') + '</span>' +
+            '<span>CPU: ' + escapeHTML(cpuLabel) + '</span>' +
+            '<span>Arch: ' + escapeHTML(a.architecture || '--') + '</span>' +
           '</div>' +
           (((a.tags || []).length > 0) ? ('<div class="tag-list">' + a.tags.map(t => '<span class="tag-chip">' + escapeHTML(t) + '</span>').join('') + '</div>') : '') +
           '<div class="agent-actions">' +

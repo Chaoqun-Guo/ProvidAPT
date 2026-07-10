@@ -64,6 +64,12 @@ type telemetryStatus struct {
 
 type AgentTelemetrySnapshot struct {
 	AgentID         string    `json:"agent_id"`
+	Hostname        string    `json:"hostname,omitempty"`
+	OS              string    `json:"os,omitempty"`
+	OSVersion       string    `json:"os_version,omitempty"`
+	Kernel          string    `json:"kernel,omitempty"`
+	Architecture    string    `json:"architecture,omitempty"`
+	CPUCount        int       `json:"cpu_count,omitempty"`
 	Group           string    `json:"group,omitempty"`
 	Tags            []string  `json:"tags,omitempty"`
 	Version         string    `json:"version,omitempty"`
@@ -697,6 +703,12 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 			if lastSummary.AgentID != "" {
 				s.telemetry.Agents[lastSummary.AgentID] = AgentTelemetrySnapshot{
 					AgentID:         lastSummary.AgentID,
+					Hostname:        lastSummary.Hostname,
+					OS:              lastSummary.OS,
+					OSVersion:       lastSummary.OSVersion,
+					Kernel:          lastSummary.Kernel,
+					Architecture:    lastSummary.Architecture,
+					CPUCount:        lastSummary.CPUCount,
 					Group:           s.telemetry.Agents[lastSummary.AgentID].Group,
 					Tags:            s.telemetry.Agents[lastSummary.AgentID].Tags,
 					Version:         lastSummary.Version,

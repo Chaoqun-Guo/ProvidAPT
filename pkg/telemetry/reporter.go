@@ -27,6 +27,12 @@ type ReporterConfig struct {
 
 type Summary struct {
 	AgentID          string `json:"agent_id"`
+	Hostname         string `json:"hostname,omitempty"`
+	OS               string `json:"os,omitempty"`
+	OSVersion        string `json:"os_version,omitempty"`
+	Kernel           string `json:"kernel,omitempty"`
+	Architecture     string `json:"architecture,omitempty"`
+	CPUCount         int    `json:"cpu_count,omitempty"`
 	Version          string `json:"version"`
 	Status           string `json:"status"`
 	UptimeSeconds    int64  `json:"uptime_seconds"`

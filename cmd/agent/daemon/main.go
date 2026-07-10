@@ -59,6 +59,46 @@ const ringBufSize = 1024
 const deliveryAuditHistoryLimit = 32
 const controlActionHistoryLimit = 24
 
+type systemEnvironment struct {
+	Hostname     string
+	OS           string
+	OSVersion    string
+	Kernel       string
+	Architecture string
+	CPUCount     int
+}
+
+func collectSystemEnvironment(hostname string) systemEnvironment {
+	env := systemEnvironment{
+		Hostname:     hostname,
+		OS:           runtime.GOOS,
+		Architecture: runtime.GOARCH,
+		CPUCount:     runtime.NumCPU(),
+	}
+	if release, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil {
+		env.Kernel = strings.TrimSpace(string(release))
+	}
+	if osRelease, err := os.ReadFile("/etc/os-release"); err == nil {
+		values := map[string]string{}
+		for _, line := range strings.Split(string(osRelease), "\n") {
+			key, value, ok := strings.Cut(line, "=")
+			if !ok {
+				continue
+			}
+			values[key] = strings.Trim(value, `"`)
+		}
+		if prettyName := values["PRETTY_NAME"]; prettyName != "" {
+			env.OSVersion = prettyName
+		} else if name := values["NAME"]; name != "" {
+			env.OSVersion = name
+		}
+		if id := values["ID"]; id != "" {
+			env.OS = id
+		}
+	}
+	return env
+}
+
 type deliveryActionAuditStore struct {
 	mu      sync.RWMutex
 	entries []api.NotifyDeliveryAudit
@@ -955,6 +995,7 @@ func main() {
 	if err != nil || hostname == "" {
 		hostname = "unknown"
 	}
+	systemEnv := collectSystemEnvironment(hostname)
 
 	telemetryInterval, err := time.ParseDuration(cfg.Telemetry.Interval)
 	if err != nil || telemetryInterval <= 0 {
@@ -972,6 +1013,12 @@ func main() {
 
 		return telemetry.Summary{
 			AgentID:          hostname,
+			Hostname:         systemEnv.Hostname,
+			OS:               systemEnv.OS,
+			OSVersion:        systemEnv.OSVersion,
+			Kernel:           systemEnv.Kernel,
+			Architecture:     systemEnv.Architecture,
+			CPUCount:         systemEnv.CPUCount,
 			Version:          version.String(),
 			Status:           status,
 			UptimeSeconds:    int64(time.Since(startTime).Seconds()),
@@ -1045,6 +1092,12 @@ func main() {
 		agentsByID := map[string]api.ClusterAgent{
 			local.AgentID: {
 				AgentID:         local.AgentID,
+				Hostname:        local.Hostname,
+				OS:              local.OS,
+				OSVersion:       local.OSVersion,
+				Kernel:          local.Kernel,
+				Architecture:    local.Architecture,
+				CPUCount:        local.CPUCount,
 				Status:          local.Status,
 				Version:         local.Version,
 				LastReportAt:    time.Now().UTC().Format(time.RFC3339),
@@ -1061,6 +1114,12 @@ func main() {
 			for _, agent := range mgmtServer.TelemetryOverview() {
 				agentsByID[agent.AgentID] = api.ClusterAgent{
 					AgentID:         agent.AgentID,
+					Hostname:        agent.Hostname,
+					OS:              agent.OS,
+					OSVersion:       agent.OSVersion,
+					Kernel:          agent.Kernel,
+					Architecture:    agent.Architecture,
+					CPUCount:        agent.CPUCount,
 					Group:           agent.Group,
 					Tags:            agent.Tags,
 					Status:          agent.Status,
@@ -1105,6 +1164,12 @@ func main() {
 		local := buildTelemetrySummary()
 		localAgent := api.ClusterAgent{
 			AgentID:         local.AgentID,
+			Hostname:        local.Hostname,
+			OS:              local.OS,
+			OSVersion:       local.OSVersion,
+			Kernel:          local.Kernel,
+			Architecture:    local.Architecture,
+			CPUCount:        local.CPUCount,
 			Status:          local.Status,
 			Version:         local.Version,
 			LastReportAt:    time.Now().UTC().Format(time.RFC3339),
@@ -1124,6 +1189,12 @@ func main() {
 			for _, agent := range mgmtServer.FleetSnapshot(mgmt.FleetFilter{Group: group, Tag: tag}) {
 				fleet.Agents = append(fleet.Agents, api.ClusterAgent{
 					AgentID:         agent.AgentID,
+					Hostname:        agent.Hostname,
+					OS:              agent.OS,
+					OSVersion:       agent.OSVersion,
+					Kernel:          agent.Kernel,
+					Architecture:    agent.Architecture,
+					CPUCount:        agent.CPUCount,
 					Group:           agent.Group,
 					Tags:            agent.Tags,
 					Status:          agent.Status,
