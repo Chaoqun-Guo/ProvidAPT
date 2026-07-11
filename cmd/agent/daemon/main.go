@@ -1882,6 +1882,59 @@ func main() {
 			return api.PolicySummary{}, err
 		}
 	})
+	apiServer.SetPolicyBundleDownloadFunc(func(requestedVersion int, actor, role string) (api.PolicyBundleDownload, error) {
+		if mgmtServer == nil {
+			err := fmt.Errorf("mgmt server not available")
+			policyAudit.record("policy_bundle_download", actor, role, "", "", "failed", err.Error())
+			logControlAudit(auditStore, "policy", "policy_bundle_download", actor, role, "", "", "failed", err.Error())
+			return api.PolicyBundleDownload{}, err
+		}
+		snapshot := mgmtServer.PolicyCenter()
+		selected := snapshot.Current
+		if requestedVersion > 0 {
+			found := false
+			if snapshot.Current.Version == requestedVersion {
+				selected = snapshot.Current
+				found = true
+			} else {
+				for _, item := range snapshot.History {
+					if item.Version == requestedVersion {
+						selected = item
+						found = true
+						break
+					}
+				}
+			}
+			if !found {
+				err := fmt.Errorf("policy version %d not found", requestedVersion)
+				policyAudit.record("policy_bundle_download", actor, role, fmt.Sprintf("v%d", requestedVersion), "", "failed", err.Error())
+				logControlAudit(auditStore, "policy", "policy_bundle_download", actor, role, fmt.Sprintf("v%d", requestedVersion), "", "failed", err.Error())
+				return api.PolicyBundleDownload{}, err
+			}
+		}
+		if strings.TrimSpace(selected.BundlePath) == "" {
+			err := fmt.Errorf("policy version %d has no bundle artifact", selected.Version)
+			policyAudit.record("policy_bundle_download", actor, role, fmt.Sprintf("v%d", selected.Version), "", "failed", err.Error())
+			logControlAudit(auditStore, "policy", "policy_bundle_download", actor, role, fmt.Sprintf("v%d", selected.Version), "", "failed", err.Error())
+			return api.PolicyBundleDownload{}, err
+		}
+		if _, err := os.Stat(selected.BundlePath); err != nil {
+			wrapped := fmt.Errorf("policy bundle unavailable: %w", err)
+			policyAudit.record("policy_bundle_download", actor, role, fmt.Sprintf("v%d", selected.Version), "", "failed", wrapped.Error())
+			logControlAudit(auditStore, "policy", "policy_bundle_download", actor, role, fmt.Sprintf("v%d", selected.Version), "", "failed", wrapped.Error())
+			return api.PolicyBundleDownload{}, wrapped
+		}
+		target := fmt.Sprintf("v%d", selected.Version)
+		message := "policy bundle downloaded"
+		policyAudit.record("policy_bundle_download", actor, role, target, selected.BundleSHA256, "downloaded", message)
+		logControlAudit(auditStore, "policy", "policy_bundle_download", actor, role, target, selected.BundleSHA256, "downloaded", message)
+		return api.PolicyBundleDownload{
+			Path:     selected.BundlePath,
+			FileName: fmt.Sprintf("providapt-policy-v%d.json", selected.Version),
+			SHA256:   selected.BundleSHA256,
+			Version:  selected.Version,
+		}, nil
+	})
 	apiServer.SetAlertWorkflowFunc(func(status, assignee string) api.AlertWorkflow {
 		snapshot := alertWorkflow.Snapshot(status, assignee)
 		items := make([]api.AlertWorkflowItem, 0, len(snapshot.Alerts))

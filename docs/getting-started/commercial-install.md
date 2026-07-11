@@ -109,6 +109,8 @@ Telemetry acknowledgements include the current control-plane policy version (`po
 
 Each publish or rollback writes a versioned policy bundle under `policy-bundles/` and records its SHA-256 hash in Policy Center. The bundle is the reviewable operational artifact for the policy version and includes Sigma rules, whitelist entries, and taint sources known to the control plane at publish time.
 
+Operators can download the current or historical bundle from Policy Center, or directly through `/api/v1/control/policies/bundle?version=<n>`.
+
 Admins can edit the policy draft from Policy Center before publishing:
 
 - `add_sigma`, `update_sigma`, `remove_sigma` with `rule_id` and optional `rule_yaml`

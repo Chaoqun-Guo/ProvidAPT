@@ -821,6 +821,52 @@ func TestPolicyEditActionFields(t *testing.T) {
 	}
 }
 
+func TestPolicyBundleDownloadEndpoint(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "policy-v3.json")
+	if err := os.WriteFile(path, []byte(`{"version":3}`), 0600); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+	var gotVersion int
+	ts.SetPolicyBundleDownloadFunc(func(version int, actor, role string) (PolicyBundleDownload, error) {
+		gotVersion = version
+		return PolicyBundleDownload{
+			Path:     path,
+			FileName: "providapt-policy-v3.json",
+			SHA256:   "abc123",
+			Version:  3,
+		}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/policies/bundle?version=3", nil)
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if gotVersion != 3 {
+		t.Fatalf("version = %d", gotVersion)
+	}
+	if w.Header().Get("X-Policy-Bundle-SHA256") != "abc123" {
+		t.Fatalf("sha header = %q", w.Header().Get("X-Policy-Bundle-SHA256"))
+	}
+	if strings.TrimSpace(w.Body.String()) != `{"version":3}` {
+		t.Fatalf("body = %q", w.Body.String())
+	}
+}
+
+func TestRBACAnalystPolicyBundleDownloadDenied(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/policies/bundle", nil)
+	req.Header.Set("X-API-Key", "analyst-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status code = %d", w.Code)
+	}
+}
+
 func TestPolicyActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth(

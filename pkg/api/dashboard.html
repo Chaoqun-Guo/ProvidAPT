@@ -229,6 +229,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button class="secondary" onclick="showPolicyDetails('rules')">Browse Rules</button>
         <button class="secondary" onclick="showPolicyDetails('deployment')">Deployment</button>
         <button class="secondary" onclick="showPolicyDetails('history')">Audit Trail</button>
+        <button id="downloadPolicyBundleBtn" class="secondary" onclick="downloadPolicyBundle()">Download Bundle</button>
       </div>
       <div class="policy-editor">
         <textarea id="policyEditNotes" placeholder="Edit policy release notes, rule change reason, or deployment instruction"></textarea>
@@ -500,6 +501,7 @@ async function loadStatus() {
     const createAllTicketsBtn = document.getElementById('createAllTicketsBtn');
     const publishPolicyBtn = document.getElementById('publishPolicyBtn');
     const rollbackPolicyBtn = document.getElementById('rollbackPolicyBtn');
+    const downloadPolicyBundleBtn = document.getElementById('downloadPolicyBundleBtn');
     const exportSupportBundleBtn = document.getElementById('exportSupportBundleBtn');
     const downloadSupportBundleBtn = document.getElementById('downloadSupportBundleBtn');
     const validateLicenseBtn = document.getElementById('validateLicenseBtn');
@@ -511,6 +513,7 @@ async function loadStatus() {
     if (createAllTicketsBtn) createAllTicketsBtn.disabled = !deliveryAdmin;
     if (publishPolicyBtn) publishPolicyBtn.disabled = !deliveryAdmin;
     if (rollbackPolicyBtn) rollbackPolicyBtn.disabled = !deliveryAdmin;
+    if (downloadPolicyBundleBtn) downloadPolicyBundleBtn.disabled = currentRole === 'analyst';
     if (exportSupportBundleBtn) exportSupportBundleBtn.disabled = !deliveryAdmin;
     if (downloadSupportBundleBtn) downloadSupportBundleBtn.disabled = currentRole === 'analyst';
     if (validateLicenseBtn) validateLicenseBtn.disabled = !deliveryAdmin;
@@ -912,6 +915,15 @@ function downloadSupportBundle() {
     return;
   }
   window.location.href = '/api/v1/control/support/download';
+}
+
+function downloadPolicyBundle() {
+  if (currentRole === 'analyst') {
+    return;
+  }
+  const current = latestPolicies && latestPolicies.current ? latestPolicies.current : {};
+  const version = Number(current.version || 0);
+  window.location.href = '/api/v1/control/policies/bundle' + (version > 0 ? ('?version=' + encodeURIComponent(version)) : '');
 }
 
 async function loadLicenseAndUpgrade() {

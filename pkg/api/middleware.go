@@ -144,6 +144,9 @@ func allowed(role, method, path string) bool {
 		if strings.HasPrefix(path, "/api/v1/control/support/download") {
 			return false
 		}
+		if strings.HasPrefix(path, "/api/v1/control/policies/bundle") {
+			return false
+		}
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/fleet") {
 			return false
 		}

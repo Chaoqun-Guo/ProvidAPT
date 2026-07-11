@@ -307,6 +307,15 @@ type PolicyCenter struct {
 
 type PolicyCenterFunc func() PolicyCenter
 
+type PolicyBundleDownload struct {
+	Path     string
+	FileName string
+	SHA256   string
+	Version  int
+}
+
+type PolicyBundleDownloadFunc func(version int, actor, role string) (PolicyBundleDownload, error)
+
 type PolicyActionRequest struct {
 	Action          string `json:"action"`
 	Notes           string `json:"notes,omitempty"`
@@ -479,6 +488,7 @@ type Server struct {
 	upgradeAct  UpgradeActionFunc
 	policyFn    PolicyCenterFunc
 	policyActFn PolicyActionFunc
+	policyDlFn  PolicyBundleDownloadFunc
 	alertsFn    AlertWorkflowFunc
 	alertActFn  AlertWorkflowActionFunc
 	deliveryFn  NotifyDeliveryFunc
@@ -562,6 +572,10 @@ func (s *Server) SetPolicyCenterFunc(fn PolicyCenterFunc) {
 
 func (s *Server) SetPolicyActionFunc(fn PolicyActionFunc) {
 	s.policyActFn = fn
+}
+
+func (s *Server) SetPolicyBundleDownloadFunc(fn PolicyBundleDownloadFunc) {
+	s.policyDlFn = fn
 }
 
 func (s *Server) SetAlertWorkflowFunc(fn AlertWorkflowFunc) {
@@ -865,6 +879,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/control/license", s.jsonHandler(s.handleLicenseStatus))
 	mux.HandleFunc("/api/v1/control/upgrade", s.jsonHandler(s.handleUpgradeReadiness))
 	mux.HandleFunc("/api/v1/control/policies", s.jsonHandler(s.handlePolicies))
+	mux.HandleFunc("/api/v1/control/policies/bundle", s.handlePolicyBundleDownload)
 	mux.HandleFunc("/api/v1/control/alerts", s.jsonHandler(s.handleAlertWorkflow))
 	mux.HandleFunc("/api/v1/control/deliveries", s.jsonHandler(s.handleNotifyDeliveries))
 	mux.HandleFunc("/api/v1/graph/export", s.jsonHandler(s.handleExport))
@@ -1222,6 +1237,53 @@ func (s *Server) handlePolicies(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
 	}
+}
+
+func (s *Server) handlePolicyBundleDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+		return
+	}
+	if s.policyDlFn == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotImplemented)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "policy bundle downloads not enabled"})
+		return
+	}
+	version := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("version")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid policy bundle version"})
+			return
+		}
+		version = parsed
+	}
+	download, err := s.policyDlFn(version, CurrentActor(r), CurrentRole(r))
+	if err != nil {
+		log.Printf("[api] policy bundle download error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	fileName := strings.TrimSpace(download.FileName)
+	if fileName == "" {
+		fileName = filepath.Base(download.Path)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if strings.TrimSpace(download.SHA256) != "" {
+		w.Header().Set("X-Policy-Bundle-SHA256", strings.TrimSpace(download.SHA256))
+	}
+	if download.Version > 0 {
+		w.Header().Set("X-Policy-Version", strconv.Itoa(download.Version))
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
+	http.ServeFile(w, r, download.Path)
 }
 
 func (s *Server) handleAlertWorkflow(w http.ResponseWriter, r *http.Request) error {
