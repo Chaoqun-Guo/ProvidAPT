@@ -524,6 +524,76 @@ func TestPolicyDeploymentAckFromTelemetrySummary(t *testing.T) {
 	}
 }
 
+func TestRevokedAgentTelemetryRejected(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+	s.telemetry.Agents["agent-01"] = AgentTelemetrySnapshot{AgentID: "agent-01", EnrollmentStatus: "revoked", EnrollmentNote: "compromised"}
+
+	payload, err := json.Marshal(map[string]interface{}{
+		"agent_id":         "agent-01",
+		"status":           "HEALTHY",
+		"pipeline_healthy": true,
+		"store_healthy":    true,
+	})
+	if err != nil {
+		t.Fatalf("marshal summary: %v", err)
+	}
+	stream := &mockReportEventsStream{
+		ctx: context.Background(),
+		events: []*mgmtpb.CompressedEvent{{
+			ContentType: "summary",
+			Payload:     payload,
+		}},
+	}
+	if err := s.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	if stream.ack == nil || stream.ack.Accepted {
+		t.Fatalf("ack = %#v", stream.ack)
+	}
+	if !strings.Contains(stream.ack.Message, "agent revoked") {
+		t.Fatalf("ack message = %q", stream.ack.Message)
+	}
+	if s.telemetry.Reports != 0 {
+		t.Fatalf("reports = %d, want 0", s.telemetry.Reports)
+	}
+}
+
+func TestQuarantinedAgentTelemetrySkipsPolicyVersion(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+	s.telemetry.Agents["agent-01"] = AgentTelemetrySnapshot{AgentID: "agent-01", EnrollmentStatus: "quarantined", EnrollmentNote: "investigate"}
+	s.PublishPolicy("deploy")
+
+	payload, err := json.Marshal(map[string]interface{}{
+		"agent_id":         "agent-01",
+		"status":           "HEALTHY",
+		"pipeline_healthy": true,
+		"store_healthy":    true,
+	})
+	if err != nil {
+		t.Fatalf("marshal summary: %v", err)
+	}
+	stream := &mockReportEventsStream{
+		ctx: context.Background(),
+		events: []*mgmtpb.CompressedEvent{{
+			ContentType: "summary",
+			Payload:     payload,
+		}},
+	}
+	if err := s.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	if stream.ack == nil || !stream.ack.Accepted {
+		t.Fatalf("ack = %#v", stream.ack)
+	}
+	if strings.Contains(stream.ack.Message, "policy_version=") || !strings.Contains(stream.ack.Message, "policy_status=quarantined") {
+		t.Fatalf("ack message = %q", stream.ack.Message)
+	}
+}
+
 func TestReportEventsEmptyStream(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.EnableTLS = false

@@ -132,6 +132,8 @@ Fleet operators can mark each reporting agent as:
 
 Enrollment status is stored with fleet metadata in `control-plane-state.json`, shown in Agent Overview, and recorded in the admin audit log when changed from the dashboard or API.
 
+`revoked` agents are rejected at telemetry acknowledgement time and do not count toward policy rollout targets. `quarantined` agents may still report telemetry, but the control plane withholds policy version instructions so they cannot silently advance to new policy bundles during investigation.
+
 Admins can edit the policy draft from Policy Center before publishing:
 
 - `add_sigma`, `update_sigma`, `remove_sigma` with `rule_id` and optional `rule_yaml`

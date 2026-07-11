@@ -847,6 +847,18 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 					Message:       s.policyAckMessage("no events received"),
 				})
 			}
+			enrollmentStatus, enrollmentNote := s.agentEnrollment(lastSummary.AgentID)
+			if enrollmentStatus == "revoked" {
+				message := "agent revoked"
+				if strings.TrimSpace(enrollmentNote) != "" {
+					message += ": " + strings.TrimSpace(enrollmentNote)
+				}
+				return stream.SendAndClose(&mgmtpb.ReportAck{
+					Accepted:      false,
+					ThrottleLevel: 3,
+					Message:       message,
+				})
+			}
 			s.telemetry.mu.Lock()
 			s.telemetry.Reports += count
 			s.telemetry.LastReportAt = time.Now()
@@ -889,7 +901,7 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 			return stream.SendAndClose(&mgmtpb.ReportAck{
 				Accepted:      true,
 				ThrottleLevel: 0,
-				Message:       s.policyAckMessage(fmt.Sprintf("accepted %d telemetry event(s)", count)),
+				Message:       s.policyAckMessageForAgent(lastSummary.AgentID, fmt.Sprintf("accepted %d telemetry event(s)", count)),
 			})
 		}
 		count++
@@ -905,23 +917,52 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 }
 
 func (s *Server) policyAckMessage(prefix string) string {
+	return s.policyAckMessageForAgent("", prefix)
+}
+
+func (s *Server) policyAckMessageForAgent(agentID, prefix string) string {
+	status, note := s.agentEnrollment(agentID)
+	if status == "quarantined" {
+		if strings.TrimSpace(note) != "" {
+			return fmt.Sprintf("%s; policy_status=quarantined enrollment_note=%q", prefix, strings.TrimSpace(note))
+		}
+		return fmt.Sprintf("%s; policy_status=quarantined", prefix)
+	}
 	s.policy.mu.Lock()
 	current := clonePolicyRevision(s.policy.current)
 	s.policy.mu.Unlock()
 	if current.Version <= 0 {
 		return prefix
 	}
-	status := current.DeploymentStatus
-	if status == "" {
-		status = current.State
+	deploymentStatus := current.DeploymentStatus
+	if deploymentStatus == "" {
+		deploymentStatus = current.State
 	}
-	return fmt.Sprintf("%s; policy_version=%d policy_status=%s", prefix, current.Version, status)
+	return fmt.Sprintf("%s; policy_version=%d policy_status=%s", prefix, current.Version, deploymentStatus)
+}
+
+func (s *Server) agentEnrollment(agentID string) (string, string) {
+	agentID = strings.TrimSpace(agentID)
+	if agentID == "" {
+		return "pending", ""
+	}
+	s.telemetry.mu.Lock()
+	defer s.telemetry.mu.Unlock()
+	snapshot := s.telemetry.Agents[agentID]
+	status := normalizeEnrollmentStatus(snapshot.EnrollmentStatus)
+	if status == "" {
+		status = "pending"
+	}
+	return status, snapshot.EnrollmentNote
 }
 
 func (s *Server) refreshPolicyDeploymentFromAgents() bool {
 	s.telemetry.mu.Lock()
 	appliedByAgent := make(map[string]int, len(s.telemetry.Agents))
 	for agentID, snapshot := range s.telemetry.Agents {
+		if normalizeEnrollmentStatus(snapshot.EnrollmentStatus) == "revoked" {
+			continue
+		}
 		appliedByAgent[agentID] = snapshot.AppliedPolicyVersion
 	}
 	s.telemetry.mu.Unlock()
@@ -1069,7 +1110,14 @@ func (s *Server) readPolicyBundleLocked(revision PolicyRevision) (policyBundle, 
 func (s *Server) policyTargetAgentCount() int {
 	s.telemetry.mu.Lock()
 	defer s.telemetry.mu.Unlock()
-	return len(s.telemetry.Agents)
+	count := 0
+	for _, snapshot := range s.telemetry.Agents {
+		if normalizeEnrollmentStatus(snapshot.EnrollmentStatus) == "revoked" {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func (s *Server) loadState() error {
