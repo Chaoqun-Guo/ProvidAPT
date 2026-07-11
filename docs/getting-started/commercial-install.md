@@ -122,6 +122,16 @@ policy:
 
 If `policy.endpoint` is omitted, the agent attempts to derive `http://<telemetry-host>:8080` from `telemetry.endpoint`. Set `PROVIDAPT_POLICY_ENDPOINT` explicitly in production when the REST control-plane port differs.
 
+## Agent Enrollment Operations
+
+Fleet operators can mark each reporting agent as:
+
+- `approved` for normal operation
+- `quarantined` for restricted investigation
+- `revoked` for denied or compromised hosts
+
+Enrollment status is stored with fleet metadata in `control-plane-state.json`, shown in Agent Overview, and recorded in the admin audit log when changed from the dashboard or API.
+
 Admins can edit the policy draft from Policy Center before publishing:
 
 - `add_sigma`, `update_sigma`, `remove_sigma` with `rule_id` and optional `rule_yaml`

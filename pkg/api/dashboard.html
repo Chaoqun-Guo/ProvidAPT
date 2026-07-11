@@ -643,6 +643,8 @@ async function loadControlOverview() {
         const osLabel = [a.os_version || a.os || '--', a.architecture || '--'].filter(Boolean).join(' · ');
         const cpuLabel = a.cpu_count ? (a.cpu_count + ' CPU') : '--';
         const hostLabel = a.hostname || agentIDRaw || '--';
+        const enrollment = a.enrollment_status || 'pending';
+        const enrollmentNote = a.enrollment_note ? (' · ' + a.enrollment_note) : '';
         const statusBadge = status && status !== 'healthy'
           ? '<span class="status-badge ' + status + '"><span class="status-dot"></span><span>' + (a.status || 'UNKNOWN') + '</span></span>'
           : '<span class="alert-time">Last report ' + reportAge + '</span>';
@@ -659,6 +661,7 @@ async function loadControlOverview() {
             '<span>Dropped: ' + ((a.events_dropped || 0).toLocaleString()) + '</span>' +
             '<span>Memory: ' + formatBytes(a.memory_bytes || 0) + '</span>' +
             '<span>Policy: v' + (a.applied_policy_version || '--') + '</span>' +
+            '<span>Enrollment: ' + escapeHTML(enrollment) + enrollmentNote + '</span>' +
             '<span>Last report: ' + formatTime(a.last_report_at) + '</span>' +
             '<span>Report age: ' + reportAge + reason + '</span>' +
           '</div>' +
@@ -674,6 +677,9 @@ async function loadControlOverview() {
             '<button onclick="showAgentDetails(\'' + agentArg + '\')">Details</button>' +
             '<button onclick="applyFleetInputs(\'' + agentArg + '\')">Apply Group/Tag</button>' +
             '<button onclick="markAgentReviewed(\'' + agentArg + '\')">Mark Reviewed</button>' +
+            '<button onclick="setAgentEnrollment(\'' + agentArg + '\', \'approved\')">Approve</button>' +
+            '<button onclick="setAgentEnrollment(\'' + agentArg + '\', \'quarantined\')">Quarantine</button>' +
+            '<button onclick="setAgentEnrollment(\'' + agentArg + '\', \'revoked\')">Revoke</button>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -712,6 +718,7 @@ function renderAgentInvestigation(agent, label) {
       ' · group ' + escapeHTML(agent.group || '--') +
       ' · tags ' + escapeHTML(tags) +
       ' · version ' + escapeHTML(agent.version || '--') +
+      ' · enrollment ' + escapeHTML(agent.enrollment_status || 'pending') +
       ' · events ' + ((agent.events_ingested || 0).toLocaleString()) +
       ' · dropped ' + ((agent.events_dropped || 0).toLocaleString()) +
       (agent.status_reason ? (' · ' + escapeHTML(agent.status_reason)) : '') +
@@ -780,6 +787,23 @@ async function markAgentReviewed(agentID) {
     await updateFleetAgent({ agent_id: agentID, note: 'dashboard reviewed' });
   } catch (e) {
     setInvestigationLoading('Agent review failed: ' + e.message);
+  }
+}
+
+async function setAgentEnrollment(agentID, status) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  try {
+    setInvestigationLoading('Updating enrollment for ' + agentID + ': ' + status + '...');
+    await updateFleetAgent({
+      agent_id: agentID,
+      action: status,
+      status: status,
+      note: 'dashboard enrollment ' + status,
+    });
+  } catch (e) {
+    setInvestigationLoading('Enrollment update failed: ' + e.message);
   }
 }
 

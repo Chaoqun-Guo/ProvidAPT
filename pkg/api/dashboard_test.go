@@ -107,6 +107,8 @@ func TestDashboardModuleActions(t *testing.T) {
 		"showAgentDetails",
 		"applyFleetInputs",
 		"markAgentReviewed",
+		"setAgentEnrollment",
+		"Enrollment:",
 		"showSupportDetails('history')",
 		"activationState",
 		"topVersion",

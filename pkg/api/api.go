@@ -81,6 +81,9 @@ type ClusterAgent struct {
 	StoreHealthy         bool     `json:"store_healthy"`
 	AttachmentMode       string   `json:"attachment_mode,omitempty"`
 	AppliedPolicyVersion int      `json:"applied_policy_version,omitempty"`
+	EnrollmentStatus     string   `json:"enrollment_status,omitempty"`
+	EnrollmentNote       string   `json:"enrollment_note,omitempty"`
+	EnrollmentUpdatedAt  string   `json:"enrollment_updated_at,omitempty"`
 }
 
 type ClusterOverview struct {
@@ -105,8 +108,10 @@ type FleetListFunc func(group, tag string) FleetList
 
 type FleetUpdate struct {
 	AgentID string   `json:"agent_id"`
+	Action  string   `json:"action,omitempty"`
 	Group   string   `json:"group,omitempty"`
 	Tags    []string `json:"tags,omitempty"`
+	Status  string   `json:"status,omitempty"`
 	Note    string   `json:"note,omitempty"`
 	Actor   string   `json:"actor,omitempty"`
 	Role    string   `json:"role,omitempty"`

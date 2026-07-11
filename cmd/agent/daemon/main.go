@@ -1179,6 +1179,7 @@ func main() {
 				StoreHealthy:         local.StoreHealthy,
 				AttachmentMode:       local.AttachmentMode,
 				AppliedPolicyVersion: local.AppliedPolicyVersion,
+				EnrollmentStatus:     "approved",
 			},
 		}
 		if mgmtServer != nil {
@@ -1206,6 +1207,9 @@ func main() {
 					StoreHealthy:         agent.StoreHealthy,
 					AttachmentMode:       agent.AttachmentMode,
 					AppliedPolicyVersion: agent.AppliedPolicyVersion,
+					EnrollmentStatus:     agent.EnrollmentStatus,
+					EnrollmentNote:       agent.EnrollmentNote,
+					EnrollmentUpdatedAt:  formatTimePtr(agent.EnrollmentUpdatedAt),
 				}
 			}
 		}
@@ -1253,6 +1257,7 @@ func main() {
 			StoreHealthy:         local.StoreHealthy,
 			AttachmentMode:       local.AttachmentMode,
 			AppliedPolicyVersion: local.AppliedPolicyVersion,
+			EnrollmentStatus:     "approved",
 		}
 		includeLocal := group == "" && tag == ""
 		if includeLocal {
@@ -1283,6 +1288,9 @@ func main() {
 					StoreHealthy:         agent.StoreHealthy,
 					AttachmentMode:       agent.AttachmentMode,
 					AppliedPolicyVersion: agent.AppliedPolicyVersion,
+					EnrollmentStatus:     agent.EnrollmentStatus,
+					EnrollmentNote:       agent.EnrollmentNote,
+					EnrollmentUpdatedAt:  formatTimePtr(agent.EnrollmentUpdatedAt),
 				})
 			}
 		}
@@ -1294,6 +1302,25 @@ func main() {
 			fleetAudit.record("fleet_update", update.Actor, update.Role, update.AgentID, update.Note, "failed", err.Error())
 			logControlAudit(auditStore, "fleet", "fleet_update", update.Actor, update.Role, update.AgentID, update.Note, "failed", err.Error())
 			return err
+		}
+		action := strings.ToLower(strings.TrimSpace(update.Action))
+		if action == "" {
+			action = "metadata"
+		}
+		if action == "approve" || action == "approved" || action == "quarantine" || action == "quarantined" || action == "revoke" || action == "revoked" {
+			status := update.Status
+			if status == "" {
+				status = action
+			}
+			if err := mgmtServer.SetAgentEnrollment(update.AgentID, status, update.Note); err != nil {
+				fleetAudit.record("fleet_"+action, update.Actor, update.Role, update.AgentID, update.Note, "failed", err.Error())
+				logControlAudit(auditStore, "fleet", "fleet_"+action, update.Actor, update.Role, update.AgentID, update.Note, "failed", err.Error())
+				return err
+			}
+			message := fmt.Sprintf("agent enrollment status updated: %s", status)
+			fleetAudit.record("fleet_"+action, update.Actor, update.Role, update.AgentID, update.Note, "updated", message)
+			logControlAudit(auditStore, "fleet", "fleet_"+action, update.Actor, update.Role, update.AgentID, update.Note, "updated", message)
+			return nil
 		}
 		mgmtServer.UpsertAgentMetadata(update.AgentID, update.Group, update.Tags)
 		message := fmt.Sprintf("fleet metadata updated: group=%s tags=%s", strings.TrimSpace(update.Group), strings.Join(update.Tags, ","))
@@ -2460,6 +2487,13 @@ func healthStatus(pipelineHealthy, storeHealthy bool) string {
 		return "healthy"
 	}
 	return "unhealthy"
+}
+
+func formatTimePtr(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
 }
 
 func loadAppliedPolicyVersion(path string) (int, error) {

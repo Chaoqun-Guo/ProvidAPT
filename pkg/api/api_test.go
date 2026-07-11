@@ -195,14 +195,14 @@ func TestFleetUpdateEndpoint(t *testing.T) {
 		return nil
 	})
 
-	body := bytes.NewBufferString(`{"agent_id":"agent-a","group":"prod","tags":["linux","db"]}`)
+	body := bytes.NewBufferString(`{"agent_id":"agent-a","action":"approved","group":"prod","tags":["linux","db"],"status":"approved"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", body)
 	w := httptest.NewRecorder()
 	ts.mux.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
 	}
-	if got.AgentID != "agent-a" || got.Group != "prod" || len(got.Tags) != 2 {
+	if got.AgentID != "agent-a" || got.Action != "approved" || got.Group != "prod" || len(got.Tags) != 2 || got.Status != "approved" {
 		t.Fatalf("update = %#v", got)
 	}
 }

@@ -73,8 +73,11 @@ type persistedControlPlaneState struct {
 }
 
 type persistedAgentMetadata struct {
-	Group string   `json:"group,omitempty"`
-	Tags  []string `json:"tags,omitempty"`
+	Group               string    `json:"group,omitempty"`
+	Tags                []string  `json:"tags,omitempty"`
+	EnrollmentStatus    string    `json:"enrollment_status,omitempty"`
+	EnrollmentNote      string    `json:"enrollment_note,omitempty"`
+	EnrollmentUpdatedAt time.Time `json:"enrollment_updated_at,omitempty"`
 }
 
 type persistedPolicyState struct {
@@ -108,6 +111,9 @@ type AgentTelemetrySnapshot struct {
 	StoreHealthy         bool      `json:"store_healthy"`
 	AttachmentMode       string    `json:"attachment_mode,omitempty"`
 	AppliedPolicyVersion int       `json:"applied_policy_version,omitempty"`
+	EnrollmentStatus     string    `json:"enrollment_status,omitempty"`
+	EnrollmentNote       string    `json:"enrollment_note,omitempty"`
+	EnrollmentUpdatedAt  time.Time `json:"enrollment_updated_at,omitempty"`
 }
 
 type FleetFilter struct {
@@ -613,6 +619,29 @@ func (s *Server) UpsertAgentMetadata(agentID, group string, tags []string) {
 	}
 }
 
+func (s *Server) SetAgentEnrollment(agentID, status, note string) error {
+	agentID = strings.TrimSpace(agentID)
+	if agentID == "" {
+		return fmt.Errorf("agent_id is required")
+	}
+	status = normalizeEnrollmentStatus(status)
+	if status == "" {
+		return fmt.Errorf("unsupported enrollment status")
+	}
+	s.telemetry.mu.Lock()
+	snapshot := s.telemetry.Agents[agentID]
+	snapshot.AgentID = agentID
+	snapshot.EnrollmentStatus = status
+	snapshot.EnrollmentNote = strings.TrimSpace(note)
+	snapshot.EnrollmentUpdatedAt = time.Now().UTC()
+	s.telemetry.Agents[agentID] = snapshot
+	s.telemetry.mu.Unlock()
+	if err := s.saveState(); err != nil {
+		log.Printf("[mgmt] save control-plane state: %v", err)
+	}
+	return nil
+}
+
 func (s *Server) FleetSnapshot(filter FleetFilter) []AgentTelemetrySnapshot {
 	s.telemetry.mu.Lock()
 	defer s.telemetry.mu.Unlock()
@@ -634,6 +663,19 @@ func (s *Server) FleetSnapshot(filter FleetFilter) []AgentTelemetrySnapshot {
 
 func (s *Server) agentSnapshotStatus(snapshot AgentTelemetrySnapshot, now time.Time) AgentTelemetrySnapshot {
 	if snapshot.AgentID == "" {
+		return snapshot
+	}
+	if snapshot.EnrollmentStatus == "" {
+		snapshot.EnrollmentStatus = "pending"
+	}
+	if snapshot.EnrollmentStatus == "revoked" {
+		snapshot.Status = "REVOKED"
+		snapshot.StatusReason = enrollmentReason(snapshot)
+		return snapshot
+	}
+	if snapshot.EnrollmentStatus == "quarantined" {
+		snapshot.Status = "QUARANTINED"
+		snapshot.StatusReason = enrollmentReason(snapshot)
 		return snapshot
 	}
 	if snapshot.LastReportAt.IsZero() {
@@ -668,6 +710,13 @@ func (s *Server) agentSnapshotStatus(snapshot AgentTelemetrySnapshot, now time.T
 	}
 	snapshot.StatusReason = ""
 	return snapshot
+}
+
+func enrollmentReason(snapshot AgentTelemetrySnapshot) string {
+	if strings.TrimSpace(snapshot.EnrollmentNote) != "" {
+		return snapshot.EnrollmentNote
+	}
+	return "agent enrollment status is " + snapshot.EnrollmentStatus
 }
 
 func (s *Server) PolicyCenter() PolicyCenterSnapshot {
@@ -804,6 +853,7 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 			s.telemetry.LastContentType = lastType
 			s.telemetry.LastAgentID = lastAgentID
 			if lastSummary.AgentID != "" {
+				existing := s.telemetry.Agents[lastSummary.AgentID]
 				s.telemetry.Agents[lastSummary.AgentID] = AgentTelemetrySnapshot{
 					AgentID:              lastSummary.AgentID,
 					Hostname:             lastSummary.Hostname,
@@ -812,8 +862,8 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 					Kernel:               lastSummary.Kernel,
 					Architecture:         lastSummary.Architecture,
 					CPUCount:             lastSummary.CPUCount,
-					Group:                s.telemetry.Agents[lastSummary.AgentID].Group,
-					Tags:                 s.telemetry.Agents[lastSummary.AgentID].Tags,
+					Group:                existing.Group,
+					Tags:                 existing.Tags,
 					Version:              lastSummary.Version,
 					Status:               lastSummary.Status,
 					LastReportAt:         s.telemetry.LastReportAt,
@@ -825,6 +875,9 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 					StoreHealthy:         lastSummary.StoreHealthy,
 					AttachmentMode:       lastSummary.AttachmentMode,
 					AppliedPolicyVersion: lastSummary.AppliedPolicyVersion,
+					EnrollmentStatus:     existing.EnrollmentStatus,
+					EnrollmentNote:       existing.EnrollmentNote,
+					EnrollmentUpdatedAt:  existing.EnrollmentUpdatedAt,
 				}
 			}
 			s.telemetry.mu.Unlock()
@@ -1041,6 +1094,12 @@ func (s *Server) loadState() error {
 		snapshot.AgentID = agentID
 		snapshot.Group = metadata.Group
 		snapshot.Tags = dedupeTags(metadata.Tags)
+		snapshot.EnrollmentStatus = normalizeEnrollmentStatus(metadata.EnrollmentStatus)
+		if snapshot.EnrollmentStatus == "" {
+			snapshot.EnrollmentStatus = "pending"
+		}
+		snapshot.EnrollmentNote = metadata.EnrollmentNote
+		snapshot.EnrollmentUpdatedAt = metadata.EnrollmentUpdatedAt
 		s.telemetry.Agents[agentID] = snapshot
 	}
 	s.telemetry.mu.Unlock()
@@ -1083,12 +1142,15 @@ func (s *Server) saveState() error {
 
 	s.telemetry.mu.Lock()
 	for agentID, snapshot := range s.telemetry.Agents {
-		if snapshot.Group == "" && len(snapshot.Tags) == 0 {
+		if snapshot.Group == "" && len(snapshot.Tags) == 0 && snapshot.EnrollmentStatus == "" && snapshot.EnrollmentNote == "" {
 			continue
 		}
 		state.Agents[agentID] = persistedAgentMetadata{
-			Group: snapshot.Group,
-			Tags:  append([]string(nil), snapshot.Tags...),
+			Group:               snapshot.Group,
+			Tags:                append([]string(nil), snapshot.Tags...),
+			EnrollmentStatus:    snapshot.EnrollmentStatus,
+			EnrollmentNote:      snapshot.EnrollmentNote,
+			EnrollmentUpdatedAt: snapshot.EnrollmentUpdatedAt,
 		}
 	}
 	s.telemetry.mu.Unlock()
@@ -1190,6 +1252,21 @@ func keysToSet(keys []string) map[string]struct{} {
 		}
 	}
 	return out
+}
+
+func normalizeEnrollmentStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "", "pending":
+		return "pending"
+	case "approve", "approved", "enroll", "enrolled", "active":
+		return "approved"
+	case "quarantine", "quarantined":
+		return "quarantined"
+	case "revoke", "revoked", "deny", "denied":
+		return "revoked"
+	default:
+		return ""
+	}
 }
 
 func dedupeTags(tags []string) []string {

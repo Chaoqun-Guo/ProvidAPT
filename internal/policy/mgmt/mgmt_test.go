@@ -304,6 +304,43 @@ func TestFleetMetadata(t *testing.T) {
 	}
 }
 
+func TestFleetEnrollmentStatus(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	cfg.StateFile = filepath.Join(t.TempDir(), "state.json")
+	s, _ := NewServer(cfg)
+
+	s.telemetry.mu.Lock()
+	s.telemetry.Agents["agent-01"] = AgentTelemetrySnapshot{
+		AgentID:         "agent-01",
+		Status:          "HEALTHY",
+		LastReportAt:    time.Now(),
+		PipelineHealthy: true,
+		StoreHealthy:    true,
+	}
+	s.telemetry.mu.Unlock()
+
+	if err := s.SetAgentEnrollment("agent-01", "revoked", "compromised host"); err != nil {
+		t.Fatalf("SetAgentEnrollment: %v", err)
+	}
+	all := s.FleetSnapshot(FleetFilter{})
+	if len(all) != 1 {
+		t.Fatalf("fleet size = %d", len(all))
+	}
+	if all[0].Status != "REVOKED" || all[0].EnrollmentStatus != "revoked" {
+		t.Fatalf("agent status = %#v", all[0])
+	}
+
+	reloaded, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	persisted := reloaded.FleetSnapshot(FleetFilter{})
+	if len(persisted) != 1 || persisted[0].EnrollmentStatus != "revoked" || persisted[0].EnrollmentNote != "compromised host" {
+		t.Fatalf("persisted enrollment = %#v", persisted)
+	}
+}
+
 func TestFleetAgentStaleAndOfflineStatus(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.EnableTLS = false
