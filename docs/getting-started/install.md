@@ -15,6 +15,7 @@ ProvidAPT is an eBPF-based Linux system provenance monitoring tool designed for 
 - [5. Quick Verification](#5-quick-verification)
 - [6. Performance Tuning](#6-performance-tuning)
 - [7. Troubleshooting](#7-troubleshooting)
+- [Commercial Linux Installation](commercial-install.md)
 
 ---
 

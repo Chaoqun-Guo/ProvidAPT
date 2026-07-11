@@ -80,12 +80,20 @@ build-userspace:
 
 install-local: create-user build-core
 	install -d $(CONFIG)
+	install -d /etc/default
 	install -d /usr/local/lib/providapt/ebpf
+	install -d /var/lib/providapt /var/log/providapt
 	install -m 0755 $(BIN_OUT)/providaptd /usr/local/sbin/providaptd
 	install -m 0755 $(BIN_OUT)/providaptctl /usr/local/bin/providaptctl
 	install -m 0755 $(BIN_OUT)/providapt-watchdog /usr/local/sbin/providapt-watchdog
+	install -m 0755 $(BIN_OUT)/providapt-verify /usr/local/bin/providapt-verify
+	install -m 0755 $(BIN_OUT)/providapt-heal /usr/local/bin/providapt-heal
+	install -m 0755 $(BIN_OUT)/providapt-deanon /usr/local/bin/providapt-deanon
 	install -m 0644 $(EBPF_OUT)/*.bpf.o /usr/local/lib/providapt/ebpf/
 	@test -f $(CONFIG)/providapt.toml || install -m 0644 build/providapt.toml $(CONFIG)/
+	@test -f /etc/default/providapt || install -m 0644 deploy/linux/providapt.env /etc/default/providapt
+	install -m 0644 deploy/linux/providapt.service /etc/systemd/system/providapt.service
+	@systemctl daemon-reload 2>/dev/null || true
 	@echo "Installed ProvidAPT locally"
 
 test-core:

@@ -4,15 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	mgmtpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/transport"
 )
 
 type Sender interface {
 	SendWithContentType(data []byte, contentType string) error
 	Close()
+}
+
+type AckSender interface {
+	SendWithContentTypeAck(data []byte, contentType string) (*mgmtpb.ReportAck, error)
 }
 
 type ReporterConfig struct {
@@ -23,34 +30,38 @@ type ReporterConfig struct {
 	KeyFile    string
 	CAFile     string
 	ServerName string
+	OnAck      func(ReporterStatus)
 }
 
 type Summary struct {
-	AgentID          string `json:"agent_id"`
-	Hostname         string `json:"hostname,omitempty"`
-	OS               string `json:"os,omitempty"`
-	OSVersion        string `json:"os_version,omitempty"`
-	Kernel           string `json:"kernel,omitempty"`
-	Architecture     string `json:"architecture,omitempty"`
-	CPUCount         int    `json:"cpu_count,omitempty"`
-	Version          string `json:"version"`
-	Status           string `json:"status"`
-	UptimeSeconds    int64  `json:"uptime_seconds"`
-	EventsIngested   uint64 `json:"events_ingested"`
-	EventsDropped    uint64 `json:"events_dropped"`
-	MemoryBytes      uint64 `json:"memory_bytes"`
-	PipelineHealthy  bool   `json:"pipeline_healthy"`
-	StoreHealthy     bool   `json:"store_healthy"`
-	AttachmentMode   string `json:"attachment_mode,omitempty"`
-	TimestampUnixSec int64  `json:"timestamp_unix_sec"`
+	AgentID              string `json:"agent_id"`
+	Hostname             string `json:"hostname,omitempty"`
+	OS                   string `json:"os,omitempty"`
+	OSVersion            string `json:"os_version,omitempty"`
+	Kernel               string `json:"kernel,omitempty"`
+	Architecture         string `json:"architecture,omitempty"`
+	CPUCount             int    `json:"cpu_count,omitempty"`
+	Version              string `json:"version"`
+	Status               string `json:"status"`
+	UptimeSeconds        int64  `json:"uptime_seconds"`
+	EventsIngested       uint64 `json:"events_ingested"`
+	EventsDropped        uint64 `json:"events_dropped"`
+	MemoryBytes          uint64 `json:"memory_bytes"`
+	PipelineHealthy      bool   `json:"pipeline_healthy"`
+	StoreHealthy         bool   `json:"store_healthy"`
+	AttachmentMode       string `json:"attachment_mode,omitempty"`
+	AppliedPolicyVersion int    `json:"applied_policy_version,omitempty"`
+	TimestampUnixSec     int64  `json:"timestamp_unix_sec"`
 }
 
 type ReporterStatus struct {
-	Enabled             bool      `json:"enabled"`
-	LastAttempt         time.Time `json:"last_attempt,omitempty"`
-	LastSuccess         time.Time `json:"last_success,omitempty"`
-	ConsecutiveFailures int       `json:"consecutive_failures"`
-	LastError           string    `json:"last_error,omitempty"`
+	Enabled              bool      `json:"enabled"`
+	LastAttempt          time.Time `json:"last_attempt,omitempty"`
+	LastSuccess          time.Time `json:"last_success,omitempty"`
+	ConsecutiveFailures  int       `json:"consecutive_failures"`
+	LastError            string    `json:"last_error,omitempty"`
+	LastAckMessage       string    `json:"last_ack_message,omitempty"`
+	DesiredPolicyVersion int       `json:"desired_policy_version,omitempty"`
 }
 
 type Reporter struct {
@@ -137,11 +148,20 @@ func (r *Reporter) ReportNow() error {
 		r.recordFailure(fmt.Errorf("marshal summary: %w", err))
 		return err
 	}
+	if ackSender, ok := r.sender.(AckSender); ok {
+		ack, err := ackSender.SendWithContentTypeAck(payload, "summary")
+		if err != nil {
+			r.recordFailure(err)
+			return err
+		}
+		r.recordSuccess(ack)
+		return nil
+	}
 	if err := r.sender.SendWithContentType(payload, "summary"); err != nil {
 		r.recordFailure(err)
 		return err
 	}
-	r.recordSuccess()
+	r.recordSuccess(nil)
 	return nil
 }
 
@@ -168,14 +188,37 @@ func (r *Reporter) recordFailure(err error) {
 	r.status.LastError = err.Error()
 }
 
-func (r *Reporter) recordSuccess() {
+func (r *Reporter) recordSuccess(ack *mgmtpb.ReportAck) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.status.LastSuccess = time.Now()
 	r.status.ConsecutiveFailures = 0
 	r.status.LastError = ""
+	if ack != nil {
+		r.status.LastAckMessage = ack.Message
+		r.status.DesiredPolicyVersion = parsePolicyVersionAck(ack.Message)
+	}
+	status := r.status
+	onAck := r.cfg.OnAck
+	if onAck != nil {
+		go onAck(status)
+	}
 }
 
 func (r *Reporter) SetSender(sender Sender) {
 	r.sender = sender
+}
+
+func parsePolicyVersionAck(message string) int {
+	const key = "policy_version="
+	index := strings.Index(message, key)
+	if index < 0 {
+		return 0
+	}
+	value := message[index+len(key):]
+	if end := strings.IndexAny(value, " ;,"); end >= 0 {
+		value = value[:end]
+	}
+	version, _ := strconv.Atoi(value)
+	return version
 }

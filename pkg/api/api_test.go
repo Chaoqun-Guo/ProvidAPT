@@ -798,6 +798,29 @@ func TestPolicyActionEndpoint(t *testing.T) {
 	}
 }
 
+func TestPolicyEditActionFields(t *testing.T) {
+	ts := testServer(t)
+	var gotReq PolicyActionRequest
+	ts.SetPolicyActionFunc(func(req PolicyActionRequest) (PolicySummary, error) {
+		gotReq = req
+		return PolicySummary{Version: 3, State: "draft", ActiveRules: 8}, nil
+	})
+
+	body := bytes.NewBufferString(`{"action":"update_sigma","notes":"tighten detection","rule_id":"suspicious-shell","rule_yaml":"title: suspicious shell\nlogsource:\n  product: linux","whitelist_target":"comm","whitelist_value":"backup","taint_prefix":"10.0.0.0/8","taint_label":"external"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", body)
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if gotReq.Action != "update_sigma" || gotReq.RuleID != "suspicious-shell" {
+		t.Fatalf("request = %#v", gotReq)
+	}
+	if gotReq.RuleYAML == "" || gotReq.WhitelistTarget != "comm" || gotReq.TaintPrefix != "10.0.0.0/8" {
+		t.Fatalf("request fields = %#v", gotReq)
+	}
+}
+
 func TestPolicyActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth(

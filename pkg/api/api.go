@@ -51,33 +51,36 @@ type HealthStatus struct {
 	TelemetryHealthy     bool   `json:"telemetry_healthy,omitempty"`
 	TelemetryLastSuccess string `json:"telemetry_last_success,omitempty"`
 	TelemetryLastError   string `json:"telemetry_last_error,omitempty"`
+	TelemetryLastAck     string `json:"telemetry_last_ack,omitempty"`
+	DesiredPolicyVersion int    `json:"desired_policy_version,omitempty"`
 }
 
 // HealthCheckFunc is called by /health to determine daemon health.
 type HealthCheckFunc func() HealthStatus
 
 type ClusterAgent struct {
-	AgentID         string   `json:"agent_id"`
-	Hostname        string   `json:"hostname,omitempty"`
-	OS              string   `json:"os,omitempty"`
-	OSVersion       string   `json:"os_version,omitempty"`
-	Kernel          string   `json:"kernel,omitempty"`
-	Architecture    string   `json:"architecture,omitempty"`
-	CPUCount        int      `json:"cpu_count,omitempty"`
-	Group           string   `json:"group,omitempty"`
-	Tags            []string `json:"tags,omitempty"`
-	Status          string   `json:"status"`
-	StatusReason    string   `json:"status_reason,omitempty"`
-	Version         string   `json:"version,omitempty"`
-	LastReportAt    string   `json:"last_report_at,omitempty"`
-	LastReportAge   int64    `json:"last_report_age_seconds"`
-	EventsIngested  uint64   `json:"events_ingested,omitempty"`
-	EventsDropped   uint64   `json:"events_dropped,omitempty"`
-	MemoryBytes     uint64   `json:"memory_bytes,omitempty"`
-	UptimeSeconds   int64    `json:"uptime_seconds,omitempty"`
-	PipelineHealthy bool     `json:"pipeline_healthy"`
-	StoreHealthy    bool     `json:"store_healthy"`
-	AttachmentMode  string   `json:"attachment_mode,omitempty"`
+	AgentID              string   `json:"agent_id"`
+	Hostname             string   `json:"hostname,omitempty"`
+	OS                   string   `json:"os,omitempty"`
+	OSVersion            string   `json:"os_version,omitempty"`
+	Kernel               string   `json:"kernel,omitempty"`
+	Architecture         string   `json:"architecture,omitempty"`
+	CPUCount             int      `json:"cpu_count,omitempty"`
+	Group                string   `json:"group,omitempty"`
+	Tags                 []string `json:"tags,omitempty"`
+	Status               string   `json:"status"`
+	StatusReason         string   `json:"status_reason,omitempty"`
+	Version              string   `json:"version,omitempty"`
+	LastReportAt         string   `json:"last_report_at,omitempty"`
+	LastReportAge        int64    `json:"last_report_age_seconds"`
+	EventsIngested       uint64   `json:"events_ingested,omitempty"`
+	EventsDropped        uint64   `json:"events_dropped,omitempty"`
+	MemoryBytes          uint64   `json:"memory_bytes,omitempty"`
+	UptimeSeconds        int64    `json:"uptime_seconds,omitempty"`
+	PipelineHealthy      bool     `json:"pipeline_healthy"`
+	StoreHealthy         bool     `json:"store_healthy"`
+	AttachmentMode       string   `json:"attachment_mode,omitempty"`
+	AppliedPolicyVersion int      `json:"applied_policy_version,omitempty"`
 }
 
 type ClusterOverview struct {
@@ -286,6 +289,12 @@ type PolicySummary struct {
 	SigmaRuleIDs     []string `json:"sigma_rule_ids,omitempty"`
 	WhitelistCount   int      `json:"whitelist_count"`
 	TaintSourceCount int      `json:"taint_source_count"`
+	DeploymentStatus string   `json:"deployment_status,omitempty"`
+	TargetAgents     int      `json:"target_agents,omitempty"`
+	AckedAgents      int      `json:"acked_agents,omitempty"`
+	PendingAgents    int      `json:"pending_agents,omitempty"`
+	BundlePath       string   `json:"bundle_path,omitempty"`
+	BundleSHA256     string   `json:"bundle_sha256,omitempty"`
 }
 
 type PolicyCenter struct {
@@ -299,11 +308,17 @@ type PolicyCenter struct {
 type PolicyCenterFunc func() PolicyCenter
 
 type PolicyActionRequest struct {
-	Action        string `json:"action"`
-	Notes         string `json:"notes,omitempty"`
-	TargetVersion int    `json:"target_version,omitempty"`
-	Actor         string `json:"actor,omitempty"`
-	Role          string `json:"role,omitempty"`
+	Action          string `json:"action"`
+	Notes           string `json:"notes,omitempty"`
+	TargetVersion   int    `json:"target_version,omitempty"`
+	RuleID          string `json:"rule_id,omitempty"`
+	RuleYAML        string `json:"rule_yaml,omitempty"`
+	WhitelistTarget string `json:"whitelist_target,omitempty"`
+	WhitelistValue  string `json:"whitelist_value,omitempty"`
+	TaintPrefix     string `json:"taint_prefix,omitempty"`
+	TaintLabel      string `json:"taint_label,omitempty"`
+	Actor           string `json:"actor,omitempty"`
+	Role            string `json:"role,omitempty"`
 }
 
 type PolicyActionFunc func(req PolicyActionRequest) (PolicySummary, error)

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	mgmtpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt"
 )
 
 type fakeSender struct {
@@ -22,6 +24,18 @@ func (f *fakeSender) SendWithContentType(data []byte, contentType string) error 
 }
 
 func (f *fakeSender) Close() {}
+
+type fakeAckSender struct {
+	fakeSender
+	ack *mgmtpb.ReportAck
+}
+
+func (f *fakeAckSender) SendWithContentTypeAck(data []byte, contentType string) (*mgmtpb.ReportAck, error) {
+	if err := f.fakeSender.SendWithContentType(data, contentType); err != nil {
+		return nil, err
+	}
+	return f.ack, nil
+}
 
 func TestReporterReportNowSuccess(t *testing.T) {
 	sender := &fakeSender{}
@@ -63,6 +77,25 @@ func TestReporterReportNowFailure(t *testing.T) {
 	}
 	if status.LastError == "" {
 		t.Fatal("expected last error")
+	}
+}
+
+func TestReporterRecordsPolicyVersionAck(t *testing.T) {
+	sender := &fakeAckSender{ack: &mgmtpb.ReportAck{Accepted: true, Message: "accepted 1 telemetry event(s); policy_version=7 policy_status=queued"}}
+	reporter := NewReporter(ReporterConfig{Endpoint: "127.0.0.1:50051"}, func() Summary {
+		return Summary{AgentID: "agent-1", Status: "HEALTHY"}
+	})
+	reporter.SetSender(sender)
+
+	if err := reporter.ReportNow(); err != nil {
+		t.Fatalf("ReportNow: %v", err)
+	}
+	status := reporter.Status()
+	if status.DesiredPolicyVersion != 7 {
+		t.Fatalf("desired policy version = %d, want 7", status.DesiredPolicyVersion)
+	}
+	if status.LastAckMessage == "" {
+		t.Fatal("expected last ack message")
 	}
 }
 

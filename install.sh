@@ -71,7 +71,7 @@ done
 # Prerequisites
 check_root() {
     if [[ "$(id -u)" -ne 0 ]]; then
-        echo -e "  ${RED}閴-{NC} This script must be run as root (sudo)."
+        echo -e "  ${RED}ERROR:${NC} This script must be run as root (sudo)."
         exit 1
     fi
 }
@@ -98,7 +98,7 @@ detect_arch() {
     case "$ARCH" in
         x86_64)  PKG_ARCH="amd64" ;;
         aarch64) PKG_ARCH="arm64" ;;
-        *) echo -e "  ${RED}閴-{NC} Unsupported architecture: $ARCH"; exit 1 ;;
+        *) echo -e "  ${RED}ERROR:${NC} Unsupported architecture: $ARCH"; exit 1 ;;
     esac
     echo -e "  ${CYAN}Arch:${NC} $ARCH"
 }
@@ -119,7 +119,7 @@ check_deps() {
     local missing=false
     for cmd in curl systemctl; do
         if ! command -v "$cmd" &>/dev/null; then
-            echo -e "  ${RED}閴-{NC} Required dependency not found: $cmd"
+            echo -e "  ${RED}ERROR:${NC} Required dependency not found: $cmd"
             missing=true
         fi
     done
@@ -153,10 +153,10 @@ install_from_package() {
     echo ""
     echo -e "  ${BOLD}Downloading package...${NC}"
     curl -fsSL "$pkg_url" -o "/tmp/$pkg_file" || {
-        echo -e "  ${RED}閴-{NC} Download failed"
+        echo -e "  ${RED}ERROR:${NC} Download failed"
         return 1
     }
-    echo -e "  ${GREEN}閴-{NC} Downloaded: $pkg_file"
+    echo -e "  ${GREEN}OK:${NC} Downloaded: $pkg_file"
 
     case "$pkg_file" in
         *.deb)
@@ -177,7 +177,7 @@ install_from_package() {
             ;;
     esac
 
-    echo -e "  ${GREEN}閴-{NC} Package installed"
+    echo -e "  ${GREEN}OK:${NC} Package installed"
 }
 
 # Build from source
@@ -206,11 +206,11 @@ build_from_source() {
     echo -e "  Cloning repository..."
     git clone --depth 1 --branch "${VERSION:-main}" \
         "https://github.com/${REPO}.git" .
-    echo -e "  ${GREEN}閴-{NC} Source cloned"
+    echo -e "  ${GREEN}OK:${NC} Source cloned"
 
     echo -e "  Running make build-core..."
     make build-core 2>&1 | sed 's/^/    /'
-    echo -e "  ${GREEN}閴-{NC} Build complete"
+    echo -e "  ${GREEN}OK:${NC} Build complete"
 
     echo -e "  Installing to system..."
     make install-local 2>&1 | sed 's/^/    /'
@@ -218,14 +218,14 @@ build_from_source() {
     cd /
     rm -rf "$tmpdir"
 
-    echo -e "  ${GREEN}閴-{NC} Built and installed from source"
+    echo -e "  ${GREEN}OK:${NC} Built and installed from source"
     return 0
 }
 
 # Create providapt system user
 setup_providapt_user() {
 	if id -u providapt &>/dev/null; then
-		echo -e "  ${GREEN}閴-{NC} User 'providapt' already exists"
+		echo -e "  ${GREEN}OK:${NC} User 'providapt' already exists"
 	else
 		useradd --system --no-create-home --uid 950 \
 			--shell /usr/sbin/nologin \
@@ -233,7 +233,7 @@ setup_providapt_user() {
 			echo -e "  ${YELLOW}WARN:${NC} Failed to create user 'providapt'; continuing anyway"
 			return
 		}
-		echo -e "  ${GREEN}閴-{NC} Created system user 'providapt' (UID 950)"
+		echo -e "  ${GREEN}OK:${NC} Created system user 'providapt' (UID 950)"
 	fi
 
 	# Ensure data directory exists with correct ownership
@@ -252,7 +252,7 @@ setup_systemd() {
     systemctl daemon-reload 2>/dev/null || true
 
     if systemctl is-enabled providapt.service &>/dev/null; then
-        echo -e "  ${GREEN}閴-{NC} Service already enabled"
+        echo -e "  ${GREEN}OK:${NC} Service already enabled"
     else
         systemctl enable providapt.service 2>/dev/null || {
             # Manual service install if package didn't do it
@@ -265,7 +265,7 @@ setup_systemd() {
             fi
             systemctl enable providapt.service
         }
-        echo -e "  ${GREEN}閴-{NC} Service enabled"
+        echo -e "  ${GREEN}OK:${NC} Service enabled"
     fi
 
     echo -e "  Starting providapt.service..."
@@ -276,9 +276,9 @@ setup_systemd() {
     # Verify
     sleep 1
     if systemctl is-active providapt.service &>/dev/null; then
-        echo -e "  ${GREEN}閴-{NC} Service running"
+        echo -e "  ${GREEN}OK:${NC} Service running"
     else
-        echo -e "  ${RED}閴-{NC} Service not running"
+        echo -e "  ${RED}ERROR:${NC} Service not running"
         echo "  Run: journalctl -xu providapt --no-pager"
     fi
 }
@@ -370,7 +370,7 @@ main() {
             echo ""
             echo -e "  ${YELLOW}WARN:${NC} Package download failed. Building from source..."
             build_from_source || {
-                echo -e "  ${RED}閴-{NC} Installation failed."
+                echo -e "  ${RED}ERROR:${NC} Installation failed."
                 echo "  Please see: https://github.com/${REPO}#installation"
                 exit 1
             }

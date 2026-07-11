@@ -21,13 +21,18 @@ This guide covers upgrade preparation for the current maintained release line.
 providaptctl -status
 providapt-verify -data /var/lib/providapt/store
 
-# 2. Prepare binaries
+# 2. Run upgrade preflight
+sudo scripts/upgrade/preflight-linux.sh
+sudo EXPECTED_SHA256=<sha256> scripts/upgrade/preflight-linux.sh /path/to/package.tar.gz
+
+# 3. Prepare binaries or packages
 make build-core
+bash build/packages/build_all.sh auto
 
-# 3. Install on the target host
-sudo make install-local
+# 4. Install on the target host
+sudo scripts/install/install-linux.sh
 
-# 4. Validate the service
+# 5. Validate the service
 sudo systemctl restart providapt
 providaptctl -status
 ```
@@ -60,5 +65,6 @@ Confirm:
 Use:
 
 - `scripts/upgrade/rollback-example.sh`
+- `scripts/upgrade/preflight-linux.sh`
 
 Adapt the script to your packaging model, service manager, and backup layout before production rollout.

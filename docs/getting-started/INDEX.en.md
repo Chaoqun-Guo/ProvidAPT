@@ -8,6 +8,7 @@ This section helps you install, evaluate, deploy, and run ProvidAPT in different
 | --- | --- |
 | [install.md](install.md) | Installation guide |
 | [install.zh.md](install.zh.md) | Chinese installation guide |
+| [commercial-install.md](commercial-install.md) | Commercial Linux install, uninstall, and upgrade preflight |
 | [deployment.md](deployment.md) | Deployment guide |
 | [deployment.zh.md](deployment.zh.md) | Chinese deployment guide |
 | [evaluation.md](evaluation.md) | Customer evaluation and POC guide |

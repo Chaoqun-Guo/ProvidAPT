@@ -1,6 +1,6 @@
 # 快速入门
 
-本节帮助你在不同环境中安装、评估、部署并启动 ProvidAPT。
+本节帮助你在不同环境中安装、评估、部署并运行 ProvidAPT。
 
 ## 文档列表
 
@@ -8,6 +8,7 @@
 | --- | --- |
 | [install.md](install.md) | 英文安装指南 |
 | [install.zh.md](install.zh.md) | 中文安装指南 |
+| [commercial-install.md](commercial-install.md) | 商业 Linux 安装、卸载与升级预检 |
 | [deployment.md](deployment.md) | 英文部署指南 |
 | [deployment.zh.md](deployment.zh.md) | 中文部署指南 |
 | [evaluation.md](evaluation.md) | 客户评估与 POC 指南 |
@@ -32,5 +33,5 @@ make install-deps
 make install-local
 
 # 启动 daemon
-sudo providaptd -config /etc/providapt/providapt.toml
+sudo systemctl start providapt.service
 ```

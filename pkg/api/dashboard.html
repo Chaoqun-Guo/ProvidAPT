@@ -221,15 +221,34 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <div class="policy-item clickable" onclick="showPolicyDetails('draft')"><div class="value" id="pDraftState">--</div><div class="label">Draft State</div></div>
         <div class="policy-item clickable" onclick="showPolicyDetails('rules')"><div class="value" id="pActiveRules">--</div><div class="label">Active Rules</div></div>
         <div class="policy-item clickable" onclick="showPolicyDetails('history')"><div class="value" id="pHistoryCount">--</div><div class="label">History</div></div>
+        <div class="policy-item clickable" onclick="showPolicyDetails('deployment')"><div class="value" id="pDeploymentStatus">--</div><div class="label">Deployment</div></div>
       </div>
       <div class="action-row">
         <button onclick="showPolicyDetails('current')">Browse Current</button>
         <button class="secondary" onclick="showPolicyDetails('draft')">Browse Draft</button>
         <button class="secondary" onclick="showPolicyDetails('rules')">Browse Rules</button>
+        <button class="secondary" onclick="showPolicyDetails('deployment')">Deployment</button>
         <button class="secondary" onclick="showPolicyDetails('history')">Audit Trail</button>
       </div>
       <div class="policy-editor">
         <textarea id="policyEditNotes" placeholder="Edit policy release notes, rule change reason, or deployment instruction"></textarea>
+        <div class="policy-grid">
+          <input id="policyRuleID" placeholder="Sigma rule ID">
+          <input id="policyWhitelistTarget" placeholder="Whitelist target: pid, comm, path">
+          <input id="policyWhitelistValue" placeholder="Whitelist value">
+          <input id="policyTaintPrefix" placeholder="Taint IP prefix or source">
+          <input id="policyTaintLabel" placeholder="Taint label">
+        </div>
+        <textarea id="policyRuleYAML" placeholder="Sigma rule YAML for add/update"></textarea>
+        <div class="action-row" style="margin:0;align-content:start;">
+          <button class="secondary" onclick="preparePolicyMutation('add_sigma')">Add Sigma</button>
+          <button class="secondary" onclick="preparePolicyMutation('update_sigma')">Update Sigma</button>
+          <button class="secondary" onclick="preparePolicyMutation('remove_sigma')">Remove Sigma</button>
+          <button class="secondary" onclick="preparePolicyMutation('add_whitelist')">Add Whitelist</button>
+          <button class="secondary" onclick="preparePolicyMutation('remove_whitelist')">Remove Whitelist</button>
+          <button class="secondary" onclick="preparePolicyMutation('add_taint')">Add Taint</button>
+          <button class="secondary" onclick="preparePolicyMutation('remove_taint')">Remove Taint</button>
+        </div>
         <div class="action-row" style="margin:0;align-content:start;">
           <button id="publishPolicyBtn" onclick="preparePolicyAction('publish')">Publish Draft</button>
           <button id="rollbackPolicyBtn" class="secondary" onclick="preparePolicyAction('rollback')">Rollback</button>
@@ -564,6 +583,7 @@ async function loadControlOverview() {
             '<span>Events: ' + ((a.events_ingested || 0).toLocaleString()) + '</span>' +
             '<span>Dropped: ' + ((a.events_dropped || 0).toLocaleString()) + '</span>' +
             '<span>Memory: ' + formatBytes(a.memory_bytes || 0) + '</span>' +
+            '<span>Policy: v' + (a.applied_policy_version || '--') + '</span>' +
             '<span>Last report: ' + formatTime(a.last_report_at) + '</span>' +
             '<span>Report age: ' + reportAge + reason + '</span>' +
           '</div>' +
@@ -696,6 +716,7 @@ async function loadPolicies() {
     document.getElementById('pDraftState').textContent = (data.draft && data.draft.state) || '--';
     document.getElementById('pActiveRules').textContent = (data.current && data.current.active_rules) || 0;
     document.getElementById('pHistoryCount').textContent = (data.history || []).length;
+    document.getElementById('pDeploymentStatus').textContent = (data.current && data.current.deployment_status) || '--';
     const historyList = document.getElementById('policyHistoryList');
     const actions = data.actions || [];
     if (historyList) {
@@ -738,6 +759,8 @@ function showPolicyDetails(scope) {
     items = [
       renderKVItem('current', 'version ' + (current.version || '--') + ' · state ' + (current.state || '--') + ' · rules ' + (current.active_rules || 0), formatTime(current.published_at || current.updated_at)),
       renderKVItem('sigma', (current.sigma_rule_ids || []).join(', ') || '--', 'rules'),
+      renderKVItem('bundle sha256', current.bundle_sha256 || '--', 'integrity'),
+      renderKVItem('bundle path', current.bundle_path || '--', 'local'),
     ];
   } else if (scope === 'draft') {
     items = [renderKVItem('draft', 'version ' + (draft.version || '--') + ' · state ' + (draft.state || '--') + ' · rules ' + (draft.active_rules || 0), formatTime(draft.updated_at))];
@@ -746,6 +769,15 @@ function showPolicyDetails(scope) {
       renderKVItem('active', current.active_rules || 0, 'rules'),
       renderKVItem('whitelist', current.whitelist_count || 0, 'entries'),
       renderKVItem('taint sources', current.taint_source_count || 0, 'entries'),
+    ];
+  } else if (scope === 'deployment') {
+    items = [
+      renderKVItem('status', current.deployment_status || '--', 'current'),
+      renderKVItem('target agents', current.target_agents || 0, 'agents'),
+      renderKVItem('acknowledged', current.acked_agents || 0, 'agents'),
+      renderKVItem('pending', current.pending_agents || 0, 'agents'),
+      renderKVItem('bundle', current.bundle_sha256 || '--', 'sha256'),
+      renderKVItem('note', 'queued means rollout is waiting for agent telemetry acknowledgement; applied means all targeted agents reported the policy version', 'state'),
     ];
   } else {
     items = history.slice(0, 10).map(item => renderKVItem('v' + (item.version || '--'), (item.state || '--') + ' · rules ' + (item.active_rules || 0) + (item.notes ? (' · ' + item.notes) : ''), formatTime(item.published_at || item.updated_at)));
@@ -1209,6 +1241,30 @@ function preparePolicyAction(action) {
       return;
     }
     payload.target_version = candidates[0];
+  }
+  runPolicyAction(payload);
+}
+
+function policyInputValue(id) {
+  const el = document.getElementById(id);
+  return el && el.value ? el.value.trim() : '';
+}
+
+function preparePolicyMutation(action) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const notes = policyInputValue('policyEditNotes') || 'dashboard ' + action;
+  const payload = { action: action, notes: notes };
+  if (action.endsWith('_sigma')) {
+    payload.rule_id = policyInputValue('policyRuleID');
+    payload.rule_yaml = document.getElementById('policyRuleYAML') ? document.getElementById('policyRuleYAML').value : '';
+  } else if (action.endsWith('_whitelist')) {
+    payload.whitelist_target = policyInputValue('policyWhitelistTarget');
+    payload.whitelist_value = policyInputValue('policyWhitelistValue');
+  } else if (action.endsWith('_taint')) {
+    payload.taint_prefix = policyInputValue('policyTaintPrefix');
+    payload.taint_label = policyInputValue('policyTaintLabel');
   }
   runPolicyAction(payload);
 }

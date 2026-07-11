@@ -223,14 +223,20 @@ func (c *GrpcClient) Send(data []byte) error {
 
 // SendWithContentType sends data with an explicit content type label.
 func (c *GrpcClient) SendWithContentType(data []byte, contentType string) error {
+	_, err := c.SendWithContentTypeAck(data, contentType)
+	return err
+}
+
+// SendWithContentTypeAck sends data with an explicit content type label and returns the server ack.
+func (c *GrpcClient) SendWithContentTypeAck(data []byte, contentType string) (*mgmtpb.ReportAck, error) {
 	if err := c.Connect(); err != nil {
-		return err
+		return nil, err
 	}
 
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
-		return nil
+		return nil, nil
 	}
 	client := c.client
 	c.mu.Unlock()
@@ -242,7 +248,7 @@ func (c *GrpcClient) SendWithContentType(data []byte, contentType string) error 
 	stream, err := client.ReportEvents(ctx)
 	if err != nil {
 		metrics.GrpcSendErrors.Inc()
-		return err
+		return nil, err
 	}
 
 	evt := &mgmtpb.CompressedEvent{
@@ -253,13 +259,13 @@ func (c *GrpcClient) SendWithContentType(data []byte, contentType string) error 
 	}
 	if err := stream.Send(evt); err != nil {
 		metrics.GrpcSendErrors.Inc()
-		return err
+		return nil, err
 	}
 
 	ack, err := stream.CloseAndRecv()
 	if err != nil {
 		metrics.GrpcSendErrors.Inc()
-		return err
+		return nil, err
 	}
 
 	metrics.GrpcSentBytes.Add(float64(len(data)))
@@ -267,7 +273,7 @@ func (c *GrpcClient) SendWithContentType(data []byte, contentType string) error 
 
 	log.Printf("[grpc] sent %d bytes (%s) to %s (throttle=%d)",
 		len(data), contentType, c.addr, ack.ThrottleLevel)
-	return nil
+	return ack, nil
 }
 
 // Close shuts down the gRPC connection.

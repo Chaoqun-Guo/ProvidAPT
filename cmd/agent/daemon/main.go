@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -41,6 +42,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/alertflow"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/api"
+	mgmtpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/logx"
@@ -66,6 +68,13 @@ type systemEnvironment struct {
 	Kernel       string
 	Architecture string
 	CPUCount     int
+}
+
+type appliedPolicyState struct {
+	Version       int    `json:"version"`
+	LastAck       string `json:"last_ack,omitempty"`
+	LastApplied   string `json:"last_applied,omitempty"`
+	SchemaVersion int    `json:"schema_version"`
 }
 
 func collectSystemEnvironment(hostname string) systemEnvironment {
@@ -983,13 +992,20 @@ func main() {
 
 	// Health check closure — populated every iteration
 	var (
-		eventsIngested  uint64
-		eventsDropped   uint64
-		pipelineHealthy = true
-		storeHealthy    = true
-		sanityPassed    = !sanityReport.HasFailures()
-		startTime       = time.Now()
+		eventsIngested       uint64
+		eventsDropped        uint64
+		pipelineHealthy      = true
+		storeHealthy         = true
+		sanityPassed         = !sanityReport.HasFailures()
+		startTime            = time.Now()
+		appliedPolicyVersion atomic.Int64
 	)
+	appliedPolicyStatePath := filepath.Join(cfg.Output.Dir, "applied-policy-state.json")
+	if version, err := loadAppliedPolicyVersion(appliedPolicyStatePath); err == nil && version > 0 {
+		appliedPolicyVersion.Store(int64(version))
+	} else if err != nil {
+		logx.System().Warn("load applied policy state failed", "error", err)
+	}
 
 	hostname, err := os.Hostname()
 	if err != nil || hostname == "" {
@@ -1012,23 +1028,24 @@ func main() {
 		}
 
 		return telemetry.Summary{
-			AgentID:          hostname,
-			Hostname:         systemEnv.Hostname,
-			OS:               systemEnv.OS,
-			OSVersion:        systemEnv.OSVersion,
-			Kernel:           systemEnv.Kernel,
-			Architecture:     systemEnv.Architecture,
-			CPUCount:         systemEnv.CPUCount,
-			Version:          version.String(),
-			Status:           status,
-			UptimeSeconds:    int64(time.Since(startTime).Seconds()),
-			EventsIngested:   eventsIngested,
-			EventsDropped:    eventsDropped,
-			MemoryBytes:      m.Alloc,
-			PipelineHealthy:  pipelineHealthy,
-			StoreHealthy:     storeHealthy,
-			AttachmentMode:   bpfLoader.ModeName(),
-			TimestampUnixSec: time.Now().Unix(),
+			AgentID:              hostname,
+			Hostname:             systemEnv.Hostname,
+			OS:                   systemEnv.OS,
+			OSVersion:            systemEnv.OSVersion,
+			Kernel:               systemEnv.Kernel,
+			Architecture:         systemEnv.Architecture,
+			CPUCount:             systemEnv.CPUCount,
+			Version:              version.String(),
+			Status:               status,
+			UptimeSeconds:        int64(time.Since(startTime).Seconds()),
+			EventsIngested:       eventsIngested,
+			EventsDropped:        eventsDropped,
+			MemoryBytes:          m.Alloc,
+			PipelineHealthy:      pipelineHealthy,
+			StoreHealthy:         storeHealthy,
+			AttachmentMode:       bpfLoader.ModeName(),
+			AppliedPolicyVersion: int(appliedPolicyVersion.Load()),
+			TimestampUnixSec:     time.Now().Unix(),
 		}
 	}
 
@@ -1042,6 +1059,16 @@ func main() {
 		KeyFile:    cfg.Telemetry.KeyFile,
 		CAFile:     cfg.Telemetry.CAFile,
 		ServerName: cfg.Telemetry.ServerName,
+		OnAck: func(status telemetry.ReporterStatus) {
+			if status.DesiredPolicyVersion > 0 {
+				version := int64(status.DesiredPolicyVersion)
+				if appliedPolicyVersion.Swap(version) != version {
+					if err := saveAppliedPolicyVersion(appliedPolicyStatePath, status.DesiredPolicyVersion, status.LastAckMessage); err != nil {
+						logx.System().Warn("save applied policy state failed", "error", err)
+					}
+				}
+			}
+		},
 	}, buildTelemetrySummary)
 	if err := telemetryReporter.Start(context.Background()); err != nil {
 		logx.System().Warn("telemetry reporter start failed", "error", err)
@@ -1076,6 +1103,8 @@ func main() {
 			TelemetryEnabled:     reporterStatus.Enabled,
 			TelemetryHealthy:     !reporterStatus.Enabled || reporterStatus.ConsecutiveFailures == 0,
 			TelemetryLastError:   reporterStatus.LastError,
+			TelemetryLastAck:     reporterStatus.LastAckMessage,
+			DesiredPolicyVersion: reporterStatus.DesiredPolicyVersion,
 		}
 		if !reporterStatus.LastSuccess.IsZero() {
 			hs.TelemetryLastSuccess = reporterStatus.LastSuccess.UTC().Format(time.RFC3339)
@@ -1091,49 +1120,51 @@ func main() {
 		local := buildTelemetrySummary()
 		agentsByID := map[string]api.ClusterAgent{
 			local.AgentID: {
-				AgentID:         local.AgentID,
-				Hostname:        local.Hostname,
-				OS:              local.OS,
-				OSVersion:       local.OSVersion,
-				Kernel:          local.Kernel,
-				Architecture:    local.Architecture,
-				CPUCount:        local.CPUCount,
-				Status:          local.Status,
-				Version:         local.Version,
-				LastReportAt:    time.Now().UTC().Format(time.RFC3339),
-				EventsIngested:  local.EventsIngested,
-				EventsDropped:   local.EventsDropped,
-				MemoryBytes:     local.MemoryBytes,
-				UptimeSeconds:   local.UptimeSeconds,
-				PipelineHealthy: local.PipelineHealthy,
-				StoreHealthy:    local.StoreHealthy,
-				AttachmentMode:  local.AttachmentMode,
+				AgentID:              local.AgentID,
+				Hostname:             local.Hostname,
+				OS:                   local.OS,
+				OSVersion:            local.OSVersion,
+				Kernel:               local.Kernel,
+				Architecture:         local.Architecture,
+				CPUCount:             local.CPUCount,
+				Status:               local.Status,
+				Version:              local.Version,
+				LastReportAt:         time.Now().UTC().Format(time.RFC3339),
+				EventsIngested:       local.EventsIngested,
+				EventsDropped:        local.EventsDropped,
+				MemoryBytes:          local.MemoryBytes,
+				UptimeSeconds:        local.UptimeSeconds,
+				PipelineHealthy:      local.PipelineHealthy,
+				StoreHealthy:         local.StoreHealthy,
+				AttachmentMode:       local.AttachmentMode,
+				AppliedPolicyVersion: local.AppliedPolicyVersion,
 			},
 		}
 		if mgmtServer != nil {
 			for _, agent := range mgmtServer.TelemetryOverview() {
 				agentsByID[agent.AgentID] = api.ClusterAgent{
-					AgentID:         agent.AgentID,
-					Hostname:        agent.Hostname,
-					OS:              agent.OS,
-					OSVersion:       agent.OSVersion,
-					Kernel:          agent.Kernel,
-					Architecture:    agent.Architecture,
-					CPUCount:        agent.CPUCount,
-					Group:           agent.Group,
-					Tags:            agent.Tags,
-					Status:          agent.Status,
-					StatusReason:    agent.StatusReason,
-					Version:         agent.Version,
-					LastReportAt:    agent.LastReportAt.UTC().Format(time.RFC3339),
-					LastReportAge:   agent.LastReportAge,
-					EventsIngested:  agent.EventsIngested,
-					EventsDropped:   agent.EventsDropped,
-					MemoryBytes:     agent.MemoryBytes,
-					UptimeSeconds:   agent.UptimeSeconds,
-					PipelineHealthy: agent.PipelineHealthy,
-					StoreHealthy:    agent.StoreHealthy,
-					AttachmentMode:  agent.AttachmentMode,
+					AgentID:              agent.AgentID,
+					Hostname:             agent.Hostname,
+					OS:                   agent.OS,
+					OSVersion:            agent.OSVersion,
+					Kernel:               agent.Kernel,
+					Architecture:         agent.Architecture,
+					CPUCount:             agent.CPUCount,
+					Group:                agent.Group,
+					Tags:                 agent.Tags,
+					Status:               agent.Status,
+					StatusReason:         agent.StatusReason,
+					Version:              agent.Version,
+					LastReportAt:         agent.LastReportAt.UTC().Format(time.RFC3339),
+					LastReportAge:        agent.LastReportAge,
+					EventsIngested:       agent.EventsIngested,
+					EventsDropped:        agent.EventsDropped,
+					MemoryBytes:          agent.MemoryBytes,
+					UptimeSeconds:        agent.UptimeSeconds,
+					PipelineHealthy:      agent.PipelineHealthy,
+					StoreHealthy:         agent.StoreHealthy,
+					AttachmentMode:       agent.AttachmentMode,
+					AppliedPolicyVersion: agent.AppliedPolicyVersion,
 				}
 			}
 		}
@@ -1163,23 +1194,24 @@ func main() {
 		}
 		local := buildTelemetrySummary()
 		localAgent := api.ClusterAgent{
-			AgentID:         local.AgentID,
-			Hostname:        local.Hostname,
-			OS:              local.OS,
-			OSVersion:       local.OSVersion,
-			Kernel:          local.Kernel,
-			Architecture:    local.Architecture,
-			CPUCount:        local.CPUCount,
-			Status:          local.Status,
-			Version:         local.Version,
-			LastReportAt:    time.Now().UTC().Format(time.RFC3339),
-			EventsIngested:  local.EventsIngested,
-			EventsDropped:   local.EventsDropped,
-			MemoryBytes:     local.MemoryBytes,
-			UptimeSeconds:   local.UptimeSeconds,
-			PipelineHealthy: local.PipelineHealthy,
-			StoreHealthy:    local.StoreHealthy,
-			AttachmentMode:  local.AttachmentMode,
+			AgentID:              local.AgentID,
+			Hostname:             local.Hostname,
+			OS:                   local.OS,
+			OSVersion:            local.OSVersion,
+			Kernel:               local.Kernel,
+			Architecture:         local.Architecture,
+			CPUCount:             local.CPUCount,
+			Status:               local.Status,
+			Version:              local.Version,
+			LastReportAt:         time.Now().UTC().Format(time.RFC3339),
+			EventsIngested:       local.EventsIngested,
+			EventsDropped:        local.EventsDropped,
+			MemoryBytes:          local.MemoryBytes,
+			UptimeSeconds:        local.UptimeSeconds,
+			PipelineHealthy:      local.PipelineHealthy,
+			StoreHealthy:         local.StoreHealthy,
+			AttachmentMode:       local.AttachmentMode,
+			AppliedPolicyVersion: local.AppliedPolicyVersion,
 		}
 		includeLocal := group == "" && tag == ""
 		if includeLocal {
@@ -1188,27 +1220,28 @@ func main() {
 		if mgmtServer != nil {
 			for _, agent := range mgmtServer.FleetSnapshot(mgmt.FleetFilter{Group: group, Tag: tag}) {
 				fleet.Agents = append(fleet.Agents, api.ClusterAgent{
-					AgentID:         agent.AgentID,
-					Hostname:        agent.Hostname,
-					OS:              agent.OS,
-					OSVersion:       agent.OSVersion,
-					Kernel:          agent.Kernel,
-					Architecture:    agent.Architecture,
-					CPUCount:        agent.CPUCount,
-					Group:           agent.Group,
-					Tags:            agent.Tags,
-					Status:          agent.Status,
-					StatusReason:    agent.StatusReason,
-					Version:         agent.Version,
-					LastReportAt:    agent.LastReportAt.UTC().Format(time.RFC3339),
-					LastReportAge:   agent.LastReportAge,
-					EventsIngested:  agent.EventsIngested,
-					EventsDropped:   agent.EventsDropped,
-					MemoryBytes:     agent.MemoryBytes,
-					UptimeSeconds:   agent.UptimeSeconds,
-					PipelineHealthy: agent.PipelineHealthy,
-					StoreHealthy:    agent.StoreHealthy,
-					AttachmentMode:  agent.AttachmentMode,
+					AgentID:              agent.AgentID,
+					Hostname:             agent.Hostname,
+					OS:                   agent.OS,
+					OSVersion:            agent.OSVersion,
+					Kernel:               agent.Kernel,
+					Architecture:         agent.Architecture,
+					CPUCount:             agent.CPUCount,
+					Group:                agent.Group,
+					Tags:                 agent.Tags,
+					Status:               agent.Status,
+					StatusReason:         agent.StatusReason,
+					Version:              agent.Version,
+					LastReportAt:         agent.LastReportAt.UTC().Format(time.RFC3339),
+					LastReportAge:        agent.LastReportAge,
+					EventsIngested:       agent.EventsIngested,
+					EventsDropped:        agent.EventsDropped,
+					MemoryBytes:          agent.MemoryBytes,
+					UptimeSeconds:        agent.UptimeSeconds,
+					PipelineHealthy:      agent.PipelineHealthy,
+					StoreHealthy:         agent.StoreHealthy,
+					AttachmentMode:       agent.AttachmentMode,
+					AppliedPolicyVersion: agent.AppliedPolicyVersion,
 				})
 			}
 		}
@@ -1218,9 +1251,11 @@ func main() {
 		if mgmtServer == nil {
 			err := fmt.Errorf("mgmt server not available")
 			fleetAudit.record("fleet_update", update.Actor, update.Role, update.AgentID, update.Note, "failed", err.Error())
+			logControlAudit(auditStore, "fleet", "fleet_update", update.Actor, update.Role, update.AgentID, update.Note, "failed", err.Error())
 			return err
 		}
 		mgmtServer.UpsertAgentMetadata(update.AgentID, update.Group, update.Tags)
+		message := fmt.Sprintf("fleet metadata updated: group=%s tags=%s", strings.TrimSpace(update.Group), strings.Join(update.Tags, ","))
 		fleetAudit.record(
 			"fleet_update",
 			update.Actor,
@@ -1228,8 +1263,9 @@ func main() {
 			update.AgentID,
 			update.Note,
 			"updated",
-			fmt.Sprintf("fleet metadata updated: group=%s tags=%s", strings.TrimSpace(update.Group), strings.Join(update.Tags, ",")),
+			message,
 		)
+		logControlAudit(auditStore, "fleet", "fleet_update", update.Actor, update.Role, update.AgentID, update.Note, "updated", message)
 		return nil
 	})
 	apiServer.SetSupportBundleFunc(func() api.SupportBundleSummary {
@@ -1749,12 +1785,13 @@ func main() {
 			}
 			now := time.Now().UTC().Format(time.RFC3339)
 			base := api.PolicySummary{
-				Version:      1,
-				State:        "published",
-				UpdatedAt:    now,
-				PublishedAt:  now,
-				ActiveRules:  rules,
-				SigmaRuleIDs: ruleIDs,
+				Version:          1,
+				State:            "published",
+				UpdatedAt:        now,
+				PublishedAt:      now,
+				ActiveRules:      rules,
+				SigmaRuleIDs:     ruleIDs,
+				DeploymentStatus: "local_applied",
 			}
 			draft := base
 			draft.State = "draft"
@@ -1783,25 +1820,65 @@ func main() {
 		if mgmtServer == nil {
 			err := fmt.Errorf("mgmt server not available")
 			policyAudit.record(req.Action, req.Actor, req.Role, "", req.Notes, "failed", err.Error())
+			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, "", req.Notes, "failed", err.Error())
 			return api.PolicySummary{}, err
 		}
 		switch strings.ToLower(strings.TrimSpace(req.Action)) {
 		case "publish":
 			summary := toAPIPolicySummary(mgmtServer.PublishPolicy(req.Notes))
-			policyAudit.record(req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", summary.Version), req.Notes, "published", "policy published")
+			target := fmt.Sprintf("v%d", summary.Version)
+			message := fmt.Sprintf("policy published with deployment status %s", summary.DeploymentStatus)
+			policyAudit.record(req.Action, req.Actor, req.Role, target, req.Notes, "published", message)
+			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, "published", message)
 			return summary, nil
 		case "rollback":
 			revision, err := mgmtServer.RollbackPolicy(req.TargetVersion, req.Notes)
 			if err != nil {
 				policyAudit.record(req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", req.TargetVersion), req.Notes, "failed", err.Error())
+				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", req.TargetVersion), req.Notes, "failed", err.Error())
 				return api.PolicySummary{}, err
 			}
 			summary := toAPIPolicySummary(revision)
-			policyAudit.record(req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", summary.Version), req.Notes, "rolled_back", fmt.Sprintf("policy rolled back from v%d", req.TargetVersion))
+			target := fmt.Sprintf("v%d", summary.Version)
+			message := fmt.Sprintf("policy rolled back from v%d with deployment status %s", req.TargetVersion, summary.DeploymentStatus)
+			policyAudit.record(req.Action, req.Actor, req.Role, target, req.Notes, "rolled_back", message)
+			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, "rolled_back", message)
+			return summary, nil
+		case "add_sigma", "update_sigma", "remove_sigma", "add_whitelist", "remove_whitelist", "clear_whitelist", "add_taint", "remove_taint":
+			update, target, err := policyUpdateFromAction(req)
+			if err != nil {
+				policyAudit.record(req.Action, req.Actor, req.Role, target, req.Notes, "failed", err.Error())
+				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, "failed", err.Error())
+				return api.PolicySummary{}, err
+			}
+			ack, err := mgmtServer.UpdatePolicy(context.Background(), update)
+			if err != nil {
+				policyAudit.record(req.Action, req.Actor, req.Role, target, req.Notes, "failed", err.Error())
+				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, "failed", err.Error())
+				return api.PolicySummary{}, err
+			}
+			if !ack.Success {
+				err := fmt.Errorf("%s", strings.TrimSpace(ack.Message))
+				if err.Error() == "" {
+					err = fmt.Errorf("policy update rejected")
+				}
+				policyAudit.record(req.Action, req.Actor, req.Role, target, req.Notes, "failed", err.Error())
+				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, "failed", err.Error())
+				return api.PolicySummary{}, err
+			}
+			summary := toAPIPolicySummary(mgmtServer.PolicyCenter().Draft)
+			status := "draft_updated"
+			message := strings.TrimSpace(ack.Message)
+			if message == "" {
+				message = "policy draft updated"
+			}
+			policyAudit.record(req.Action, req.Actor, req.Role, target, req.Notes, status, message)
+			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, status, message)
 			return summary, nil
 		default:
 			err := fmt.Errorf("unknown policy action %q", req.Action)
 			policyAudit.record(req.Action, req.Actor, req.Role, "", req.Notes, "failed", err.Error())
+			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, "", req.Notes, "failed", err.Error())
 			return api.PolicySummary{}, err
 		}
 	})
@@ -2008,6 +2085,8 @@ func main() {
 			CAFile:            cfg.TLS.CAFile,
 			EnableTLS:         true,
 			RequireClientCert: true,
+			StateFile:         filepath.Join(cfg.Output.Dir, "control-plane-state.json"),
+			PolicyBundleDir:   filepath.Join(cfg.Output.Dir, "policy-bundles"),
 		}
 		mgmtServer, err = mgmt.NewServer(mgmtCfg)
 		if err != nil {
@@ -2289,6 +2368,49 @@ func healthStatus(pipelineHealthy, storeHealthy bool) string {
 	return "unhealthy"
 }
 
+func loadAppliedPolicyVersion(path string) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	var state appliedPolicyState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return 0, err
+	}
+	return state.Version, nil
+}
+
+func saveAppliedPolicyVersion(path string, version int, ack string) error {
+	if version <= 0 {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		return err
+	}
+	state := appliedPolicyState{
+		Version:       version,
+		LastAck:       strings.TrimSpace(ack),
+		LastApplied:   time.Now().UTC().Format(time.RFC3339),
+		SchemaVersion: 1,
+	}
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
 func toAPIPolicySummary(revision mgmt.PolicyRevision) api.PolicySummary {
 	summary := api.PolicySummary{
 		Version:          revision.Version,
@@ -2298,6 +2420,12 @@ func toAPIPolicySummary(revision mgmt.PolicyRevision) api.PolicySummary {
 		SigmaRuleIDs:     append([]string(nil), revision.SigmaRuleIDs...),
 		WhitelistCount:   revision.WhitelistCount,
 		TaintSourceCount: revision.TaintSourceCount,
+		DeploymentStatus: revision.DeploymentStatus,
+		TargetAgents:     revision.TargetAgents,
+		AckedAgents:      revision.AckedAgents,
+		PendingAgents:    revision.PendingAgents,
+		BundlePath:       revision.BundlePath,
+		BundleSHA256:     revision.BundleSHA256,
 	}
 	if !revision.UpdatedAt.IsZero() {
 		summary.UpdatedAt = revision.UpdatedAt.UTC().Format(time.RFC3339)
@@ -2306,6 +2434,96 @@ func toAPIPolicySummary(revision mgmt.PolicyRevision) api.PolicySummary {
 		summary.PublishedAt = revision.PublishedAt.UTC().Format(time.RFC3339)
 	}
 	return summary
+}
+
+func policyUpdateFromAction(req api.PolicyActionRequest) (*mgmtpb.PolicyUpdate, string, error) {
+	action := strings.ToLower(strings.TrimSpace(req.Action))
+	switch action {
+	case "add_sigma", "update_sigma", "remove_sigma":
+		ruleID := strings.TrimSpace(req.RuleID)
+		if ruleID == "" {
+			return nil, "", fmt.Errorf("rule_id is required")
+		}
+		ruleAction := strings.TrimSuffix(action, "_sigma")
+		if ruleAction == "add" || ruleAction == "update" {
+			if strings.TrimSpace(req.RuleYAML) == "" {
+				return nil, ruleID, fmt.Errorf("rule_yaml is required")
+			}
+		}
+		return &mgmtpb.PolicyUpdate{
+			Update: &mgmtpb.PolicyUpdate_Sigma{
+				Sigma: &mgmtpb.SigmaRule{
+					Action:   ruleAction,
+					RuleId:   ruleID,
+					RuleYaml: req.RuleYAML,
+				},
+			},
+		}, ruleID, nil
+	case "add_whitelist", "remove_whitelist", "clear_whitelist":
+		whitelistAction := strings.TrimSuffix(action, "_whitelist")
+		target := strings.TrimSpace(req.WhitelistTarget)
+		value := strings.TrimSpace(req.WhitelistValue)
+		if whitelistAction == "clear" {
+			target = "path"
+			value = "*"
+		} else {
+			if target == "" {
+				return nil, "", fmt.Errorf("whitelist_target is required")
+			}
+			if value == "" {
+				return nil, target, fmt.Errorf("whitelist_value is required")
+			}
+		}
+		return &mgmtpb.PolicyUpdate{
+			Update: &mgmtpb.PolicyUpdate_Whitelist{
+				Whitelist: &mgmtpb.WhitelistUpdate{
+					Action: whitelistAction,
+					Target: target,
+					Value:  value,
+				},
+			},
+		}, target + ":" + value, nil
+	case "add_taint", "remove_taint":
+		prefix := strings.TrimSpace(req.TaintPrefix)
+		if prefix == "" {
+			return nil, "", fmt.Errorf("taint_prefix is required")
+		}
+		return &mgmtpb.PolicyUpdate{
+			Update: &mgmtpb.PolicyUpdate_TaintSource{
+				TaintSource: &mgmtpb.TaintSource{
+					Action:   strings.TrimSuffix(action, "_taint"),
+					IpPrefix: prefix,
+					Label:    strings.TrimSpace(req.TaintLabel),
+				},
+			},
+		}, prefix, nil
+	default:
+		return nil, "", fmt.Errorf("unsupported policy edit action %q", req.Action)
+	}
+}
+
+func logControlAudit(store *audit.Store, source, action, actor, role, target, note, status, message string) {
+	if store == nil {
+		return
+	}
+	severity := "INFO"
+	if strings.EqualFold(status, "failed") {
+		severity = "WARNING"
+	}
+	_ = store.Log(audit.Entry{
+		Category: audit.CatAdmin,
+		Severity: severity,
+		Message:  message,
+		Source:   source,
+		Details: map[string]interface{}{
+			"action": action,
+			"actor":  actor,
+			"role":   role,
+			"target": target,
+			"note":   note,
+			"status": status,
+		},
+	})
 }
 
 func toAPIAlertWorkflowItem(item alertflow.Alert) api.AlertWorkflowItem {

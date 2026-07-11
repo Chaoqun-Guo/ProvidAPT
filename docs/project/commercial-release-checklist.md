@@ -17,6 +17,10 @@ This checklist turns the engineering release into a customer-ready commercial de
 
 - Release notes and changelog describe customer-visible changes.
 - Installation and upgrade paths are documented for source, package, container, and Helm deployments.
+- Linux service installation, uninstall, and upgrade preflight are documented at `docs/getting-started/commercial-install.md`.
+- Policy publish and rollback actions expose deployment plan status; agent-side pull/apply acknowledgements remain a release-blocking item for full centralized configuration enforcement.
+- Fleet group/tag metadata and policy history persist across control-plane restarts.
+- Telemetry acknowledgements include the desired policy version so agents can expose policy drift before full remote apply is implemented.
 - Evaluation guide is available at `docs/getting-started/evaluation.md`.
 - Supported platforms, kernel prerequisites, and known limitations are explicit.
 - Air-gapped delivery instructions and offline license process are ready when required.
@@ -27,6 +31,7 @@ This checklist turns the engineering release into a customer-ready commercial de
 - `checksums.txt` is generated and signed.
 - Version, commit, and build date are embedded in released binaries.
 - Artifact verification instructions work on a clean host.
+- Package lifecycle hooks follow `docs/developer/package-build.md`.
 - Vulnerability scan results are attached to the release evidence or explicitly waived.
 
 ## Support Readiness

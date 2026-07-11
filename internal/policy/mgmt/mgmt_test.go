@@ -7,7 +7,10 @@ package mgmt
 
 import (
 	"context"
+	"encoding/json"
 	"io"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -378,12 +381,16 @@ func TestPolicyCenterPublishRollback(t *testing.T) {
 		t.Fatalf("draft active rules = %d", center.Draft.ActiveRules)
 	}
 
+	s.telemetry.Agents["agent-01"] = AgentTelemetrySnapshot{AgentID: "agent-01", Status: "HEALTHY"}
 	published := s.PublishPolicy("release candidate")
 	if published.Version != 2 {
 		t.Fatalf("published version = %d, want 2", published.Version)
 	}
 	if published.State != "published" {
 		t.Fatalf("published state = %q", published.State)
+	}
+	if published.DeploymentStatus != "queued" || published.TargetAgents != 1 || published.PendingAgents != 1 {
+		t.Fatalf("published deployment = status %q target %d pending %d", published.DeploymentStatus, published.TargetAgents, published.PendingAgents)
 	}
 
 	rolled, err := s.RollbackPolicy(1, "rollback")
@@ -395,6 +402,88 @@ func TestPolicyCenterPublishRollback(t *testing.T) {
 	}
 	if rolled.State != "rolled_back" {
 		t.Fatalf("rolled state = %q", rolled.State)
+	}
+	if rolled.DeploymentStatus != "rollback_queued" || rolled.TargetAgents != 1 || rolled.PendingAgents != 1 {
+		t.Fatalf("rolled deployment = status %q target %d pending %d", rolled.DeploymentStatus, rolled.TargetAgents, rolled.PendingAgents)
+	}
+}
+
+func TestControlPlaneStatePersistence(t *testing.T) {
+	stateFile := filepath.Join(t.TempDir(), "control-plane-state.json")
+
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	cfg.StateFile = stateFile
+	s, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	s.UpsertAgentMetadata("agent-01", "prod", []string{"linux", "db"})
+	published := s.PublishPolicy("persist this policy")
+	if published.Version != 2 {
+		t.Fatalf("published version = %d, want 2", published.Version)
+	}
+
+	cfg2 := DefaultServerConfig()
+	cfg2.EnableTLS = false
+	cfg2.StateFile = stateFile
+	restored, err := NewServer(cfg2)
+	if err != nil {
+		t.Fatalf("NewServer restored: %v", err)
+	}
+	agents := restored.FleetSnapshot(FleetFilter{})
+	if len(agents) != 1 {
+		t.Fatalf("agents = %d, want 1", len(agents))
+	}
+	if agents[0].Group != "prod" || !hasTag(agents[0].Tags, "linux") || !hasTag(agents[0].Tags, "db") {
+		t.Fatalf("restored metadata = group %q tags %#v", agents[0].Group, agents[0].Tags)
+	}
+	center := restored.PolicyCenter()
+	if center.Current.Version != 2 || center.Current.Notes != "persist this policy" {
+		t.Fatalf("restored policy = v%d notes %q", center.Current.Version, center.Current.Notes)
+	}
+	if len(center.History) != 2 {
+		t.Fatalf("history length = %d, want 2", len(center.History))
+	}
+}
+
+func TestPolicyDeploymentAckFromTelemetrySummary(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+	s.telemetry.Agents["agent-01"] = AgentTelemetrySnapshot{AgentID: "agent-01", Status: "HEALTHY"}
+
+	published := s.PublishPolicy("deploy to agent")
+	if published.PendingAgents != 1 {
+		t.Fatalf("pending agents = %d, want 1", published.PendingAgents)
+	}
+
+	payload, err := json.Marshal(map[string]interface{}{
+		"agent_id":               "agent-01",
+		"status":                 "HEALTHY",
+		"pipeline_healthy":       true,
+		"store_healthy":          true,
+		"applied_policy_version": published.Version,
+	})
+	if err != nil {
+		t.Fatalf("marshal summary: %v", err)
+	}
+	stream := &mockReportEventsStream{
+		ctx: context.Background(),
+		events: []*mgmtpb.CompressedEvent{{
+			ContentType: "summary",
+			Payload:     payload,
+		}},
+	}
+	if err := s.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	center := s.PolicyCenter()
+	if center.Current.DeploymentStatus != "applied" || center.Current.PendingAgents != 0 || center.Current.AckedAgents != 1 {
+		t.Fatalf("deployment = status %q acked %d pending %d", center.Current.DeploymentStatus, center.Current.AckedAgents, center.Current.PendingAgents)
+	}
+	if stream.ack == nil || !strings.Contains(stream.ack.Message, "policy_version=2") {
+		t.Fatalf("ack message = %#v", stream.ack)
 	}
 }
 

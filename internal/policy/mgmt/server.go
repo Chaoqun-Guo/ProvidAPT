@@ -9,9 +9,11 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -19,6 +21,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,28 +65,49 @@ type telemetryStatus struct {
 	Agents          map[string]AgentTelemetrySnapshot
 }
 
+type persistedControlPlaneState struct {
+	Agents        map[string]persistedAgentMetadata `json:"agents,omitempty"`
+	Policy        persistedPolicyState              `json:"policy,omitempty"`
+	SavedAt       time.Time                         `json:"saved_at"`
+	SchemaVersion int                               `json:"schema_version"`
+}
+
+type persistedAgentMetadata struct {
+	Group string   `json:"group,omitempty"`
+	Tags  []string `json:"tags,omitempty"`
+}
+
+type persistedPolicyState struct {
+	Current     PolicyRevision   `json:"current"`
+	Draft       PolicyRevision   `json:"draft"`
+	History     []PolicyRevision `json:"history,omitempty"`
+	NextVersion int              `json:"next_version"`
+	Bundle      policyBundle     `json:"bundle,omitempty"`
+}
+
 type AgentTelemetrySnapshot struct {
-	AgentID         string    `json:"agent_id"`
-	Hostname        string    `json:"hostname,omitempty"`
-	OS              string    `json:"os,omitempty"`
-	OSVersion       string    `json:"os_version,omitempty"`
-	Kernel          string    `json:"kernel,omitempty"`
-	Architecture    string    `json:"architecture,omitempty"`
-	CPUCount        int       `json:"cpu_count,omitempty"`
-	Group           string    `json:"group,omitempty"`
-	Tags            []string  `json:"tags,omitempty"`
-	Version         string    `json:"version,omitempty"`
-	Status          string    `json:"status"`
-	StatusReason    string    `json:"status_reason,omitempty"`
-	LastReportAt    time.Time `json:"last_report_at"`
-	LastReportAge   int64     `json:"last_report_age_seconds"`
-	EventsIngested  uint64    `json:"events_ingested,omitempty"`
-	EventsDropped   uint64    `json:"events_dropped,omitempty"`
-	MemoryBytes     uint64    `json:"memory_bytes,omitempty"`
-	UptimeSeconds   int64     `json:"uptime_seconds,omitempty"`
-	PipelineHealthy bool      `json:"pipeline_healthy"`
-	StoreHealthy    bool      `json:"store_healthy"`
-	AttachmentMode  string    `json:"attachment_mode,omitempty"`
+	AgentID              string    `json:"agent_id"`
+	Hostname             string    `json:"hostname,omitempty"`
+	OS                   string    `json:"os,omitempty"`
+	OSVersion            string    `json:"os_version,omitempty"`
+	Kernel               string    `json:"kernel,omitempty"`
+	Architecture         string    `json:"architecture,omitempty"`
+	CPUCount             int       `json:"cpu_count,omitempty"`
+	Group                string    `json:"group,omitempty"`
+	Tags                 []string  `json:"tags,omitempty"`
+	Version              string    `json:"version,omitempty"`
+	Status               string    `json:"status"`
+	StatusReason         string    `json:"status_reason,omitempty"`
+	LastReportAt         time.Time `json:"last_report_at"`
+	LastReportAge        int64     `json:"last_report_age_seconds"`
+	EventsIngested       uint64    `json:"events_ingested,omitempty"`
+	EventsDropped        uint64    `json:"events_dropped,omitempty"`
+	MemoryBytes          uint64    `json:"memory_bytes,omitempty"`
+	UptimeSeconds        int64     `json:"uptime_seconds,omitempty"`
+	PipelineHealthy      bool      `json:"pipeline_healthy"`
+	StoreHealthy         bool      `json:"store_healthy"`
+	AttachmentMode       string    `json:"attachment_mode,omitempty"`
+	AppliedPolicyVersion int       `json:"applied_policy_version,omitempty"`
 }
 
 type FleetFilter struct {
@@ -101,6 +125,22 @@ type PolicyRevision struct {
 	SigmaRuleIDs     []string  `json:"sigma_rule_ids,omitempty"`
 	WhitelistCount   int       `json:"whitelist_count"`
 	TaintSourceCount int       `json:"taint_source_count"`
+	DeploymentStatus string    `json:"deployment_status,omitempty"`
+	TargetAgents     int       `json:"target_agents,omitempty"`
+	AckedAgents      int       `json:"acked_agents,omitempty"`
+	PendingAgents    int       `json:"pending_agents,omitempty"`
+	BundlePath       string    `json:"bundle_path,omitempty"`
+	BundleSHA256     string    `json:"bundle_sha256,omitempty"`
+}
+
+type policyBundle struct {
+	Version       int               `json:"version"`
+	State         string            `json:"state"`
+	Notes         string            `json:"notes,omitempty"`
+	GeneratedAt   time.Time         `json:"generated_at"`
+	SigmaRules    map[string]string `json:"sigma_rules,omitempty"`
+	WhitelistKeys []string          `json:"whitelist_keys,omitempty"`
+	TaintSources  []string          `json:"taint_sources,omitempty"`
 }
 
 type PolicyCenterSnapshot struct {
@@ -116,6 +156,7 @@ type policyState struct {
 	draft           PolicyRevision
 	history         []PolicyRevision
 	nextVersion     int
+	sigmaRules      map[string]string
 	whitelistKeys   map[string]struct{}
 	taintSourceKeys map[string]struct{}
 }
@@ -152,6 +193,12 @@ type ServerConfig struct {
 
 	// AgentOfflineAfter marks agents as OFFLINE when no summary is received.
 	AgentOfflineAfter time.Duration
+
+	// StateFile persists fleet metadata and policy publish history.
+	StateFile string
+
+	// PolicyBundleDir stores published policy bundle snapshots.
+	PolicyBundleDir string
 }
 
 // SetController attaches the eBPF controller for runtime policy operations.
@@ -259,6 +306,9 @@ func normalizeAgentMonitorConfig(cfg *ServerConfig) {
 	if cfg.AgentOfflineAfter < cfg.AgentStaleAfter {
 		cfg.AgentOfflineAfter = cfg.AgentStaleAfter
 	}
+	if strings.TrimSpace(cfg.PolicyBundleDir) == "" && strings.TrimSpace(cfg.StateFile) != "" {
+		cfg.PolicyBundleDir = filepath.Join(filepath.Dir(cfg.StateFile), "policy-bundles")
+	}
 }
 
 // NewServer creates a gRPC management server.
@@ -276,20 +326,25 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		},
 		policy: policyState{
 			nextVersion:     2,
+			sigmaRules:      make(map[string]string),
 			whitelistKeys:   make(map[string]struct{}),
 			taintSourceKeys: make(map[string]struct{}),
 		},
 	}
 	initialPolicy := PolicyRevision{
-		Version:     1,
-		State:       "published",
-		UpdatedAt:   s.started,
-		PublishedAt: s.started,
+		Version:          1,
+		State:            "published",
+		UpdatedAt:        s.started,
+		PublishedAt:      s.started,
+		DeploymentStatus: "local_applied",
 	}
 	s.policy.current = initialPolicy
 	s.policy.draft = clonePolicyRevision(initialPolicy)
 	s.policy.draft.State = "draft"
 	s.policy.history = []PolicyRevision{clonePolicyRevision(initialPolicy)}
+	if err := s.loadState(); err != nil {
+		return nil, err
+	}
 
 	var opts []grpc.ServerOption
 
@@ -406,9 +461,11 @@ func (s *Server) UpdatePolicy(ctx context.Context, update *mgmtpb.PolicyUpdate) 
 				break
 			}
 			s.analyzer.AddSigmaRule(u.Sigma.RuleId, parsed)
+			s.recordSigmaRule(u.Sigma.RuleId, u.Sigma.RuleYaml, true)
 			ack.Message = fmt.Sprintf("sigma rule %s applied", u.Sigma.RuleId)
 		case "remove":
 			s.analyzer.RemoveSigmaRule(u.Sigma.RuleId)
+			s.recordSigmaRule(u.Sigma.RuleId, "", false)
 			ack.Message = fmt.Sprintf("sigma rule %s removed", u.Sigma.RuleId)
 		default:
 			ack.Success = false
@@ -541,8 +598,6 @@ func (s *Server) TelemetryOverview() []AgentTelemetrySnapshot {
 
 func (s *Server) UpsertAgentMetadata(agentID, group string, tags []string) {
 	s.telemetry.mu.Lock()
-	defer s.telemetry.mu.Unlock()
-
 	snapshot := s.telemetry.Agents[agentID]
 	snapshot.AgentID = agentID
 	if group != "" {
@@ -552,6 +607,10 @@ func (s *Server) UpsertAgentMetadata(agentID, group string, tags []string) {
 		snapshot.Tags = dedupeTags(tags)
 	}
 	s.telemetry.Agents[agentID] = snapshot
+	s.telemetry.mu.Unlock()
+	if err := s.saveState(); err != nil {
+		log.Printf("[mgmt] save control-plane state: %v", err)
+	}
 }
 
 func (s *Server) FleetSnapshot(filter FleetFilter) []AgentTelemetrySnapshot {
@@ -629,9 +688,9 @@ func (s *Server) PolicyCenter() PolicyCenterSnapshot {
 }
 
 func (s *Server) PublishPolicy(notes string) PolicyRevision {
-	s.policy.mu.Lock()
-	defer s.policy.mu.Unlock()
+	targetAgents := s.policyTargetAgentCount()
 
+	s.policy.mu.Lock()
 	s.refreshPolicyDraftLocked(notes)
 	published := clonePolicyRevision(s.policy.draft)
 	published.Version = s.policy.nextVersion
@@ -639,19 +698,38 @@ func (s *Server) PublishPolicy(notes string) PolicyRevision {
 	published.Notes = strings.TrimSpace(notes)
 	published.UpdatedAt = time.Now()
 	published.PublishedAt = published.UpdatedAt
+	published.TargetAgents = targetAgents
+	published.AckedAgents = 0
+	published.PendingAgents = targetAgents
+	published.DeploymentStatus = "local_applied"
+	if targetAgents > 0 {
+		published.DeploymentStatus = "queued"
+	}
+	bundle := s.buildPolicyBundleLocked(published)
+	if path, hash, err := s.writePolicyBundle(bundle); err != nil {
+		log.Printf("[mgmt] write policy bundle: %v", err)
+	} else {
+		published.BundlePath = path
+		published.BundleSHA256 = hash
+	}
 	s.policy.nextVersion++
 
 	s.policy.current = clonePolicyRevision(published)
 	s.policy.history = append(s.policy.history, clonePolicyRevision(published))
 	s.policy.draft = clonePolicyRevision(published)
 	s.policy.draft.State = "draft"
-	return clonePolicyRevision(published)
+	out := clonePolicyRevision(published)
+	s.policy.mu.Unlock()
+	if err := s.saveState(); err != nil {
+		log.Printf("[mgmt] save control-plane state: %v", err)
+	}
+	return out
 }
 
 func (s *Server) RollbackPolicy(version int, notes string) (PolicyRevision, error) {
-	s.policy.mu.Lock()
-	defer s.policy.mu.Unlock()
+	targetAgents := s.policyTargetAgentCount()
 
+	s.policy.mu.Lock()
 	var target *PolicyRevision
 	for index := range s.policy.history {
 		if s.policy.history[index].Version == version {
@@ -660,6 +738,7 @@ func (s *Server) RollbackPolicy(version int, notes string) (PolicyRevision, erro
 		}
 	}
 	if target == nil {
+		s.policy.mu.Unlock()
 		return PolicyRevision{}, fmt.Errorf("policy version %d not found", version)
 	}
 
@@ -669,13 +748,37 @@ func (s *Server) RollbackPolicy(version int, notes string) (PolicyRevision, erro
 	rolled.Notes = strings.TrimSpace(notes)
 	rolled.UpdatedAt = time.Now()
 	rolled.PublishedAt = rolled.UpdatedAt
+	rolled.TargetAgents = targetAgents
+	rolled.AckedAgents = 0
+	rolled.PendingAgents = targetAgents
+	rolled.DeploymentStatus = "rollback_queued"
+	if targetAgents == 0 {
+		rolled.DeploymentStatus = "local_applied"
+	}
+	if bundle, err := s.readPolicyBundleLocked(*target); err == nil {
+		s.applyPolicyBundleLocked(bundle)
+	} else {
+		log.Printf("[mgmt] read rollback policy bundle: %v", err)
+	}
+	bundle := s.buildPolicyBundleLocked(rolled)
+	if path, hash, err := s.writePolicyBundle(bundle); err != nil {
+		log.Printf("[mgmt] write rollback policy bundle: %v", err)
+	} else {
+		rolled.BundlePath = path
+		rolled.BundleSHA256 = hash
+	}
 	s.policy.nextVersion++
 
 	s.policy.current = clonePolicyRevision(rolled)
 	s.policy.history = append(s.policy.history, clonePolicyRevision(rolled))
 	s.policy.draft = clonePolicyRevision(rolled)
 	s.policy.draft.State = "draft"
-	return clonePolicyRevision(rolled), nil
+	out := clonePolicyRevision(rolled)
+	s.policy.mu.Unlock()
+	if err := s.saveState(); err != nil {
+		log.Printf("[mgmt] save control-plane state: %v", err)
+	}
+	return out, nil
 }
 
 // ReportEvents receives compressed or summarized telemetry batches from agents.
@@ -692,7 +795,7 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 				return stream.SendAndClose(&mgmtpb.ReportAck{
 					Accepted:      true,
 					ThrottleLevel: 0,
-					Message:       "no events received",
+					Message:       s.policyAckMessage("no events received"),
 				})
 			}
 			s.telemetry.mu.Lock()
@@ -702,32 +805,38 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 			s.telemetry.LastAgentID = lastAgentID
 			if lastSummary.AgentID != "" {
 				s.telemetry.Agents[lastSummary.AgentID] = AgentTelemetrySnapshot{
-					AgentID:         lastSummary.AgentID,
-					Hostname:        lastSummary.Hostname,
-					OS:              lastSummary.OS,
-					OSVersion:       lastSummary.OSVersion,
-					Kernel:          lastSummary.Kernel,
-					Architecture:    lastSummary.Architecture,
-					CPUCount:        lastSummary.CPUCount,
-					Group:           s.telemetry.Agents[lastSummary.AgentID].Group,
-					Tags:            s.telemetry.Agents[lastSummary.AgentID].Tags,
-					Version:         lastSummary.Version,
-					Status:          lastSummary.Status,
-					LastReportAt:    s.telemetry.LastReportAt,
-					EventsIngested:  lastSummary.EventsIngested,
-					EventsDropped:   lastSummary.EventsDropped,
-					MemoryBytes:     lastSummary.MemoryBytes,
-					UptimeSeconds:   lastSummary.UptimeSeconds,
-					PipelineHealthy: lastSummary.PipelineHealthy,
-					StoreHealthy:    lastSummary.StoreHealthy,
-					AttachmentMode:  lastSummary.AttachmentMode,
+					AgentID:              lastSummary.AgentID,
+					Hostname:             lastSummary.Hostname,
+					OS:                   lastSummary.OS,
+					OSVersion:            lastSummary.OSVersion,
+					Kernel:               lastSummary.Kernel,
+					Architecture:         lastSummary.Architecture,
+					CPUCount:             lastSummary.CPUCount,
+					Group:                s.telemetry.Agents[lastSummary.AgentID].Group,
+					Tags:                 s.telemetry.Agents[lastSummary.AgentID].Tags,
+					Version:              lastSummary.Version,
+					Status:               lastSummary.Status,
+					LastReportAt:         s.telemetry.LastReportAt,
+					EventsIngested:       lastSummary.EventsIngested,
+					EventsDropped:        lastSummary.EventsDropped,
+					MemoryBytes:          lastSummary.MemoryBytes,
+					UptimeSeconds:        lastSummary.UptimeSeconds,
+					PipelineHealthy:      lastSummary.PipelineHealthy,
+					StoreHealthy:         lastSummary.StoreHealthy,
+					AttachmentMode:       lastSummary.AttachmentMode,
+					AppliedPolicyVersion: lastSummary.AppliedPolicyVersion,
 				}
 			}
 			s.telemetry.mu.Unlock()
+			if s.refreshPolicyDeploymentFromAgents() {
+				if err := s.saveState(); err != nil {
+					log.Printf("[mgmt] save control-plane state: %v", err)
+				}
+			}
 			return stream.SendAndClose(&mgmtpb.ReportAck{
 				Accepted:      true,
 				ThrottleLevel: 0,
-				Message:       fmt.Sprintf("accepted %d telemetry event(s)", count),
+				Message:       s.policyAckMessage(fmt.Sprintf("accepted %d telemetry event(s)", count)),
 			})
 		}
 		count++
@@ -740,6 +849,70 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 			}
 		}
 	}
+}
+
+func (s *Server) policyAckMessage(prefix string) string {
+	s.policy.mu.Lock()
+	current := clonePolicyRevision(s.policy.current)
+	s.policy.mu.Unlock()
+	if current.Version <= 0 {
+		return prefix
+	}
+	status := current.DeploymentStatus
+	if status == "" {
+		status = current.State
+	}
+	return fmt.Sprintf("%s; policy_version=%d policy_status=%s", prefix, current.Version, status)
+}
+
+func (s *Server) refreshPolicyDeploymentFromAgents() bool {
+	s.telemetry.mu.Lock()
+	appliedByAgent := make(map[string]int, len(s.telemetry.Agents))
+	for agentID, snapshot := range s.telemetry.Agents {
+		appliedByAgent[agentID] = snapshot.AppliedPolicyVersion
+	}
+	s.telemetry.mu.Unlock()
+
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+	if s.policy.current.Version <= 0 || s.policy.current.TargetAgents <= 0 {
+		return false
+	}
+	acked := 0
+	for _, version := range appliedByAgent {
+		if version >= s.policy.current.Version {
+			acked++
+		}
+	}
+	if acked > s.policy.current.TargetAgents {
+		acked = s.policy.current.TargetAgents
+	}
+	pending := s.policy.current.TargetAgents - acked
+	if pending < 0 {
+		pending = 0
+	}
+	status := s.policy.current.DeploymentStatus
+	if pending == 0 {
+		status = "applied"
+	} else if status == "" || status == "applied" {
+		status = "queued"
+	}
+	if s.policy.current.AckedAgents == acked &&
+		s.policy.current.PendingAgents == pending &&
+		s.policy.current.DeploymentStatus == status {
+		return false
+	}
+	s.policy.current.AckedAgents = acked
+	s.policy.current.PendingAgents = pending
+	s.policy.current.DeploymentStatus = status
+	for index := range s.policy.history {
+		if s.policy.history[index].Version == s.policy.current.Version {
+			s.policy.history[index].AckedAgents = acked
+			s.policy.history[index].PendingAgents = pending
+			s.policy.history[index].DeploymentStatus = status
+		}
+	}
+	return true
 }
 
 func (s *Server) refreshPolicyDraft(notes string) {
@@ -764,6 +937,205 @@ func (s *Server) refreshPolicyDraftLocked(notes string) {
 	draft.WhitelistCount = len(s.policy.whitelistKeys)
 	draft.TaintSourceCount = len(s.policy.taintSourceKeys)
 	s.policy.draft = draft
+}
+
+func (s *Server) buildPolicyBundleLocked(revision PolicyRevision) policyBundle {
+	bundle := policyBundle{
+		Version:       revision.Version,
+		State:         revision.State,
+		Notes:         strings.TrimSpace(revision.Notes),
+		GeneratedAt:   time.Now().UTC(),
+		SigmaRules:    make(map[string]string, len(s.policy.sigmaRules)),
+		WhitelistKeys: sortedPolicyKeys(s.policy.whitelistKeys),
+		TaintSources:  sortedPolicyKeys(s.policy.taintSourceKeys),
+	}
+	for ruleID, ruleYAML := range s.policy.sigmaRules {
+		bundle.SigmaRules[ruleID] = ruleYAML
+	}
+	if len(bundle.SigmaRules) == 0 {
+		bundle.SigmaRules = nil
+	}
+	return bundle
+}
+
+func (s *Server) applyPolicyBundleLocked(bundle policyBundle) {
+	s.policy.sigmaRules = make(map[string]string, len(bundle.SigmaRules))
+	for ruleID, ruleYAML := range bundle.SigmaRules {
+		s.policy.sigmaRules[ruleID] = ruleYAML
+	}
+	s.policy.whitelistKeys = keysToSet(bundle.WhitelistKeys)
+	s.policy.taintSourceKeys = keysToSet(bundle.TaintSources)
+}
+
+func (s *Server) writePolicyBundle(bundle policyBundle) (string, string, error) {
+	data, err := json.MarshalIndent(bundle, "", "  ")
+	if err != nil {
+		return "", "", fmt.Errorf("encode policy bundle: %w", err)
+	}
+	sum := sha256.Sum256(data)
+	hash := hex.EncodeToString(sum[:])
+	if strings.TrimSpace(s.config.PolicyBundleDir) == "" {
+		return "", hash, nil
+	}
+	if err := os.MkdirAll(s.config.PolicyBundleDir, 0750); err != nil {
+		return "", "", fmt.Errorf("create policy bundle dir: %w", err)
+	}
+	path := filepath.Join(s.config.PolicyBundleDir, fmt.Sprintf("policy-v%d.json", bundle.Version))
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return "", "", fmt.Errorf("write policy bundle: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return "", "", fmt.Errorf("replace policy bundle: %w", err)
+	}
+	return path, hash, nil
+}
+
+func (s *Server) readPolicyBundleLocked(revision PolicyRevision) (policyBundle, error) {
+	if strings.TrimSpace(revision.BundlePath) == "" {
+		return policyBundle{}, fmt.Errorf("policy version %d has no bundle path", revision.Version)
+	}
+	data, err := os.ReadFile(revision.BundlePath)
+	if err != nil {
+		return policyBundle{}, fmt.Errorf("read policy bundle %s: %w", revision.BundlePath, err)
+	}
+	if revision.BundleSHA256 != "" {
+		sum := sha256.Sum256(data)
+		if !strings.EqualFold(hex.EncodeToString(sum[:]), revision.BundleSHA256) {
+			return policyBundle{}, fmt.Errorf("policy bundle checksum mismatch for version %d", revision.Version)
+		}
+	}
+	var bundle policyBundle
+	if err := json.Unmarshal(data, &bundle); err != nil {
+		return policyBundle{}, fmt.Errorf("decode policy bundle: %w", err)
+	}
+	return bundle, nil
+}
+
+func (s *Server) policyTargetAgentCount() int {
+	s.telemetry.mu.Lock()
+	defer s.telemetry.mu.Unlock()
+	return len(s.telemetry.Agents)
+}
+
+func (s *Server) loadState() error {
+	if strings.TrimSpace(s.config.StateFile) == "" {
+		return nil
+	}
+	data, err := os.ReadFile(s.config.StateFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read control-plane state: %w", err)
+	}
+	var state persistedControlPlaneState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return fmt.Errorf("decode control-plane state: %w", err)
+	}
+
+	s.telemetry.mu.Lock()
+	for agentID, metadata := range state.Agents {
+		snapshot := s.telemetry.Agents[agentID]
+		snapshot.AgentID = agentID
+		snapshot.Group = metadata.Group
+		snapshot.Tags = dedupeTags(metadata.Tags)
+		s.telemetry.Agents[agentID] = snapshot
+	}
+	s.telemetry.mu.Unlock()
+
+	s.policy.mu.Lock()
+	if state.Policy.Current.Version > 0 {
+		s.policy.current = clonePolicyRevision(state.Policy.Current)
+	}
+	if state.Policy.Draft.Version > 0 {
+		s.policy.draft = clonePolicyRevision(state.Policy.Draft)
+	}
+	if len(state.Policy.History) > 0 {
+		s.policy.history = make([]PolicyRevision, 0, len(state.Policy.History))
+		for _, item := range state.Policy.History {
+			s.policy.history = append(s.policy.history, clonePolicyRevision(item))
+		}
+	}
+	if state.Policy.NextVersion > 0 {
+		s.policy.nextVersion = state.Policy.NextVersion
+	}
+	if state.Policy.Bundle.Version > 0 ||
+		len(state.Policy.Bundle.SigmaRules) > 0 ||
+		len(state.Policy.Bundle.WhitelistKeys) > 0 ||
+		len(state.Policy.Bundle.TaintSources) > 0 {
+		s.applyPolicyBundleLocked(state.Policy.Bundle)
+	}
+	s.policy.mu.Unlock()
+	return nil
+}
+
+func (s *Server) saveState() error {
+	if strings.TrimSpace(s.config.StateFile) == "" {
+		return nil
+	}
+	state := persistedControlPlaneState{
+		Agents:        map[string]persistedAgentMetadata{},
+		SavedAt:       time.Now().UTC(),
+		SchemaVersion: 1,
+	}
+
+	s.telemetry.mu.Lock()
+	for agentID, snapshot := range s.telemetry.Agents {
+		if snapshot.Group == "" && len(snapshot.Tags) == 0 {
+			continue
+		}
+		state.Agents[agentID] = persistedAgentMetadata{
+			Group: snapshot.Group,
+			Tags:  append([]string(nil), snapshot.Tags...),
+		}
+	}
+	s.telemetry.mu.Unlock()
+
+	s.policy.mu.Lock()
+	state.Policy = persistedPolicyState{
+		Current:     clonePolicyRevision(s.policy.current),
+		Draft:       clonePolicyRevision(s.policy.draft),
+		History:     make([]PolicyRevision, 0, len(s.policy.history)),
+		NextVersion: s.policy.nextVersion,
+		Bundle:      s.buildPolicyBundleLocked(s.policy.current),
+	}
+	for _, item := range s.policy.history {
+		state.Policy.History = append(state.Policy.History, clonePolicyRevision(item))
+	}
+	s.policy.mu.Unlock()
+
+	if err := os.MkdirAll(filepath.Dir(s.config.StateFile), 0750); err != nil {
+		return fmt.Errorf("create control-plane state dir: %w", err)
+	}
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode control-plane state: %w", err)
+	}
+	tmp := s.config.StateFile + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return fmt.Errorf("write control-plane state: %w", err)
+	}
+	if err := os.Rename(tmp, s.config.StateFile); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("replace control-plane state: %w", err)
+	}
+	return nil
+}
+
+func (s *Server) recordSigmaRule(ruleID, ruleYAML string, present bool) {
+	s.policy.mu.Lock()
+	defer s.policy.mu.Unlock()
+	ruleID = strings.TrimSpace(ruleID)
+	if ruleID == "" {
+		return
+	}
+	if present {
+		s.policy.sigmaRules[ruleID] = ruleYAML
+	} else {
+		delete(s.policy.sigmaRules, ruleID)
+	}
 }
 
 func (s *Server) recordWhitelistKey(key string, present bool) {
@@ -795,6 +1167,29 @@ func (s *Server) recordTaintSourceKey(key string, present bool) {
 func clonePolicyRevision(revision PolicyRevision) PolicyRevision {
 	revision.SigmaRuleIDs = append([]string(nil), revision.SigmaRuleIDs...)
 	return revision
+}
+
+func sortedPolicyKeys(keys map[string]struct{}) []string {
+	if len(keys) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(keys))
+	for key := range keys {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func keysToSet(keys []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if key != "" {
+			out[key] = struct{}{}
+		}
+	}
+	return out
 }
 
 func dedupeTags(tags []string) []string {
