@@ -111,6 +111,17 @@ Each publish or rollback writes a versioned policy bundle under `policy-bundles/
 
 Operators can download the current or historical bundle from Policy Center, or directly through `/api/v1/control/policies/bundle?version=<n>`.
 
+Agents can automatically pull and apply the desired policy version after telemetry acknowledgement. Configure:
+
+```yaml
+policy:
+  endpoint: "http://CONTROL_PLANE_HOST:18080"
+  api_key: "admin-or-auditor-api-key"
+  bundle_dir: "/var/log/providapt/applied-policy-bundles"
+```
+
+If `policy.endpoint` is omitted, the agent attempts to derive `http://<telemetry-host>:8080` from `telemetry.endpoint`. Set `PROVIDAPT_POLICY_ENDPOINT` explicitly in production when the REST control-plane port differs.
+
 Admins can edit the policy draft from Policy Center before publishing:
 
 - `add_sigma`, `update_sigma`, `remove_sigma` with `rule_id` and optional `rule_yaml`

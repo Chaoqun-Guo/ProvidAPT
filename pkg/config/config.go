@@ -119,6 +119,16 @@ type Config struct {
 		ServerName string `json:"server_name" yaml:"server_name"`
 	} `json:"telemetry" yaml:"telemetry"`
 
+	Policy struct {
+		Endpoint     string `json:"endpoint" yaml:"endpoint"`
+		APIKey       string `json:"api_key" yaml:"api_key"`
+		PollInterval string `json:"poll_interval" yaml:"poll_interval"`
+		BundleDir    string `json:"bundle_dir" yaml:"bundle_dir"`
+		EnableTLS    bool   `json:"enable_tls" yaml:"enable_tls"`
+		CAFile       string `json:"ca_file" yaml:"ca_file"`
+		Enabled      bool   `json:"enabled" yaml:"enabled"`
+	} `json:"policy" yaml:"policy"`
+
 	SupportBundle struct {
 		RetainArchives int  `json:"retain_archives" yaml:"retain_archives"`
 		RedactArchives bool `json:"redact_archives" yaml:"redact_archives"`
@@ -211,6 +221,7 @@ func DefaultConfig() *Config {
 	c.Notify.MaxAttempts = 3
 	c.Notify.RetryBackoff = "250ms"
 	c.Telemetry.Interval = "30s"
+	c.Policy.PollInterval = "30s"
 	c.SupportBundle.RetainArchives = 5
 	c.SupportBundle.RedactArchives = true
 	c.License.GracePeriodDays = 0
@@ -258,6 +269,7 @@ func resolveSecrets(cfg *Config) {
 	resolveSecretString(&cfg.Notify.TicketWebhookAuth, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_AUTH")
 	resolveSecretString(&cfg.Notify.JiraAPIToken, "PROVIDAPT_NOTIFY_JIRA_API_TOKEN")
 	resolveSecretString(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
+	resolveSecretString(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
 	resolveSecretString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
 	resolveSecretString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
 }
@@ -371,6 +383,11 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Telemetry.KeyFile, "PROVIDAPT_TELEMETRY_KEY_FILE")
 	overrideString(&cfg.Telemetry.CAFile, "PROVIDAPT_TELEMETRY_CA_FILE")
 	overrideString(&cfg.Telemetry.ServerName, "PROVIDAPT_TELEMETRY_SERVER_NAME")
+	overrideString(&cfg.Policy.Endpoint, "PROVIDAPT_POLICY_ENDPOINT")
+	overrideString(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
+	overrideString(&cfg.Policy.PollInterval, "PROVIDAPT_POLICY_POLL_INTERVAL")
+	overrideString(&cfg.Policy.BundleDir, "PROVIDAPT_POLICY_BUNDLE_DIR")
+	overrideString(&cfg.Policy.CAFile, "PROVIDAPT_POLICY_CA_FILE")
 	overrideString(&cfg.Notify.RetryBackoff, "PROVIDAPT_NOTIFY_RETRY_BACKOFF")
 	overrideString(&cfg.Notify.TicketProvider, "PROVIDAPT_NOTIFY_TICKET_PROVIDER")
 	overrideString(&cfg.Notify.TicketWebhookURL, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_URL")
@@ -410,6 +427,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
 	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
 	overrideBool(&cfg.Telemetry.EnableTLS, "PROVIDAPT_TELEMETRY_ENABLE_TLS")
+	overrideBool(&cfg.Policy.Enabled, "PROVIDAPT_POLICY_ENABLED")
+	overrideBool(&cfg.Policy.EnableTLS, "PROVIDAPT_POLICY_ENABLE_TLS")
 	overrideBool(&cfg.SupportBundle.RedactArchives, "PROVIDAPT_SUPPORT_REDACT_ARCHIVES")
 
 	overrideInt(&cfg.Capture.MaxEvents, "PROVIDAPT_CAPTURE_MAX_EVENTS")

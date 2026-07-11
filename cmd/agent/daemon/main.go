@@ -17,9 +17,11 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -38,6 +40,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/pipeline"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 	mgmt "github.com/Chaoqun-Guo/ProvidAPT/internal/policy/mgmt"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/sigma"
 	storage "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/format"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/version"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/alertflow"
@@ -72,9 +75,29 @@ type systemEnvironment struct {
 
 type appliedPolicyState struct {
 	Version       int    `json:"version"`
+	BundleSHA256  string `json:"bundle_sha256,omitempty"`
+	BundlePath    string `json:"bundle_path,omitempty"`
 	LastAck       string `json:"last_ack,omitempty"`
 	LastApplied   string `json:"last_applied,omitempty"`
 	SchemaVersion int    `json:"schema_version"`
+}
+
+type agentPolicyBundle struct {
+	Version       int               `json:"version"`
+	State         string            `json:"state"`
+	Notes         string            `json:"notes,omitempty"`
+	GeneratedAt   time.Time         `json:"generated_at"`
+	SigmaRules    map[string]string `json:"sigma_rules,omitempty"`
+	WhitelistKeys []string          `json:"whitelist_keys,omitempty"`
+	TaintSources  []string          `json:"taint_sources,omitempty"`
+}
+
+type agentPolicyClientConfig struct {
+	Endpoint  string
+	APIKey    string
+	BundleDir string
+	EnableTLS bool
+	CAFile    string
 }
 
 func collectSystemEnvironment(hostname string) systemEnvironment {
@@ -1017,6 +1040,16 @@ func main() {
 	if err != nil || telemetryInterval <= 0 {
 		telemetryInterval = 30 * time.Second
 	}
+	policyClientCfg := agentPolicyClientConfig{
+		Endpoint:  resolvePolicyEndpoint(cfg.Policy.Endpoint, cfg.Telemetry.Endpoint),
+		APIKey:    cfg.Policy.APIKey,
+		BundleDir: cfg.Policy.BundleDir,
+		EnableTLS: cfg.Policy.EnableTLS,
+		CAFile:    cfg.Policy.CAFile,
+	}
+	if policyClientCfg.BundleDir == "" {
+		policyClientCfg.BundleDir = filepath.Join(cfg.Output.Dir, "applied-policy-bundles")
+	}
 
 	buildTelemetrySummary := func() telemetry.Summary {
 		var m runtime.MemStats
@@ -1062,11 +1095,19 @@ func main() {
 		OnAck: func(status telemetry.ReporterStatus) {
 			if status.DesiredPolicyVersion > 0 {
 				version := int64(status.DesiredPolicyVersion)
-				if appliedPolicyVersion.Swap(version) != version {
-					if err := saveAppliedPolicyVersion(appliedPolicyStatePath, status.DesiredPolicyVersion, status.LastAckMessage); err != nil {
-						logx.System().Warn("save applied policy state failed", "error", err)
-					}
+				if appliedPolicyVersion.Load() == version {
+					return
 				}
+				applied, err := fetchAndApplyPolicyBundle(context.Background(), policyClientCfg, status.DesiredPolicyVersion, apt, bpfLoader.Ctrl)
+				if err != nil {
+					logx.System().Warn("apply remote policy bundle failed", "version", status.DesiredPolicyVersion, "error", err)
+					return
+				}
+				appliedPolicyVersion.Store(version)
+				if err := saveAppliedPolicyVersion(appliedPolicyStatePath, status.DesiredPolicyVersion, status.LastAckMessage, applied.SHA256, applied.Path); err != nil {
+					logx.System().Warn("save applied policy state failed", "error", err)
+				}
+				logx.System().Info("remote policy bundle applied", "version", status.DesiredPolicyVersion, "sha256", applied.SHA256)
 			}
 		},
 	}, buildTelemetrySummary)
@@ -2436,7 +2477,7 @@ func loadAppliedPolicyVersion(path string) (int, error) {
 	return state.Version, nil
 }
 
-func saveAppliedPolicyVersion(path string, version int, ack string) error {
+func saveAppliedPolicyVersion(path string, version int, ack, bundleSHA256, bundlePath string) error {
 	if version <= 0 {
 		return nil
 	}
@@ -2445,6 +2486,8 @@ func saveAppliedPolicyVersion(path string, version int, ack string) error {
 	}
 	state := appliedPolicyState{
 		Version:       version,
+		BundleSHA256:  strings.TrimSpace(bundleSHA256),
+		BundlePath:    strings.TrimSpace(bundlePath),
 		LastAck:       strings.TrimSpace(ack),
 		LastApplied:   time.Now().UTC().Format(time.RFC3339),
 		SchemaVersion: 1,
@@ -2460,6 +2503,155 @@ func saveAppliedPolicyVersion(path string, version int, ack string) error {
 	if err := os.Rename(tmp, path); err != nil {
 		_ = os.Remove(tmp)
 		return err
+	}
+	return nil
+}
+
+type appliedPolicyBundleResult struct {
+	Path   string
+	SHA256 string
+}
+
+func resolvePolicyEndpoint(policyEndpoint, telemetryEndpoint string) string {
+	if endpoint := strings.TrimSpace(policyEndpoint); endpoint != "" {
+		return strings.TrimRight(endpoint, "/")
+	}
+	endpoint := strings.TrimSpace(telemetryEndpoint)
+	if endpoint == "" {
+		return ""
+	}
+	if !strings.Contains(endpoint, "://") {
+		endpoint = "http://" + endpoint
+	}
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed.Hostname() == "" {
+		return ""
+	}
+	host := parsed.Hostname()
+	return "http://" + net.JoinHostPort(host, "8080")
+}
+
+func fetchAndApplyPolicyBundle(ctx context.Context, cfg agentPolicyClientConfig, version int, apt *analyzer.Analyzer, ctrl interface {
+	ExcludePID(uint32) error
+	ExcludeComms([]string) (int, error)
+	AddHotPath(string) error
+}) (appliedPolicyBundleResult, error) {
+	if version <= 0 {
+		return appliedPolicyBundleResult{}, fmt.Errorf("invalid policy version %d", version)
+	}
+	if strings.TrimSpace(cfg.Endpoint) == "" {
+		return appliedPolicyBundleResult{}, fmt.Errorf("policy endpoint is not configured")
+	}
+	endpoint := strings.TrimRight(cfg.Endpoint, "/") + "/api/v1/control/policies/bundle?version=" + url.QueryEscape(strconv.Itoa(version))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return appliedPolicyBundleResult{}, err
+	}
+	if key := strings.TrimSpace(cfg.APIKey); key != "" {
+		req.Header.Set("X-API-Key", key)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return appliedPolicyBundleResult{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return appliedPolicyBundleResult{}, fmt.Errorf("download policy bundle: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 8*1024*1024))
+	if err != nil {
+		return appliedPolicyBundleResult{}, err
+	}
+	sum := sha256.Sum256(data)
+	actualSHA := hex.EncodeToString(sum[:])
+	expectedSHA := strings.TrimSpace(resp.Header.Get("X-Policy-Bundle-SHA256"))
+	if expectedSHA != "" && !strings.EqualFold(expectedSHA, actualSHA) {
+		return appliedPolicyBundleResult{}, fmt.Errorf("policy bundle checksum mismatch: expected %s got %s", expectedSHA, actualSHA)
+	}
+	var bundle agentPolicyBundle
+	if err := json.Unmarshal(data, &bundle); err != nil {
+		return appliedPolicyBundleResult{}, fmt.Errorf("decode policy bundle: %w", err)
+	}
+	if bundle.Version != version {
+		return appliedPolicyBundleResult{}, fmt.Errorf("policy bundle version mismatch: expected %d got %d", version, bundle.Version)
+	}
+	if err := applyPolicyBundle(bundle, apt, ctrl); err != nil {
+		return appliedPolicyBundleResult{}, err
+	}
+	if strings.TrimSpace(cfg.BundleDir) == "" {
+		return appliedPolicyBundleResult{SHA256: actualSHA}, nil
+	}
+	if err := os.MkdirAll(cfg.BundleDir, 0750); err != nil {
+		return appliedPolicyBundleResult{}, err
+	}
+	path := filepath.Join(cfg.BundleDir, fmt.Sprintf("policy-v%d.json", version))
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return appliedPolicyBundleResult{}, err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return appliedPolicyBundleResult{}, err
+	}
+	return appliedPolicyBundleResult{Path: path, SHA256: actualSHA}, nil
+}
+
+func applyPolicyBundle(bundle agentPolicyBundle, apt *analyzer.Analyzer, ctrl interface {
+	ExcludePID(uint32) error
+	ExcludeComms([]string) (int, error)
+	AddHotPath(string) error
+}) error {
+	if apt != nil {
+		desired := map[string]struct{}{}
+		for ruleID, ruleYAML := range bundle.SigmaRules {
+			ruleID = strings.TrimSpace(ruleID)
+			if ruleID == "" {
+				continue
+			}
+			parsed, err := sigma.ParseRule([]byte(ruleYAML))
+			if err != nil {
+				return fmt.Errorf("parse sigma rule %s: %w", ruleID, err)
+			}
+			apt.AddSigmaRule(ruleID, parsed)
+			desired[ruleID] = struct{}{}
+		}
+		for _, existing := range apt.SigmaRuleIDs() {
+			if _, ok := desired[existing]; !ok {
+				apt.RemoveSigmaRule(existing)
+			}
+		}
+	}
+	if ctrl != nil {
+		comms := []string{}
+		for _, key := range bundle.WhitelistKeys {
+			kind, value, ok := strings.Cut(key, ":")
+			if !ok || strings.TrimSpace(value) == "" {
+				continue
+			}
+			switch strings.TrimSpace(kind) {
+			case "pid":
+				pid, err := strconv.ParseUint(strings.TrimSpace(value), 10, 32)
+				if err == nil {
+					_ = ctrl.ExcludePID(uint32(pid))
+				}
+			case "comm":
+				comms = append(comms, strings.TrimSpace(value))
+			case "path":
+				_ = ctrl.AddHotPath(strings.TrimSpace(value))
+			}
+		}
+		if len(comms) > 0 {
+			if _, err := ctrl.ExcludeComms(comms); err != nil {
+				return fmt.Errorf("apply whitelist comms: %w", err)
+			}
+		}
+	}
+	for _, source := range bundle.TaintSources {
+		_, label, hasLabel := strings.Cut(source, "|")
+		if hasLabel && strings.TrimSpace(label) != "" {
+			analyzer.AddUntrustedComm(strings.TrimSpace(label))
+		}
 	}
 	return nil
 }

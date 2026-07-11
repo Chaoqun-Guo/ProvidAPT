@@ -264,6 +264,33 @@ func TestValidateAuthRoles(t *testing.T) {
 	}
 }
 
+func TestPolicyEnvOverrides(t *testing.T) {
+	t.Setenv("PROVIDAPT_POLICY_ENABLED", "true")
+	t.Setenv("PROVIDAPT_POLICY_ENDPOINT", "https://control.example.test:8443")
+	t.Setenv("PROVIDAPT_POLICY_API_KEY", "policy-key")
+	t.Setenv("PROVIDAPT_POLICY_POLL_INTERVAL", "15s")
+	t.Setenv("PROVIDAPT_POLICY_BUNDLE_DIR", "/var/lib/providapt/policies")
+	t.Setenv("PROVIDAPT_POLICY_ENABLE_TLS", "true")
+	t.Setenv("PROVIDAPT_POLICY_CA_FILE", "/etc/providapt/ca.pem")
+
+	cfg, err := Load(t.TempDir() + "/missing.yaml")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.Policy.Enabled {
+		t.Fatal("policy should be enabled")
+	}
+	if cfg.Policy.Endpoint != "https://control.example.test:8443" {
+		t.Fatalf("endpoint = %q", cfg.Policy.Endpoint)
+	}
+	if cfg.Policy.APIKey != "policy-key" || cfg.Policy.PollInterval != "15s" {
+		t.Fatalf("policy config = %#v", cfg.Policy)
+	}
+	if cfg.Policy.BundleDir != "/var/lib/providapt/policies" || !cfg.Policy.EnableTLS || cfg.Policy.CAFile != "/etc/providapt/ca.pem" {
+		t.Fatalf("policy tls config = %#v", cfg.Policy)
+	}
+}
+
 func TestLoadAuthIdentities(t *testing.T) {
 	yaml := `
 api:
