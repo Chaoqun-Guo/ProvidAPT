@@ -139,3 +139,19 @@ func TestDashboardModuleActions(t *testing.T) {
 		}
 	}
 }
+
+func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
+	expected := []string{
+		"apiKeyInput",
+		"providapt_api_key",
+		"function authHeaders",
+		"'X-API-Key': apiKey",
+		"downloadWithAuth('/api/v1/control/support/download'",
+		"downloadWithAuth('/api/v1/control/policies/bundle'",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing API key auth content %q", item)
+		}
+	}
+}

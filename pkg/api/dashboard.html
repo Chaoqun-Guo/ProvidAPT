@@ -123,6 +123,9 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .trace-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-left: 8px; }
 .trace-actions a { color: #58a6ff; border: 1px solid #30363d; border-radius: 999px; padding: 2px 7px; font-size: 11px; text-decoration: none; white-space: nowrap; }
 .trace-actions a:hover { background: #1a1f27; border-color: #58a6ff; text-decoration: none; }
+.auth-strip { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+.auth-strip input { background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:5px 8px; min-width:220px; }
+.auth-strip button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:5px 8px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -132,6 +135,12 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <h1>ProvidAPT</h1>
     <div class="subtitle">Provenance-driven APT Detection</div>
     <div class="role-info" id="roleInfo">Role: --</div>
+    <div class="auth-strip">
+      <input id="apiKeyInput" type="password" placeholder="API key for protected control plane">
+      <button onclick="saveAPIKey()">Use Key</button>
+      <button onclick="clearAPIKey()">Clear</button>
+      <span class="refresh-info" id="authStatus">No key stored</span>
+    </div>
   </div>
   <div class="header-right">
     <span class="status-badge unknown" id="statusBadge">
@@ -352,9 +361,13 @@ let latestUpgrade = {};
 let latestPolicies = {};
 let latestWorkflow = { alerts: [], history: [] };
 let latestDeliveries = { recent: [], dead_letters: [], history: [] };
+let apiKey = localStorage.getItem('providapt_api_key') || '';
 
 async function fetchJSON(url) {
-  const r = await fetch(url);
+  const r = await fetch(url, { headers: authHeaders() });
+  if (r.status === 401 || r.status === 403) {
+    updateAuthStatus('Authentication required or insufficient role');
+  }
   if (!r.ok) throw new Error(r.statusText);
   return r.json();
 }
@@ -362,7 +375,7 @@ async function fetchJSON(url) {
 async function postJSON(url, payload) {
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
     body: JSON.stringify(payload),
   });
   const data = await response.json();
@@ -373,8 +386,67 @@ async function postJSON(url, payload) {
 }
 
 async function fetchJSONAnyStatus(url) {
-  const r = await fetch(url);
+  const r = await fetch(url, { headers: authHeaders() });
   return r.json();
+}
+
+function authHeaders() {
+  return apiKey ? { 'X-API-Key': apiKey } : {};
+}
+
+function updateAuthStatus(message) {
+  const input = document.getElementById('apiKeyInput');
+  const status = document.getElementById('authStatus');
+  if (input && apiKey) {
+    input.value = apiKey;
+  }
+  if (status) {
+    status.textContent = message || (apiKey ? 'API key stored locally' : 'No key stored');
+  }
+}
+
+function saveAPIKey() {
+  const input = document.getElementById('apiKeyInput');
+  apiKey = input && input.value ? input.value.trim() : '';
+  if (apiKey) {
+    localStorage.setItem('providapt_api_key', apiKey);
+  }
+  updateAuthStatus(apiKey ? 'API key stored locally' : 'No key stored');
+  loadAll();
+}
+
+function clearAPIKey() {
+  apiKey = '';
+  localStorage.removeItem('providapt_api_key');
+  const input = document.getElementById('apiKeyInput');
+  if (input) input.value = '';
+  updateAuthStatus('No key stored');
+}
+
+async function downloadWithAuth(url, defaultName) {
+  const response = await fetch(url, { headers: authHeaders() });
+  if (!response.ok) {
+    let message = response.statusText;
+    try {
+      const data = await response.json();
+      message = data.error || message;
+    } catch (e) {
+      // Keep status text.
+    }
+    throw new Error(message);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const fileName = match ? match[1] : defaultName;
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
 }
 
 function escapeHTML(value) {
@@ -883,7 +955,7 @@ async function runSupportBundleAction(payload) {
   try {
     const response = await fetch('/api/v1/control/support', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
       body: JSON.stringify(payload),
     });
     const data = await response.json();
@@ -910,20 +982,30 @@ function prepareSupportBundleAction() {
   runSupportBundleAction({ reason: 'dashboard', note: 'dashboard export' });
 }
 
-function downloadSupportBundle() {
+async function downloadSupportBundle() {
   if (currentRole === 'analyst') {
     return;
   }
-  window.location.href = '/api/v1/control/support/download';
+  try {
+    await downloadWithAuth('/api/v1/control/support/download', 'providapt-support-bundle.zip');
+  } catch (e) {
+    const status = document.getElementById('supportBundleStatus');
+    if (status) status.textContent = 'Download failed: ' + e.message;
+  }
 }
 
-function downloadPolicyBundle() {
+async function downloadPolicyBundle() {
   if (currentRole === 'analyst') {
     return;
   }
   const current = latestPolicies && latestPolicies.current ? latestPolicies.current : {};
   const version = Number(current.version || 0);
-  window.location.href = '/api/v1/control/policies/bundle' + (version > 0 ? ('?version=' + encodeURIComponent(version)) : '');
+  try {
+    await downloadWithAuth('/api/v1/control/policies/bundle' + (version > 0 ? ('?version=' + encodeURIComponent(version)) : ''), 'providapt-policy.json');
+  } catch (e) {
+    const status = document.getElementById('policyActionStatus');
+    if (status) status.textContent = 'Policy bundle download failed: ' + e.message;
+  }
 }
 
 async function loadLicenseAndUpgrade() {
@@ -1033,7 +1115,7 @@ async function runLicenseAction(payload) {
   try {
     const response = await fetch('/api/v1/control/license', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
       body: JSON.stringify(payload),
     });
     const data = await response.json();
@@ -1066,7 +1148,7 @@ async function runUpgradeAction(payload) {
   try {
     const response = await fetch('/api/v1/control/upgrade', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
       body: JSON.stringify(payload),
     });
     const data = await response.json();
@@ -1214,7 +1296,7 @@ async function runPolicyAction(payload) {
   try {
     const response = await fetch('/api/v1/control/policies', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
       body: JSON.stringify(payload),
     });
     const data = await response.json();
@@ -1407,7 +1489,7 @@ async function runDeliveryAction(payload) {
   try {
     const response = await fetch('/api/v1/control/deliveries', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
       body: JSON.stringify(payload),
     });
     const data = await response.json();
@@ -1636,6 +1718,7 @@ async function refresh() {
 }
 
 initializePanelLayout();
+updateAuthStatus();
 refresh();
 setInterval(refresh, 5000);
 </script>
