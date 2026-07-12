@@ -519,6 +519,61 @@ func TestValidateSupportBundleRetention(t *testing.T) {
 	}
 }
 
+func TestValidateBackupConfig(t *testing.T) {
+	cfg := DefaultConfig()
+	if cfg.Backup.Interval != "24h" {
+		t.Fatalf("backup interval = %q", cfg.Backup.Interval)
+	}
+	if cfg.Backup.RetainArchives != 7 {
+		t.Fatalf("backup retain = %d", cfg.Backup.RetainArchives)
+	}
+
+	cfg.Backup.Interval = "0s"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for zero backup interval")
+	}
+	cfg.Backup.Interval = "24h"
+	cfg.Backup.RetainArchives = -1
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for negative backup retention")
+	}
+	cfg.Backup.RetainArchives = 7
+	cfg.Backup.MinFreeBytes = -1
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for negative backup min free bytes")
+	}
+}
+
+func TestSSOAndTenantConfig(t *testing.T) {
+	yaml := `
+api:
+  auth_enabled: true
+  auth_keys: ["tenant-key"]
+  auth_roles:
+    tenant-key: analyst
+  auth_identities:
+    tenant-key: Tenant Analyst
+  auth_tenants:
+    tenant-key: prod
+sso:
+  trusted_header_auth: true
+  user_header: X-SSO-User
+  role_header: X-SSO-Role
+  tenant_header: X-SSO-Tenant
+`
+	path := writeTempFile(t, "config.*.yaml", yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.SSO.TrustedHeaderAuth || cfg.SSO.UserHeader != "X-SSO-User" || cfg.SSO.TenantHeader != "X-SSO-Tenant" {
+		t.Fatalf("sso config = %#v", cfg.SSO)
+	}
+	if cfg.API.AuthTenants["tenant-key"] != "prod" {
+		t.Fatalf("tenant config = %#v", cfg.API.AuthTenants)
+	}
+}
+
 func TestValidateInvalidFormat(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Output.Format = "xml"

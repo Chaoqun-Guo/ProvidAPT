@@ -20,6 +20,7 @@ type contextKey string
 
 const apiRoleContextKey contextKey = "providapt_api_role"
 const apiActorContextKey contextKey = "providapt_api_actor"
+const apiTenantContextKey contextKey = "providapt_api_tenant"
 
 const (
 	RoleAdmin   = "admin"
@@ -27,15 +28,40 @@ const (
 	RoleAuditor = "auditor"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// API Key Authentication
-// ═══════════════════════════════════════════════════════════════
+type trustedHeaderAuthConfig struct {
+	Enabled      bool
+	UserHeader   string
+	RoleHeader   string
+	TenantHeader string
+}
 
 // authMiddleware validates X-API-Key header against configured keys.
 // When auth is disabled, all requests pass through.
-func authMiddleware(keys []string, roles map[string]string, identities map[string]string, enabled bool) func(http.Handler) http.Handler {
+func authMiddleware(keys []string, roles map[string]string, identities map[string]string, tenants map[string]string, enabled bool, trusted trustedHeaderAuthConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if trusted.Enabled {
+				userHeader := trusted.UserHeader
+				roleHeader := trusted.RoleHeader
+				if userHeader == "" {
+					userHeader = "X-Forwarded-User"
+				}
+				if roleHeader == "" {
+					roleHeader = "X-Forwarded-Role"
+				}
+				tenantHeader := trusted.TenantHeader
+				if tenantHeader == "" {
+					tenantHeader = "X-Forwarded-Tenant"
+				}
+				user := strings.TrimSpace(r.Header.Get(userHeader))
+				if user != "" {
+					role := normalizeRole(r.Header.Get(roleHeader))
+					tenant := strings.TrimSpace(r.Header.Get(tenantHeader))
+					w.Header().Set("X-ProvidAPT-Role", role)
+					next.ServeHTTP(w, withTenant(withActorName(withRole(r, role), user, role), tenant))
+					return
+				}
+			}
 			if !enabled || len(keys) == 0 {
 				next.ServeHTTP(w, withRole(r, RoleAdmin))
 				return
@@ -62,8 +88,9 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 				return
 			}
 			role := normalizeRole(roles[key])
+			tenant := strings.TrimSpace(tenants[key])
 			w.Header().Set("X-ProvidAPT-Role", role)
-			next.ServeHTTP(w, withActor(withRole(r, role), key, role, identities[key]))
+			next.ServeHTTP(w, withTenant(withActor(withRole(r, role), key, role, identities[key]), tenant))
 		})
 	}
 }
@@ -101,6 +128,11 @@ func CurrentActor(r *http.Request) string {
 	return actor
 }
 
+func CurrentTenant(r *http.Request) string {
+	tenant, _ := r.Context().Value(apiTenantContextKey).(string)
+	return tenant
+}
+
 func withRole(r *http.Request, role string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), apiRoleContextKey, normalizeRole(role)))
 }
@@ -122,6 +154,19 @@ func withActor(r *http.Request, apiKey, role, identity string) *http.Request {
 	}
 	actor = actor + " (" + normalizeRole(role) + ")"
 	return r.WithContext(context.WithValue(r.Context(), apiActorContextKey, actor))
+}
+
+func withActorName(r *http.Request, actor, role string) *http.Request {
+	actor = strings.TrimSpace(actor)
+	if actor == "" {
+		actor = "trusted-proxy"
+	}
+	actor = actor + " (" + normalizeRole(role) + ")"
+	return r.WithContext(context.WithValue(r.Context(), apiActorContextKey, actor))
+}
+
+func withTenant(r *http.Request, tenant string) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), apiTenantContextKey, strings.TrimSpace(tenant)))
 }
 
 func normalizeRole(role string) string {
@@ -159,6 +204,9 @@ func allowed(role, method, path string) bool {
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/backup") {
 			return false
 		}
+		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/security") {
+			return false
+		}
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/policies") {
 			return false
 		}
@@ -189,6 +237,7 @@ func allowed(role, method, path string) bool {
 			strings.HasPrefix(path, "/api/v1/control/fleet") ||
 			strings.HasPrefix(path, "/api/v1/control/support") ||
 			strings.HasPrefix(path, "/api/v1/control/backup") ||
+			strings.HasPrefix(path, "/api/v1/control/security") ||
 			strings.HasPrefix(path, "/api/v1/control/audit") ||
 			strings.HasPrefix(path, "/api/v1/control/license") ||
 			strings.HasPrefix(path, "/api/v1/control/upgrade") ||
@@ -202,10 +251,6 @@ func allowed(role, method, path string) bool {
 		return false
 	}
 }
-
-// ═══════════════════════════════════════════════════════════════
-// Rate Limiting (per-IP token bucket)
-// ═══════════════════════════════════════════════════════════════
 
 type rateLimiter struct {
 	mu      sync.Mutex
@@ -283,10 +328,6 @@ func rateLimitMiddleware(rl *rateLimiter) func(http.Handler) http.Handler {
 	}
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Panic Recovery
-// ═══════════════════════════════════════════════════════════════
-
 // recoveryMiddleware catches panics in HTTP handlers and returns 500
 // instead of crashing the daemon.
 func recoveryMiddleware(next http.Handler) http.Handler {
@@ -306,10 +347,6 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
-// ═══════════════════════════════════════════════════════════════
-// Configurable CORS
-// ═══════════════════════════════════════════════════════════════
 
 func corsMiddleware(origins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

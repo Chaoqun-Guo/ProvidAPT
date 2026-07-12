@@ -48,6 +48,7 @@ import (
 	mgmtpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/backup"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/certauth"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/logx"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
@@ -154,6 +155,11 @@ type backupState struct {
 	summary api.BackupSummary
 }
 
+type securityState struct {
+	mu      sync.RWMutex
+	summary api.SecurityStatus
+}
+
 type licenseState struct {
 	mu      sync.RWMutex
 	summary api.LicenseStatus
@@ -165,12 +171,13 @@ type upgradeState struct {
 }
 
 type licenseDocument struct {
-	ID        string `json:"id" yaml:"id"`
-	Customer  string `json:"customer" yaml:"customer"`
-	Edition   string `json:"edition" yaml:"edition"`
-	IssuedAt  string `json:"issued_at" yaml:"issued_at"`
-	ExpiresAt string `json:"expires_at" yaml:"expires_at"`
-	Signature string `json:"signature" yaml:"signature"`
+	ID                 string `json:"id" yaml:"id"`
+	Customer           string `json:"customer" yaml:"customer"`
+	Edition            string `json:"edition" yaml:"edition"`
+	MachineFingerprint string `json:"machine_fingerprint" yaml:"machine_fingerprint"`
+	IssuedAt           string `json:"issued_at" yaml:"issued_at"`
+	ExpiresAt          string `json:"expires_at" yaml:"expires_at"`
+	Signature          string `json:"signature" yaml:"signature"`
 }
 
 type revocationPayload struct {
@@ -295,6 +302,30 @@ func (s *backupState) update(summary api.BackupSummary) {
 	s.summary = summary
 }
 
+func (s *securityState) snapshot() api.SecurityStatus {
+	if s == nil {
+		return api.SecurityStatus{}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := s.summary
+	if out.History != nil {
+		history := make([]api.ControlActionAudit, len(out.History))
+		copy(history, out.History)
+		out.History = history
+	}
+	return out
+}
+
+func (s *securityState) update(summary api.SecurityStatus) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.summary = summary
+}
+
 func (s *licenseState) snapshot() api.LicenseStatus {
 	if s == nil {
 		return api.LicenseStatus{}
@@ -366,6 +397,7 @@ func licenseSignaturePayload(doc licenseDocument) string {
 		"id=" + strings.TrimSpace(doc.ID),
 		"customer=" + strings.TrimSpace(doc.Customer),
 		"edition=" + strings.TrimSpace(doc.Edition),
+		"machine_fingerprint=" + strings.TrimSpace(doc.MachineFingerprint),
 		"issued_at=" + strings.TrimSpace(doc.IssuedAt),
 		"expires_at=" + strings.TrimSpace(doc.ExpiresAt),
 	}, "\n")
@@ -379,6 +411,17 @@ func verifyLicenseSignature(doc licenseDocument, signingKey string) bool {
 	_, _ = mac.Write([]byte(licenseSignaturePayload(doc)))
 	expected := hex.EncodeToString(mac.Sum(nil))
 	return hmac.Equal([]byte(strings.ToLower(strings.TrimSpace(doc.Signature))), []byte(expected))
+}
+
+func machineFingerprint() string {
+	hostname, _ := os.Hostname()
+	parts := []string{
+		strings.ToLower(strings.TrimSpace(hostname)),
+		runtime.GOOS,
+		runtime.GOARCH,
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
+	return strings.ToUpper(hex.EncodeToString(sum[:]))
 }
 
 func loadEd25519PublicKey(path string) (ed25519.PublicKey, error) {
@@ -1032,13 +1075,18 @@ func main() {
 	fleetAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	supportAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	backupAudit := newControlActionAuditStore(controlActionHistoryLimit)
+	securityAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	licenseAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	upgradeAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	supportState := &supportBundleState{}
 	backupSummaryState := &backupState{}
+	securitySummaryState := &securityState{}
 	licenseSummaryState := &licenseState{}
 	upgradeSummaryState := &upgradeState{}
 	apiServer.SetAPIAuth(cfg.API.AuthKeys, cfg.API.AuthRoles, cfg.API.AuthIdentities, cfg.API.AuthEnabled)
+	apiServer.SetAPIAuthTenants(cfg.API.AuthTenants)
+	apiServer.SetTrustedHeaderAuth(cfg.SSO.TrustedHeaderAuth, cfg.SSO.UserHeader, cfg.SSO.RoleHeader)
+	apiServer.SetTrustedTenantHeader(cfg.SSO.TenantHeader)
 	apiServer.SetCORSOrigins(cfg.API.CORSOrigins)
 	if cfg.API.RateLimitPerSec > 0 {
 		apiServer.SetRateLimit(cfg.API.RateLimitPerSec, cfg.API.RateLimitBurst)
@@ -1521,7 +1569,7 @@ func main() {
 			FileName: filepath.Base(summary.LastBackupPath),
 		}, nil
 	})
-	apiServer.SetBackupActionFunc(func(req api.BackupActionRequest) (api.BackupActionResult, error) {
+	runBackupAction := func(req api.BackupActionRequest) (api.BackupActionResult, error) {
 		action := strings.ToLower(strings.TrimSpace(req.Action))
 		if action == "" {
 			action = "create"
@@ -1634,8 +1682,128 @@ func main() {
 				RestorePath: targetDir,
 				PerformedAt: performedAt,
 			}, nil
+		case "prepare_cutover", "restore_cutover_plan":
+			current := backupSummaryState.snapshot()
+			if strings.TrimSpace(current.LastRestorePath) == "" {
+				err := fmt.Errorf("restore staging path is required before preparing cutover")
+				backupAudit.record("backup_prepare_cutover", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_prepare_cutover", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			planPath, err := writeRestoreCutoverPlan(cfg.Output.Dir, current.LastRestorePath)
+			if err != nil {
+				backupAudit.record("backup_prepare_cutover", req.Actor, req.Role, current.LastRestorePath, req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_prepare_cutover", req.Actor, req.Role, current.LastRestorePath, req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, RestorePath: current.LastRestorePath, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			message := "restore cutover plan generated; stop ProvidAPT before executing"
+			current.LastAction = action
+			current.LastActor = req.Actor
+			current.LastRole = req.Role
+			current.LastStatus = "cutover_ready"
+			current.LastMessage = message + ": " + planPath
+			backupAudit.record("backup_prepare_cutover", req.Actor, req.Role, planPath, req.Note, "cutover_ready", message)
+			current.History = backupAudit.snapshot()
+			backupSummaryState.update(current)
+			logControlAudit(auditStore, "backup", "backup_prepare_cutover", req.Actor, req.Role, planPath, req.Note, "cutover_ready", message)
+			return api.BackupActionResult{
+				Status:      "cutover_ready",
+				Message:     current.LastMessage,
+				Action:      action,
+				BackupPath:  current.LastBackupPath,
+				RestorePath: current.LastRestorePath,
+				PerformedAt: performedAt,
+			}, nil
 		default:
 			return api.BackupActionResult{Status: "failed", Action: action, Message: "unsupported backup action", PerformedAt: performedAt}, fmt.Errorf("unsupported backup action %q", action)
+		}
+	}
+	apiServer.SetBackupActionFunc(runBackupAction)
+	backupSchedulerStop := startBackupScheduler(cfg, runBackupAction)
+	defer backupSchedulerStop()
+	apiServer.SetSecurityStatusFunc(func() api.SecurityStatus {
+		summary := securitySummaryState.snapshot()
+		summary.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		summary.CertFile = cfg.TLS.CertFile
+		summary.KeyFile = cfg.TLS.KeyFile
+		summary.CAFile = cfg.TLS.CAFile
+		if strings.TrimSpace(cfg.TLS.CertFile) != "" {
+			needed, err := certauth.NeedsRotation(cfg.TLS.CertFile, 30*24*time.Hour)
+			summary.RotationNeeded = needed
+			if err != nil && summary.LastMessage == "" {
+				summary.LastStatus = "check_failed"
+				summary.LastMessage = err.Error()
+			}
+		}
+		summary.History = securityAudit.snapshot()
+		return summary
+	})
+	apiServer.SetSecurityActionFunc(func(req api.SecurityActionRequest) (api.SecurityActionResult, error) {
+		action := strings.ToLower(strings.TrimSpace(req.Action))
+		if action == "" {
+			action = "check_rotation"
+		}
+		performedAt := time.Now().UTC().Format(time.RFC3339)
+		switch action {
+		case "check_rotation":
+			status := securitySummaryState.snapshot()
+			status.UpdatedAt = performedAt
+			status.CertFile = cfg.TLS.CertFile
+			status.KeyFile = cfg.TLS.KeyFile
+			status.CAFile = cfg.TLS.CAFile
+			needed, err := certauth.NeedsRotation(cfg.TLS.CertFile, 30*24*time.Hour)
+			status.RotationNeeded = needed
+			status.LastStatus = "checked"
+			status.LastMessage = "certificate rotation checked"
+			if err != nil {
+				status.LastStatus = "check_failed"
+				status.LastMessage = err.Error()
+			}
+			securityAudit.record("security_check_rotation", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, status.LastStatus, status.LastMessage)
+			status.History = securityAudit.snapshot()
+			securitySummaryState.update(status)
+			logControlAudit(auditStore, "security", "security_check_rotation", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, status.LastStatus, status.LastMessage)
+			if err != nil {
+				return api.SecurityActionResult{Status: status.LastStatus, Message: status.LastMessage, Action: action, CertFile: cfg.TLS.CertFile, PerformedAt: performedAt}, err
+			}
+			return api.SecurityActionResult{Status: status.LastStatus, Message: status.LastMessage, Action: action, CertFile: cfg.TLS.CertFile, PerformedAt: performedAt}, nil
+		case "rotate_server_cert":
+			if strings.TrimSpace(cfg.TLS.CertFile) == "" || strings.TrimSpace(cfg.TLS.KeyFile) == "" || strings.TrimSpace(cfg.TLS.CAFile) == "" {
+				err := fmt.Errorf("tls cert_file, key_file, and ca_file are required")
+				securityAudit.record("security_rotate_server_cert", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "security", "security_rotate_server_cert", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, "failed", err.Error())
+				return api.SecurityActionResult{Status: "failed", Message: err.Error(), Action: action, PerformedAt: performedAt}, err
+			}
+			certCfg := &certauth.Config{
+				CADir:     filepath.Dir(cfg.TLS.CAFile),
+				ServerDir: filepath.Dir(cfg.TLS.CertFile),
+			}
+			if err := certauth.RotateServerCert(certCfg, cfg.TLS.CertFile, cfg.TLS.KeyFile); err != nil {
+				securityAudit.record("security_rotate_server_cert", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "security", "security_rotate_server_cert", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, "failed", err.Error())
+				return api.SecurityActionResult{Status: "failed", Message: err.Error(), Action: action, CertFile: cfg.TLS.CertFile, PerformedAt: performedAt}, err
+			}
+			message := "server certificate rotated; reload or restart services to use it"
+			status := api.SecurityStatus{
+				UpdatedAt:      performedAt,
+				CertFile:       cfg.TLS.CertFile,
+				KeyFile:        cfg.TLS.KeyFile,
+				CAFile:         cfg.TLS.CAFile,
+				RotationNeeded: false,
+				LastStatus:     "rotated",
+				LastMessage:    message,
+				LastRotatedAt:  performedAt,
+			}
+			securityAudit.record("security_rotate_server_cert", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, "rotated", message)
+			status.History = securityAudit.snapshot()
+			securitySummaryState.update(status)
+			logControlAudit(auditStore, "security", "security_rotate_server_cert", req.Actor, req.Role, cfg.TLS.CertFile, req.Note, "rotated", message)
+			return api.SecurityActionResult{Status: "rotated", Message: message, Action: action, CertFile: cfg.TLS.CertFile, PerformedAt: performedAt}, nil
+		default:
+			err := fmt.Errorf("unsupported security action %q", action)
+			securityAudit.record("security_action", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+			logControlAudit(auditStore, "security", "security_action", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+			return api.SecurityActionResult{Status: "failed", Message: err.Error(), Action: action, PerformedAt: performedAt}, err
 		}
 	})
 	apiServer.SetAuditQueryFunc(func(category, source string, limit int) api.AuditFeed {
@@ -1681,13 +1849,14 @@ func main() {
 	})
 	inspectLicense := func() api.LicenseStatus {
 		summary := api.LicenseStatus{
-			UpdatedAt:         time.Now().UTC().Format(time.RFC3339),
-			Path:              strings.TrimSpace(cfg.License.Path),
-			CurrentVersion:    version.String(),
-			History:           licenseAudit.snapshot(),
-			GracePeriodDays:   cfg.License.GracePeriodDays,
-			SignaturePresent:  false,
-			SignatureVerified: false,
+			UpdatedAt:          time.Now().UTC().Format(time.RFC3339),
+			Path:               strings.TrimSpace(cfg.License.Path),
+			CurrentVersion:     version.String(),
+			MachineFingerprint: machineFingerprint(),
+			History:            licenseAudit.snapshot(),
+			GracePeriodDays:    cfg.License.GracePeriodDays,
+			SignaturePresent:   false,
+			SignatureVerified:  false,
 		}
 		if cached := licenseSummaryState.snapshot(); cached.LastValidatedAt != "" {
 			summary.LastValidatedAt = cached.LastValidatedAt
@@ -1717,6 +1886,11 @@ func main() {
 		summary.LicenseID = strings.TrimSpace(doc.ID)
 		summary.Customer = strings.TrimSpace(doc.Customer)
 		summary.Edition = strings.TrimSpace(doc.Edition)
+		summary.BoundFingerprint = strings.TrimSpace(doc.MachineFingerprint)
+		summary.BindingVerified = summary.BoundFingerprint == "" || strings.EqualFold(summary.BoundFingerprint, summary.MachineFingerprint)
+		if !summary.BindingVerified {
+			summary.LastError = "license machine fingerprint mismatch"
+		}
 		summary.IssuedAt = strings.TrimSpace(doc.IssuedAt)
 		summary.ExpiresAt = strings.TrimSpace(doc.ExpiresAt)
 		summary.SignaturePresent = strings.TrimSpace(doc.Signature) != ""
@@ -1782,6 +1956,39 @@ func main() {
 		if action == "" {
 			action = "validate"
 		}
+		if action == "import" || action == "renew" || action == "activate_offline" {
+			targetPath := strings.TrimSpace(req.LicensePath)
+			if targetPath == "" {
+				targetPath = strings.TrimSpace(cfg.License.Path)
+			}
+			if targetPath == "" {
+				targetPath = filepath.Join(cfg.Output.Dir, "license.lic")
+				cfg.License.Path = targetPath
+			}
+			if !pathWithin(cfg.Output.Dir, targetPath) && !pathWithin("/etc/providapt", targetPath) {
+				err := fmt.Errorf("license_path must stay within output dir or /etc/providapt")
+				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
+				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
+			}
+			data := strings.TrimSpace(req.LicenseData)
+			if data == "" {
+				err := fmt.Errorf("license_data is required")
+				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
+				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
+			}
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
+				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
+				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
+			}
+			if err := os.WriteFile(targetPath, []byte(data+"\n"), 0640); err != nil {
+				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
+				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
+			}
+			cfg.License.Path = targetPath
+			licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "imported", "offline license imported")
+			logControlAudit(auditStore, "license", "license_import", req.Actor, req.Role, targetPath, req.Note, "imported", "offline license imported")
+			action = "validate"
+		}
 		if action != "validate" && action != "refresh" {
 			err := fmt.Errorf("unsupported license action: %s", req.Action)
 			licenseAudit.record("license_validate", req.Actor, req.Role, cfg.License.Path, req.Note, "failed", err.Error())
@@ -1794,7 +2001,7 @@ func main() {
 		summary := inspectLicense()
 		validatedAt := time.Now().UTC().Format(time.RFC3339)
 		summary.LastValidatedAt = validatedAt
-		if summary.Present && !summary.Revoked && (!summary.Expired || summary.InGracePeriod) && (summary.SignaturePresent == false || summary.SignatureVerified) && (summary.LastError == "" || summary.InGracePeriod) {
+		if summary.Present && summary.BindingVerified && !summary.Revoked && (!summary.Expired || summary.InGracePeriod) && (summary.SignaturePresent == false || summary.SignatureVerified) && (summary.LastError == "" || summary.InGracePeriod) {
 			summary.LastError = ""
 			message := "license file validated"
 			if summary.InGracePeriod {
@@ -1808,13 +2015,14 @@ func main() {
 					Message:  message,
 					Source:   "license",
 					Details: map[string]interface{}{
-						"path":       summary.Path,
-						"actor":      req.Actor,
-						"role":       req.Role,
-						"note":       req.Note,
-						"size_bytes": summary.SizeBytes,
-						"license_id": summary.LicenseID,
-						"grace":      summary.InGracePeriod,
+						"path":                summary.Path,
+						"actor":               req.Actor,
+						"role":                req.Role,
+						"note":                req.Note,
+						"size_bytes":          summary.SizeBytes,
+						"license_id":          summary.LicenseID,
+						"machine_fingerprint": summary.MachineFingerprint,
+						"grace":               summary.InGracePeriod,
 					},
 				})
 			}
@@ -1847,11 +2055,12 @@ func main() {
 			InGracePeriod:     summary.InGracePeriod,
 			Revoked:           summary.Revoked,
 			SignatureVerified: summary.SignatureVerified,
+			BindingVerified:   summary.BindingVerified,
 		}
 		if summary.InGracePeriod {
 			result.Message = "license validated within grace period"
 		}
-		if !summary.Present || summary.Revoked || (summary.Expired && !summary.InGracePeriod) || (summary.SignaturePresent && !summary.SignatureVerified) || (summary.LastError != "" && !summary.InGracePeriod) {
+		if !summary.Present || !summary.BindingVerified || summary.Revoked || (summary.Expired && !summary.InGracePeriod) || (summary.SignaturePresent && !summary.SignatureVerified) || (summary.LastError != "" && !summary.InGracePeriod) {
 			result.Status = "failed"
 			result.Message = summary.LastError
 			if result.Message == "" && summary.Expired {
@@ -2060,6 +2269,22 @@ func main() {
 			return api.PolicySummary{}, err
 		}
 		switch strings.ToLower(strings.TrimSpace(req.Action)) {
+		case "validate_sigma", "dry_run_sigma":
+			ruleID := strings.TrimSpace(req.RuleID)
+			if ruleID == "" {
+				ruleID = "inline"
+			}
+			if err := validateSigmaRuleYAML(req.RuleYAML); err != nil {
+				policyAudit.record(req.Action, req.Actor, req.Role, ruleID, req.Notes, "failed", err.Error())
+				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, ruleID, req.Notes, "failed", err.Error())
+				return api.PolicySummary{}, err
+			}
+			summary := toAPIPolicySummary(mgmtServer.PolicyCenter().Draft)
+			summary.State = "validated"
+			summary.Notes = "sigma rule dry-run passed; draft unchanged"
+			policyAudit.record(req.Action, req.Actor, req.Role, ruleID, req.Notes, "validated", summary.Notes)
+			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, ruleID, req.Notes, "validated", summary.Notes)
+			return summary, nil
 		case "publish":
 			summary := toAPIPolicySummary(mgmtServer.PublishPolicyFor(req.Notes, mgmt.FleetFilter{Group: req.TargetGroup, Tag: req.TargetTag}))
 			target := fmt.Sprintf("v%d", summary.Version)
@@ -2679,6 +2904,108 @@ func pathWithin(root, candidate string) bool {
 	return strings.HasPrefix(candidateAbs, rootAbs+string(os.PathSeparator))
 }
 
+func startBackupScheduler(cfg *config.Config, run func(api.BackupActionRequest) (api.BackupActionResult, error)) func() {
+	if cfg == nil || run == nil || !cfg.Backup.Enabled {
+		return func() {}
+	}
+	interval, err := time.ParseDuration(strings.TrimSpace(cfg.Backup.Interval))
+	if err != nil || interval <= 0 {
+		logx.System().Warn("automatic backup disabled: invalid interval", "interval", cfg.Backup.Interval, "error", err)
+		return func() {}
+	}
+	stopCh := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		logx.System().Info("automatic backup scheduler started",
+			"interval", interval.String(),
+			"retain_archives", cfg.Backup.RetainArchives,
+			"min_free_bytes", cfg.Backup.MinFreeBytes,
+		)
+		for {
+			select {
+			case <-ticker.C:
+				if err := ensureBackupDiskFree(cfg.Output.Dir, cfg.Backup.MinFreeBytes); err != nil {
+					logx.System().Warn("automatic backup skipped", "error", err)
+					continue
+				}
+				result, err := run(api.BackupActionRequest{
+					Action: "create",
+					Actor:  "system:auto-backup",
+					Role:   api.RoleAdmin,
+					Note:   "scheduled backup",
+				})
+				if err != nil {
+					logx.System().Warn("automatic backup failed", "error", err)
+					continue
+				}
+				if cfg.Backup.RetainArchives >= 0 {
+					if cleanupErr := backup.CleanupArchives(filepath.Dir(result.BackupPath), cfg.Backup.RetainArchives); cleanupErr != nil {
+						logx.System().Warn("automatic backup cleanup failed", "error", cleanupErr)
+					}
+				}
+				logx.System().Info("automatic backup completed", "path", result.BackupPath, "size_bytes", result.SizeBytes)
+			case <-stopCh:
+				logx.System().Info("automatic backup scheduler stopped")
+				return
+			}
+		}
+	}()
+	return func() {
+		close(stopCh)
+	}
+}
+
+func ensureBackupDiskFree(path string, minFreeBytes int64) error {
+	if minFreeBytes <= 0 {
+		return nil
+	}
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return fmt.Errorf("statfs %s: %w", path, err)
+	}
+	freeBytes := int64(stat.Bavail) * int64(stat.Bsize)
+	if freeBytes < minFreeBytes {
+		return fmt.Errorf("free disk %d below configured minimum %d", freeBytes, minFreeBytes)
+	}
+	return nil
+}
+
+func writeRestoreCutoverPlan(outputDir, restorePath string) (string, error) {
+	if !pathWithin(outputDir, restorePath) {
+		return "", fmt.Errorf("restore path must stay within output dir")
+	}
+	planDir := filepath.Join(outputDir, "restore-staging")
+	if err := os.MkdirAll(planDir, 0700); err != nil {
+		return "", fmt.Errorf("create restore plan dir: %w", err)
+	}
+	storePath := filepath.Join(outputDir, "store")
+	backupPath := storePath + ".pre-restore-" + time.Now().UTC().Format("20060102T150405Z")
+	planPath := filepath.Join(planDir, "activate-restore-"+time.Now().UTC().Format("20060102T150405Z")+".sh")
+	script := fmt.Sprintf(`#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "ERROR: run as root" >&2
+  exit 1
+fi
+
+systemctl stop providapt.service
+test -d %q
+if [ -e %q ]; then
+  mv %q %q
+fi
+mv %q %q
+systemctl start providapt.service
+systemctl status providapt.service --no-pager
+echo "ProvidAPT restore cutover complete. Previous store: %s"
+`, restorePath, storePath, storePath, backupPath, restorePath, storePath, backupPath)
+	if err := os.WriteFile(planPath, []byte(script), 0700); err != nil {
+		return "", fmt.Errorf("write restore cutover plan: %w", err)
+	}
+	return planPath, nil
+}
+
 func loadAppliedPolicyVersion(path string) (int, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -2964,6 +3291,28 @@ func policyUpdateFromAction(req api.PolicyActionRequest) (*mgmtpb.PolicyUpdate, 
 	default:
 		return nil, "", fmt.Errorf("unsupported policy edit action %q", req.Action)
 	}
+}
+
+func validateSigmaRuleYAML(ruleYAML string) error {
+	trimmed := strings.TrimSpace(ruleYAML)
+	if trimmed == "" {
+		return fmt.Errorf("rule_yaml is required")
+	}
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal([]byte(trimmed), &doc); err != nil {
+		return fmt.Errorf("parse sigma yaml: %w", err)
+	}
+	for _, key := range []string{"title", "detection"} {
+		if _, ok := doc[key]; !ok {
+			return fmt.Errorf("sigma rule missing %s", key)
+		}
+	}
+	if detection, ok := doc["detection"].(map[string]interface{}); ok {
+		if _, ok := detection["condition"]; !ok {
+			return fmt.Errorf("sigma rule detection missing condition")
+		}
+	}
+	return nil
 }
 
 func logControlAudit(store *audit.Store, source, action, actor, role, target, note, status, message string) {

@@ -1,4 +1,4 @@
-// ProvidAPT 鈥-Container-aware provenance data model
+﻿// ProvidAPT —Container-aware provenance data model
 syntax = "proto3";
 package providapt;
 option go_package = "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/container";

@@ -6,9 +6,11 @@
 package backup
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cockroachdb/pebble"
 )
@@ -200,5 +202,35 @@ func TestCheckpointBackupRestore(t *testing.T) {
 	defer closer.Close()
 	if string(value) != "checkpoint-value" {
 		t.Fatalf("value = %q", value)
+	}
+}
+
+func TestCleanupArchives(t *testing.T) {
+	dir := t.TempDir()
+	for i := 0; i < 4; i++ {
+		path := filepath.Join(dir, fmt.Sprintf("providapt-backup-%d.tar.gz", i))
+		if err := os.WriteFile(path, []byte("backup"), 0600); err != nil {
+			t.Fatalf("write archive: %v", err)
+		}
+		ts := time.Now().Add(time.Duration(i) * time.Minute)
+		if err := os.Chtimes(path, ts, ts); err != nil {
+			t.Fatalf("chtimes: %v", err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ignore.txt"), []byte("keep"), 0600); err != nil {
+		t.Fatalf("write ignored file: %v", err)
+	}
+	if err := CleanupArchives(dir, 2); err != nil {
+		t.Fatalf("CleanupArchives: %v", err)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("remaining archives = %d, want 2: %#v", len(matches), matches)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "ignore.txt")); err != nil {
+		t.Fatalf("ignored file removed: %v", err)
 	}
 }

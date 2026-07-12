@@ -1,0 +1,62 @@
+﻿name: providapt
+arch: amd64
+platform: linux
+version: ${PROVIDAPT_VERSION}
+section: default
+priority: optional
+maintainer: ProvidAPT Maintainers <security@example.com>
+description: Linux provenance-based threat detection platform built on eBPF and BPF LSM.
+homepage: https://github.com/Chaoqun-Guo/ProvidAPT
+license: Apache-2.0
+contents:
+  - src: build/bin/providaptd
+    dst: /usr/local/sbin/providaptd
+    file_info:
+      mode: 0755
+  - src: build/bin/providapt-watchdog
+    dst: /usr/local/sbin/providapt-watchdog
+    file_info:
+      mode: 0755
+  - src: build/bin/providaptctl
+    dst: /usr/local/bin/providaptctl
+    file_info:
+      mode: 0755
+  - src: build/bin/providapt-verify
+    dst: /usr/local/bin/providapt-verify
+    file_info:
+      mode: 0755
+  - src: build/bin/providapt-heal
+    dst: /usr/local/bin/providapt-heal
+    file_info:
+      mode: 0755
+  - src: build/bin/providapt-deanon
+    dst: /usr/local/bin/providapt-deanon
+    file_info:
+      mode: 0755
+  - src: deploy/linux/providapt.service
+    dst: /etc/systemd/system/providapt.service
+    file_info:
+      mode: 0644
+  - src: deploy/linux/providapt.env
+    dst: /etc/default/providapt
+    type: config|noreplace
+    file_info:
+      mode: 0644
+  - src: build/providapt.toml
+    dst: /etc/providapt/providapt.toml
+    type: config|noreplace
+    file_info:
+      mode: 0640
+  - src: build/ebpf
+    dst: /usr/local/lib/providapt/ebpf
+    type: tree
+    file_info:
+      mode: 0644
+scripts:
+  postinstall: scripts/install/postinstall-linux.sh
+  preremove: scripts/install/preremove-linux.sh
+rpm:
+  group: Applications/System
+deb:
+  fields:
+    Bugs: https://github.com/Chaoqun-Guo/ProvidAPT/issues

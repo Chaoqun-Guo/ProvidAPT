@@ -149,6 +149,8 @@ Frequently used control-plane endpoints:
 - `GET /api/v1/control/backup`
 - `POST /api/v1/control/backup`
 - `GET /api/v1/control/backup/download`
+- `GET /api/v1/control/security`
+- `POST /api/v1/control/security`
 - `GET /api/v1/control/license`
 - `POST /api/v1/control/license`
 - `GET /api/v1/control/upgrade`

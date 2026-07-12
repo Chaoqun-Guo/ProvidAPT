@@ -158,3 +158,59 @@ GET /api/v1/control/backup/download
 ```
 
 Restore actions are intentionally staged instead of replacing the live store. Use `{"action":"restore_staging"}` to extract the latest backup into `restore-staging/`, verify the restored Pebble store offline, then stop ProvidAPT before swapping directories during a maintenance window.
+
+For production, enable automatic checkpoint backups:
+
+```yaml
+backup:
+  enabled: true
+  interval: 24h
+  retain_archives: 7
+  min_free_bytes: 1073741824
+```
+
+Use `{"action":"prepare_cutover"}` after a successful staging restore to generate a root-only activation script under `restore-staging/`. The script stops `providapt.service`, archives the previous store directory, swaps in the staged restore, and starts the service again.
+
+Security rotation is available from:
+
+```text
+GET /api/v1/control/security
+POST /api/v1/control/security {"action":"rotate_server_cert"}
+```
+
+The rotation action backs up the previous server cert/key with timestamp suffixes. Reload or restart services after rotation so listeners pick up the new certificate.
+
+Offline license activation and renewal use the same endpoint:
+
+```text
+POST /api/v1/control/license {"action":"import","license_data":"..."}
+POST /api/v1/control/license {"action":"renew","license_data":"..."}
+```
+
+License documents may include `machine_fingerprint`; ProvidAPT compares it with the local fingerprint returned by `GET /api/v1/control/license` before accepting the license.
+
+For enterprise SSO, place ProvidAPT behind an authenticated reverse proxy and enable trusted headers only on the protected listener:
+
+```yaml
+sso:
+  trusted_header_auth: true
+  user_header: X-Forwarded-User
+  role_header: X-Forwarded-Role
+  tenant_header: X-Forwarded-Tenant
+```
+
+Tenant-scoped API keys can be bound with `api.auth_tenants`; non-admin users with a tenant are restricted to the matching fleet group.
+
+Policy authors can validate a Sigma rule without mutating the draft:
+
+```text
+POST /api/v1/control/policies {"action":"validate_sigma","rule_yaml":"title: ..."}
+```
+
+Release packages can be built from the same tagged build output with `nfpm`:
+
+```bash
+PROVIDAPT_VERSION=1.2.3 nfpm package -f packaging/nfpm.yaml -p deb
+PROVIDAPT_VERSION=1.2.3 nfpm package -f packaging/nfpm.yaml -p rpm
+PROVIDAPT_VERSION=1.2.3 nfpm package -f packaging/nfpm.yaml -p tar
+```

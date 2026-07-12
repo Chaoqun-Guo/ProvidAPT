@@ -306,6 +306,55 @@ paths:
         "200":
           description: Binary support bundle archive
 
+  /api/v1/control/backup:
+    get:
+      summary: Backup status
+      description: Returns checkpoint backup, restore staging, and cutover history
+      operationId: getBackupStatus
+      responses:
+        "200":
+          description: Backup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSummary"
+    post:
+      summary: Run backup action
+      description: Create checkpoint backups, restore to staging, or prepare a restore cutover plan
+      operationId: runBackupAction
+      responses:
+        "200":
+          description: Backup action result
+
+  /api/v1/control/backup/download:
+    get:
+      summary: Download backup
+      description: Download the latest checkpoint backup archive
+      operationId: downloadBackup
+      responses:
+        "200":
+          description: Binary checkpoint backup archive
+
+  /api/v1/control/security:
+    get:
+      summary: Security rotation status
+      description: Returns TLS certificate rotation readiness and history
+      operationId: getSecurityStatus
+      responses:
+        "200":
+          description: Security status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityStatus"
+    post:
+      summary: Run security action
+      description: Check or rotate the server TLS certificate
+      operationId: runSecurityAction
+      responses:
+        "200":
+          description: Security action result
+
   /api/v1/control/audit:
     get:
       summary: Audit log
@@ -502,6 +551,42 @@ components:
           format: date-time
         download_url:
           type: string
+
+    BackupSummary:
+      type: object
+      properties:
+        last_backup_path:
+          type: string
+        last_restore_path:
+          type: string
+        last_status:
+          type: string
+        last_backup_at:
+          type: string
+          format: date-time
+        size_bytes:
+          type: integer
+          format: int64
+        download_url:
+          type: string
+
+    SecurityStatus:
+      type: object
+      properties:
+        updated_at:
+          type: string
+          format: date-time
+        cert_file:
+          type: string
+        ca_file:
+          type: string
+        rotation_needed:
+          type: boolean
+        last_status:
+          type: string
+        last_rotated_at:
+          type: string
+          format: date-time
 
     LicenseStatus:
       type: object

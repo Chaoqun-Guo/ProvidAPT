@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -52,10 +53,18 @@ type Config struct {
 		AuthKeys        []string          `json:"auth_keys" yaml:"auth_keys"`
 		AuthRoles       map[string]string `json:"auth_roles" yaml:"auth_roles"`
 		AuthIdentities  map[string]string `json:"auth_identities" yaml:"auth_identities"`
+		AuthTenants     map[string]string `json:"auth_tenants" yaml:"auth_tenants"`
 		RateLimitPerSec float64           `json:"rate_limit_per_sec" yaml:"rate_limit_per_sec"`
 		RateLimitBurst  int               `json:"rate_limit_burst" yaml:"rate_limit_burst"`
 		CORSOrigins     []string          `json:"cors_origins" yaml:"cors_origins"`
 	} `json:"api" yaml:"api"`
+
+	SSO struct {
+		TrustedHeaderAuth bool   `json:"trusted_header_auth" yaml:"trusted_header_auth"`
+		UserHeader        string `json:"user_header" yaml:"user_header"`
+		RoleHeader        string `json:"role_header" yaml:"role_header"`
+		TenantHeader      string `json:"tenant_header" yaml:"tenant_header"`
+	} `json:"sso" yaml:"sso"`
 
 	TLS struct {
 		Enable   bool   `json:"enable" yaml:"enable"`
@@ -134,6 +143,14 @@ type Config struct {
 		RedactArchives bool `json:"redact_archives" yaml:"redact_archives"`
 	} `json:"support_bundle" yaml:"support_bundle"`
 
+	Backup struct {
+		Enabled         bool   `json:"enabled" yaml:"enabled"`
+		Interval        string `json:"interval" yaml:"interval"`
+		RetainArchives  int    `json:"retain_archives" yaml:"retain_archives"`
+		MinFreeBytes    int64  `json:"min_free_bytes" yaml:"min_free_bytes"`
+		AllowActivation bool   `json:"allow_activation" yaml:"allow_activation"`
+	} `json:"backup" yaml:"backup"`
+
 	License struct {
 		Path               string   `json:"path" yaml:"path"`
 		SigningKey         string   `json:"signing_key" yaml:"signing_key"`
@@ -198,6 +215,21 @@ func (d *Duration) parse(s string) error {
 	return nil
 }
 
+func parseDurationString(value string) (time.Duration, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return 0, nil
+	}
+	duration, err := time.ParseDuration(trimmed)
+	if err != nil {
+		return 0, err
+	}
+	if duration <= 0 {
+		return 0, fmt.Errorf("must be positive")
+	}
+	return duration, nil
+}
+
 // DefaultConfig returns a configuration with sensible defaults.
 func DefaultConfig() *Config {
 	c := &Config{}
@@ -218,12 +250,19 @@ func DefaultConfig() *Config {
 	c.API.RateLimitPerSec = 100
 	c.API.RateLimitBurst = 200
 	c.API.CORSOrigins = []string{"*"}
+	c.SSO.UserHeader = "X-Forwarded-User"
+	c.SSO.RoleHeader = "X-Forwarded-Role"
+	c.SSO.TenantHeader = "X-Forwarded-Tenant"
 	c.Notify.MaxAttempts = 3
 	c.Notify.RetryBackoff = "250ms"
 	c.Telemetry.Interval = "30s"
 	c.Policy.PollInterval = "30s"
 	c.SupportBundle.RetainArchives = 5
 	c.SupportBundle.RedactArchives = true
+	c.Backup.Enabled = false
+	c.Backup.Interval = "24h"
+	c.Backup.RetainArchives = 7
+	c.Backup.MinFreeBytes = 1024 * 1024 * 1024
 	c.License.GracePeriodDays = 0
 	return c
 }
@@ -340,6 +379,17 @@ func (c *Config) Validate() error {
 	if c.SupportBundle.RetainArchives < 0 {
 		return fmt.Errorf("support_bundle.retain_archives must be non-negative")
 	}
+	if strings.TrimSpace(c.Backup.Interval) != "" {
+		if _, err := parseDurationString(c.Backup.Interval); err != nil {
+			return fmt.Errorf("backup.interval: %w", err)
+		}
+	}
+	if c.Backup.RetainArchives < 0 {
+		return fmt.Errorf("backup.retain_archives must be non-negative")
+	}
+	if c.Backup.MinFreeBytes < 0 {
+		return fmt.Errorf("backup.min_free_bytes must be non-negative")
+	}
 	if c.License.GracePeriodDays < 0 {
 		return fmt.Errorf("license.grace_period_days must be non-negative")
 	}
@@ -376,6 +426,9 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Output.Format, "PROVIDAPT_OUTPUT_FORMAT")
 	overrideString(&cfg.API.GRPC, "PROVIDAPT_API_GRPC")
 	overrideString(&cfg.API.REST, "PROVIDAPT_API_REST")
+	overrideString(&cfg.SSO.UserHeader, "PROVIDAPT_SSO_USER_HEADER")
+	overrideString(&cfg.SSO.RoleHeader, "PROVIDAPT_SSO_ROLE_HEADER")
+	overrideString(&cfg.SSO.TenantHeader, "PROVIDAPT_SSO_TENANT_HEADER")
 	overrideString(&cfg.Storage.KeyFile, "PROVIDAPT_STORAGE_KEY_FILE")
 	overrideString(&cfg.Telemetry.Endpoint, "PROVIDAPT_TELEMETRY_ENDPOINT")
 	overrideString(&cfg.Telemetry.Interval, "PROVIDAPT_TELEMETRY_INTERVAL")
@@ -416,6 +469,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
 	overrideString(&cfg.Upgrade.PublicKeyPath, "PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH")
 	overrideString(&cfg.Upgrade.RollbackPlan, "PROVIDAPT_UPGRADE_ROLLBACK_PLAN")
+	overrideString(&cfg.Backup.Interval, "PROVIDAPT_BACKUP_INTERVAL")
 
 	overrideBool(&cfg.Kernel.Verbose, "PROVIDAPT_KERNEL_VERBOSE")
 	overrideBool(&cfg.Capture.EnableNet, "PROVIDAPT_CAPTURE_ENABLE_NET")
@@ -426,16 +480,21 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Storage.Encrypt, "PROVIDAPT_STORAGE_ENCRYPT")
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
 	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
+	overrideBool(&cfg.SSO.TrustedHeaderAuth, "PROVIDAPT_SSO_TRUSTED_HEADER_AUTH")
 	overrideBool(&cfg.Telemetry.EnableTLS, "PROVIDAPT_TELEMETRY_ENABLE_TLS")
 	overrideBool(&cfg.Policy.Enabled, "PROVIDAPT_POLICY_ENABLED")
 	overrideBool(&cfg.Policy.EnableTLS, "PROVIDAPT_POLICY_ENABLE_TLS")
 	overrideBool(&cfg.SupportBundle.RedactArchives, "PROVIDAPT_SUPPORT_REDACT_ARCHIVES")
+	overrideBool(&cfg.Backup.Enabled, "PROVIDAPT_BACKUP_ENABLED")
+	overrideBool(&cfg.Backup.AllowActivation, "PROVIDAPT_BACKUP_ALLOW_ACTIVATION")
 
 	overrideInt(&cfg.Capture.MaxEvents, "PROVIDAPT_CAPTURE_MAX_EVENTS")
 	overrideInt(&cfg.API.RateLimitBurst, "PROVIDAPT_API_RATE_LIMIT_BURST")
 	overrideInt(&cfg.Notify.MaxAttempts, "PROVIDAPT_NOTIFY_MAX_ATTEMPTS")
 	overrideInt(&cfg.SupportBundle.RetainArchives, "PROVIDAPT_SUPPORT_RETAIN_ARCHIVES")
 	overrideInt(&cfg.License.GracePeriodDays, "PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
+	overrideInt(&cfg.Backup.RetainArchives, "PROVIDAPT_BACKUP_RETAIN_ARCHIVES")
+	overrideInt64(&cfg.Backup.MinFreeBytes, "PROVIDAPT_BACKUP_MIN_FREE_BYTES")
 
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
 	overrideUint32Slice(&cfg.Capture.ExcludePIDs, "PROVIDAPT_CAPTURE_EXCLUDE_PIDS")
@@ -472,6 +531,14 @@ func overrideBool(field *bool, envKey string) {
 func overrideInt(field *int, envKey string) {
 	if v, ok := os.LookupEnv(envKey); ok {
 		if n, err := strconv.Atoi(v); err == nil {
+			*field = n
+		}
+	}
+}
+
+func overrideInt64(field *int64, envKey string) {
+	if v, ok := os.LookupEnv(envKey); ok {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 			*field = n
 		}
 	}

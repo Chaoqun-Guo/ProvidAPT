@@ -187,6 +187,39 @@ func TestFleetEndpoint(t *testing.T) {
 	}
 }
 
+func TestTenantScopedFleetAccess(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"tenant-key"},
+		map[string]string{"tenant-key": RoleAnalyst},
+		map[string]string{"tenant-key": "Tenant Analyst"},
+		true,
+	)
+	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod"})
+	var gotGroup string
+	ts.SetFleetListFunc(func(group, tag string) FleetList {
+		gotGroup = group
+		return FleetList{UpdatedAt: "2026-06-08T01:02:03Z", Group: group, Agents: []ClusterAgent{}}
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet", nil)
+	req.Header.Set("X-API-Key", "tenant-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if gotGroup != "prod" {
+		t.Fatalf("group = %q", gotGroup)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet?group=dev", nil)
+	req.Header.Set("X-API-Key", "tenant-key")
+	w = apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("cross tenant status code = %d", w.Code)
+	}
+}
+
 func TestFleetUpdateEndpoint(t *testing.T) {
 	ts := testServer(t)
 	var got FleetUpdate
@@ -278,6 +311,27 @@ func TestRBACAuditorStatusAllowed(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 	if resp["role"] != "auditor" {
+		t.Fatalf("role = %v", resp["role"])
+	}
+}
+
+func TestTrustedHeaderAuth(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)
+	ts.SetTrustedHeaderAuth(true, "X-SSO-User", "X-SSO-Role")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	req.Header.Set("X-SSO-User", "alice@example.com")
+	req.Header.Set("X-SSO-Role", RoleAuditor)
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["role"] != RoleAuditor {
 		t.Fatalf("role = %v", resp["role"])
 	}
 }
@@ -531,6 +585,79 @@ func TestRBACAuditorBackupDownloadDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/backup/download", nil)
 	req.Header.Set("X-API-Key", "auditor-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status code = %d", w.Code)
+	}
+}
+
+func TestSecurityEndpoint(t *testing.T) {
+	ts := testServer(t)
+	ts.SetSecurityStatusFunc(func() SecurityStatus {
+		return SecurityStatus{
+			UpdatedAt:      "2026-06-08T01:02:03Z",
+			CertFile:       "/etc/providapt/server.crt",
+			KeyFile:        "/etc/providapt/server.key",
+			CAFile:         "/etc/providapt/ca.crt",
+			RotationNeeded: true,
+			LastStatus:     "checked",
+			History: []ControlActionAudit{{
+				Action:      "security_check_rotation",
+				Status:      "checked",
+				Message:     "certificate rotation checked",
+				PerformedAt: "2026-06-08T01:02:03Z",
+			}},
+		}
+	})
+
+	w := apiGet(ts, "/api/v1/control/security")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["rotation_needed"] != true || resp["cert_file"] != "/etc/providapt/server.crt" {
+		t.Fatalf("security status = %#v", resp)
+	}
+}
+
+func TestSecurityActionInjectsActorAndRole(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"admin-key"},
+		map[string]string{"admin-key": RoleAdmin},
+		map[string]string{"admin-key": "SecOps On-Call"},
+		true,
+	)
+	var gotReq SecurityActionRequest
+	ts.SetSecurityActionFunc(func(req SecurityActionRequest) (SecurityActionResult, error) {
+		gotReq = req
+		return SecurityActionResult{
+			Status:      "rotated",
+			Action:      req.Action,
+			CertFile:    "/etc/providapt/server.crt",
+			PerformedAt: "2026-06-08T01:02:03Z",
+		}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/security", bytes.NewBufferString(`{"action":"rotate_server_cert","note":"quarterly"}`))
+	req.Header.Set("X-API-Key", "admin-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if gotReq.Role != RoleAdmin || gotReq.Actor != "SecOps On-Call (admin)" || gotReq.Note != "quarterly" {
+		t.Fatalf("request = %#v", gotReq)
+	}
+}
+
+func TestRBACAnalystSecurityActionDenied(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/security", bytes.NewBufferString(`{"action":"rotate_server_cert"}`))
+	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)

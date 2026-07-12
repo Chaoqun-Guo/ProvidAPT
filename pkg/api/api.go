@@ -210,6 +210,37 @@ type BackupActionResult struct {
 
 type BackupActionFunc func(req BackupActionRequest) (BackupActionResult, error)
 
+type SecurityStatus struct {
+	UpdatedAt      string               `json:"updated_at"`
+	CertFile       string               `json:"cert_file,omitempty"`
+	KeyFile        string               `json:"key_file,omitempty"`
+	CAFile         string               `json:"ca_file,omitempty"`
+	RotationNeeded bool                 `json:"rotation_needed"`
+	LastStatus     string               `json:"last_status,omitempty"`
+	LastMessage    string               `json:"last_message,omitempty"`
+	LastRotatedAt  string               `json:"last_rotated_at,omitempty"`
+	History        []ControlActionAudit `json:"history,omitempty"`
+}
+
+type SecurityStatusFunc func() SecurityStatus
+
+type SecurityActionRequest struct {
+	Action string `json:"action,omitempty"`
+	Note   string `json:"note,omitempty"`
+	Actor  string `json:"actor,omitempty"`
+	Role   string `json:"role,omitempty"`
+}
+
+type SecurityActionResult struct {
+	Status      string `json:"status"`
+	Message     string `json:"message,omitempty"`
+	Action      string `json:"action,omitempty"`
+	CertFile    string `json:"cert_file,omitempty"`
+	PerformedAt string `json:"performed_at"`
+}
+
+type SecurityActionFunc func(req SecurityActionRequest) (SecurityActionResult, error)
+
 type AuditEntry struct {
 	ID        string                 `json:"id"`
 	Timestamp string                 `json:"timestamp"`
@@ -238,6 +269,9 @@ type LicenseStatus struct {
 	ModifiedAt          string               `json:"modified_at,omitempty"`
 	Customer            string               `json:"customer,omitempty"`
 	Edition             string               `json:"edition,omitempty"`
+	MachineFingerprint  string               `json:"machine_fingerprint,omitempty"`
+	BoundFingerprint    string               `json:"bound_fingerprint,omitempty"`
+	BindingVerified     bool                 `json:"binding_verified"`
 	IssuedAt            string               `json:"issued_at,omitempty"`
 	ExpiresAt           string               `json:"expires_at,omitempty"`
 	DaysRemaining       int                  `json:"days_remaining,omitempty"`
@@ -259,10 +293,12 @@ type LicenseStatus struct {
 type LicenseStatusFunc func() LicenseStatus
 
 type LicenseActionRequest struct {
-	Action string `json:"action"`
-	Note   string `json:"note,omitempty"`
-	Actor  string `json:"actor,omitempty"`
-	Role   string `json:"role,omitempty"`
+	Action      string `json:"action"`
+	LicenseData string `json:"license_data,omitempty"`
+	LicensePath string `json:"license_path,omitempty"`
+	Note        string `json:"note,omitempty"`
+	Actor       string `json:"actor,omitempty"`
+	Role        string `json:"role,omitempty"`
 }
 
 type LicenseActionResult struct {
@@ -274,6 +310,7 @@ type LicenseActionResult struct {
 	InGracePeriod     bool   `json:"in_grace_period"`
 	Revoked           bool   `json:"revoked"`
 	SignatureVerified bool   `json:"signature_verified"`
+	BindingVerified   bool   `json:"binding_verified"`
 }
 
 type LicenseActionFunc func(req LicenseActionRequest) (LicenseActionResult, error)
@@ -527,41 +564,48 @@ type NotifyDeliveryActionFunc func(req NotifyDeliveryActionRequest) (NotifyDeliv
 // ═══════════════════════════════════════════════════════════════
 
 type Server struct {
-	addr        string
-	graph       *provenance.Graph
-	store       *store.Store
-	backtracer  *backtrace.Backtracer
-	healthFn    HealthCheckFunc
-	clusterFn   ClusterOverviewFunc
-	fleetListFn FleetListFunc
-	fleetSetFn  FleetUpdateFunc
-	supportFn   SupportBundleFunc
-	supportAct  SupportBundleActionFunc
-	supportDl   SupportBundleDownloadFunc
-	backupFn    BackupFunc
-	backupAct   BackupActionFunc
-	backupDl    BackupDownloadFunc
-	auditFn     AuditQueryFunc
-	licenseFn   LicenseStatusFunc
-	licenseAct  LicenseActionFunc
-	upgradeFn   UpgradeReadinessFunc
-	upgradeAct  UpgradeActionFunc
-	policyFn    PolicyCenterFunc
-	policyActFn PolicyActionFunc
-	policyDlFn  PolicyBundleDownloadFunc
-	alertsFn    AlertWorkflowFunc
-	alertActFn  AlertWorkflowActionFunc
-	deliveryFn  NotifyDeliveryFunc
-	deliveryAct NotifyDeliveryActionFunc
-	mux         *http.ServeMux
-	startTime   time.Time
-	reloadFn    func() error
-	authKeys    []string
-	authRoles   map[string]string
-	authIDs     map[string]string
-	authEnabled bool
-	rateLimiter *rateLimiter
-	corsOrigins []string
+	addr                     string
+	graph                    *provenance.Graph
+	store                    *store.Store
+	backtracer               *backtrace.Backtracer
+	healthFn                 HealthCheckFunc
+	clusterFn                ClusterOverviewFunc
+	fleetListFn              FleetListFunc
+	fleetSetFn               FleetUpdateFunc
+	supportFn                SupportBundleFunc
+	supportAct               SupportBundleActionFunc
+	supportDl                SupportBundleDownloadFunc
+	backupFn                 BackupFunc
+	backupAct                BackupActionFunc
+	backupDl                 BackupDownloadFunc
+	securityFn               SecurityStatusFunc
+	securityAct              SecurityActionFunc
+	auditFn                  AuditQueryFunc
+	licenseFn                LicenseStatusFunc
+	licenseAct               LicenseActionFunc
+	upgradeFn                UpgradeReadinessFunc
+	upgradeAct               UpgradeActionFunc
+	policyFn                 PolicyCenterFunc
+	policyActFn              PolicyActionFunc
+	policyDlFn               PolicyBundleDownloadFunc
+	alertsFn                 AlertWorkflowFunc
+	alertActFn               AlertWorkflowActionFunc
+	deliveryFn               NotifyDeliveryFunc
+	deliveryAct              NotifyDeliveryActionFunc
+	mux                      *http.ServeMux
+	startTime                time.Time
+	reloadFn                 func() error
+	authKeys                 []string
+	authRoles                map[string]string
+	authIDs                  map[string]string
+	authTenants              map[string]string
+	authEnabled              bool
+	trustedHeaderAuthEnabled bool
+	trustedUserHeader        string
+	trustedRoleHeader        string
+	trustedTenantHeader      string
+	rateLimiter              *rateLimiter
+	corsOrigins              []string
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
@@ -616,6 +660,14 @@ func (s *Server) SetBackupActionFunc(fn BackupActionFunc) {
 
 func (s *Server) SetBackupDownloadFunc(fn BackupDownloadFunc) {
 	s.backupDl = fn
+}
+
+func (s *Server) SetSecurityStatusFunc(fn SecurityStatusFunc) {
+	s.securityFn = fn
+}
+
+func (s *Server) SetSecurityActionFunc(fn SecurityActionFunc) {
+	s.securityAct = fn
 }
 
 func (s *Server) SetAuditQueryFunc(fn AuditQueryFunc) {
@@ -878,6 +930,20 @@ func (s *Server) SetAPIAuth(keys []string, roles map[string]string, identities m
 	s.authEnabled = enabled
 }
 
+func (s *Server) SetAPIAuthTenants(tenants map[string]string) {
+	s.authTenants = tenants
+}
+
+func (s *Server) SetTrustedHeaderAuth(enabled bool, userHeader, roleHeader string) {
+	s.trustedHeaderAuthEnabled = enabled
+	s.trustedUserHeader = strings.TrimSpace(userHeader)
+	s.trustedRoleHeader = strings.TrimSpace(roleHeader)
+}
+
+func (s *Server) SetTrustedTenantHeader(header string) {
+	s.trustedTenantHeader = strings.TrimSpace(header)
+}
+
 // SetRateLimit configures per-IP rate limiting.
 func (s *Server) SetRateLimit(ratePerSec float64, burst int) {
 	if ratePerSec > 0 {
@@ -900,7 +966,12 @@ func (s *Server) buildHandlerChain() http.Handler {
 		h = rateLimitMiddleware(s.rateLimiter)(h)
 	}
 	h = authorizationMiddleware()(h)
-	h = authMiddleware(s.authKeys, s.authRoles, s.authIDs, s.authEnabled)(h)
+	h = authMiddleware(s.authKeys, s.authRoles, s.authIDs, s.authTenants, s.authEnabled, trustedHeaderAuthConfig{
+		Enabled:      s.trustedHeaderAuthEnabled,
+		UserHeader:   s.trustedUserHeader,
+		RoleHeader:   s.trustedRoleHeader,
+		TenantHeader: s.trustedTenantHeader,
+	})(h)
 	return h
 }
 
@@ -949,6 +1020,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/control/support/download", s.handleSupportBundleDownload)
 	mux.HandleFunc("/api/v1/control/backup", s.jsonHandler(s.handleBackups))
 	mux.HandleFunc("/api/v1/control/backup/download", s.handleBackupDownload)
+	mux.HandleFunc("/api/v1/control/security", s.jsonHandler(s.handleSecurity))
 	mux.HandleFunc("/api/v1/control/audit", s.jsonHandler(s.handleAuditFeed))
 	mux.HandleFunc("/api/v1/control/license", s.jsonHandler(s.handleLicenseStatus))
 	mux.HandleFunc("/api/v1/control/upgrade", s.jsonHandler(s.handleUpgradeReadiness))
@@ -1054,6 +1126,13 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 	case http.MethodGet:
 		group := strings.TrimSpace(r.URL.Query().Get("group"))
 		tag := strings.TrimSpace(r.URL.Query().Get("tag"))
+		if tenant := CurrentTenant(r); tenant != "" && CurrentRole(r) != RoleAdmin {
+			if group != "" && group != tenant {
+				w.WriteHeader(http.StatusForbidden)
+				return json.NewEncoder(w).Encode(map[string]string{"error": "forbidden: tenant scope mismatch"})
+			}
+			group = tenant
+		}
 		fleet := FleetList{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
 			Group:     group,
@@ -1224,6 +1303,47 @@ func (s *Server) handleBackupDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/gzip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	http.ServeFile(w, r, download.Path)
+}
+
+func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) error {
+	switch r.Method {
+	case http.MethodGet:
+		status := SecurityStatus{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			History:   []ControlActionAudit{},
+		}
+		if s.securityFn != nil {
+			status = s.securityFn()
+			if status.UpdatedAt == "" {
+				status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+			}
+			if status.History == nil {
+				status.History = []ControlActionAudit{}
+			}
+		}
+		return json.NewEncoder(w).Encode(status)
+	case http.MethodPost:
+		if s.securityAct == nil {
+			w.WriteHeader(http.StatusNotImplemented)
+			return json.NewEncoder(w).Encode(map[string]string{"error": "security actions not enabled"})
+		}
+		var req SecurityActionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return fmt.Errorf("decode security action: %w", err)
+		}
+		req.Role = CurrentRole(r)
+		if req.Actor == "" {
+			req.Actor = CurrentActor(r)
+		}
+		result, err := s.securityAct(req)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(w).Encode(result)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
 }
 
 func (s *Server) handleAuditFeed(w http.ResponseWriter, r *http.Request) error {

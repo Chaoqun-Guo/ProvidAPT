@@ -1,4 +1,4 @@
-# Testing Guide
+﻿# Testing Guide
 
 ## Quick Start
 
@@ -28,8 +28,8 @@ Current total coverage: **~61%** (as of v1.2.2). CI enforces a minimum of **20%*
 ### Running Coverage Locally
 
 ```bash
-make coverage          # Text summary → build/coverage/coverage.txt
-make coverage-html     # HTML report → build/coverage/coverage.html
+make coverage          # Text summary 鈫?build/coverage/coverage.txt
+make coverage-html     # HTML report 鈫?build/coverage/coverage.html
 ```
 
 ### Quality Gate
@@ -40,38 +40,37 @@ The CI pipeline checks total coverage against a threshold (currently 20%). If co
 
 ## Test Organization
 
-```
+```text
 test/
-鈹溾攢鈹€ integration/              # Integration-level tests
-鈹-  鈹溾攢鈹€ attack-scenarios/     # APT attack simulation (bash)
-鈹-  鈹-  鈹溾攢鈹€ attack_sim.sh           # 5-phase APT attack simulation
-鈹-  鈹-  鈹溾攢鈹€ privilege-escalation.sh # SUID/sudo/capability abuse
-鈹-  鈹-  鈹溾攢鈹€ lateral-movement.sh     # SSH/DNS/curl/SCP movement
-鈹-  鈹-  鈹溾攢鈹€ persistence.sh          # Cron/SSH keys/systemd hooks
-鈹-  鈹-  鈹溾攢鈹€ verify_capture.sh       # Validate provenance graph
-鈹-  鈹-  鈹斺攢鈹€ run_e2e.sh              # Full pipeline orchestration
-鈹-  鈹-鈹-  鈹溾攢鈹€ kernel-test/          # Kernel compatibility test framework
-鈹-  鈹-  鈹溾攢鈹€ Dockerfile              # Multi-stage test container
-鈹-  鈹-  鈹溾攢鈹€ images.yml              # Kernel version matrix (5.4鈥-.8)
-鈹-  鈹-  鈹溾攢鈹€ run_tests.sh            # CO-RE + stress test runner
-鈹-  鈹-  鈹溾攢鈹€ generate_report.py      # HTML report generation
-鈹-  鈹-  鈹斺攢鈹€ stress_test.go          # 10K fork stress test
-鈹-  鈹-鈹-  鈹溾攢鈹€ config.yml            # VM test configuration
-鈹-  鈹溾攢鈹€ integration_test.py   # Multi-host SSH integration (3 VMs)
-鈹-  鈹溾攢鈹€ full_validation.sh # pipeline validation
-鈹-  鈹溾攢鈹€ final_check.sh   # Kubernetes and self-healing check
-鈹-  鈹溾攢鈹€ cluster_test.py  # multi-host cluster test
-鈹-  鈹溾攢鈹€ supply_chain_test.sh # supply-chain test
-鈹-  鈹斺攢鈹€ *_test.go             # Go integration tests
-鈹-鈹溾攢鈹€ benchmark/                # Performance benchmarks
-鈹-  鈹溾攢鈹€ eventgen.go           # Event generator for load testing
-鈹-  鈹溾攢鈹€ eventgen_test.go
-鈹-  鈹溾攢鈹€ latency_test.go       # End-to-end latency measurement
-鈹-  鈹溾攢鈹€ pipeline_bench_test.go # Pipeline throughput benchmarks
-鈹-  鈹斺攢鈹€ run_benchmark.sh      # Benchmark runner
-鈹-鈹斺攢鈹€ fuzz/                     # Fuzz testing (directory ready)
+├── integration/                 # Integration-level tests
+│   ├── attack-scenarios/        # APT attack simulation (bash)
+│   │   ├── attack_sim.sh        # 5-phase APT attack simulation
+│   │   ├── privilege-escalation.sh
+│   │   ├── lateral-movement.sh
+│   │   ├── persistence.sh
+│   │   ├── verify_capture.sh
+│   │   └── run_e2e.sh
+│   ├── kernel-test/             # Kernel compatibility test framework
+│   │   ├── Dockerfile
+│   │   ├── images.yml           # Kernel version matrix (5.4-6.8)
+│   │   ├── run_tests.sh
+│   │   ├── generate_report.py
+│   │   ├── stress_test.go
+│   │   └── config.yml
+│   ├── integration_test.py      # Multi-host SSH integration
+│   ├── full_validation.sh       # Pipeline validation
+│   ├── final_check.sh           # Kubernetes and self-healing check
+│   ├── cluster_test.py          # Multi-host cluster test
+│   ├── supply_chain_test.sh     # Supply-chain test
+│   └── *_test.go                # Go integration tests
+├── benchmark/                   # Performance benchmarks
+│   ├── eventgen.go
+│   ├── eventgen_test.go
+│   ├── latency_test.go
+│   ├── pipeline_bench_test.go
+│   └── run_benchmark.sh
+└── fuzz/                        # Fuzz testing targets
 ```
-
 ## Running Tests
 
 ### Unit Tests (No Root Required)

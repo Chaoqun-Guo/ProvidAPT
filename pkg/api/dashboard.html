@@ -235,6 +235,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       <div class="action-row">
         <button id="createBackupBtn" onclick="runBackupAction('create')">Create Backup</button>
         <button id="restoreBackupBtn" class="secondary" onclick="runBackupAction('restore_staging')">Restore to Staging</button>
+        <button id="prepareCutoverBtn" class="secondary" onclick="runBackupAction('prepare_cutover')">Prepare Cutover</button>
         <button id="downloadBackupBtn" class="secondary" onclick="downloadBackupArchive()">Download Backup</button>
       </div>
       <div class="loading" id="backupStatus"></div>
@@ -275,6 +276,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <textarea id="policyRuleYAML" placeholder="Sigma rule YAML for add/update"></textarea>
         <div class="action-row" style="margin:0;align-content:start;">
           <button class="secondary" onclick="preparePolicyMutation('add_sigma')">Add Sigma</button>
+          <button class="secondary" onclick="preparePolicyMutation('validate_sigma')">Validate Sigma</button>
           <button class="secondary" onclick="preparePolicyMutation('update_sigma')">Update Sigma</button>
           <button class="secondary" onclick="preparePolicyMutation('remove_sigma')">Remove Sigma</button>
           <button class="secondary" onclick="preparePolicyMutation('add_whitelist')">Add Whitelist</button>
@@ -602,6 +604,7 @@ async function loadStatus() {
     const downloadSupportBundleBtn = document.getElementById('downloadSupportBundleBtn');
     const createBackupBtn = document.getElementById('createBackupBtn');
     const restoreBackupBtn = document.getElementById('restoreBackupBtn');
+    const prepareCutoverBtn = document.getElementById('prepareCutoverBtn');
     const downloadBackupBtn = document.getElementById('downloadBackupBtn');
     const validateLicenseBtn = document.getElementById('validateLicenseBtn');
     const checkUpgradeBtn = document.getElementById('checkUpgradeBtn');
@@ -617,6 +620,7 @@ async function loadStatus() {
     if (downloadSupportBundleBtn) downloadSupportBundleBtn.disabled = currentRole === 'analyst';
     if (createBackupBtn) createBackupBtn.disabled = !deliveryAdmin;
     if (restoreBackupBtn) restoreBackupBtn.disabled = !deliveryAdmin;
+    if (prepareCutoverBtn) prepareCutoverBtn.disabled = !deliveryAdmin;
     if (downloadBackupBtn) downloadBackupBtn.disabled = !deliveryAdmin;
     if (validateLicenseBtn) validateLicenseBtn.disabled = !deliveryAdmin;
     if (checkUpgradeBtn) checkUpgradeBtn.disabled = !deliveryAdmin;
@@ -1122,7 +1126,11 @@ function showBackupDetails(scope) {
 async function runBackupAction(action) {
   if (currentRole !== 'admin') return;
   const status = document.getElementById('backupStatus');
-  if (status) status.textContent = action === 'create' ? 'Creating checkpoint backup...' : 'Restoring backup to staging...';
+  if (status) {
+    status.textContent = action === 'create'
+      ? 'Creating checkpoint backup...'
+      : (action === 'prepare_cutover' ? 'Preparing restore cutover plan...' : 'Restoring backup to staging...');
+  }
   try {
     const response = await fetch('/api/v1/control/backup', {
       method: 'POST',

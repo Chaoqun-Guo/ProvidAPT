@@ -14,7 +14,12 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    name: release scoped (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
 
@@ -54,10 +59,34 @@ jobs:
       - name: Run release-scoped validation
         run: |
           go test ./pkg/ticketing ./pkg/config ./pkg/api ./pkg/notify ./pkg/telemetry ./pkg/alertflow
-          go test ./pkg/archive ./internal/storage/format ./internal/engine/container
+          go test ./pkg/archive ./pkg/backup ./internal/storage/format ./internal/engine/container
           go test ./pkg/releasecheck ./cmd/cli/providaptctl
           go test ./internal/policy/rulescanner ./internal/policy/response ./internal/policy/deception
           go test ./internal/storage/store ./internal/engine/compact ./internal/stitcher/graphsketch ./internal/engine/edgereduce
+          GOOS=linux go test -c ./cmd/agent/daemon
+
+      - name: Validate package manifest
+        run: |
+          test -f packaging/nfpm.yaml
+          grep -q "providaptd" packaging/nfpm.yaml
+          grep -q "providapt.service" packaging/nfpm.yaml
+
+  centos-compat:
+    name: centos compatibility smoke
+    runs-on: ubuntu-24.04
+    container:
+      image: quay.io/centos/centos:stream9
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Go
+        run: |
+          dnf install -y golang git gcc make findutils tar gzip
+          go version
+
+      - name: Run CentOS scoped tests
+        run: |
+          go test ./pkg/config ./pkg/backup ./pkg/api ./pkg/releasecheck
           GOOS=linux go test -c ./cmd/agent/daemon
 
   loader-smoke:

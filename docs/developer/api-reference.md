@@ -1,4 +1,4 @@
-# Developer API Reference
+﻿# Developer API Reference
 
 **gRPC Interface** | Plugin Development | External System Integration
 
@@ -9,7 +9,7 @@
 ### 1.1 Telemetry Service
 
 ```protobuf
-// mgmt.proto 鈥-Agent-to-Server telemetry
+// mgmt.proto —Agent-to-Server telemetry
 service ProvidAPTTelemetry {
   // Report events from an agent to the central server
   rpc ReportEvents(stream CompressedEvent) returns (ReportAck);
@@ -204,10 +204,10 @@ Content-Type: application/json
       "id": "alert-1716891780",
       "pattern": "MEMORY_ANOMALY",
       "severity": "CRITICAL",
-      "headline": "python3 memory anomaly: mprotect RW鈫扲X (shellcode injection)",
+      "headline": "python3 memory anomaly: mprotect RW->X (shellcode injection)",
       "node_id": "p:1337",
       "host_id": "host-web-01",
-      "reason": "Process p:1337 (level=CRITICAL depth=5): [mprotect RW鈫扲X]",
+      "reason": "Process p:1337 (level=CRITICAL depth=5): [mprotect RW->X]",
       "subgraph": {
         "nodes": [...],
         "edges": [...]

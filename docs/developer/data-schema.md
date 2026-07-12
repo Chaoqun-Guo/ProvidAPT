@@ -1,18 +1,18 @@
-# Data Schema & Model Specification
+﻿# Data Schema & Model Specification
 
 **Version 2.2** | Protobuf Definitions, Storage Encoding, Graph Schema
 
 ---
 
-## 1. Wire Format 鈥-eBPF Ring Buffer Event (332 bytes)
+## 1. Wire Format — eBPF Ring Buffer Event (332 bytes)
 
 The kernel-userspace communication uses a fixed-size packed struct defined in `cmd/bpf/headers/providapt.h`:
 
 ```
 Offset  Size  Field          Type      Description
-鈹€鈹€鈹€鈹€鈹€鈹€  鈹€鈹€鈹€鈹€  鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€  鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€  鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-     0     4  type           u32       Event type enum (see 搂1.1)
-     4     4  flags          u32       Event flags (see 搂1.2)
+------  ----  -------------  --------  -----------------------------
+     0     4  type           u32       Event type enum (see section 1.1)
+     4     4  flags          u32       Event flags (see section 1.2)
      8     8  timestamp_ns   u64       Monotonic clock (bpf_ktime_get_ns)
     16     4  pid            u32       Process ID
     20     4  tid            u32       Thread ID
@@ -24,7 +24,7 @@ Offset  Size  Field          Type      Description
     64     4  sample_count   u32       (EV_SAMPLE only)
     60    16  comm           char[16]  Process name (null-terminated)
     76   256  pathname       char[256] File path / memfd name / C2 IP
-    鈹€鈹€鈹€鈹€                                    鈹€鈹€鈹€鈹€鈹€
+    --------------------------------    -----------------------------
     332 total bytes (__attribute__((packed)))
 ```
 
@@ -55,7 +55,7 @@ EV_CRED_CAPABLE      = 41   // security_capable kprobe
 
 // Memory events (50-53)
 EV_MEMFD_CREATE      = 50   // memfd_create tracepoint
-EV_MPROTECT_RX       = 51   // mprotect RW鈫扲X
+EV_MPROTECT_RX       = 51   // mprotect RW->X
 EV_PIPE_WRITE        = 52   // pipe write tracepoint
 EV_PIPE_READ         = 53   // pipe read tracepoint
 
@@ -82,22 +82,22 @@ EV_FLAG_EXEC_SETUID = 1 << 2  // setuid transition during exec
 
 ```
 File events (type 10-14):
-  offset 36: inode      (u64) 鈥-file inode number
-  offset 44: dev_major  (u32) 鈥-major device number
-  offset 48: dev_minor  (u32) 鈥-minor device number
-  offset 52: mode       (u32) 鈥-file mode
-  offset 56: f_flags    (u32) 鈥-open flags
+  offset 36: inode      (u64) —file inode number
+  offset 44: dev_major  (u32) —major device number
+  offset 48: dev_minor  (u32) —minor device number
+  offset 52: mode       (u32) —file mode
+  offset 56: f_flags    (u32) —open flags
 
 Fork events (type 1):
-  offset 36: child_pid  (u32) 鈥-PID of child process
+  offset 36: child_pid  (u32) —PID of child process
   offset 40: pad        ([20]byte)
 
 Network events (type 20-23):
-  offset 36: saddr      (u32) 鈥-source IPv4
-  offset 40: daddr      (u32) 鈥-destination IPv4
-  offset 44: sport      (u16) 鈥-source port
-  offset 48: dport      (u16) 鈥-destination port
-  offset 50: protocol   (u8)  鈥-IP protocol (6=TCP, 17=UDP)
+  offset 36: saddr      (u32) —source IPv4
+  offset 40: daddr      (u32) —destination IPv4
+  offset 44: sport      (u16) —source port
+  offset 48: dport      (u16) —destination port
+  offset 50: protocol   (u8)  —IP protocol (6=TCP, 17=UDP)
 ```
 
 ---
@@ -227,9 +227,9 @@ type GraphDB interface {
 
 ```go
 type GlobalIndex struct {
-    byHostID map[string]map[string]*IndexEntry  // hostID 鈫-{nodeID 鈫-entry}
-    byIP     map[string]map[string]*IndexEntry  // IP 鈫-{nodeID 鈫-entry}
-    byIdent  map[string]map[string]*IndexEntry  // identity 鈫-{nodeID 鈫-entry}
+    byHostID map[string]map[string]*IndexEntry  // hostID —{nodeID —entry}
+    byIP     map[string]map[string]*IndexEntry  // IP —{nodeID —entry}
+    byIdent  map[string]map[string]*IndexEntry  // identity —{nodeID —entry}
 }
 ```
 
@@ -263,7 +263,7 @@ type StitchEdge struct {
 }
 ```
 
-Matching rule: outbound and inbound flows match if fingerprint scores 鈮-3/5 fields, within 30-second window.
+Matching rule: outbound and inbound flows match if fingerprint scores —3/5 fields, within 30-second window.
 
 ---
 
@@ -372,11 +372,11 @@ Per-process taint flags stored in `taint_map` (BPF_MAP_TYPE_HASH, key=u32 pid, v
 
 ```c
 TAINT_NONE         = 0
-TAINT_NET_CONNECT  = 1 << 0  // (1) 鈥-external IP connection
-TAINT_FILE_WRITE   = 1 << 1  // (2) 鈥-sensitive path modified
-TAINT_SETUID       = 1 << 2  // (4) 鈥-privilege escalation
-TAINT_PARENT       = 1 << 3  // (8) 鈥-inherited from parent
-TAINT_HONEYPOT     = 1 << 4  // (16) 鈥-honeytoken triggered
+TAINT_NET_CONNECT  = 1 << 0  // (1) —external IP connection
+TAINT_FILE_WRITE   = 1 << 1  // (2) —sensitive path modified
+TAINT_SETUID       = 1 << 2  // (4) —privilege escalation
+TAINT_PARENT       = 1 << 3  // (8) —inherited from parent
+TAINT_HONEYPOT     = 1 << 4  // (16) —honeytoken triggered
 ```
 
 Detail levels (determine sampling rate in eBPF):

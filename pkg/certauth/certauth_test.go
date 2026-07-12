@@ -142,6 +142,44 @@ func TestNeedsRotationMissingFile(t *testing.T) {
 	}
 }
 
+func TestRotateServerCert(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &Config{
+		CADir:      filepath.Join(dir, "ca"),
+		ServerDir:  filepath.Join(dir, "server"),
+		ClientDir:  filepath.Join(dir, "client"),
+		ValidYears: 1,
+		KeyBits:    2048,
+	}
+	certFile, keyFile, _, err := Initialize(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RotateServerCert(cfg, certFile, keyFile); err != nil {
+		t.Fatalf("RotateServerCert: %v", err)
+	}
+	if _, err := os.Stat(certFile); err != nil {
+		t.Fatalf("rotated cert missing: %v", err)
+	}
+	if _, err := os.Stat(keyFile); err != nil {
+		t.Fatalf("rotated key missing: %v", err)
+	}
+	backups, err := filepath.Glob(certFile + ".bak.*")
+	if err != nil {
+		t.Fatalf("glob backups: %v", err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("cert backups = %d, want 1", len(backups))
+	}
+	needed, err := NeedsRotation(certFile, 30*24*time.Hour)
+	if err != nil {
+		t.Fatalf("NeedsRotation: %v", err)
+	}
+	if needed {
+		t.Fatal("rotated cert should not need immediate rotation")
+	}
+}
+
 func TestLoadCAInvalidDir(t *testing.T) {
 	cfg := &Config{CADir: "/nonexistent"}
 	_, err := LoadCA(cfg)

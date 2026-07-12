@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -373,4 +374,53 @@ func safeArchivePath(targetDir, name string) (string, error) {
 		return "", fmt.Errorf("archive path escapes target: %s", name)
 	}
 	return absDest, nil
+}
+
+// CleanupArchives keeps the newest retain .tar.gz archives in dir and removes
+// older backup archives. retain=0 removes all matching archives.
+func CleanupArchives(dir string, retain int) error {
+	if retain < 0 {
+		return fmt.Errorf("retain must be non-negative")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read backup dir: %w", err)
+	}
+	type archiveInfo struct {
+		path    string
+		modTime time.Time
+	}
+	archives := []archiveInfo{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".tar.gz") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("stat backup archive: %w", err)
+		}
+		archives = append(archives, archiveInfo{
+			path:    filepath.Join(dir, name),
+			modTime: info.ModTime(),
+		})
+	}
+	sort.Slice(archives, func(i, j int) bool {
+		return archives[i].modTime.After(archives[j].modTime)
+	})
+	for index, archive := range archives {
+		if index < retain {
+			continue
+		}
+		if err := os.Remove(archive.path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove old backup archive: %w", err)
+		}
+	}
+	return nil
 }

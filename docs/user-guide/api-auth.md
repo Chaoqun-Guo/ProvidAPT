@@ -1,8 +1,8 @@
 # API Authentication
 
-ProvidAPT supports optional API key authentication for REST API endpoints.
+ProvidAPT supports API key authentication, role-based access control, tenant scoping, and optional trusted-header SSO for deployments behind a reverse proxy or identity gateway.
 
-## Enabling Authentication
+## Enabling API Keys
 
 Set the following in `providapt.toml`:
 
@@ -10,7 +10,10 @@ Set the following in `providapt.toml`:
 [api]
 rest = ":8080"
 auth_enabled = true
-auth_keys = ["your-api-key-here"]
+auth_keys = ["admin-key", "analyst-key", "auditor-key"]
+auth_roles = { "admin-key" = "admin", "analyst-key" = "analyst", "auditor-key" = "auditor" }
+auth_identities = { "admin-key" = "ops-admin", "analyst-key" = "soc-analyst" }
+auth_tenants = { "analyst-key" = "prod" }
 ```
 
 ## Authentication Header
@@ -18,34 +21,44 @@ auth_keys = ["your-api-key-here"]
 Include the API key in every request:
 
 ```bash
-curl -H "X-API-Key: your-api-key-here" http://localhost:8080/api/v1/status
+curl -H "X-API-Key: admin-key" http://localhost:8080/api/v1/status
 ```
 
 Alternatively, pass the key as a query parameter:
 
 ```bash
-curl "http://localhost:8080/api/v1/status?api_key=your-api-key-here"
+curl "http://localhost:8080/api/v1/status?api_key=admin-key"
 ```
 
-## Role-Based Access
+## Roles
 
-Keys can be assigned roles for fine-grained access control:
+| Role | Permissions |
+| --- | --- |
+| `admin` | Full access to all endpoints and operational actions. |
+| `analyst` | Read-only graph, alert, fleet, policy, delivery, license, and upgrade views; no administrative mutations. |
+| `auditor` | Read-only audit, status, dashboard, and compliance evidence views. |
+
+## Tenant Scoping
+
+Use `api.auth_tenants` to bind an API key to a tenant or fleet group. Non-admin requests to `/api/v1/control/fleet` are restricted to the configured tenant. If a non-admin supplies a different `group`, the API returns `403`.
+
+## Trusted-Header SSO
+
+Trusted-header SSO is intended only for deployments where a trusted reverse proxy has already authenticated the user and strips untrusted inbound identity headers.
 
 ```toml
-auth_keys = ["admin-key", "analyst-key", "auditor-key"]
-auth_roles = { "admin-key" = "admin", "analyst-key" = "analyst", "auditor-key" = "auditor" }
+[sso]
+trusted_header_auth = true
+user_header = "X-Forwarded-User"
+role_header = "X-Forwarded-Role"
+tenant_header = "X-Forwarded-Tenant"
 ```
 
-### Roles
-
-| Role     | Permissions                                    |
-|----------|------------------------------------------------|
-| `admin`  | Full access — all endpoints, configuration     |
-| `analyst`| Read-only graph/alert data                     |
-| `auditor`| Read-only audit logs and status                |
+When enabled, ProvidAPT reads the configured headers and maps the request to an actor, role, and optional tenant. Missing or unknown roles default to `admin`, so production proxies should always send an explicit role.
 
 ## Security Notes
 
-- API key comparison uses **constant-time** comparison to prevent timing attacks
-- Keys are transmitted in plaintext over HTTP — use **TLS in production**
-- Rotate keys regularly via `providapt.toml` followed by `POST /api/v1/admin/reload`
+- API key comparison uses constant-time comparison.
+- Use TLS in production; API keys and trusted headers must not traverse plaintext networks.
+- Rotate keys through configuration management followed by `POST /api/v1/admin/reload`.
+- Do not expose trusted-header SSO directly to users; terminate it only behind a controlled identity proxy.

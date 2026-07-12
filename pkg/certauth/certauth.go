@@ -255,6 +255,43 @@ func NeedsRotation(certPath string, within time.Duration) (bool, error) {
 	return time.Now().Add(within).After(cert.NotAfter), nil
 }
 
+// RotateServerCert signs a fresh server certificate with the existing CA and
+// replaces certPath/keyPath after backing up old files with timestamp suffixes.
+func RotateServerCert(cfg *Config, certPath, keyPath string) error {
+	if cfg == nil {
+		return fmt.Errorf("nil certauth config")
+	}
+	ca, err := LoadCA(cfg)
+	if err != nil {
+		return fmt.Errorf("load CA: %w", err)
+	}
+	certPEM, keyPEM, err := ca.CreateServerCert(cfg)
+	if err != nil {
+		return fmt.Errorf("create server cert: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(certPath), 0700); err != nil {
+		return fmt.Errorf("create cert dir: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0700); err != nil {
+		return fmt.Errorf("create key dir: %w", err)
+	}
+	timestamp := time.Now().UTC().Format("20060102T150405Z")
+	for _, path := range []string{certPath, keyPath} {
+		if _, err := os.Stat(path); err == nil {
+			if err := os.Rename(path, path+".bak."+timestamp); err != nil {
+				return fmt.Errorf("backup %s: %w", path, err)
+			}
+		}
+	}
+	if err := os.WriteFile(certPath, certPEM, 0644); err != nil {
+		return fmt.Errorf("write server cert: %w", err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		return fmt.Errorf("write server key: %w", err)
+	}
+	return nil
+}
+
 // ── helpers ────────────────────────────────────────────────
 
 func createCACert(key *rsa.PrivateKey, cfg *Config) (*x509.Certificate, error) {
