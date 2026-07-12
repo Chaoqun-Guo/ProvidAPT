@@ -207,6 +207,43 @@ Policy authors can validate a Sigma rule without mutating the draft:
 POST /api/v1/control/policies {"action":"validate_sigma","rule_yaml":"title: ..."}
 ```
 
+## P2 Compliance Operations
+
+ProvidAPT exposes a compact commercial compliance control plane for audit retention visibility, SIEM handoff tests, change approvals, and release evidence reports:
+
+```yaml
+compliance:
+  retention_days: 180
+  max_audit_entries: 10000
+  report_dir: /var/log/providapt/compliance
+  require_approvals: true
+  approval_actions:
+    - policy.publish
+    - policy.rollback
+    - upgrade.preflight
+    - backup.prepare_cutover
+
+siem:
+  enabled: true
+  endpoint: file:///var/log/providapt/siem.ndjson
+  format: json
+  min_severity: WARNING
+  outbox_dir: /var/log/providapt/siem-outbox
+```
+
+Useful operations:
+
+```text
+GET  /api/v1/control/compliance
+POST /api/v1/control/compliance {"action":"export_audit","format":"csv"}
+POST /api/v1/control/compliance {"action":"generate_report"}
+POST /api/v1/control/compliance {"action":"test_siem"}
+POST /api/v1/control/compliance {"action":"request_approval","target":"policy.publish"}
+POST /api/v1/control/compliance {"action":"approve","approval_id":"appr-000001"}
+```
+
+The dashboard includes a `Compliance & SIEM` panel with audit export, report generation, and SIEM test controls. Generated evidence files are written under `compliance.report_dir` or `<output.dir>/compliance` by default.
+
 Release packages can be built from the same tagged build output with `nfpm`:
 
 ```bash

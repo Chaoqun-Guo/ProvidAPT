@@ -864,6 +864,98 @@ func TestRBACAuditorLicenseAllowed(t *testing.T) {
 	}
 }
 
+func TestComplianceEndpoint(t *testing.T) {
+	ts := testServer(t)
+	ts.SetComplianceStatusFunc(func() ComplianceStatus {
+		return ComplianceStatus{
+			UpdatedAt:       "2026-06-08T05:00:00Z",
+			RetentionDays:   365,
+			MaxAuditEntries: 25000,
+			AuditEntries:    42,
+			SIEM: SIEMStatus{
+				Enabled:     true,
+				Endpoint:    "file:///var/log/siem.ndjson",
+				Format:      "json",
+				MinSeverity: "WARNING",
+				LastStatus:  "queued",
+			},
+			Approvals: ApprovalStatus{
+				Enabled:         true,
+				RequiredActions: []string{"policy.publish"},
+				Pending: []ChangeApproval{{
+					ID:          "appr-000001",
+					Action:      "policy.publish",
+					Status:      "pending",
+					RequestedBy: "SecOps On-Call (admin)",
+				}},
+			},
+		}
+	})
+
+	w := apiGet(ts, "/api/v1/control/compliance")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["retention_days"] != float64(365) {
+		t.Fatalf("retention_days = %v", resp["retention_days"])
+	}
+	if resp["audit_entries"] != float64(42) {
+		t.Fatalf("audit_entries = %v", resp["audit_entries"])
+	}
+}
+
+func TestComplianceActionInjectsActorAndRole(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"admin-key"},
+		map[string]string{"admin-key": RoleAdmin},
+		map[string]string{"admin-key": "SecOps On-Call"},
+		true,
+	)
+	var gotReq ComplianceActionRequest
+	ts.SetComplianceActionFunc(func(req ComplianceActionRequest) (ComplianceActionResult, error) {
+		gotReq = req
+		return ComplianceActionResult{
+			Status:      "completed",
+			Message:     "compliance report generated",
+			Path:        "/var/log/providapt/compliance/report.json",
+			PerformedAt: "2026-06-08T05:00:00Z",
+		}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/compliance", bytes.NewBufferString(`{"action":"generate_report","note":"monthly review"}`))
+	req.Header.Set("X-API-Key", "admin-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if gotReq.Role != RoleAdmin {
+		t.Fatalf("role = %q", gotReq.Role)
+	}
+	if gotReq.Actor != "SecOps On-Call (admin)" {
+		t.Fatalf("actor = %q", gotReq.Actor)
+	}
+	if gotReq.Note != "monthly review" {
+		t.Fatalf("note = %q", gotReq.Note)
+	}
+}
+
+func TestRBACComplianceActionDenied(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/compliance", bytes.NewBufferString(`{"action":"generate_report"}`))
+	req.Header.Set("X-API-Key", "analyst-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status code = %d", w.Code)
+	}
+}
+
 func TestUpgradeEndpoint(t *testing.T) {
 	ts := testServer(t)
 	ts.SetUpgradeReadinessFunc(func() UpgradeReadiness {

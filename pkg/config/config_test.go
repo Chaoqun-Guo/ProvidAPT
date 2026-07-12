@@ -693,6 +693,52 @@ taint_secrets:
 	}
 }
 
+func TestComplianceAndSIEMConfig(t *testing.T) {
+	yaml := `
+compliance:
+  retention_days: 365
+  max_audit_entries: 25000
+  report_dir: /var/lib/providapt/compliance
+  require_approvals: true
+  approval_actions:
+    - policy.publish
+    - upgrade.preflight
+siem:
+  enabled: true
+  endpoint: file:///var/log/siem.ndjson
+  format: cef
+  min_severity: WARNING
+  outbox_dir: /var/lib/providapt/siem
+`
+	path := writeTempFile(t, "config.*.yaml", yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Compliance.RetentionDays != 365 || cfg.Compliance.MaxAuditEntries != 25000 {
+		t.Fatalf("compliance config = %#v", cfg.Compliance)
+	}
+	if !cfg.Compliance.RequireApprovals || len(cfg.Compliance.ApprovalActions) != 2 {
+		t.Fatalf("approval config = %#v", cfg.Compliance)
+	}
+	if !cfg.SIEM.Enabled || cfg.SIEM.Format != "cef" || cfg.SIEM.MinSeverity != "WARNING" {
+		t.Fatalf("siem config = %#v", cfg.SIEM)
+	}
+}
+
+func TestValidateCommercialP2Config(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Compliance.RetentionDays = -1
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid compliance retention")
+	}
+	cfg = DefaultConfig()
+	cfg.SIEM.Format = "xml"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid SIEM format")
+	}
+}
+
 func writeTempFile(t *testing.T, pattern, content string) string {
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {

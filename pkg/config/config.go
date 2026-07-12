@@ -151,6 +151,22 @@ type Config struct {
 		AllowActivation bool   `json:"allow_activation" yaml:"allow_activation"`
 	} `json:"backup" yaml:"backup"`
 
+	Compliance struct {
+		RetentionDays    int      `json:"retention_days" yaml:"retention_days"`
+		MaxAuditEntries  int      `json:"max_audit_entries" yaml:"max_audit_entries"`
+		ReportDir        string   `json:"report_dir" yaml:"report_dir"`
+		RequireApprovals bool     `json:"require_approvals" yaml:"require_approvals"`
+		ApprovalActions  []string `json:"approval_actions" yaml:"approval_actions"`
+	} `json:"compliance" yaml:"compliance"`
+
+	SIEM struct {
+		Enabled     bool   `json:"enabled" yaml:"enabled"`
+		Endpoint    string `json:"endpoint" yaml:"endpoint"`
+		Format      string `json:"format" yaml:"format"`
+		MinSeverity string `json:"min_severity" yaml:"min_severity"`
+		OutboxDir   string `json:"outbox_dir" yaml:"outbox_dir"`
+	} `json:"siem" yaml:"siem"`
+
 	License struct {
 		Path               string   `json:"path" yaml:"path"`
 		SigningKey         string   `json:"signing_key" yaml:"signing_key"`
@@ -263,6 +279,11 @@ func DefaultConfig() *Config {
 	c.Backup.Interval = "24h"
 	c.Backup.RetainArchives = 7
 	c.Backup.MinFreeBytes = 1024 * 1024 * 1024
+	c.Compliance.RetentionDays = 180
+	c.Compliance.MaxAuditEntries = 10000
+	c.Compliance.ApprovalActions = []string{"policy.publish", "policy.rollback", "upgrade.preflight", "backup.prepare_cutover"}
+	c.SIEM.Format = "json"
+	c.SIEM.MinSeverity = "INFO"
 	c.License.GracePeriodDays = 0
 	return c
 }
@@ -390,6 +411,22 @@ func (c *Config) Validate() error {
 	if c.Backup.MinFreeBytes < 0 {
 		return fmt.Errorf("backup.min_free_bytes must be non-negative")
 	}
+	if c.Compliance.RetentionDays < 0 {
+		return fmt.Errorf("compliance.retention_days must be non-negative")
+	}
+	if c.Compliance.MaxAuditEntries < 0 {
+		return fmt.Errorf("compliance.max_audit_entries must be non-negative")
+	}
+	switch strings.ToLower(strings.TrimSpace(c.SIEM.Format)) {
+	case "", "json", "cef":
+	default:
+		return fmt.Errorf("unsupported siem.format %q", c.SIEM.Format)
+	}
+	switch strings.ToUpper(strings.TrimSpace(c.SIEM.MinSeverity)) {
+	case "", "INFO", "WARNING", "CRITICAL":
+	default:
+		return fmt.Errorf("unsupported siem.min_severity %q", c.SIEM.MinSeverity)
+	}
 	if c.License.GracePeriodDays < 0 {
 		return fmt.Errorf("license.grace_period_days must be non-negative")
 	}
@@ -470,6 +507,11 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Upgrade.PublicKeyPath, "PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH")
 	overrideString(&cfg.Upgrade.RollbackPlan, "PROVIDAPT_UPGRADE_ROLLBACK_PLAN")
 	overrideString(&cfg.Backup.Interval, "PROVIDAPT_BACKUP_INTERVAL")
+	overrideString(&cfg.Compliance.ReportDir, "PROVIDAPT_COMPLIANCE_REPORT_DIR")
+	overrideString(&cfg.SIEM.Endpoint, "PROVIDAPT_SIEM_ENDPOINT")
+	overrideString(&cfg.SIEM.Format, "PROVIDAPT_SIEM_FORMAT")
+	overrideString(&cfg.SIEM.MinSeverity, "PROVIDAPT_SIEM_MIN_SEVERITY")
+	overrideString(&cfg.SIEM.OutboxDir, "PROVIDAPT_SIEM_OUTBOX_DIR")
 
 	overrideBool(&cfg.Kernel.Verbose, "PROVIDAPT_KERNEL_VERBOSE")
 	overrideBool(&cfg.Capture.EnableNet, "PROVIDAPT_CAPTURE_ENABLE_NET")
@@ -487,6 +529,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.SupportBundle.RedactArchives, "PROVIDAPT_SUPPORT_REDACT_ARCHIVES")
 	overrideBool(&cfg.Backup.Enabled, "PROVIDAPT_BACKUP_ENABLED")
 	overrideBool(&cfg.Backup.AllowActivation, "PROVIDAPT_BACKUP_ALLOW_ACTIVATION")
+	overrideBool(&cfg.Compliance.RequireApprovals, "PROVIDAPT_COMPLIANCE_REQUIRE_APPROVALS")
+	overrideBool(&cfg.SIEM.Enabled, "PROVIDAPT_SIEM_ENABLED")
 
 	overrideInt(&cfg.Capture.MaxEvents, "PROVIDAPT_CAPTURE_MAX_EVENTS")
 	overrideInt(&cfg.API.RateLimitBurst, "PROVIDAPT_API_RATE_LIMIT_BURST")
@@ -494,6 +538,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt(&cfg.SupportBundle.RetainArchives, "PROVIDAPT_SUPPORT_RETAIN_ARCHIVES")
 	overrideInt(&cfg.License.GracePeriodDays, "PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
 	overrideInt(&cfg.Backup.RetainArchives, "PROVIDAPT_BACKUP_RETAIN_ARCHIVES")
+	overrideInt(&cfg.Compliance.RetentionDays, "PROVIDAPT_COMPLIANCE_RETENTION_DAYS")
+	overrideInt(&cfg.Compliance.MaxAuditEntries, "PROVIDAPT_COMPLIANCE_MAX_AUDIT_ENTRIES")
 	overrideInt64(&cfg.Backup.MinFreeBytes, "PROVIDAPT_BACKUP_MIN_FREE_BYTES")
 
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
@@ -501,6 +547,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideStringSlice(&cfg.Capture.ExcludeComms, "PROVIDAPT_CAPTURE_EXCLUDE_COMMS")
 	overrideStringSlice(&cfg.Capture.IncludeComms, "PROVIDAPT_CAPTURE_INCLUDE_COMMS")
 	overrideStringSlice(&cfg.Capture.HotPaths, "PROVIDAPT_CAPTURE_HOT_PATHS")
+	overrideStringSlice(&cfg.Compliance.ApprovalActions, "PROVIDAPT_COMPLIANCE_APPROVAL_ACTIONS")
 }
 
 func overrideString(field *string, envKey string) {

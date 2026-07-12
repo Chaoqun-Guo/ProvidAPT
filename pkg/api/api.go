@@ -260,6 +260,76 @@ type AuditFeed struct {
 
 type AuditQueryFunc func(category, source string, limit int) AuditFeed
 
+type SIEMStatus struct {
+	Enabled         bool   `json:"enabled"`
+	Endpoint        string `json:"endpoint,omitempty"`
+	Format          string `json:"format,omitempty"`
+	MinSeverity     string `json:"min_severity,omitempty"`
+	OutboxPath      string `json:"outbox_path,omitempty"`
+	LastForwardedAt string `json:"last_forwarded_at,omitempty"`
+	LastStatus      string `json:"last_status,omitempty"`
+	LastError       string `json:"last_error,omitempty"`
+	ForwardedEvents int    `json:"forwarded_events"`
+}
+
+type ChangeApproval struct {
+	ID          string `json:"id"`
+	Action      string `json:"action"`
+	Target      string `json:"target,omitempty"`
+	Status      string `json:"status"`
+	RequestedBy string `json:"requested_by,omitempty"`
+	RequestedAt string `json:"requested_at,omitempty"`
+	ApprovedBy  string `json:"approved_by,omitempty"`
+	ApprovedAt  string `json:"approved_at,omitempty"`
+	Note        string `json:"note,omitempty"`
+}
+
+type ApprovalStatus struct {
+	Enabled         bool             `json:"enabled"`
+	RequiredActions []string         `json:"required_actions,omitempty"`
+	Pending         []ChangeApproval `json:"pending,omitempty"`
+	History         []ChangeApproval `json:"history,omitempty"`
+}
+
+type ComplianceStatus struct {
+	UpdatedAt          string         `json:"updated_at"`
+	RetentionDays      int            `json:"retention_days"`
+	MaxAuditEntries    int            `json:"max_audit_entries"`
+	OldestAllowedAt    string         `json:"oldest_allowed_at,omitempty"`
+	AuditEntries       int            `json:"audit_entries"`
+	AuditOldestAt      string         `json:"audit_oldest_at,omitempty"`
+	AuditNewestAt      string         `json:"audit_newest_at,omitempty"`
+	LastExportPath     string         `json:"last_export_path,omitempty"`
+	LastReportPath     string         `json:"last_report_path,omitempty"`
+	LastActionStatus   string         `json:"last_action_status,omitempty"`
+	LastActionMessage  string         `json:"last_action_message,omitempty"`
+	SIEM               SIEMStatus     `json:"siem"`
+	Approvals          ApprovalStatus `json:"approvals"`
+	RecommendedActions []string       `json:"recommended_actions,omitempty"`
+}
+
+type ComplianceActionRequest struct {
+	Action     string `json:"action"`
+	Format     string `json:"format,omitempty"`
+	ApprovalID string `json:"approval_id,omitempty"`
+	Target     string `json:"target,omitempty"`
+	Note       string `json:"note,omitempty"`
+	Actor      string `json:"actor,omitempty"`
+	Role       string `json:"role,omitempty"`
+}
+
+type ComplianceActionResult struct {
+	Status      string          `json:"status"`
+	Message     string          `json:"message,omitempty"`
+	Path        string          `json:"path,omitempty"`
+	Approval    *ChangeApproval `json:"approval,omitempty"`
+	SIEM        *SIEMStatus     `json:"siem,omitempty"`
+	PerformedAt string          `json:"performed_at"`
+}
+
+type ComplianceStatusFunc func() ComplianceStatus
+type ComplianceActionFunc func(req ComplianceActionRequest) (ComplianceActionResult, error)
+
 type LicenseStatus struct {
 	UpdatedAt           string               `json:"updated_at"`
 	Path                string               `json:"path,omitempty"`
@@ -581,6 +651,8 @@ type Server struct {
 	securityFn               SecurityStatusFunc
 	securityAct              SecurityActionFunc
 	auditFn                  AuditQueryFunc
+	complianceFn             ComplianceStatusFunc
+	complianceAct            ComplianceActionFunc
 	licenseFn                LicenseStatusFunc
 	licenseAct               LicenseActionFunc
 	upgradeFn                UpgradeReadinessFunc
@@ -672,6 +744,14 @@ func (s *Server) SetSecurityActionFunc(fn SecurityActionFunc) {
 
 func (s *Server) SetAuditQueryFunc(fn AuditQueryFunc) {
 	s.auditFn = fn
+}
+
+func (s *Server) SetComplianceStatusFunc(fn ComplianceStatusFunc) {
+	s.complianceFn = fn
+}
+
+func (s *Server) SetComplianceActionFunc(fn ComplianceActionFunc) {
+	s.complianceAct = fn
 }
 
 func (s *Server) SetLicenseStatusFunc(fn LicenseStatusFunc) {
@@ -1022,6 +1102,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/control/backup/download", s.handleBackupDownload)
 	mux.HandleFunc("/api/v1/control/security", s.jsonHandler(s.handleSecurity))
 	mux.HandleFunc("/api/v1/control/audit", s.jsonHandler(s.handleAuditFeed))
+	mux.HandleFunc("/api/v1/control/compliance", s.jsonHandler(s.handleCompliance))
 	mux.HandleFunc("/api/v1/control/license", s.jsonHandler(s.handleLicenseStatus))
 	mux.HandleFunc("/api/v1/control/upgrade", s.jsonHandler(s.handleUpgradeReadiness))
 	mux.HandleFunc("/api/v1/control/policies", s.jsonHandler(s.handlePolicies))
@@ -1408,6 +1489,47 @@ func writeAuditFeedCSV(w http.ResponseWriter, feed AuditFeed) error {
 	}
 	writer.Flush()
 	return writer.Error()
+}
+
+func (s *Server) handleCompliance(w http.ResponseWriter, r *http.Request) error {
+	switch r.Method {
+	case http.MethodGet:
+		status := ComplianceStatus{
+			UpdatedAt:          time.Now().UTC().Format(time.RFC3339),
+			RecommendedActions: []string{},
+		}
+		if s.complianceFn != nil {
+			status = s.complianceFn()
+			if status.UpdatedAt == "" {
+				status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+			}
+			if status.RecommendedActions == nil {
+				status.RecommendedActions = []string{}
+			}
+		}
+		return json.NewEncoder(w).Encode(status)
+	case http.MethodPost:
+		if s.complianceAct == nil {
+			w.WriteHeader(http.StatusNotImplemented)
+			return json.NewEncoder(w).Encode(map[string]string{"error": "compliance actions not enabled"})
+		}
+		var req ComplianceActionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return fmt.Errorf("decode compliance action: %w", err)
+		}
+		req.Role = CurrentRole(r)
+		if req.Actor == "" {
+			req.Actor = CurrentActor(r)
+		}
+		result, err := s.complianceAct(req)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(w).Encode(result)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
 }
 
 func (s *Server) handleLicenseStatus(w http.ResponseWriter, r *http.Request) error {

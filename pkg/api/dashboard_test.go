@@ -145,6 +145,12 @@ func TestDashboardModuleActions(t *testing.T) {
 		"showDeliveryRisk('tickets')",
 		"showDeliveryRisk('errors')",
 		"alertTraceActions(a)",
+		"Compliance & SIEM",
+		"loadCompliance",
+		"runComplianceAction('export_audit')",
+		"runComplianceAction('generate_report')",
+		"runComplianceAction('test_siem')",
+		"/api/v1/control/compliance",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {

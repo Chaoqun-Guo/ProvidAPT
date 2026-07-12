@@ -204,6 +204,9 @@ func allowed(role, method, path string) bool {
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/backup") {
 			return false
 		}
+		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/compliance") {
+			return false
+		}
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/security") {
 			return false
 		}
@@ -237,6 +240,7 @@ func allowed(role, method, path string) bool {
 			strings.HasPrefix(path, "/api/v1/control/fleet") ||
 			strings.HasPrefix(path, "/api/v1/control/support") ||
 			strings.HasPrefix(path, "/api/v1/control/backup") ||
+			strings.HasPrefix(path, "/api/v1/control/compliance") ||
 			strings.HasPrefix(path, "/api/v1/control/security") ||
 			strings.HasPrefix(path, "/api/v1/control/audit") ||
 			strings.HasPrefix(path, "/api/v1/control/license") ||

@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -168,6 +169,18 @@ type licenseState struct {
 type upgradeState struct {
 	mu      sync.RWMutex
 	summary api.UpgradeReadiness
+}
+
+type complianceState struct {
+	mu      sync.RWMutex
+	summary api.ComplianceStatus
+}
+
+type approvalStore struct {
+	mu      sync.RWMutex
+	items   []api.ChangeApproval
+	limit   int
+	counter uint64
 }
 
 type licenseDocument struct {
@@ -372,6 +385,128 @@ func (s *upgradeState) update(summary api.UpgradeReadiness) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.summary = summary
+}
+
+func (s *complianceState) snapshot() api.ComplianceStatus {
+	if s == nil {
+		return api.ComplianceStatus{}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := s.summary
+	if out.Approvals.Pending != nil {
+		pending := make([]api.ChangeApproval, len(out.Approvals.Pending))
+		copy(pending, out.Approvals.Pending)
+		out.Approvals.Pending = pending
+	}
+	if out.Approvals.History != nil {
+		history := make([]api.ChangeApproval, len(out.Approvals.History))
+		copy(history, out.Approvals.History)
+		out.Approvals.History = history
+	}
+	if out.RecommendedActions != nil {
+		recommended := make([]string, len(out.RecommendedActions))
+		copy(recommended, out.RecommendedActions)
+		out.RecommendedActions = recommended
+	}
+	return out
+}
+
+func (s *complianceState) update(summary api.ComplianceStatus) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.summary = summary
+}
+
+func newApprovalStore(limit int) *approvalStore {
+	if limit <= 0 {
+		limit = controlActionHistoryLimit
+	}
+	return &approvalStore{items: make([]api.ChangeApproval, 0, limit), limit: limit}
+}
+
+func (s *approvalStore) request(action, target, actor, note string) api.ChangeApproval {
+	if s == nil {
+		return api.ChangeApproval{}
+	}
+	id := atomic.AddUint64(&s.counter, 1)
+	item := api.ChangeApproval{
+		ID:          fmt.Sprintf("appr-%06d", id),
+		Action:      strings.TrimSpace(action),
+		Target:      strings.TrimSpace(target),
+		Status:      "pending",
+		RequestedBy: strings.TrimSpace(actor),
+		RequestedAt: time.Now().UTC().Format(time.RFC3339),
+		Note:        strings.TrimSpace(note),
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.items = append([]api.ChangeApproval{item}, s.items...)
+	if len(s.items) > s.limit {
+		s.items = s.items[:s.limit]
+	}
+	return item
+}
+
+func (s *approvalStore) resolve(id, status, actor, note string) (api.ChangeApproval, bool) {
+	if s == nil {
+		return api.ChangeApproval{}, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.items {
+		if strings.EqualFold(s.items[i].ID, strings.TrimSpace(id)) {
+			if s.items[i].Status == "pending" {
+				s.items[i].Status = status
+				s.items[i].ApprovedBy = strings.TrimSpace(actor)
+				s.items[i].ApprovedAt = time.Now().UTC().Format(time.RFC3339)
+				if strings.TrimSpace(note) != "" {
+					s.items[i].Note = strings.TrimSpace(note)
+				}
+			}
+			return s.items[i], true
+		}
+	}
+	return api.ChangeApproval{}, false
+}
+
+func (s *approvalStore) status(enabled bool, required []string) api.ApprovalStatus {
+	status := api.ApprovalStatus{
+		Enabled:         enabled,
+		RequiredActions: dedupeStrings(required),
+		Pending:         []api.ChangeApproval{},
+		History:         []api.ChangeApproval{},
+	}
+	if s == nil {
+		return status
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, item := range s.items {
+		if item.Status == "pending" {
+			status.Pending = append(status.Pending, item)
+		}
+		status.History = append(status.History, item)
+	}
+	return status
+}
+
+func (s *approvalStore) hasApproved(action string) bool {
+	if s == nil {
+		return false
+	}
+	action = strings.TrimSpace(action)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, item := range s.items {
+		if item.Status == "approved" && strings.EqualFold(item.Action, action) {
+			return true
+		}
+	}
+	return false
 }
 
 func parseLicenseDocument(data []byte) (licenseDocument, error) {
@@ -1078,11 +1213,13 @@ func main() {
 	securityAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	licenseAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	upgradeAudit := newControlActionAuditStore(controlActionHistoryLimit)
+	approvalBook := newApprovalStore(controlActionHistoryLimit)
 	supportState := &supportBundleState{}
 	backupSummaryState := &backupState{}
 	securitySummaryState := &securityState{}
 	licenseSummaryState := &licenseState{}
 	upgradeSummaryState := &upgradeState{}
+	complianceSummaryState := &complianceState{}
 	apiServer.SetAPIAuth(cfg.API.AuthKeys, cfg.API.AuthRoles, cfg.API.AuthIdentities, cfg.API.AuthEnabled)
 	apiServer.SetAPIAuthTenants(cfg.API.AuthTenants)
 	apiServer.SetTrustedHeaderAuth(cfg.SSO.TrustedHeaderAuth, cfg.SSO.UserHeader, cfg.SSO.RoleHeader)
@@ -1684,6 +1821,12 @@ func main() {
 			}, nil
 		case "prepare_cutover", "restore_cutover_plan":
 			current := backupSummaryState.snapshot()
+			if approvalRequired(cfg, "backup.prepare_cutover") && !approvalBook.hasApproved("backup.prepare_cutover") {
+				err := fmt.Errorf("backup.prepare_cutover requires approval")
+				backupAudit.record("backup_prepare_cutover", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_prepare_cutover", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, Message: err.Error(), PerformedAt: performedAt}, err
+			}
 			if strings.TrimSpace(current.LastRestorePath) == "" {
 				err := fmt.Errorf("restore staging path is required before preparing cutover")
 				backupAudit.record("backup_prepare_cutover", req.Actor, req.Role, "", req.Note, "failed", err.Error())
@@ -1846,6 +1989,137 @@ func main() {
 			})
 		}
 		return feed
+	})
+	complianceEntries := func(limit int) []audit.Entry {
+		if auditStore == nil {
+			return nil
+		}
+		if limit <= 0 {
+			limit = cfg.Compliance.MaxAuditEntries
+		}
+		if limit <= 0 {
+			limit = 10000
+		}
+		entries, err := auditStore.Query("", time.Time{}, limit)
+		if err != nil {
+			return nil
+		}
+		return entries
+	}
+	complianceReportDir := func() string {
+		if dir := strings.TrimSpace(cfg.Compliance.ReportDir); dir != "" {
+			return dir
+		}
+		return filepath.Join(cfg.Output.Dir, "compliance")
+	}
+	siemOutboxPath := func() string {
+		if dir := strings.TrimSpace(cfg.SIEM.OutboxDir); dir != "" {
+			return filepath.Join(dir, "siem-events.ndjson")
+		}
+		return filepath.Join(cfg.Output.Dir, "siem-outbox", "siem-events.ndjson")
+	}
+	buildComplianceStatus := func() api.ComplianceStatus {
+		entries := complianceEntries(cfg.Compliance.MaxAuditEntries)
+		now := time.Now().UTC()
+		status := complianceSummaryState.snapshot()
+		status.UpdatedAt = now.Format(time.RFC3339)
+		status.RetentionDays = cfg.Compliance.RetentionDays
+		status.MaxAuditEntries = cfg.Compliance.MaxAuditEntries
+		status.AuditEntries = len(entries)
+		if cfg.Compliance.RetentionDays > 0 {
+			status.OldestAllowedAt = now.Add(-time.Duration(cfg.Compliance.RetentionDays) * 24 * time.Hour).Format(time.RFC3339)
+		}
+		for i, entry := range entries {
+			if i == 0 || entry.Timestamp.Before(parseTimeOrZero(status.AuditOldestAt)) {
+				status.AuditOldestAt = entry.Timestamp.UTC().Format(time.RFC3339)
+			}
+			if i == 0 || entry.Timestamp.After(parseTimeOrZero(status.AuditNewestAt)) {
+				status.AuditNewestAt = entry.Timestamp.UTC().Format(time.RFC3339)
+			}
+		}
+		status.SIEM.Enabled = cfg.SIEM.Enabled
+		status.SIEM.Endpoint = strings.TrimSpace(cfg.SIEM.Endpoint)
+		status.SIEM.Format = firstNonEmpty(strings.TrimSpace(cfg.SIEM.Format), "json")
+		status.SIEM.MinSeverity = firstNonEmpty(strings.TrimSpace(cfg.SIEM.MinSeverity), "INFO")
+		status.SIEM.OutboxPath = siemOutboxPath()
+		status.Approvals = approvalBook.status(cfg.Compliance.RequireApprovals, cfg.Compliance.ApprovalActions)
+		status.RecommendedActions = complianceRecommendations(status)
+		complianceSummaryState.update(status)
+		return status
+	}
+	apiServer.SetComplianceStatusFunc(buildComplianceStatus)
+	apiServer.SetComplianceActionFunc(func(req api.ComplianceActionRequest) (api.ComplianceActionResult, error) {
+		action := strings.ToLower(strings.TrimSpace(req.Action))
+		if action == "" {
+			action = "status"
+		}
+		performedAt := time.Now().UTC().Format(time.RFC3339)
+		status := buildComplianceStatus()
+		result := api.ComplianceActionResult{Status: "completed", PerformedAt: performedAt}
+		switch action {
+		case "status":
+			result.Message = "compliance status refreshed"
+		case "export_audit":
+			entries := complianceEntries(cfg.Compliance.MaxAuditEntries)
+			path, err := exportAuditEvidence(complianceReportDir(), entries, firstNonEmpty(strings.TrimSpace(req.Format), "csv"))
+			if err != nil {
+				logControlAudit(auditStore, "compliance", action, req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				return api.ComplianceActionResult{Status: "failed", Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			status.LastExportPath = path
+			result.Path = path
+			result.Message = "audit evidence exported"
+		case "generate_report":
+			reportPath, err := writeComplianceReport(complianceReportDir(), status)
+			if err != nil {
+				logControlAudit(auditStore, "compliance", action, req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				return api.ComplianceActionResult{Status: "failed", Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			status.LastReportPath = reportPath
+			result.Path = reportPath
+			result.Message = "compliance report generated"
+		case "test_siem":
+			siemStatus, err := writeSIEMTestEvent(cfg, siemOutboxPath(), req.Actor, req.Note)
+			status.SIEM = siemStatus
+			result.SIEM = &siemStatus
+			if err != nil {
+				logControlAudit(auditStore, "compliance", action, req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				return api.ComplianceActionResult{Status: "failed", Message: err.Error(), SIEM: &siemStatus, PerformedAt: performedAt}, err
+			}
+			result.Message = "SIEM test event queued"
+		case "request_approval":
+			approval := approvalBook.request(req.Target, "", req.Actor, req.Note)
+			status.Approvals = approvalBook.status(cfg.Compliance.RequireApprovals, cfg.Compliance.ApprovalActions)
+			result.Approval = &approval
+			result.Message = "approval requested"
+		case "approve":
+			approval, ok := approvalBook.resolve(req.ApprovalID, "approved", req.Actor, req.Note)
+			if !ok {
+				err := fmt.Errorf("approval_id not found")
+				return api.ComplianceActionResult{Status: "failed", Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			status.Approvals = approvalBook.status(cfg.Compliance.RequireApprovals, cfg.Compliance.ApprovalActions)
+			result.Approval = &approval
+			result.Message = "approval granted"
+		case "reject":
+			approval, ok := approvalBook.resolve(req.ApprovalID, "rejected", req.Actor, req.Note)
+			if !ok {
+				err := fmt.Errorf("approval_id not found")
+				return api.ComplianceActionResult{Status: "failed", Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			status.Approvals = approvalBook.status(cfg.Compliance.RequireApprovals, cfg.Compliance.ApprovalActions)
+			result.Approval = &approval
+			result.Message = "approval rejected"
+		default:
+			err := fmt.Errorf("unsupported compliance action: %s", req.Action)
+			logControlAudit(auditStore, "compliance", action, req.Actor, req.Role, "", req.Note, "failed", err.Error())
+			return api.ComplianceActionResult{Status: "failed", Message: err.Error(), PerformedAt: performedAt}, err
+		}
+		status.LastActionStatus = result.Status
+		status.LastActionMessage = result.Message
+		complianceSummaryState.update(status)
+		logControlAudit(auditStore, "compliance", action, req.Actor, req.Role, result.Path, req.Note, result.Status, result.Message)
+		return result, nil
 	})
 	inspectLicense := func() api.LicenseStatus {
 		summary := api.LicenseStatus{
@@ -2104,6 +2378,11 @@ func main() {
 				PerformedAt: time.Now().UTC().Format(time.RFC3339),
 			}, err
 		}
+		if action == "preflight" && approvalRequired(cfg, "upgrade.preflight") && !approvalBook.hasApproved("upgrade.preflight") {
+			err := fmt.Errorf("upgrade.preflight requires approval")
+			upgradeAudit.record("upgrade_"+action, req.Actor, req.Role, version.String(), req.Note, "failed", err.Error())
+			return api.UpgradeActionResult{Status: "failed", Message: err.Error(), PerformedAt: time.Now().UTC().Format(time.RFC3339)}, err
+		}
 		cached := upgradeSummaryState.snapshot()
 		downloadURL := firstNonEmpty(strings.TrimSpace(req.DownloadURL), strings.TrimSpace(cached.DownloadURL), strings.TrimSpace(cfg.Upgrade.DownloadURL))
 		packagePath := firstNonEmpty(strings.TrimSpace(req.PackagePath), strings.TrimSpace(cached.PackagePath), strings.TrimSpace(cfg.Upgrade.PackagePath))
@@ -2286,6 +2565,12 @@ func main() {
 			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, ruleID, req.Notes, "validated", summary.Notes)
 			return summary, nil
 		case "publish":
+			if approvalRequired(cfg, "policy.publish") && !approvalBook.hasApproved("policy.publish") {
+				err := fmt.Errorf("policy.publish requires approval")
+				policyAudit.record(req.Action, req.Actor, req.Role, "", req.Notes, "failed", err.Error())
+				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, "", req.Notes, "failed", err.Error())
+				return api.PolicySummary{}, err
+			}
 			summary := toAPIPolicySummary(mgmtServer.PublishPolicyFor(req.Notes, mgmt.FleetFilter{Group: req.TargetGroup, Tag: req.TargetTag}))
 			target := fmt.Sprintf("v%d", summary.Version)
 			message := fmt.Sprintf("policy published with deployment status %s", summary.DeploymentStatus)
@@ -2293,6 +2578,12 @@ func main() {
 			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, "published", message)
 			return summary, nil
 		case "rollback":
+			if approvalRequired(cfg, "policy.rollback") && !approvalBook.hasApproved("policy.rollback") {
+				err := fmt.Errorf("policy.rollback requires approval")
+				policyAudit.record(req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", req.TargetVersion), req.Notes, "failed", err.Error())
+				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", req.TargetVersion), req.Notes, "failed", err.Error())
+				return api.PolicySummary{}, err
+			}
 			revision, err := mgmtServer.RollbackPolicyFor(req.TargetVersion, req.Notes, mgmt.FleetFilter{Group: req.TargetGroup, Tag: req.TargetTag})
 			if err != nil {
 				policyAudit.record(req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", req.TargetVersion), req.Notes, "failed", err.Error())
@@ -3313,6 +3604,191 @@ func validateSigmaRuleYAML(ruleYAML string) error {
 		}
 	}
 	return nil
+}
+
+func parseTimeOrZero(raw string) time.Time {
+	if strings.TrimSpace(raw) == "" {
+		return time.Time{}
+	}
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(raw))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
+}
+
+func complianceRecommendations(status api.ComplianceStatus) []string {
+	out := []string{}
+	if status.RetentionDays == 0 {
+		out = append(out, "set a non-zero audit retention window")
+	}
+	if status.AuditEntries == 0 {
+		out = append(out, "verify audit ingestion before production release")
+	}
+	if status.SIEM.Enabled && status.SIEM.LastStatus == "" {
+		out = append(out, "run a SIEM test event before handoff")
+	}
+	if status.Approvals.Enabled && len(status.Approvals.Pending) > 0 {
+		out = append(out, "review pending change approvals")
+	}
+	return out
+}
+
+func approvalRequired(cfg *config.Config, action string) bool {
+	if cfg == nil || !cfg.Compliance.RequireApprovals {
+		return false
+	}
+	action = strings.TrimSpace(action)
+	for _, required := range cfg.Compliance.ApprovalActions {
+		if strings.EqualFold(strings.TrimSpace(required), action) {
+			return true
+		}
+	}
+	return false
+}
+
+func exportAuditEvidence(dir string, entries []audit.Entry, format string) (string, error) {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", err
+	}
+	format = strings.ToLower(strings.TrimSpace(format))
+	if format == "" {
+		format = "csv"
+	}
+	stamp := time.Now().UTC().Format("20060102T150405Z")
+	switch format {
+	case "json", "ndjson":
+		path := filepath.Join(dir, "audit-evidence-"+stamp+".ndjson")
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+		enc := json.NewEncoder(f)
+		for _, entry := range entries {
+			if err := enc.Encode(entry); err != nil {
+				return "", err
+			}
+		}
+		return path, nil
+	case "csv":
+		path := filepath.Join(dir, "audit-evidence-"+stamp+".csv")
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+		writer := csv.NewWriter(f)
+		if err := writer.Write([]string{"id", "timestamp", "category", "severity", "source", "message", "details"}); err != nil {
+			return "", err
+		}
+		for _, entry := range entries {
+			details := ""
+			if len(entry.Details) > 0 {
+				data, err := json.Marshal(entry.Details)
+				if err != nil {
+					return "", err
+				}
+				details = string(data)
+			}
+			if err := writer.Write([]string{
+				entry.ID,
+				entry.Timestamp.UTC().Format(time.RFC3339),
+				string(entry.Category),
+				entry.Severity,
+				entry.Source,
+				entry.Message,
+				details,
+			}); err != nil {
+				return "", err
+			}
+		}
+		writer.Flush()
+		return path, writer.Error()
+	default:
+		return "", fmt.Errorf("unsupported audit export format: %s", format)
+	}
+}
+
+func writeComplianceReport(dir string, status api.ComplianceStatus) (string, error) {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", err
+	}
+	status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	path := filepath.Join(dir, "compliance-report-"+time.Now().UTC().Format("20060102T150405Z")+".json")
+	data, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0600); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func writeSIEMTestEvent(cfg *config.Config, outboxPath, actor, note string) (api.SIEMStatus, error) {
+	status := api.SIEMStatus{
+		Enabled:     cfg.SIEM.Enabled,
+		Endpoint:    strings.TrimSpace(cfg.SIEM.Endpoint),
+		Format:      firstNonEmpty(strings.TrimSpace(cfg.SIEM.Format), "json"),
+		MinSeverity: firstNonEmpty(strings.TrimSpace(cfg.SIEM.MinSeverity), "INFO"),
+		OutboxPath:  outboxPath,
+	}
+	event := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"source":    "providapt",
+		"kind":      "siem_test",
+		"severity":  "INFO",
+		"version":   version.String(),
+		"actor":     strings.TrimSpace(actor),
+		"note":      strings.TrimSpace(note),
+	}
+	if err := os.MkdirAll(filepath.Dir(outboxPath), 0700); err != nil {
+		status.LastStatus = "failed"
+		status.LastError = err.Error()
+		return status, err
+	}
+	f, err := os.OpenFile(outboxPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		status.LastStatus = "failed"
+		status.LastError = err.Error()
+		return status, err
+	}
+	defer f.Close()
+	var line []byte
+	if strings.EqualFold(status.Format, "cef") {
+		line = []byte(fmt.Sprintf("CEF:0|ProvidAPT|ProvidAPT|%s|siem_test|SIEM test event|1|act=%s msg=%s\n", version.String(), sanitizeCEF(actor), sanitizeCEF(note)))
+	} else {
+		line, err = json.Marshal(event)
+		if err != nil {
+			status.LastStatus = "failed"
+			status.LastError = err.Error()
+			return status, err
+		}
+		line = append(line, '\n')
+	}
+	if _, err := f.Write(line); err != nil {
+		status.LastStatus = "failed"
+		status.LastError = err.Error()
+		return status, err
+	}
+	status.ForwardedEvents = 1
+	status.LastForwardedAt = time.Now().UTC().Format(time.RFC3339)
+	if !cfg.SIEM.Enabled {
+		status.LastStatus = "queued_disabled"
+		status.LastError = "siem.enabled is false; test event written to outbox only"
+		return status, nil
+	}
+	status.LastStatus = "queued"
+	return status, nil
+}
+
+func sanitizeCEF(value string) string {
+	value = strings.ReplaceAll(value, "\\", "\\\\")
+	value = strings.ReplaceAll(value, "=", "\\=")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = strings.ReplaceAll(value, "\r", " ")
+	return value
 }
 
 func logControlAudit(store *audit.Store, source, action, actor, role, target, note, status, message string) {

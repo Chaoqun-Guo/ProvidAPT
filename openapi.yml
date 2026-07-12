@@ -378,6 +378,26 @@ paths:
         "200":
           description: Audit feed
 
+  /api/v1/control/compliance:
+    get:
+      summary: Compliance and SIEM status
+      description: Returns audit retention, SIEM forwarding, approval, and report status
+      operationId: getComplianceStatus
+      responses:
+        "200":
+          description: Compliance status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceStatus"
+    post:
+      summary: Run compliance action
+      description: Export audit evidence, generate reports, test SIEM forwarding, or update approvals
+      operationId: runComplianceAction
+      responses:
+        "200":
+          description: Compliance action result
+
   /api/v1/control/license:
     get:
       summary: License status
@@ -587,6 +607,45 @@ components:
         last_rotated_at:
           type: string
           format: date-time
+
+    ComplianceStatus:
+      type: object
+      properties:
+        updated_at:
+          type: string
+          format: date-time
+        retention_days:
+          type: integer
+        max_audit_entries:
+          type: integer
+        audit_entries:
+          type: integer
+        last_export_path:
+          type: string
+        last_report_path:
+          type: string
+        siem:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            endpoint:
+              type: string
+            format:
+              type: string
+            min_severity:
+              type: string
+            last_status:
+              type: string
+        approvals:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            pending:
+              type: array
+              items:
+                type: object
 
     LicenseStatus:
       type: object
