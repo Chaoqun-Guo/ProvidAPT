@@ -144,6 +144,9 @@ func allowed(role, method, path string) bool {
 		if strings.HasPrefix(path, "/api/v1/control/support/download") {
 			return false
 		}
+		if strings.HasPrefix(path, "/api/v1/control/backup/download") {
+			return false
+		}
 		if strings.HasPrefix(path, "/api/v1/control/policies/bundle") {
 			return false
 		}
@@ -151,6 +154,9 @@ func allowed(role, method, path string) bool {
 			return false
 		}
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/support") {
+			return false
+		}
+		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/backup") {
 			return false
 		}
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/policies") {
@@ -173,12 +179,16 @@ func allowed(role, method, path string) bool {
 		if method != http.MethodGet && method != http.MethodOptions {
 			return false
 		}
+		if strings.HasPrefix(path, "/api/v1/control/backup/download") {
+			return false
+		}
 		return strings.HasPrefix(path, "/health") ||
 			strings.HasPrefix(path, "/ready") ||
 			strings.HasPrefix(path, "/api/v1/status") ||
 			strings.HasPrefix(path, "/api/v1/control/overview") ||
 			strings.HasPrefix(path, "/api/v1/control/fleet") ||
 			strings.HasPrefix(path, "/api/v1/control/support") ||
+			strings.HasPrefix(path, "/api/v1/control/backup") ||
 			strings.HasPrefix(path, "/api/v1/control/audit") ||
 			strings.HasPrefix(path, "/api/v1/control/license") ||
 			strings.HasPrefix(path, "/api/v1/control/upgrade") ||

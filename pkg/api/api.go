@@ -164,6 +164,52 @@ type SupportBundleActionResult struct {
 
 type SupportBundleActionFunc func(req SupportBundleActionRequest) (SupportBundleActionResult, error)
 
+type BackupSummary struct {
+	LastBackupPath  string               `json:"last_backup_path,omitempty"`
+	LastRestorePath string               `json:"last_restore_path,omitempty"`
+	LastAction      string               `json:"last_action,omitempty"`
+	LastActor       string               `json:"last_actor,omitempty"`
+	LastRole        string               `json:"last_role,omitempty"`
+	LastStatus      string               `json:"last_status,omitempty"`
+	LastMessage     string               `json:"last_message,omitempty"`
+	LastBackupAt    string               `json:"last_backup_at,omitempty"`
+	LastRestoreAt   string               `json:"last_restore_at,omitempty"`
+	SizeBytes       int64                `json:"size_bytes,omitempty"`
+	DownloadURL     string               `json:"download_url,omitempty"`
+	History         []ControlActionAudit `json:"history,omitempty"`
+}
+
+type BackupFunc func() BackupSummary
+
+type BackupDownload struct {
+	Path     string
+	FileName string
+}
+
+type BackupDownloadFunc func(actor, role string) (BackupDownload, error)
+
+type BackupActionRequest struct {
+	Action     string `json:"action,omitempty"`
+	BackupPath string `json:"backup_path,omitempty"`
+	TargetDir  string `json:"target_dir,omitempty"`
+	Note       string `json:"note,omitempty"`
+	Actor      string `json:"actor,omitempty"`
+	Role       string `json:"role,omitempty"`
+}
+
+type BackupActionResult struct {
+	Status      string `json:"status"`
+	Message     string `json:"message,omitempty"`
+	Action      string `json:"action,omitempty"`
+	BackupPath  string `json:"backup_path,omitempty"`
+	RestorePath string `json:"restore_path,omitempty"`
+	DownloadURL string `json:"download_url,omitempty"`
+	SizeBytes   int64  `json:"size_bytes,omitempty"`
+	PerformedAt string `json:"performed_at"`
+}
+
+type BackupActionFunc func(req BackupActionRequest) (BackupActionResult, error)
+
 type AuditEntry struct {
 	ID        string                 `json:"id"`
 	Timestamp string                 `json:"timestamp"`
@@ -492,6 +538,9 @@ type Server struct {
 	supportFn   SupportBundleFunc
 	supportAct  SupportBundleActionFunc
 	supportDl   SupportBundleDownloadFunc
+	backupFn    BackupFunc
+	backupAct   BackupActionFunc
+	backupDl    BackupDownloadFunc
 	auditFn     AuditQueryFunc
 	licenseFn   LicenseStatusFunc
 	licenseAct  LicenseActionFunc
@@ -555,6 +604,18 @@ func (s *Server) SetSupportBundleActionFunc(fn SupportBundleActionFunc) {
 
 func (s *Server) SetSupportBundleDownloadFunc(fn SupportBundleDownloadFunc) {
 	s.supportDl = fn
+}
+
+func (s *Server) SetBackupFunc(fn BackupFunc) {
+	s.backupFn = fn
+}
+
+func (s *Server) SetBackupActionFunc(fn BackupActionFunc) {
+	s.backupAct = fn
+}
+
+func (s *Server) SetBackupDownloadFunc(fn BackupDownloadFunc) {
+	s.backupDl = fn
 }
 
 func (s *Server) SetAuditQueryFunc(fn AuditQueryFunc) {
@@ -886,6 +947,8 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/control/fleet", s.jsonHandler(s.handleFleet))
 	mux.HandleFunc("/api/v1/control/support", s.jsonHandler(s.handleSupportBundles))
 	mux.HandleFunc("/api/v1/control/support/download", s.handleSupportBundleDownload)
+	mux.HandleFunc("/api/v1/control/backup", s.jsonHandler(s.handleBackups))
+	mux.HandleFunc("/api/v1/control/backup/download", s.handleBackupDownload)
 	mux.HandleFunc("/api/v1/control/audit", s.jsonHandler(s.handleAuditFeed))
 	mux.HandleFunc("/api/v1/control/license", s.jsonHandler(s.handleLicenseStatus))
 	mux.HandleFunc("/api/v1/control/upgrade", s.jsonHandler(s.handleUpgradeReadiness))
@@ -1094,6 +1157,71 @@ func (s *Server) handleSupportBundleDownload(w http.ResponseWriter, r *http.Requ
 		fileName = filepath.Base(download.Path)
 	}
 	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
+	http.ServeFile(w, r, download.Path)
+}
+
+func (s *Server) handleBackups(w http.ResponseWriter, r *http.Request) error {
+	switch r.Method {
+	case http.MethodGet:
+		summary := BackupSummary{}
+		if s.backupFn != nil {
+			summary = s.backupFn()
+			if summary.History == nil {
+				summary.History = []ControlActionAudit{}
+			}
+		}
+		return json.NewEncoder(w).Encode(summary)
+	case http.MethodPost:
+		if s.backupAct == nil {
+			w.WriteHeader(http.StatusNotImplemented)
+			return json.NewEncoder(w).Encode(map[string]string{"error": "backup actions not enabled"})
+		}
+		var req BackupActionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return fmt.Errorf("decode backup action: %w", err)
+		}
+		req.Role = CurrentRole(r)
+		if req.Actor == "" {
+			req.Actor = CurrentActor(r)
+		}
+		result, err := s.backupAct(req)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(w).Encode(result)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (s *Server) handleBackupDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+		return
+	}
+	if s.backupDl == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotImplemented)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "backup downloads not enabled"})
+		return
+	}
+	download, err := s.backupDl(CurrentActor(r), CurrentRole(r))
+	if err != nil {
+		log.Printf("[api] backup download error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	fileName := strings.TrimSpace(download.FileName)
+	if fileName == "" {
+		fileName = filepath.Base(download.Path)
+	}
+	w.Header().Set("Content-Type", "application/gzip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	http.ServeFile(w, r, download.Path)
 }

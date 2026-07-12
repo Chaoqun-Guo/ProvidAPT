@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/pebble"
@@ -195,4 +197,180 @@ func Restore(backupPath, targetDir string) error {
 	}
 
 	return nil
+}
+
+// CreateCheckpoint archives a live Pebble checkpoint into a tar.gz file.
+// It is safe for an already-open database and preserves the raw on-disk
+// representation, including encrypted values when storage encryption is used.
+func CreateCheckpoint(db *pebble.DB, outputPath string) (*Meta, error) {
+	if db == nil {
+		return nil, fmt.Errorf("nil pebble database")
+	}
+	outputPath = strings.TrimSpace(outputPath)
+	if outputPath == "" {
+		return nil, fmt.Errorf("output path is required")
+	}
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
+		return nil, fmt.Errorf("create backup dir: %w", err)
+	}
+	checkpointDir := outputPath + ".checkpoint"
+	if err := os.RemoveAll(checkpointDir); err != nil {
+		return nil, fmt.Errorf("remove stale checkpoint: %w", err)
+	}
+	if err := db.Checkpoint(checkpointDir); err != nil {
+		return nil, fmt.Errorf("create checkpoint: %w", err)
+	}
+	defer os.RemoveAll(checkpointDir)
+
+	if err := archiveDirectory(checkpointDir, outputPath); err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat backup archive: %w", err)
+	}
+	return &Meta{
+		Path:      outputPath,
+		SizeBytes: info.Size(),
+		CreatedAt: time.Now(),
+		StorePath: checkpointDir,
+	}, nil
+}
+
+// RestoreCheckpoint extracts a raw checkpoint archive into targetDir.
+// The target directory must be empty or absent. Callers should restore into a
+// staging directory first, then swap it into place while ProvidAPT is stopped.
+func RestoreCheckpoint(backupPath, targetDir string) error {
+	if strings.TrimSpace(backupPath) == "" {
+		return fmt.Errorf("backup path is required")
+	}
+	if strings.TrimSpace(targetDir) == "" {
+		return fmt.Errorf("target dir is required")
+	}
+	if entries, err := os.ReadDir(targetDir); err == nil && len(entries) > 0 {
+		return fmt.Errorf("target dir is not empty: %s", targetDir)
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("inspect target dir: %w", err)
+	}
+	if err := os.MkdirAll(targetDir, 0700); err != nil {
+		return fmt.Errorf("create target dir: %w", err)
+	}
+
+	f, err := os.Open(backupPath)
+	if err != nil {
+		return fmt.Errorf("open checkpoint backup: %w", err)
+	}
+	defer f.Close()
+	gr, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("decompress checkpoint backup: %w", err)
+	}
+	defer gr.Close()
+	tr := tar.NewReader(gr)
+	cleanTarget, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("resolve target dir: %w", err)
+	}
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read checkpoint tar: %w", err)
+		}
+		if hdr == nil || strings.TrimSpace(hdr.Name) == "" {
+			continue
+		}
+		dest, err := safeArchivePath(cleanTarget, hdr.Name)
+		if err != nil {
+			return err
+		}
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(dest, 0700); err != nil {
+				return fmt.Errorf("create restore dir: %w", err)
+			}
+		case tar.TypeReg, tar.TypeRegA:
+			if err := os.MkdirAll(filepath.Dir(dest), 0700); err != nil {
+				return fmt.Errorf("create restore parent: %w", err)
+			}
+			out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+			if err != nil {
+				return fmt.Errorf("create restore file: %w", err)
+			}
+			if _, err := io.Copy(out, tr); err != nil {
+				out.Close()
+				return fmt.Errorf("write restore file: %w", err)
+			}
+			if err := out.Close(); err != nil {
+				return fmt.Errorf("close restore file: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func archiveDirectory(root, outputPath string) error {
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("create checkpoint archive: %w", err)
+	}
+	defer outFile.Close()
+	gzw := gzip.NewWriter(outFile)
+	defer gzw.Close()
+	tw := tar.NewWriter(gzw)
+	defer tw.Close()
+
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == root {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		hdr, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		hdr.Name = rel
+		if err := tw.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer in.Close()
+		_, err = io.Copy(tw, in)
+		return err
+	})
+}
+
+func safeArchivePath(targetDir, name string) (string, error) {
+	cleanName := filepath.Clean(filepath.FromSlash(name))
+	if cleanName == "." || filepath.IsAbs(cleanName) || strings.HasPrefix(cleanName, ".."+string(os.PathSeparator)) || cleanName == ".." {
+		return "", fmt.Errorf("unsafe archive path: %s", name)
+	}
+	dest := filepath.Join(targetDir, cleanName)
+	absDest, err := filepath.Abs(dest)
+	if err != nil {
+		return "", fmt.Errorf("resolve archive path: %w", err)
+	}
+	if absDest != targetDir && !strings.HasPrefix(absDest, targetDir+string(os.PathSeparator)) {
+		return "", fmt.Errorf("archive path escapes target: %s", name)
+	}
+	return absDest, nil
 }

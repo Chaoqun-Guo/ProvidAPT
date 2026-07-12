@@ -149,3 +149,12 @@ Audit records can be exported as CSV for compliance review:
 ```text
 /api/v1/control/audit?category=admin&format=csv
 ```
+
+Checkpoint backups can be created and downloaded from the dashboard or API:
+
+```text
+POST /api/v1/control/backup {"action":"create"}
+GET /api/v1/control/backup/download
+```
+
+Restore actions are intentionally staged instead of replacing the live store. Use `{"action":"restore_staging"}` to extract the latest backup into `restore-staging/`, verify the restored Pebble store offline, then stop ProvidAPT before swapping directories during a maintenance window.

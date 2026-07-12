@@ -422,6 +422,121 @@ func TestRBACAnalystSupportBundleDownloadDenied(t *testing.T) {
 	}
 }
 
+func TestBackupEndpoint(t *testing.T) {
+	ts := testServer(t)
+	ts.SetBackupFunc(func() BackupSummary {
+		return BackupSummary{
+			LastBackupPath: "/var/lib/providapt/backups/providapt-backup.tar.gz",
+			LastAction:     "create",
+			LastActor:      "SecOps On-Call (admin)",
+			LastRole:       RoleAdmin,
+			LastStatus:     "created",
+			LastBackupAt:   "2026-06-08T01:02:03Z",
+			SizeBytes:      1234,
+			DownloadURL:    "/api/v1/control/backup/download",
+			History: []ControlActionAudit{{
+				Action:      "backup_create",
+				Actor:       "SecOps On-Call (admin)",
+				Role:        RoleAdmin,
+				TargetID:    "/var/lib/providapt/backups/providapt-backup.tar.gz",
+				Status:      "created",
+				Message:     "checkpoint backup created",
+				PerformedAt: "2026-06-08T01:02:03Z",
+			}},
+		}
+	})
+
+	w := apiGet(ts, "/api/v1/control/backup")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["last_status"] != "created" || resp["download_url"] != "/api/v1/control/backup/download" {
+		t.Fatalf("backup summary = %#v", resp)
+	}
+}
+
+func TestBackupActionInjectsActorAndRole(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"admin-key"},
+		map[string]string{"admin-key": RoleAdmin},
+		map[string]string{"admin-key": "SecOps On-Call"},
+		true,
+	)
+	var gotReq BackupActionRequest
+	ts.SetBackupActionFunc(func(req BackupActionRequest) (BackupActionResult, error) {
+		gotReq = req
+		return BackupActionResult{
+			Status:      "created",
+			Action:      req.Action,
+			BackupPath:  "/tmp/providapt-backup.tar.gz",
+			DownloadURL: "/api/v1/control/backup/download",
+			PerformedAt: "2026-06-08T01:02:03Z",
+		}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/backup", bytes.NewBufferString(`{"action":"create","note":"pre-upgrade"}`))
+	req.Header.Set("X-API-Key", "admin-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if gotReq.Role != RoleAdmin || gotReq.Actor != "SecOps On-Call (admin)" || gotReq.Note != "pre-upgrade" {
+		t.Fatalf("request = %#v", gotReq)
+	}
+}
+
+func TestBackupDownloadEndpoint(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	backupPath := filepath.Join(dir, "providapt-backup.tar.gz")
+	if err := os.WriteFile(backupPath, []byte("backup-bytes"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	ts.SetBackupDownloadFunc(func(actor, role string) (BackupDownload, error) {
+		return BackupDownload{Path: backupPath, FileName: "providapt-backup.tar.gz"}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/backup/download", nil)
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if got := w.Header().Get("Content-Disposition"); !strings.Contains(got, "providapt-backup.tar.gz") {
+		t.Fatalf("content-disposition = %q", got)
+	}
+	if body := w.Body.String(); body != "backup-bytes" {
+		t.Fatalf("body = %q", body)
+	}
+}
+
+func TestRBACAnalystBackupDenied(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/backup", bytes.NewBufferString(`{"action":"create"}`))
+	req.Header.Set("X-API-Key", "analyst-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status code = %d", w.Code)
+	}
+}
+
+func TestRBACAuditorBackupDownloadDenied(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/backup/download", nil)
+	req.Header.Set("X-API-Key", "auditor-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status code = %d", w.Code)
+	}
+}
+
 func TestAuditFeedEndpoint(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAuditQueryFunc(func(category, source string, limit int) AuditFeed {

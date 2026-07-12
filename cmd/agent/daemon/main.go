@@ -47,6 +47,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/api"
 	mgmtpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/mgmt"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/backup"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/logx"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
@@ -146,6 +147,11 @@ type controlActionAuditStore struct {
 type supportBundleState struct {
 	mu      sync.RWMutex
 	summary api.SupportBundleSummary
+}
+
+type backupState struct {
+	mu      sync.RWMutex
+	summary api.BackupSummary
 }
 
 type licenseState struct {
@@ -263,6 +269,30 @@ func (s *supportBundleState) updateArchive(archivePath, archivedAt string, redac
 	if s.summary.LastArchivePath != "" {
 		s.summary.DownloadURL = "/api/v1/control/support/download"
 	}
+}
+
+func (s *backupState) snapshot() api.BackupSummary {
+	if s == nil {
+		return api.BackupSummary{}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := s.summary
+	if out.History != nil {
+		history := make([]api.ControlActionAudit, len(out.History))
+		copy(history, out.History)
+		out.History = history
+	}
+	return out
+}
+
+func (s *backupState) update(summary api.BackupSummary) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.summary = summary
 }
 
 func (s *licenseState) snapshot() api.LicenseStatus {
@@ -1001,9 +1031,11 @@ func main() {
 	workflowAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	fleetAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	supportAudit := newControlActionAuditStore(controlActionHistoryLimit)
+	backupAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	licenseAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	upgradeAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	supportState := &supportBundleState{}
+	backupSummaryState := &backupState{}
 	licenseSummaryState := &licenseState{}
 	upgradeSummaryState := &upgradeState{}
 	apiServer.SetAPIAuth(cfg.API.AuthKeys, cfg.API.AuthRoles, cfg.API.AuthIdentities, cfg.API.AuthEnabled)
@@ -1471,6 +1503,140 @@ func main() {
 			Reason:      reason,
 			PerformedAt: performedAt,
 		}, nil
+	})
+	apiServer.SetBackupFunc(func() api.BackupSummary {
+		summary := backupSummaryState.snapshot()
+		summary.History = backupAudit.snapshot()
+		return summary
+	})
+	apiServer.SetBackupDownloadFunc(func(actor, role string) (api.BackupDownload, error) {
+		summary := backupSummaryState.snapshot()
+		if strings.TrimSpace(summary.LastBackupPath) == "" {
+			return api.BackupDownload{}, fmt.Errorf("backup archive not available")
+		}
+		backupAudit.record("backup_download", actor, role, summary.LastBackupPath, "", "downloaded", "backup archive downloaded")
+		logControlAudit(auditStore, "backup", "backup_download", actor, role, summary.LastBackupPath, "", "downloaded", "backup archive downloaded")
+		return api.BackupDownload{
+			Path:     summary.LastBackupPath,
+			FileName: filepath.Base(summary.LastBackupPath),
+		}, nil
+	})
+	apiServer.SetBackupActionFunc(func(req api.BackupActionRequest) (api.BackupActionResult, error) {
+		action := strings.ToLower(strings.TrimSpace(req.Action))
+		if action == "" {
+			action = "create"
+		}
+		performedAt := time.Now().UTC().Format(time.RFC3339)
+		backupRoot := filepath.Join(cfg.Output.Dir, "backups")
+		restoreRoot := filepath.Join(cfg.Output.Dir, "restore-staging")
+
+		switch action {
+		case "create", "backup":
+			if err := os.MkdirAll(backupRoot, 0700); err != nil {
+				backupAudit.record("backup_create", req.Actor, req.Role, backupRoot, req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_create", req.Actor, req.Role, backupRoot, req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			backupPath := strings.TrimSpace(req.BackupPath)
+			if backupPath == "" {
+				backupPath = filepath.Join(backupRoot, "providapt-backup-"+time.Now().UTC().Format("20060102T150405Z")+".tar.gz")
+			}
+			if !pathWithin(cfg.Output.Dir, backupPath) {
+				err := fmt.Errorf("backup_path must stay within output dir")
+				backupAudit.record("backup_create", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_create", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, BackupPath: backupPath, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			meta, err := pipe.CreateCheckpointBackup(backupPath)
+			if err != nil {
+				backupAudit.record("backup_create", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				backupSummaryState.update(api.BackupSummary{
+					LastBackupPath: backupPath,
+					LastAction:     action,
+					LastActor:      req.Actor,
+					LastRole:       req.Role,
+					LastStatus:     "failed",
+					LastMessage:    err.Error(),
+					LastBackupAt:   performedAt,
+					History:        backupAudit.snapshot(),
+				})
+				logControlAudit(auditStore, "backup", "backup_create", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, BackupPath: backupPath, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			message := "checkpoint backup created"
+			backupAudit.record("backup_create", req.Actor, req.Role, meta.Path, req.Note, "created", message)
+			backupSummaryState.update(api.BackupSummary{
+				LastBackupPath: meta.Path,
+				LastAction:     action,
+				LastActor:      req.Actor,
+				LastRole:       req.Role,
+				LastStatus:     "created",
+				LastMessage:    message,
+				LastBackupAt:   performedAt,
+				SizeBytes:      meta.SizeBytes,
+				DownloadURL:    "/api/v1/control/backup/download",
+				History:        backupAudit.snapshot(),
+			})
+			logControlAudit(auditStore, "backup", "backup_create", req.Actor, req.Role, meta.Path, req.Note, "created", message)
+			return api.BackupActionResult{
+				Status:      "created",
+				Message:     message,
+				Action:      action,
+				BackupPath:  meta.Path,
+				DownloadURL: "/api/v1/control/backup/download",
+				SizeBytes:   meta.SizeBytes,
+				PerformedAt: performedAt,
+			}, nil
+		case "restore", "restore_staging", "validate_restore":
+			backupPath := strings.TrimSpace(req.BackupPath)
+			if backupPath == "" {
+				backupPath = backupSummaryState.snapshot().LastBackupPath
+			}
+			if backupPath == "" {
+				err := fmt.Errorf("backup_path is required for restore staging")
+				backupAudit.record("backup_restore_staging", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_restore_staging", req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			targetDir := strings.TrimSpace(req.TargetDir)
+			if targetDir == "" {
+				targetDir = filepath.Join(restoreRoot, "restore-"+time.Now().UTC().Format("20060102T150405Z"))
+			}
+			if !pathWithin(cfg.Output.Dir, targetDir) {
+				err := fmt.Errorf("target_dir must stay within output dir")
+				backupAudit.record("backup_restore_staging", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_restore_staging", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, BackupPath: backupPath, RestorePath: targetDir, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			if err := backup.RestoreCheckpoint(backupPath, targetDir); err != nil {
+				backupAudit.record("backup_restore_staging", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				logControlAudit(auditStore, "backup", "backup_restore_staging", req.Actor, req.Role, backupPath, req.Note, "failed", err.Error())
+				return api.BackupActionResult{Status: "failed", Action: action, BackupPath: backupPath, RestorePath: targetDir, Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			message := "backup restored to staging directory"
+			current := backupSummaryState.snapshot()
+			current.LastRestorePath = targetDir
+			current.LastAction = action
+			current.LastActor = req.Actor
+			current.LastRole = req.Role
+			current.LastStatus = "restored_staging"
+			current.LastMessage = message
+			current.LastRestoreAt = performedAt
+			backupAudit.record("backup_restore_staging", req.Actor, req.Role, backupPath, req.Note, "restored_staging", message)
+			current.History = backupAudit.snapshot()
+			backupSummaryState.update(current)
+			logControlAudit(auditStore, "backup", "backup_restore_staging", req.Actor, req.Role, backupPath, req.Note, "restored_staging", message)
+			return api.BackupActionResult{
+				Status:      "restored_staging",
+				Message:     message,
+				Action:      action,
+				BackupPath:  backupPath,
+				RestorePath: targetDir,
+				PerformedAt: performedAt,
+			}, nil
+		default:
+			return api.BackupActionResult{Status: "failed", Action: action, Message: "unsupported backup action", PerformedAt: performedAt}, fmt.Errorf("unsupported backup action %q", action)
+		}
 	})
 	apiServer.SetAuditQueryFunc(func(category, source string, limit int) api.AuditFeed {
 		feed := api.AuditFeed{
@@ -2496,6 +2662,21 @@ func formatTimePtr(value time.Time) string {
 		return ""
 	}
 	return value.UTC().Format(time.RFC3339)
+}
+
+func pathWithin(root, candidate string) bool {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return false
+	}
+	candidateAbs, err := filepath.Abs(candidate)
+	if err != nil {
+		return false
+	}
+	if candidateAbs == rootAbs {
+		return true
+	}
+	return strings.HasPrefix(candidateAbs, rootAbs+string(os.PathSeparator))
 }
 
 func loadAppliedPolicyVersion(path string) (int, error) {

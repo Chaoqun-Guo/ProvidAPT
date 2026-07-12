@@ -162,3 +162,43 @@ func TestCreateLargeData(t *testing.T) {
 		t.Errorf("expected positive backup size, got %d", meta.SizeBytes)
 	}
 }
+
+func TestCheckpointBackupRestore(t *testing.T) {
+	storeDir := t.TempDir()
+	db, err := pebble.Open(storeDir, &pebble.Options{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.Set([]byte("checkpoint-key"), []byte("checkpoint-value"), pebble.Sync); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	backupPath := filepath.Join(t.TempDir(), "checkpoint.tar.gz")
+	meta, err := CreateCheckpoint(db, backupPath)
+	if err != nil {
+		t.Fatalf("CreateCheckpoint: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close db: %v", err)
+	}
+	if meta.SizeBytes <= 0 {
+		t.Fatalf("checkpoint size = %d", meta.SizeBytes)
+	}
+
+	restoreDir := filepath.Join(t.TempDir(), "restore")
+	if err := RestoreCheckpoint(backupPath, restoreDir); err != nil {
+		t.Fatalf("RestoreCheckpoint: %v", err)
+	}
+	restoredDB, err := pebble.Open(restoreDir, &pebble.Options{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("open restored db: %v", err)
+	}
+	defer restoredDB.Close()
+	value, closer, err := restoredDB.Get([]byte("checkpoint-key"))
+	if err != nil {
+		t.Fatalf("get restored key: %v", err)
+	}
+	defer closer.Close()
+	if string(value) != "checkpoint-value" {
+		t.Fatalf("value = %q", value)
+	}
+}

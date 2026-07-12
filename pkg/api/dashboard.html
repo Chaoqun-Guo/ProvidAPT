@@ -224,6 +224,26 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     </div>
   </div>
   <div class="panel">
+    <h2>Backup & Restore</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showBackupDetails('status')"><div class="value" id="bkStatus">--</div><div class="label">Last Status</div></div>
+        <div class="policy-item clickable" onclick="showBackupDetails('backup')"><div class="value" id="bkTime">--</div><div class="label">Last Backup</div></div>
+        <div class="policy-item clickable" onclick="showBackupDetails('restore')"><div class="value" id="bkRestore">--</div><div class="label">Restore Staging</div></div>
+        <div class="policy-item clickable" onclick="showBackupDetails('history')"><div class="value" id="bkHistoryCount">--</div><div class="label">History</div></div>
+      </div>
+      <div class="action-row">
+        <button id="createBackupBtn" onclick="runBackupAction('create')">Create Backup</button>
+        <button id="restoreBackupBtn" class="secondary" onclick="runBackupAction('restore_staging')">Restore to Staging</button>
+        <button id="downloadBackupBtn" class="secondary" onclick="downloadBackupArchive()">Download Backup</button>
+      </div>
+      <div class="loading" id="backupStatus"></div>
+      <div class="alerts-list" id="backupDetails">
+        <div class="loading">Loading backup state...</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
     <h2>Policy Center</h2>
     <div class="panel-body">
       <div class="policy-grid">
@@ -359,6 +379,7 @@ let currentRole = 'admin';
 let latestFleet = { agents: [], history: [] };
 let latestOverview = { agents: [] };
 let latestSupport = {};
+let latestBackup = {};
 let latestLicense = {};
 let latestUpgrade = {};
 let latestPolicies = {};
@@ -579,6 +600,9 @@ async function loadStatus() {
     const downloadPolicyBundleBtn = document.getElementById('downloadPolicyBundleBtn');
     const exportSupportBundleBtn = document.getElementById('exportSupportBundleBtn');
     const downloadSupportBundleBtn = document.getElementById('downloadSupportBundleBtn');
+    const createBackupBtn = document.getElementById('createBackupBtn');
+    const restoreBackupBtn = document.getElementById('restoreBackupBtn');
+    const downloadBackupBtn = document.getElementById('downloadBackupBtn');
     const validateLicenseBtn = document.getElementById('validateLicenseBtn');
     const checkUpgradeBtn = document.getElementById('checkUpgradeBtn');
     const preflightUpgradeBtn = document.getElementById('preflightUpgradeBtn');
@@ -591,6 +615,9 @@ async function loadStatus() {
     if (downloadPolicyBundleBtn) downloadPolicyBundleBtn.disabled = currentRole === 'analyst';
     if (exportSupportBundleBtn) exportSupportBundleBtn.disabled = !deliveryAdmin;
     if (downloadSupportBundleBtn) downloadSupportBundleBtn.disabled = currentRole === 'analyst';
+    if (createBackupBtn) createBackupBtn.disabled = !deliveryAdmin;
+    if (restoreBackupBtn) restoreBackupBtn.disabled = !deliveryAdmin;
+    if (downloadBackupBtn) downloadBackupBtn.disabled = !deliveryAdmin;
     if (validateLicenseBtn) validateLicenseBtn.disabled = !deliveryAdmin;
     if (checkUpgradeBtn) checkUpgradeBtn.disabled = !deliveryAdmin;
     if (preflightUpgradeBtn) preflightUpgradeBtn.disabled = !deliveryAdmin;
@@ -1023,6 +1050,105 @@ async function downloadSupportBundle() {
   } catch (e) {
     const status = document.getElementById('supportBundleStatus');
     if (status) status.textContent = 'Download failed: ' + e.message;
+  }
+}
+
+async function loadBackups() {
+  try {
+    const data = await fetchJSON('/api/v1/control/backup');
+    latestBackup = data || {};
+    const history = data.history || [];
+    setText('bkStatus', data.last_status || '--');
+    setText('bkTime', data.last_backup_at ? formatTime(data.last_backup_at) : '--');
+    setText('bkRestore', data.last_restore_at ? formatTime(data.last_restore_at) : '--');
+    setText('bkHistoryCount', history.length);
+    const downloadBtn = document.getElementById('downloadBackupBtn');
+    if (downloadBtn) {
+      downloadBtn.disabled = currentRole !== 'admin' || !data.download_url;
+    }
+
+    const details = document.getElementById('backupDetails');
+    if (!details) return;
+    if (!data.last_backup_path && history.length === 0) {
+      details.innerHTML = '<div class="loading">No backups created yet</div>';
+      return;
+    }
+    const items = [];
+    if (data.last_backup_path) {
+      items.push('<div class="alert-item">' +
+        '<span class="alert-sev sev-medium">backup</span>' +
+        '<span class="alert-msg">' + escapeHTML(data.last_backup_path) + ' · ' + formatBytes(data.size_bytes || 0) + (data.last_message ? (' · ' + escapeHTML(data.last_message)) : '') + '</span>' +
+        '<span class="alert-time">' + formatTime(data.last_backup_at) + '</span>' +
+        '</div>');
+    }
+    if (data.last_restore_path) {
+      items.push('<div class="alert-item">' +
+        '<span class="alert-sev sev-low">restore</span>' +
+        '<span class="alert-msg">staging path: ' + escapeHTML(data.last_restore_path) + '</span>' +
+        '<span class="alert-time">' + formatTime(data.last_restore_at) + '</span>' +
+        '</div>');
+    }
+    items.push(...history.slice(0, 8).map(item => {
+      const target = item.target_id ? ' · ' + item.target_id : '';
+      const note = item.note ? ' · note: ' + item.note : '';
+      return '<div class="alert-item">' +
+        '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + escapeHTML(item.action || 'action') + '</span>' +
+        '<span class="alert-msg">' + escapeHTML(item.message || item.status || 'done') + escapeHTML(target + note) + '</span>' +
+        '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
+        '</div>';
+    }));
+    details.innerHTML = items.join('');
+  } catch (e) {
+    const details = document.getElementById('backupDetails');
+    if (details) details.innerHTML = '<div class="loading">Backup state unavailable</div>';
+  }
+}
+
+function showBackupDetails(scope) {
+  const data = latestBackup || {};
+  const history = data.history || [];
+  const items = [
+    renderKVItem('status', data.last_status || '--', data.last_message || ''),
+    renderKVItem('backup', data.last_backup_path || '--', formatBytes(data.size_bytes || 0)),
+    renderKVItem('restore staging', data.last_restore_path || '--', formatTime(data.last_restore_at)),
+    renderKVItem('download', data.download_url || '--', 'admin only'),
+  ];
+  if (scope === 'history') {
+    history.slice(0, 10).forEach(item => items.push(renderKVItem(item.action || 'action', (item.message || item.status || 'done') + (item.note ? (' · ' + item.note) : ''), formatTime(item.performed_at))));
+  }
+  setInvestigationItems(items, 'No backup details available');
+}
+
+async function runBackupAction(action) {
+  if (currentRole !== 'admin') return;
+  const status = document.getElementById('backupStatus');
+  if (status) status.textContent = action === 'create' ? 'Creating checkpoint backup...' : 'Restoring backup to staging...';
+  try {
+    const response = await fetch('/api/v1/control/backup', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ action: action, note: 'dashboard ' + action }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    if (status) {
+      status.textContent = (data.message || data.status || 'done') + (data.backup_path ? (': ' + data.backup_path) : '');
+    }
+    await loadBackups();
+  } catch (e) {
+    if (status) status.textContent = 'Backup action failed: ' + e.message;
+  }
+}
+
+async function downloadBackupArchive() {
+  if (currentRole !== 'admin') return;
+  try {
+    await downloadWithAuth('/api/v1/control/backup/download', 'providapt-backup.tar.gz');
+  } catch (e) {
+    const status = document.getElementById('backupStatus');
+    if (status) status.textContent = 'Backup download failed: ' + e.message;
   }
 }
 
@@ -1717,6 +1843,7 @@ function initializePanelLayout() {
     'alert-workflow',
     'delivery-health',
     'support-bundle',
+    'backup-restore',
     'investigation-console',
   ];
   Array.from(content.querySelectorAll('.panel')).forEach(panel => {
@@ -1763,7 +1890,7 @@ function initializePanelLayout() {
 async function refresh() {
   const now = new Date();
   document.getElementById('refreshInfo').textContent = 'Updated: ' + now.toLocaleTimeString();
-  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries()]);
+  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadBackups(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries()]);
   loadOperationsSummary();
 }
 

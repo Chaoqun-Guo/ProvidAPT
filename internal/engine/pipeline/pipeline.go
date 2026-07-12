@@ -32,6 +32,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/cache"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/store"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/backup"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
 )
 
@@ -352,4 +353,11 @@ func (p *Pipeline) Stats() map[string]interface{} {
 		"graph":  p.graph.Stats(),
 		"paused": paused,
 	}
+}
+
+// CreateCheckpointBackup flushes pending writes and archives a live Pebble
+// checkpoint to outputPath.
+func (p *Pipeline) CreateCheckpointBackup(outputPath string) (*backup.Meta, error) {
+	p.onMidPressure()
+	return backup.CreateCheckpoint(p.store.UnderlyingDB(), outputPath)
 }
