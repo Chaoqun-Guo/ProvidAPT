@@ -295,6 +295,8 @@ type PolicySummary struct {
 	WhitelistCount   int      `json:"whitelist_count"`
 	TaintSourceCount int      `json:"taint_source_count"`
 	DeploymentStatus string   `json:"deployment_status,omitempty"`
+	TargetGroup      string   `json:"target_group,omitempty"`
+	TargetTag        string   `json:"target_tag,omitempty"`
 	TargetAgents     int      `json:"target_agents,omitempty"`
 	AckedAgents      int      `json:"acked_agents,omitempty"`
 	PendingAgents    int      `json:"pending_agents,omitempty"`
@@ -325,6 +327,8 @@ type PolicyActionRequest struct {
 	Action          string `json:"action"`
 	Notes           string `json:"notes,omitempty"`
 	TargetVersion   int    `json:"target_version,omitempty"`
+	TargetGroup     string `json:"target_group,omitempty"`
+	TargetTag       string `json:"target_tag,omitempty"`
 	RuleID          string `json:"rule_id,omitempty"`
 	RuleYAML        string `json:"rule_yaml,omitempty"`
 	WhitelistTarget string `json:"whitelist_target,omitempty"`

@@ -1893,14 +1893,14 @@ func main() {
 		}
 		switch strings.ToLower(strings.TrimSpace(req.Action)) {
 		case "publish":
-			summary := toAPIPolicySummary(mgmtServer.PublishPolicy(req.Notes))
+			summary := toAPIPolicySummary(mgmtServer.PublishPolicyFor(req.Notes, mgmt.FleetFilter{Group: req.TargetGroup, Tag: req.TargetTag}))
 			target := fmt.Sprintf("v%d", summary.Version)
 			message := fmt.Sprintf("policy published with deployment status %s", summary.DeploymentStatus)
 			policyAudit.record(req.Action, req.Actor, req.Role, target, req.Notes, "published", message)
 			logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, target, req.Notes, "published", message)
 			return summary, nil
 		case "rollback":
-			revision, err := mgmtServer.RollbackPolicy(req.TargetVersion, req.Notes)
+			revision, err := mgmtServer.RollbackPolicyFor(req.TargetVersion, req.Notes, mgmt.FleetFilter{Group: req.TargetGroup, Tag: req.TargetTag})
 			if err != nil {
 				policyAudit.record(req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", req.TargetVersion), req.Notes, "failed", err.Error())
 				logControlAudit(auditStore, "policy", req.Action, req.Actor, req.Role, fmt.Sprintf("v%d", req.TargetVersion), req.Notes, "failed", err.Error())
@@ -2700,6 +2700,8 @@ func toAPIPolicySummary(revision mgmt.PolicyRevision) api.PolicySummary {
 		WhitelistCount:   revision.WhitelistCount,
 		TaintSourceCount: revision.TaintSourceCount,
 		DeploymentStatus: revision.DeploymentStatus,
+		TargetGroup:      revision.TargetGroup,
+		TargetTag:        revision.TargetTag,
 		TargetAgents:     revision.TargetAgents,
 		AckedAgents:      revision.AckedAgents,
 		PendingAgents:    revision.PendingAgents,

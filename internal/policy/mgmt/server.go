@@ -132,6 +132,8 @@ type PolicyRevision struct {
 	WhitelistCount   int       `json:"whitelist_count"`
 	TaintSourceCount int       `json:"taint_source_count"`
 	DeploymentStatus string    `json:"deployment_status,omitempty"`
+	TargetGroup      string    `json:"target_group,omitempty"`
+	TargetTag        string    `json:"target_tag,omitempty"`
 	TargetAgents     int       `json:"target_agents,omitempty"`
 	AckedAgents      int       `json:"acked_agents,omitempty"`
 	PendingAgents    int       `json:"pending_agents,omitempty"`
@@ -737,7 +739,11 @@ func (s *Server) PolicyCenter() PolicyCenterSnapshot {
 }
 
 func (s *Server) PublishPolicy(notes string) PolicyRevision {
-	targetAgents := s.policyTargetAgentCount()
+	return s.PublishPolicyFor(notes, FleetFilter{})
+}
+
+func (s *Server) PublishPolicyFor(notes string, filter FleetFilter) PolicyRevision {
+	targetAgents := s.policyTargetAgentCount(filter)
 
 	s.policy.mu.Lock()
 	s.refreshPolicyDraftLocked(notes)
@@ -747,6 +753,8 @@ func (s *Server) PublishPolicy(notes string) PolicyRevision {
 	published.Notes = strings.TrimSpace(notes)
 	published.UpdatedAt = time.Now()
 	published.PublishedAt = published.UpdatedAt
+	published.TargetGroup = strings.TrimSpace(filter.Group)
+	published.TargetTag = strings.TrimSpace(filter.Tag)
 	published.TargetAgents = targetAgents
 	published.AckedAgents = 0
 	published.PendingAgents = targetAgents
@@ -776,7 +784,11 @@ func (s *Server) PublishPolicy(notes string) PolicyRevision {
 }
 
 func (s *Server) RollbackPolicy(version int, notes string) (PolicyRevision, error) {
-	targetAgents := s.policyTargetAgentCount()
+	return s.RollbackPolicyFor(version, notes, FleetFilter{})
+}
+
+func (s *Server) RollbackPolicyFor(version int, notes string, filter FleetFilter) (PolicyRevision, error) {
+	targetAgents := s.policyTargetAgentCount(filter)
 
 	s.policy.mu.Lock()
 	var target *PolicyRevision
@@ -797,6 +809,8 @@ func (s *Server) RollbackPolicy(version int, notes string) (PolicyRevision, erro
 	rolled.Notes = strings.TrimSpace(notes)
 	rolled.UpdatedAt = time.Now()
 	rolled.PublishedAt = rolled.UpdatedAt
+	rolled.TargetGroup = strings.TrimSpace(filter.Group)
+	rolled.TargetTag = strings.TrimSpace(filter.Tag)
 	rolled.TargetAgents = targetAgents
 	rolled.AckedAgents = 0
 	rolled.PendingAgents = targetAgents
@@ -934,6 +948,9 @@ func (s *Server) policyAckMessageForAgent(agentID, prefix string) string {
 	if current.Version <= 0 {
 		return prefix
 	}
+	if agentID != "" && !s.agentMatchesPolicyTarget(agentID, current) {
+		return fmt.Sprintf("%s; policy_status=not_targeted", prefix)
+	}
 	deploymentStatus := current.DeploymentStatus
 	if deploymentStatus == "" {
 		deploymentStatus = current.State
@@ -956,11 +973,38 @@ func (s *Server) agentEnrollment(agentID string) (string, string) {
 	return status, snapshot.EnrollmentNote
 }
 
+func (s *Server) agentMatchesPolicyTarget(agentID string, policy PolicyRevision) bool {
+	if strings.TrimSpace(policy.TargetGroup) == "" && strings.TrimSpace(policy.TargetTag) == "" {
+		return true
+	}
+	s.telemetry.mu.Lock()
+	defer s.telemetry.mu.Unlock()
+	snapshot := s.telemetry.Agents[strings.TrimSpace(agentID)]
+	if strings.TrimSpace(policy.TargetGroup) != "" && !strings.EqualFold(snapshot.Group, policy.TargetGroup) {
+		return false
+	}
+	if strings.TrimSpace(policy.TargetTag) != "" && !hasTag(snapshot.Tags, policy.TargetTag) {
+		return false
+	}
+	return true
+}
+
 func (s *Server) refreshPolicyDeploymentFromAgents() bool {
+	s.policy.mu.Lock()
+	targetGroup := s.policy.current.TargetGroup
+	targetTag := s.policy.current.TargetTag
+	s.policy.mu.Unlock()
+
 	s.telemetry.mu.Lock()
 	appliedByAgent := make(map[string]int, len(s.telemetry.Agents))
 	for agentID, snapshot := range s.telemetry.Agents {
 		if normalizeEnrollmentStatus(snapshot.EnrollmentStatus) == "revoked" {
+			continue
+		}
+		if targetGroup != "" && !strings.EqualFold(snapshot.Group, targetGroup) {
+			continue
+		}
+		if targetTag != "" && !hasTag(snapshot.Tags, targetTag) {
 			continue
 		}
 		appliedByAgent[agentID] = snapshot.AppliedPolicyVersion
@@ -1107,12 +1151,18 @@ func (s *Server) readPolicyBundleLocked(revision PolicyRevision) (policyBundle, 
 	return bundle, nil
 }
 
-func (s *Server) policyTargetAgentCount() int {
+func (s *Server) policyTargetAgentCount(filter FleetFilter) int {
 	s.telemetry.mu.Lock()
 	defer s.telemetry.mu.Unlock()
 	count := 0
 	for _, snapshot := range s.telemetry.Agents {
 		if normalizeEnrollmentStatus(snapshot.EnrollmentStatus) == "revoked" {
+			continue
+		}
+		if strings.TrimSpace(filter.Group) != "" && !strings.EqualFold(snapshot.Group, strings.TrimSpace(filter.Group)) {
+			continue
+		}
+		if strings.TrimSpace(filter.Tag) != "" && !hasTag(snapshot.Tags, strings.TrimSpace(filter.Tag)) {
 			continue
 		}
 		count++

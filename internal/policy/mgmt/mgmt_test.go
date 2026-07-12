@@ -445,6 +445,46 @@ func TestPolicyCenterPublishRollback(t *testing.T) {
 	}
 }
 
+func TestPolicyPublishTargetsFleetFilter(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+	s.telemetry.Agents["prod-a"] = AgentTelemetrySnapshot{AgentID: "prod-a", Group: "prod", Tags: []string{"linux"}, Status: "HEALTHY"}
+	s.telemetry.Agents["dev-a"] = AgentTelemetrySnapshot{AgentID: "dev-a", Group: "dev", Tags: []string{"linux"}, Status: "HEALTHY"}
+	s.telemetry.Agents["prod-win"] = AgentTelemetrySnapshot{AgentID: "prod-win", Group: "prod", Tags: []string{"windows"}, Status: "HEALTHY"}
+
+	published := s.PublishPolicyFor("prod linux only", FleetFilter{Group: "prod", Tag: "linux"})
+	if published.TargetAgents != 1 || published.PendingAgents != 1 {
+		t.Fatalf("target agents = %d pending = %d", published.TargetAgents, published.PendingAgents)
+	}
+	if published.TargetGroup != "prod" || published.TargetTag != "linux" {
+		t.Fatalf("target filter = group %q tag %q", published.TargetGroup, published.TargetTag)
+	}
+
+	payload, err := json.Marshal(map[string]interface{}{
+		"agent_id":         "dev-a",
+		"status":           "HEALTHY",
+		"pipeline_healthy": true,
+		"store_healthy":    true,
+	})
+	if err != nil {
+		t.Fatalf("marshal summary: %v", err)
+	}
+	stream := &mockReportEventsStream{
+		ctx: context.Background(),
+		events: []*mgmtpb.CompressedEvent{{
+			ContentType: "summary",
+			Payload:     payload,
+		}},
+	}
+	if err := s.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	if stream.ack == nil || strings.Contains(stream.ack.Message, "policy_version=") || !strings.Contains(stream.ack.Message, "policy_status=not_targeted") {
+		t.Fatalf("ack message = %#v", stream.ack)
+	}
+}
+
 func TestControlPlaneStatePersistence(t *testing.T) {
 	stateFile := filepath.Join(t.TempDir(), "control-plane-state.json")
 

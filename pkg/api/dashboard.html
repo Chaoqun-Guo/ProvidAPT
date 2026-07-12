@@ -243,6 +243,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       <div class="policy-editor">
         <textarea id="policyEditNotes" placeholder="Edit policy release notes, rule change reason, or deployment instruction"></textarea>
         <div class="policy-grid">
+          <input id="policyTargetGroup" placeholder="Target group (optional)">
+          <input id="policyTargetTag" placeholder="Target tag (optional)">
           <input id="policyRuleID" placeholder="Sigma rule ID">
           <input id="policyWhitelistTarget" placeholder="Whitelist target: pid, comm, path">
           <input id="policyWhitelistValue" placeholder="Whitelist value">
@@ -872,6 +874,7 @@ function showPolicyDetails(scope) {
   } else if (scope === 'deployment') {
     items = [
       renderKVItem('status', current.deployment_status || '--', 'current'),
+      renderKVItem('target scope', (current.target_group || 'all groups') + ' · ' + (current.target_tag || 'all tags'), 'filter'),
       renderKVItem('target agents', current.target_agents || 0, 'agents'),
       renderKVItem('acknowledged', current.acked_agents || 0, 'agents'),
       renderKVItem('pending', current.pending_agents || 0, 'agents'),
@@ -1345,6 +1348,10 @@ function preparePolicyAction(action) {
   const notesInput = document.getElementById('policyEditNotes');
   const notes = notesInput && notesInput.value.trim() ? notesInput.value.trim() : 'dashboard ' + action;
   const payload = { action: action, notes: notes };
+  const targetGroup = policyInputValue('policyTargetGroup');
+  const targetTag = policyInputValue('policyTargetTag');
+  if (targetGroup) payload.target_group = targetGroup;
+  if (targetTag) payload.target_tag = targetTag;
   if (action === 'rollback') {
     const currentVersion = latestPolicies && latestPolicies.current ? Number(latestPolicies.current.version || 0) : 0;
     const candidates = (latestPolicies.history || [])

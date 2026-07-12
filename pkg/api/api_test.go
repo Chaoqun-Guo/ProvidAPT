@@ -779,7 +779,7 @@ func TestPolicyActionEndpoint(t *testing.T) {
 		}, nil
 	})
 
-	body := bytes.NewBufferString(`{"action":"publish","notes":"ship it"}`)
+	body := bytes.NewBufferString(`{"action":"publish","notes":"ship it","target_group":"prod","target_tag":"linux"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", body)
 	w := httptest.NewRecorder()
 	ts.mux.ServeHTTP(w, req)
@@ -795,6 +795,9 @@ func TestPolicyActionEndpoint(t *testing.T) {
 	}
 	if gotReq.Action != "publish" {
 		t.Fatalf("request = %#v", gotReq)
+	}
+	if gotReq.TargetGroup != "prod" || gotReq.TargetTag != "linux" {
+		t.Fatalf("target filter = %#v", gotReq)
 	}
 }
 

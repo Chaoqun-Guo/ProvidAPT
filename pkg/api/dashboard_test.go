@@ -123,6 +123,8 @@ func TestDashboardModuleActions(t *testing.T) {
 		"grid-auto-rows",
 		"showPolicyDetails('history')",
 		"policyEditNotes",
+		"policyTargetGroup",
+		"policyTargetTag",
 		"Publish Draft",
 		"Browse Rules",
 		"loadAlertWorkflowFiltered('open')",
