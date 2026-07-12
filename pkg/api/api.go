@@ -85,6 +85,7 @@ type ClusterAgent struct {
 	EnrollmentStatus     string   `json:"enrollment_status,omitempty"`
 	EnrollmentNote       string   `json:"enrollment_note,omitempty"`
 	EnrollmentUpdatedAt  string   `json:"enrollment_updated_at,omitempty"`
+	CertFingerprint      string   `json:"cert_fingerprint,omitempty"`
 }
 
 type ClusterOverview struct {

@@ -78,6 +78,7 @@ type persistedAgentMetadata struct {
 	EnrollmentStatus    string    `json:"enrollment_status,omitempty"`
 	EnrollmentNote      string    `json:"enrollment_note,omitempty"`
 	EnrollmentUpdatedAt time.Time `json:"enrollment_updated_at,omitempty"`
+	CertFingerprint     string    `json:"cert_fingerprint,omitempty"`
 }
 
 type persistedPolicyState struct {
@@ -114,6 +115,7 @@ type AgentTelemetrySnapshot struct {
 	EnrollmentStatus     string    `json:"enrollment_status,omitempty"`
 	EnrollmentNote       string    `json:"enrollment_note,omitempty"`
 	EnrollmentUpdatedAt  time.Time `json:"enrollment_updated_at,omitempty"`
+	CertFingerprint      string    `json:"cert_fingerprint,omitempty"`
 }
 
 type FleetFilter struct {
@@ -207,6 +209,12 @@ type ServerConfig struct {
 
 	// PolicyBundleDir stores published policy bundle snapshots.
 	PolicyBundleDir string
+
+	// RevokedClientCertFingerprints are SHA-256 certificate fingerprints denied during mTLS handshakes.
+	RevokedClientCertFingerprints []string
+
+	// ClientCertRevoked optionally denies a verified client certificate during mTLS handshakes.
+	ClientCertRevoked func(*x509.Certificate) bool
 }
 
 // SetController attaches the eBPF controller for runtime policy operations.
@@ -352,6 +360,9 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	s.policy.history = []PolicyRevision{clonePolicyRevision(initialPolicy)}
 	if err := s.loadState(); err != nil {
 		return nil, err
+	}
+	if cfg.ClientCertRevoked == nil {
+		cfg.ClientCertRevoked = s.isClientCertRevoked
 	}
 
 	var opts []grpc.ServerOption
@@ -850,6 +861,7 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 	var lastType string
 	var lastAgentID string
 	var lastSummary telemetry.Summary
+	certFingerprint := clientCertFingerprint(stream.Context())
 
 	for {
 		event, err := stream.Recv()
@@ -878,8 +890,11 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 			s.telemetry.LastReportAt = time.Now()
 			s.telemetry.LastContentType = lastType
 			s.telemetry.LastAgentID = lastAgentID
+			metadataChanged := false
 			if lastSummary.AgentID != "" {
 				existing := s.telemetry.Agents[lastSummary.AgentID]
+				nextCertFingerprint := firstNonEmpty(certFingerprint, existing.CertFingerprint)
+				metadataChanged = normalizeCertFingerprint(nextCertFingerprint) != normalizeCertFingerprint(existing.CertFingerprint)
 				s.telemetry.Agents[lastSummary.AgentID] = AgentTelemetrySnapshot{
 					AgentID:              lastSummary.AgentID,
 					Hostname:             lastSummary.Hostname,
@@ -904,10 +919,12 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 					EnrollmentStatus:     existing.EnrollmentStatus,
 					EnrollmentNote:       existing.EnrollmentNote,
 					EnrollmentUpdatedAt:  existing.EnrollmentUpdatedAt,
+					CertFingerprint:      nextCertFingerprint,
 				}
 			}
 			s.telemetry.mu.Unlock()
-			if s.refreshPolicyDeploymentFromAgents() {
+			deploymentChanged := s.refreshPolicyDeploymentFromAgents()
+			if metadataChanged || deploymentChanged {
 				if err := s.saveState(); err != nil {
 					log.Printf("[mgmt] save control-plane state: %v", err)
 				}
@@ -1198,6 +1215,7 @@ func (s *Server) loadState() error {
 		}
 		snapshot.EnrollmentNote = metadata.EnrollmentNote
 		snapshot.EnrollmentUpdatedAt = metadata.EnrollmentUpdatedAt
+		snapshot.CertFingerprint = normalizeCertFingerprint(metadata.CertFingerprint)
 		s.telemetry.Agents[agentID] = snapshot
 	}
 	s.telemetry.mu.Unlock()
@@ -1240,7 +1258,7 @@ func (s *Server) saveState() error {
 
 	s.telemetry.mu.Lock()
 	for agentID, snapshot := range s.telemetry.Agents {
-		if snapshot.Group == "" && len(snapshot.Tags) == 0 && snapshot.EnrollmentStatus == "" && snapshot.EnrollmentNote == "" {
+		if snapshot.Group == "" && len(snapshot.Tags) == 0 && snapshot.EnrollmentStatus == "" && snapshot.EnrollmentNote == "" && snapshot.CertFingerprint == "" {
 			continue
 		}
 		state.Agents[agentID] = persistedAgentMetadata{
@@ -1249,6 +1267,7 @@ func (s *Server) saveState() error {
 			EnrollmentStatus:    snapshot.EnrollmentStatus,
 			EnrollmentNote:      snapshot.EnrollmentNote,
 			EnrollmentUpdatedAt: snapshot.EnrollmentUpdatedAt,
+			CertFingerprint:     normalizeCertFingerprint(snapshot.CertFingerprint),
 		}
 	}
 	s.telemetry.mu.Unlock()
@@ -1427,6 +1446,25 @@ func loadTLSConfig(cfg *ServerConfig) (*tls.Config, error) {
 			tlsCfg.ClientCAs = caPool
 			log.Printf("[mgmt] mTLS: client cert required with CA verification")
 		}
+		tlsCfg.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			if len(rawCerts) == 0 {
+				return fmt.Errorf("client certificate required")
+			}
+			cert, err := x509.ParseCertificate(rawCerts[0])
+			if err != nil {
+				return fmt.Errorf("parse client certificate: %w", err)
+			}
+			fingerprint := normalizeCertFingerprint(fingerprintCertificate(cert))
+			for _, revoked := range cfg.RevokedClientCertFingerprints {
+				if fingerprint != "" && fingerprint == normalizeCertFingerprint(revoked) {
+					return fmt.Errorf("client certificate revoked: %s", fingerprint)
+				}
+			}
+			if cfg.ClientCertRevoked != nil && cfg.ClientCertRevoked(cert) {
+				return fmt.Errorf("client certificate revoked: %s", fingerprint)
+			}
+			return nil
+		}
 	}
 
 	return tlsCfg, nil
@@ -1447,6 +1485,81 @@ func clientIdentity(ctx context.Context) string {
 
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Self-signed certificate generator (development only)
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+func clientCertFingerprint(ctx context.Context) string {
+	if p, ok := peer.FromContext(ctx); ok {
+		if tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo); ok {
+			if len(tlsInfo.State.PeerCertificates) > 0 {
+				return fingerprintCertificate(tlsInfo.State.PeerCertificates[0])
+			}
+		}
+	}
+	return ""
+}
+
+func fingerprintCertificate(cert *x509.Certificate) string {
+	if cert == nil {
+		return ""
+	}
+	sum := sha256.Sum256(cert.Raw)
+	parts := make([]string, len(sum))
+	for index, item := range sum {
+		parts[index] = fmt.Sprintf("%02X", item)
+	}
+	return strings.Join(parts, ":")
+}
+
+func normalizeCertFingerprint(value string) string {
+	value = strings.TrimSpace(strings.ToUpper(value))
+	if value == "" {
+		return ""
+	}
+	value = strings.ReplaceAll(value, "-", ":")
+	if strings.Contains(value, ":") {
+		parts := strings.Split(value, ":")
+		normalized := make([]string, 0, len(parts))
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				normalized = append(normalized, part)
+			}
+		}
+		return strings.Join(normalized, ":")
+	}
+	if len(value) == 64 {
+		parts := make([]string, 0, 32)
+		for index := 0; index < len(value); index += 2 {
+			parts = append(parts, value[index:index+2])
+		}
+		return strings.Join(parts, ":")
+	}
+	return value
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func (s *Server) isClientCertRevoked(cert *x509.Certificate) bool {
+	fingerprint := normalizeCertFingerprint(fingerprintCertificate(cert))
+	if fingerprint == "" {
+		return false
+	}
+	s.telemetry.mu.Lock()
+	defer s.telemetry.mu.Unlock()
+	for _, snapshot := range s.telemetry.Agents {
+		if normalizeEnrollmentStatus(snapshot.EnrollmentStatus) == "revoked" &&
+			normalizeCertFingerprint(snapshot.CertFingerprint) == fingerprint {
+			return true
+		}
+	}
+	return false
+}
+
 func generateSelfSignedCert() (tls.Certificate, error) {
 	// Try persistent certauth (production use)
 	certDir := filepath.Join(os.TempDir(), "providapt-certs")

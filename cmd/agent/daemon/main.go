@@ -1210,6 +1210,7 @@ func main() {
 					EnrollmentStatus:     agent.EnrollmentStatus,
 					EnrollmentNote:       agent.EnrollmentNote,
 					EnrollmentUpdatedAt:  formatTimePtr(agent.EnrollmentUpdatedAt),
+					CertFingerprint:      agent.CertFingerprint,
 				}
 			}
 		}
@@ -1291,6 +1292,7 @@ func main() {
 					EnrollmentStatus:     agent.EnrollmentStatus,
 					EnrollmentNote:       agent.EnrollmentNote,
 					EnrollmentUpdatedAt:  formatTimePtr(agent.EnrollmentUpdatedAt),
+					CertFingerprint:      agent.CertFingerprint,
 				})
 			}
 		}

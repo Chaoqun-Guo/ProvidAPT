@@ -7,6 +7,8 @@ package mgmt
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"path/filepath"
@@ -19,7 +21,9 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/analyzer"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 )
 
 // mockWatchAlertsStream implements mgmtpb.ProvidAPTManagement_WatchAlertsServer.
@@ -317,6 +321,7 @@ func TestFleetEnrollmentStatus(t *testing.T) {
 		LastReportAt:    time.Now(),
 		PipelineHealthy: true,
 		StoreHealthy:    true,
+		CertFingerprint: "aabbccddeeff0011223344556677889900112233445566778899aabbccddeeff",
 	}
 	s.telemetry.mu.Unlock()
 
@@ -339,6 +344,135 @@ func TestFleetEnrollmentStatus(t *testing.T) {
 	if len(persisted) != 1 || persisted[0].EnrollmentStatus != "revoked" || persisted[0].EnrollmentNote != "compromised host" {
 		t.Fatalf("persisted enrollment = %#v", persisted)
 	}
+	if persisted[0].CertFingerprint != "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF" {
+		t.Fatalf("persisted cert fingerprint = %q", persisted[0].CertFingerprint)
+	}
+}
+
+func TestNormalizeCertFingerprint(t *testing.T) {
+	input := "aabbccddeeff0011223344556677889900112233445566778899aabbccddeeff"
+	want := "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF"
+	if got := normalizeCertFingerprint(input); got != want {
+		t.Fatalf("normalize continuous = %q, want %q", got, want)
+	}
+	if got := normalizeCertFingerprint(strings.ReplaceAll(want, ":", "-")); got != want {
+		t.Fatalf("normalize dashed = %q, want %q", got, want)
+	}
+}
+
+func TestClientCertRevokedByEnrollment(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	s, _ := NewServer(cfg)
+	cert := testParsedCertificate(t)
+	fingerprint := fingerprintCertificate(cert)
+
+	s.telemetry.mu.Lock()
+	s.telemetry.Agents["agent-01"] = AgentTelemetrySnapshot{
+		AgentID:          "agent-01",
+		EnrollmentStatus: "revoked",
+		CertFingerprint:  fingerprint,
+	}
+	s.telemetry.Agents["agent-02"] = AgentTelemetrySnapshot{
+		AgentID:          "agent-02",
+		EnrollmentStatus: "approved",
+		CertFingerprint:  fingerprint,
+	}
+	s.telemetry.mu.Unlock()
+
+	if !s.isClientCertRevoked(cert) {
+		t.Fatal("revoked enrollment should revoke matching mTLS certificate")
+	}
+
+	s.telemetry.mu.Lock()
+	s.telemetry.Agents["agent-01"] = AgentTelemetrySnapshot{
+		AgentID:          "agent-01",
+		EnrollmentStatus: "approved",
+		CertFingerprint:  fingerprint,
+	}
+	s.telemetry.mu.Unlock()
+	if s.isClientCertRevoked(cert) {
+		t.Fatal("approved enrollment should not revoke matching mTLS certificate")
+	}
+}
+
+func TestLoadTLSConfigRejectsRevokedFingerprint(t *testing.T) {
+	cert := testParsedCertificate(t)
+	cfg := DefaultServerConfig()
+	cfg.RequireClientCert = true
+	cfg.RevokedClientCertFingerprints = []string{fingerprintCertificate(cert)}
+
+	tlsCfg, err := loadTLSConfig(cfg)
+	if err != nil {
+		t.Fatalf("loadTLSConfig: %v", err)
+	}
+	if tlsCfg.VerifyPeerCertificate == nil {
+		t.Fatal("VerifyPeerCertificate is nil")
+	}
+	if err := tlsCfg.VerifyPeerCertificate([][]byte{cert.Raw}, nil); err == nil || !strings.Contains(err.Error(), "client certificate revoked") {
+		t.Fatalf("VerifyPeerCertificate error = %v", err)
+	}
+}
+
+func TestReportEventsPersistsClientCertFingerprint(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	cfg.StateFile = filepath.Join(t.TempDir(), "state.json")
+	s, _ := NewServer(cfg)
+	cert := testParsedCertificate(t)
+	want := fingerprintCertificate(cert)
+
+	payload, err := json.Marshal(map[string]interface{}{
+		"agent_id":         "agent-01",
+		"status":           "HEALTHY",
+		"pipeline_healthy": true,
+		"store_healthy":    true,
+	})
+	if err != nil {
+		t.Fatalf("marshal summary: %v", err)
+	}
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		AuthInfo: credentials.TLSInfo{
+			State: tls.ConnectionState{
+				PeerCertificates: []*x509.Certificate{cert},
+			},
+		},
+	})
+	stream := &mockReportEventsStream{
+		ctx: ctx,
+		events: []*mgmtpb.CompressedEvent{{
+			ContentType: "summary",
+			Payload:     payload,
+		}},
+	}
+	if err := s.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	if stream.ack == nil || !stream.ack.Accepted {
+		t.Fatalf("ack = %#v", stream.ack)
+	}
+
+	reloaded, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	agents := reloaded.FleetSnapshot(FleetFilter{})
+	if len(agents) != 1 || agents[0].CertFingerprint != want {
+		t.Fatalf("persisted cert fingerprint = %#v, want %q", agents, want)
+	}
+}
+
+func testParsedCertificate(t *testing.T) *x509.Certificate {
+	t.Helper()
+	tlsCert, err := generateEphemeralCert()
+	if err != nil {
+		t.Fatalf("generateEphemeralCert: %v", err)
+	}
+	cert, err := x509.ParseCertificate(tlsCert.Certificate[0])
+	if err != nil {
+		t.Fatalf("ParseCertificate: %v", err)
+	}
+	return cert
 }
 
 func TestFleetAgentStaleAndOfflineStatus(t *testing.T) {

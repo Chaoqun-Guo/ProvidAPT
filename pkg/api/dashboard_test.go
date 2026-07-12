@@ -109,6 +109,8 @@ func TestDashboardModuleActions(t *testing.T) {
 		"markAgentReviewed",
 		"setAgentEnrollment",
 		"Enrollment:",
+		"Cert:",
+		"cert_fingerprint",
 		"showSupportDetails('history')",
 		"activationState",
 		"topVersion",
