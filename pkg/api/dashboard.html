@@ -211,6 +211,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       <div class="action-row">
         <button id="exportSupportBundleBtn" onclick="prepareSupportBundleAction()">Export Support Bundle</button>
         <button id="downloadSupportBundleBtn" class="secondary" onclick="downloadSupportBundle()">Download Latest Archive</button>
+        <button class="secondary" onclick="downloadAuditCSV('supportbundle')">Export Audit CSV</button>
       </div>
       <div class="loading" id="supportBundleStatus"></div>
       <div class="alerts-list" id="supportBundleDetails">
@@ -1032,6 +1033,20 @@ async function downloadPolicyBundle() {
   } catch (e) {
     const status = document.getElementById('policyActionStatus');
     if (status) status.textContent = 'Policy bundle download failed: ' + e.message;
+  }
+}
+
+async function downloadAuditCSV(source) {
+  if (currentRole === 'analyst') {
+    return;
+  }
+  const params = new URLSearchParams({ category: 'admin', limit: '200', format: 'csv' });
+  if (source) params.set('source', source);
+  try {
+    await downloadWithAuth('/api/v1/control/audit?' + params.toString(), 'providapt-audit.csv');
+  } catch (e) {
+    const status = document.getElementById('supportBundleStatus');
+    if (status) status.textContent = 'Audit export failed: ' + e.message;
   }
 }
 

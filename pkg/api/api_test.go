@@ -461,6 +461,40 @@ func TestAuditFeedEndpoint(t *testing.T) {
 	}
 }
 
+func TestAuditFeedCSVExport(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAuditQueryFunc(func(category, source string, limit int) AuditFeed {
+		return AuditFeed{
+			UpdatedAt: "2026-06-08T02:00:00Z",
+			Category:  category,
+			Source:    source,
+			Entries: []AuditEntry{{
+				ID:        "audit-1",
+				Timestamp: "2026-06-08T01:59:00Z",
+				Category:  "admin",
+				Severity:  "INFO",
+				Message:   "Policy bundle downloaded",
+				Source:    "policy",
+				Details: map[string]interface{}{
+					"actor": "SecOps",
+				},
+			}},
+		}
+	})
+
+	w := apiGet(ts, "/api/v1/control/audit?category=admin&source=policy&format=csv")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/csv") {
+		t.Fatalf("content type = %q", got)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "id,timestamp,category,severity,source,message,details") || !strings.Contains(body, "audit-1") {
+		t.Fatalf("csv body = %q", body)
+	}
+}
+
 func TestRBACAuditorAuditFeedAllowed(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)

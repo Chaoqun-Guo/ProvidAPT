@@ -152,6 +152,8 @@ func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
 		"'X-API-Key': apiKey",
 		"downloadWithAuth('/api/v1/control/support/download'",
 		"downloadWithAuth('/api/v1/control/policies/bundle'",
+		"downloadAuditCSV",
+		"format: 'csv'",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {

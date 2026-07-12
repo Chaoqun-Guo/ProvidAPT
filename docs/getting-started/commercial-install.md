@@ -143,3 +143,9 @@ Admins can edit the policy draft from Policy Center before publishing:
 Policy publish and rollback actions can target all agents, a specific fleet group, a specific tag, or a group/tag intersection. Revoked agents are excluded from rollout target counts.
 
 Policy edits, publishes, rollbacks, and fleet metadata updates are written to the persisted admin audit log.
+
+Audit records can be exported as CSV for compliance review:
+
+```text
+/api/v1/control/audit?category=admin&format=csv
+```

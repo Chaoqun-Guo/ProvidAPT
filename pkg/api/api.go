@@ -9,6 +9,7 @@
 package api
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -1122,7 +1123,42 @@ func (s *Server) handleAuditFeed(w http.ResponseWriter, r *http.Request) error {
 			feed.Entries = []AuditEntry{}
 		}
 	}
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("format")), "csv") {
+		return writeAuditFeedCSV(w, feed)
+	}
 	return json.NewEncoder(w).Encode(feed)
+}
+
+func writeAuditFeedCSV(w http.ResponseWriter, feed AuditFeed) error {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="providapt-audit.csv"`)
+	writer := csv.NewWriter(w)
+	if err := writer.Write([]string{"id", "timestamp", "category", "severity", "source", "message", "details"}); err != nil {
+		return err
+	}
+	for _, entry := range feed.Entries {
+		details := ""
+		if len(entry.Details) > 0 {
+			data, err := json.Marshal(entry.Details)
+			if err != nil {
+				return err
+			}
+			details = string(data)
+		}
+		if err := writer.Write([]string{
+			entry.ID,
+			entry.Timestamp,
+			entry.Category,
+			entry.Severity,
+			entry.Source,
+			entry.Message,
+			details,
+		}); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+	return writer.Error()
 }
 
 func (s *Server) handleLicenseStatus(w http.ResponseWriter, r *http.Request) error {
