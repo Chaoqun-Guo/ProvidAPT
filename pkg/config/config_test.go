@@ -41,6 +41,12 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.License.SigningKey != "" {
 		t.Error("license signing_key should be empty by default")
 	}
+	if cfg.Compliance.ApprovalTTL != "24h" || cfg.Compliance.ReportInterval != "24h" {
+		t.Fatalf("commercial compliance defaults = %#v", cfg.Compliance)
+	}
+	if cfg.Upgrade.CanaryPercent != 10 {
+		t.Fatalf("upgrade canary default = %d", cfg.Upgrade.CanaryPercent)
+	}
 }
 
 func TestLoadNonExistent(t *testing.T) {
@@ -386,6 +392,7 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_LICENSE_HMAC", "shared-secret")
 	os.Setenv("PROVIDAPT_LICENSE_REVOKED_IDS", "lic-1, lic-2")
 	os.Setenv("PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS", "14")
+	os.Setenv("PROVIDAPT_LICENSE_MAX_AGENTS", "25")
 	os.Setenv("PROVIDAPT_LICENSE_PUBLIC_KEY_PATH", "/etc/providapt/license.pub")
 	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_URL", "https://licenses.example.com/revocations.json")
 	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_CACHE", "/var/lib/providapt/revocations.json")
@@ -398,12 +405,16 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_UPGRADE_SIGNING_KEY", "upgrade-signing-secret")
 	os.Setenv("PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH", "/etc/providapt/upgrade.pub")
 	os.Setenv("PROVIDAPT_UPGRADE_ROLLBACK_PLAN", "snapshot VM before rollout")
+	os.Setenv("PROVIDAPT_UPGRADE_APPLY_COMMAND", "/usr/local/bin/providapt-upgrade apply")
+	os.Setenv("PROVIDAPT_UPGRADE_ROLLBACK_COMMAND", "/usr/local/bin/providapt-upgrade rollback")
+	os.Setenv("PROVIDAPT_UPGRADE_CANARY_PERCENT", "20")
 	defer func() {
 		os.Unsetenv("PROVIDAPT_LICENSE_PATH")
 		os.Unsetenv("PROVIDAPT_LICENSE_SIGNING_KEY")
 		os.Unsetenv("PROVIDAPT_LICENSE_HMAC")
 		os.Unsetenv("PROVIDAPT_LICENSE_REVOKED_IDS")
 		os.Unsetenv("PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
+		os.Unsetenv("PROVIDAPT_LICENSE_MAX_AGENTS")
 		os.Unsetenv("PROVIDAPT_LICENSE_PUBLIC_KEY_PATH")
 		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_URL")
 		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_CACHE")
@@ -416,6 +427,9 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 		os.Unsetenv("PROVIDAPT_UPGRADE_SIGNING_KEY")
 		os.Unsetenv("PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH")
 		os.Unsetenv("PROVIDAPT_UPGRADE_ROLLBACK_PLAN")
+		os.Unsetenv("PROVIDAPT_UPGRADE_APPLY_COMMAND")
+		os.Unsetenv("PROVIDAPT_UPGRADE_ROLLBACK_COMMAND")
+		os.Unsetenv("PROVIDAPT_UPGRADE_CANARY_PERCENT")
 	}()
 
 	cfg := DefaultConfig()
@@ -436,6 +450,9 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	}
 	if cfg.License.GracePeriodDays != 14 {
 		t.Fatalf("license grace period = %d", cfg.License.GracePeriodDays)
+	}
+	if cfg.License.MaxAgents != 25 {
+		t.Fatalf("license max agents = %d", cfg.License.MaxAgents)
 	}
 	if cfg.License.RevocationURL != "https://licenses.example.com/revocations.json" {
 		t.Fatalf("license revocation_url = %q", cfg.License.RevocationURL)
@@ -466,6 +483,15 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	}
 	if cfg.Upgrade.RollbackPlan != "snapshot VM before rollout" {
 		t.Fatalf("upgrade rollback plan = %q", cfg.Upgrade.RollbackPlan)
+	}
+	if cfg.Upgrade.ApplyCommand != "/usr/local/bin/providapt-upgrade apply" {
+		t.Fatalf("upgrade apply command = %q", cfg.Upgrade.ApplyCommand)
+	}
+	if cfg.Upgrade.RollbackCommand != "/usr/local/bin/providapt-upgrade rollback" {
+		t.Fatalf("upgrade rollback command = %q", cfg.Upgrade.RollbackCommand)
+	}
+	if cfg.Upgrade.CanaryPercent != 20 {
+		t.Fatalf("upgrade canary percent = %d", cfg.Upgrade.CanaryPercent)
 	}
 }
 
@@ -699,7 +725,9 @@ compliance:
   retention_days: 365
   max_audit_entries: 25000
   report_dir: /var/lib/providapt/compliance
+  report_interval: 12h
   require_approvals: true
+  approval_ttl: 2h
   approval_actions:
     - policy.publish
     - upgrade.preflight
@@ -719,7 +747,7 @@ siem:
 	if cfg.Compliance.RetentionDays != 365 || cfg.Compliance.MaxAuditEntries != 25000 {
 		t.Fatalf("compliance config = %#v", cfg.Compliance)
 	}
-	if !cfg.Compliance.RequireApprovals || len(cfg.Compliance.ApprovalActions) != 2 {
+	if !cfg.Compliance.RequireApprovals || len(cfg.Compliance.ApprovalActions) != 2 || cfg.Compliance.ApprovalTTL != "2h" || cfg.Compliance.ReportInterval != "12h" {
 		t.Fatalf("approval config = %#v", cfg.Compliance)
 	}
 	if !cfg.SIEM.Enabled || cfg.SIEM.Format != "cef" || cfg.SIEM.MinSeverity != "WARNING" || cfg.SIEM.FlushInterval != "15s" {
@@ -742,6 +770,16 @@ func TestValidateCommercialP2Config(t *testing.T) {
 	cfg.SIEM.FlushInterval = "0s"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected invalid SIEM flush interval")
+	}
+	cfg = DefaultConfig()
+	cfg.Compliance.ApprovalTTL = "0s"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid approval ttl")
+	}
+	cfg = DefaultConfig()
+	cfg.Upgrade.CanaryPercent = 101
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid upgrade canary")
 	}
 }
 

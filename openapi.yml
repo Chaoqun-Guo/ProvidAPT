@@ -651,6 +651,8 @@ components:
           properties:
             enabled:
               type: boolean
+            ttl:
+              type: string
             pending:
               type: array
               items:
@@ -662,13 +664,27 @@ components:
         updated_at:
           type: string
           format: date-time
-        licensed:
+        present:
           type: boolean
-        plan:
+        license_id:
           type: string
+        customer:
+          type: string
+        edition:
+          type: string
+        max_agents:
+          type: integer
+        reporting_agents:
+          type: integer
+        seats_available:
+          type: integer
+        seat_limit_exceeded:
+          type: boolean
         expires_at:
           type: string
           format: date-time
+        signature_verified:
+          type: boolean
 
     UpgradeReadiness:
       type: object
@@ -676,11 +692,23 @@ components:
         updated_at:
           type: string
           format: date-time
-        ready:
+        current_version:
+          type: string
+        package_path:
+          type: string
+        package_verified:
           type: boolean
-        current_tag:
+        preflight_ready:
+          type: boolean
+        apply_command:
           type: string
-        latest_tag:
+        rollback_command:
           type: string
-        description:
+        canary_percent:
+          type: integer
+        applied_at:
           type: string
+          format: date-time
+        rolled_back_at:
+          type: string
+          format: date-time

@@ -155,8 +155,10 @@ type Config struct {
 		RetentionDays    int      `json:"retention_days" yaml:"retention_days"`
 		MaxAuditEntries  int      `json:"max_audit_entries" yaml:"max_audit_entries"`
 		ReportDir        string   `json:"report_dir" yaml:"report_dir"`
+		ReportInterval   string   `json:"report_interval" yaml:"report_interval"`
 		RequireApprovals bool     `json:"require_approvals" yaml:"require_approvals"`
 		ApprovalActions  []string `json:"approval_actions" yaml:"approval_actions"`
+		ApprovalTTL      string   `json:"approval_ttl" yaml:"approval_ttl"`
 	} `json:"compliance" yaml:"compliance"`
 
 	SIEM struct {
@@ -178,16 +180,20 @@ type Config struct {
 		RevocationSigURL   string   `json:"revocation_sig_url" yaml:"revocation_sig_url"`
 		RevocationSigCache string   `json:"revocation_sig_cache" yaml:"revocation_sig_cache"`
 		GracePeriodDays    int      `json:"grace_period_days" yaml:"grace_period_days"`
+		MaxAgents          int      `json:"max_agents" yaml:"max_agents"`
 	} `json:"license" yaml:"license"`
 
 	Upgrade struct {
-		DownloadURL    string `json:"download_url" yaml:"download_url"`
-		PackagePath    string `json:"package_path" yaml:"package_path"`
-		ExpectedSHA256 string `json:"expected_sha256" yaml:"expected_sha256"`
-		SignaturePath  string `json:"signature_path" yaml:"signature_path"`
-		SigningKey     string `json:"signing_key" yaml:"signing_key"`
-		PublicKeyPath  string `json:"public_key_path" yaml:"public_key_path"`
-		RollbackPlan   string `json:"rollback_plan" yaml:"rollback_plan"`
+		DownloadURL     string `json:"download_url" yaml:"download_url"`
+		PackagePath     string `json:"package_path" yaml:"package_path"`
+		ExpectedSHA256  string `json:"expected_sha256" yaml:"expected_sha256"`
+		SignaturePath   string `json:"signature_path" yaml:"signature_path"`
+		SigningKey      string `json:"signing_key" yaml:"signing_key"`
+		PublicKeyPath   string `json:"public_key_path" yaml:"public_key_path"`
+		RollbackPlan    string `json:"rollback_plan" yaml:"rollback_plan"`
+		ApplyCommand    string `json:"apply_command" yaml:"apply_command"`
+		RollbackCommand string `json:"rollback_command" yaml:"rollback_command"`
+		CanaryPercent   int    `json:"canary_percent" yaml:"canary_percent"`
 	} `json:"upgrade" yaml:"upgrade"`
 }
 
@@ -282,11 +288,14 @@ func DefaultConfig() *Config {
 	c.Backup.MinFreeBytes = 1024 * 1024 * 1024
 	c.Compliance.RetentionDays = 180
 	c.Compliance.MaxAuditEntries = 10000
-	c.Compliance.ApprovalActions = []string{"policy.publish", "policy.rollback", "upgrade.preflight", "backup.prepare_cutover"}
+	c.Compliance.ReportInterval = "24h"
+	c.Compliance.ApprovalActions = []string{"policy.publish", "policy.rollback", "upgrade.preflight", "upgrade.apply", "upgrade.rollback", "backup.prepare_cutover"}
+	c.Compliance.ApprovalTTL = "24h"
 	c.SIEM.Format = "json"
 	c.SIEM.MinSeverity = "INFO"
 	c.SIEM.FlushInterval = "30s"
 	c.License.GracePeriodDays = 0
+	c.Upgrade.CanaryPercent = 10
 	return c
 }
 
@@ -419,6 +428,16 @@ func (c *Config) Validate() error {
 	if c.Compliance.MaxAuditEntries < 0 {
 		return fmt.Errorf("compliance.max_audit_entries must be non-negative")
 	}
+	if strings.TrimSpace(c.Compliance.ApprovalTTL) != "" {
+		if _, err := parseDurationString(c.Compliance.ApprovalTTL); err != nil {
+			return fmt.Errorf("compliance.approval_ttl: %w", err)
+		}
+	}
+	if strings.TrimSpace(c.Compliance.ReportInterval) != "" {
+		if _, err := parseDurationString(c.Compliance.ReportInterval); err != nil {
+			return fmt.Errorf("compliance.report_interval: %w", err)
+		}
+	}
 	switch strings.ToLower(strings.TrimSpace(c.SIEM.Format)) {
 	case "", "json", "cef":
 	default:
@@ -437,6 +456,9 @@ func (c *Config) Validate() error {
 	if c.License.GracePeriodDays < 0 {
 		return fmt.Errorf("license.grace_period_days must be non-negative")
 	}
+	if c.License.MaxAgents < 0 {
+		return fmt.Errorf("license.max_agents must be non-negative")
+	}
 	if checksum := strings.TrimSpace(c.Upgrade.ExpectedSHA256); checksum != "" {
 		if len(checksum) != 64 {
 			return fmt.Errorf("upgrade.expected_sha256 must be a 64-character hex digest")
@@ -446,6 +468,9 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("upgrade.expected_sha256 must be hexadecimal")
 			}
 		}
+	}
+	if c.Upgrade.CanaryPercent < 0 || c.Upgrade.CanaryPercent > 100 {
+		return fmt.Errorf("upgrade.canary_percent must be between 0 and 100")
 	}
 	return nil
 }
@@ -513,8 +538,12 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
 	overrideString(&cfg.Upgrade.PublicKeyPath, "PROVIDAPT_UPGRADE_PUBLIC_KEY_PATH")
 	overrideString(&cfg.Upgrade.RollbackPlan, "PROVIDAPT_UPGRADE_ROLLBACK_PLAN")
+	overrideString(&cfg.Upgrade.ApplyCommand, "PROVIDAPT_UPGRADE_APPLY_COMMAND")
+	overrideString(&cfg.Upgrade.RollbackCommand, "PROVIDAPT_UPGRADE_ROLLBACK_COMMAND")
 	overrideString(&cfg.Backup.Interval, "PROVIDAPT_BACKUP_INTERVAL")
 	overrideString(&cfg.Compliance.ReportDir, "PROVIDAPT_COMPLIANCE_REPORT_DIR")
+	overrideString(&cfg.Compliance.ApprovalTTL, "PROVIDAPT_COMPLIANCE_APPROVAL_TTL")
+	overrideString(&cfg.Compliance.ReportInterval, "PROVIDAPT_COMPLIANCE_REPORT_INTERVAL")
 	overrideString(&cfg.SIEM.Endpoint, "PROVIDAPT_SIEM_ENDPOINT")
 	overrideString(&cfg.SIEM.Format, "PROVIDAPT_SIEM_FORMAT")
 	overrideString(&cfg.SIEM.MinSeverity, "PROVIDAPT_SIEM_MIN_SEVERITY")
@@ -545,9 +574,11 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt(&cfg.Notify.MaxAttempts, "PROVIDAPT_NOTIFY_MAX_ATTEMPTS")
 	overrideInt(&cfg.SupportBundle.RetainArchives, "PROVIDAPT_SUPPORT_RETAIN_ARCHIVES")
 	overrideInt(&cfg.License.GracePeriodDays, "PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
+	overrideInt(&cfg.License.MaxAgents, "PROVIDAPT_LICENSE_MAX_AGENTS")
 	overrideInt(&cfg.Backup.RetainArchives, "PROVIDAPT_BACKUP_RETAIN_ARCHIVES")
 	overrideInt(&cfg.Compliance.RetentionDays, "PROVIDAPT_COMPLIANCE_RETENTION_DAYS")
 	overrideInt(&cfg.Compliance.MaxAuditEntries, "PROVIDAPT_COMPLIANCE_MAX_AUDIT_ENTRIES")
+	overrideInt(&cfg.Upgrade.CanaryPercent, "PROVIDAPT_UPGRADE_CANARY_PERCENT")
 	overrideInt64(&cfg.Backup.MinFreeBytes, "PROVIDAPT_BACKUP_MIN_FREE_BYTES")
 
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")

@@ -279,14 +279,18 @@ type ChangeApproval struct {
 	Status      string `json:"status"`
 	RequestedBy string `json:"requested_by,omitempty"`
 	RequestedAt string `json:"requested_at,omitempty"`
+	ExpiresAt   string `json:"expires_at,omitempty"`
 	ApprovedBy  string `json:"approved_by,omitempty"`
 	ApprovedAt  string `json:"approved_at,omitempty"`
+	UsedBy      string `json:"used_by,omitempty"`
+	UsedAt      string `json:"used_at,omitempty"`
 	Note        string `json:"note,omitempty"`
 }
 
 type ApprovalStatus struct {
 	Enabled         bool             `json:"enabled"`
 	RequiredActions []string         `json:"required_actions,omitempty"`
+	TTL             string           `json:"ttl,omitempty"`
 	Pending         []ChangeApproval `json:"pending,omitempty"`
 	History         []ChangeApproval `json:"history,omitempty"`
 }
@@ -342,6 +346,10 @@ type LicenseStatus struct {
 	ModifiedAt          string               `json:"modified_at,omitempty"`
 	Customer            string               `json:"customer,omitempty"`
 	Edition             string               `json:"edition,omitempty"`
+	MaxAgents           int                  `json:"max_agents,omitempty"`
+	ReportingAgents     int                  `json:"reporting_agents,omitempty"`
+	SeatsAvailable      int                  `json:"seats_available,omitempty"`
+	SeatLimitExceeded   bool                 `json:"seat_limit_exceeded"`
 	MachineFingerprint  string               `json:"machine_fingerprint,omitempty"`
 	BoundFingerprint    string               `json:"bound_fingerprint,omitempty"`
 	BindingVerified     bool                 `json:"binding_verified"`
@@ -410,6 +418,11 @@ type UpgradeReadiness struct {
 	LastActor         string               `json:"last_actor,omitempty"`
 	LastActionAt      string               `json:"last_action_at,omitempty"`
 	LastNote          string               `json:"last_note,omitempty"`
+	ApplyCommand      string               `json:"apply_command,omitempty"`
+	RollbackCommand   string               `json:"rollback_command,omitempty"`
+	CanaryPercent     int                  `json:"canary_percent,omitempty"`
+	AppliedAt         string               `json:"applied_at,omitempty"`
+	RolledBackAt      string               `json:"rolled_back_at,omitempty"`
 	History           []ControlActionAudit `json:"history,omitempty"`
 }
 

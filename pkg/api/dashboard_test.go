@@ -150,7 +150,11 @@ func TestDashboardModuleActions(t *testing.T) {
 		"runComplianceAction('export_audit')",
 		"runComplianceAction('apply_retention')",
 		"runComplianceAction('generate_report')",
+		"runComplianceAction('generate_report', 'html')",
+		"runApprovalAction",
 		"runComplianceAction('test_siem')",
+		"prepareUpgradeAction('apply')",
+		"prepareUpgradeAction('rollback')",
 		"/api/v1/control/compliance",
 	}
 	for _, item := range expected {

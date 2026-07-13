@@ -356,6 +356,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button id="exportAuditBtn" onclick="runComplianceAction('export_audit')">Export Audit</button>
         <button id="applyRetentionBtn" class="secondary" onclick="runComplianceAction('apply_retention')">Apply Retention</button>
         <button id="generateComplianceReportBtn" class="secondary" onclick="runComplianceAction('generate_report')">Generate Report</button>
+        <button class="secondary" onclick="runComplianceAction('generate_report', 'html')">Generate HTML</button>
         <button id="testSIEMBtn" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
         <button class="secondary" onclick="loadCompliance()">Refresh Compliance</button>
       </div>
@@ -1269,11 +1270,12 @@ function renderLicenseUpgradePage(scope) {
   const title = isActivation ? 'License Activation' : 'Version Update';
   const actionHTML = isActivation
     ? `<span class="delivery-inline-actions"><button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate Activation</button><button class="secondary" onclick="showLicenseUpgradeDetails('license')">View Evidence</button></span>`
-    : `<span class="delivery-inline-actions"><button id="checkUpgradeBtn" onclick="prepareUpgradeAction('check')">Record Check</button><button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Run Preflight</button><button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download</button><button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Note</button></span>`;
+    : `<span class="delivery-inline-actions"><button id="checkUpgradeBtn" onclick="prepareUpgradeAction('check')">Record Check</button><button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Run Preflight</button><button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download</button><button class="secondary" onclick="prepareUpgradeAction('apply')">Apply</button><button class="secondary" onclick="prepareUpgradeAction('rollback')">Rollback</button><button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Note</button></span>`;
   const items = isActivation ? [
     renderKVItem('page', title, 'activation'),
     renderKVItem('state', license.present ? (license.expired ? 'expired' : 'active') : 'inactive', license.license_id || ''),
     renderKVItem('customer', (license.customer || '--') + ' · ' + (license.edition || '--'), license.path || 'path not configured'),
+    renderKVItem('seats', (license.reporting_agents || 0) + '/' + (license.max_agents || 'unlimited'), license.seat_limit_exceeded ? 'seat limit exceeded' : ((license.seats_available || 0) + ' available')),
     renderKVItem('expiry', license.expires_at ? (license.expires_at + ' · ' + (license.days_remaining || 0) + ' day(s) left') : '--', license.in_grace_period ? 'grace period' : ''),
     renderKVItem('signature', license.signature_present ? (license.signature_verified ? 'verified' : 'mismatch') : 'not present', license.revoked ? 'revoked' : 'not revoked'),
     '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg">' + actionHTML + '</span><span class="alert-time">admin</span></div>',
@@ -1281,6 +1283,7 @@ function renderLicenseUpgradePage(scope) {
     renderKVItem('page', title, 'upgrade'),
     renderKVItem('version', upgrade.current_version || '--', 'current'),
     renderKVItem('status', upgrade.preflight_ready ? 'ready to upgrade' : 'preflight required', upgrade.package_verified ? 'package verified' : 'package pending'),
+    renderKVItem('execution', 'canary ' + (upgrade.canary_percent || 0) + '%', (upgrade.applied_at ? ('applied ' + formatTime(upgrade.applied_at)) : '') + (upgrade.rolled_back_at ? (' · rolled back ' + formatTime(upgrade.rolled_back_at)) : '')),
     '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg">' + actionHTML + '</span><span class="alert-time">admin</span></div>',
   ];
   setInvestigationItems(items, title + ' details unavailable');
@@ -1294,6 +1297,7 @@ function showLicenseUpgradeDetails(scope) {
     items = [
       renderKVItem('license', (license.present ? 'present' : 'missing') + ' · ' + (license.path || 'path not configured'), formatTime(license.modified_at || license.updated_at)),
       renderKVItem('customer', (license.customer || '--') + ' · ' + (license.edition || '--'), license.license_id || ''),
+      renderKVItem('seats', (license.reporting_agents || 0) + '/' + (license.max_agents || 'unlimited'), license.seat_limit_exceeded ? 'seat limit exceeded' : ((license.seats_available || 0) + ' available')),
       renderKVItem('expiry', license.expires_at ? ((license.expired ? 'expired' : 'valid') + ' · ' + license.expires_at + ' · ' + (license.days_remaining || 0) + ' day(s) left') : '--', license.in_grace_period ? 'grace' : ''),
       renderKVItem('signature', license.signature_present ? (license.signature_verified ? 'verified' : 'mismatch') : 'not present', license.revoked ? 'revoked' : 'not revoked'),
     ];
@@ -1304,6 +1308,7 @@ function showLicenseUpgradeDetails(scope) {
       renderKVItem('package', (upgrade.package_path || '--') + ' · ' + (upgrade.package_verified ? 'verified' : 'not verified'), upgrade.package_sha256 ? upgrade.package_sha256.slice(0, 12) : ''),
       renderKVItem('signature', upgrade.signature_path || '--', upgrade.signature_verified ? 'verified' : (upgrade.signature_present ? 'mismatch' : 'not present')),
       renderKVItem('preflight', upgrade.preflight_ready ? 'ready' : 'not ready', upgrade.rollback_ready ? 'rollback ready' : 'rollback not ready'),
+      renderKVItem('execution', 'canary ' + (upgrade.canary_percent || 0) + '%', (upgrade.applied_at ? ('applied ' + formatTime(upgrade.applied_at)) : '') + (upgrade.rolled_back_at ? (' · rolled back ' + formatTime(upgrade.rolled_back_at)) : '')),
     ];
     (upgrade.history || []).slice(0, 5).forEach(item => items.push(renderKVItem(item.action || 'upgrade', item.message || item.status || 'done', formatTime(item.performed_at))));
   }
@@ -1601,8 +1606,11 @@ function showComplianceDetails(scope) {
   } else if (scope === 'approvals') {
     const pending = approvals.pending || [];
     items = pending.length
-      ? pending.map(item => renderKVItem(item.id || 'approval', (item.action || '--') + ' · ' + (item.status || '--') + (item.requested_by ? (' · ' + item.requested_by) : ''), formatTime(item.requested_at)))
+      ? pending.map(item => renderApprovalItem(item))
       : [renderKVItem('pending', 'no pending approvals', 'approval')];
+    (approvals.history || []).filter(item => item.status !== 'pending').slice(0, 8).forEach(item => {
+      items.push(renderKVItem(item.id || 'approval', (item.action || '--') + ' · ' + (item.status || '--') + (item.used_by ? (' · used by ' + item.used_by) : ''), formatTime(item.used_at || item.approved_at || item.requested_at)));
+    });
   } else if (scope === 'retention') {
     items = [
       renderKVItem('retention', (data.retention_days || 0) + ' days', 'policy'),
@@ -1623,14 +1631,31 @@ function showComplianceDetails(scope) {
   document.getElementById('complianceDetails').innerHTML = items.join('');
 }
 
-async function runComplianceAction(action) {
+function renderApprovalItem(item) {
+  const id = jsString(item.id || '');
+  const actions = currentRole === 'admin'
+    ? "<span class=\"delivery-inline-actions\"><button onclick=\"runApprovalAction('approve', 'REPLACE_ID')\">Approve</button><button class=\"secondary\" onclick=\"runApprovalAction('reject', 'REPLACE_ID')\">Reject</button></span>".replace(/REPLACE_ID/g, id)
+    : '';
+  return '<div class="alert-item">' +
+    '<span class="alert-sev sev-medium">' + escapeHTML(item.id || 'approval') + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(item.action || '--') + ' · ' + escapeHTML(item.status || '--') + (item.requested_by ? (' · ' + escapeHTML(item.requested_by)) : '') + (item.expires_at ? (' · expires ' + escapeHTML(formatTime(item.expires_at))) : '') + actions + '</span>' +
+    '<span class="alert-time">' + escapeHTML(formatTime(item.requested_at)) + '</span>' +
+    '</div>';
+}
+
+async function runApprovalAction(action, approvalID) {
+  await runComplianceAction(action, '', approvalID);
+  showComplianceDetails('approvals');
+}
+
+async function runComplianceAction(action, format, approvalID) {
   if (currentRole !== 'admin') {
     return;
   }
   const status = document.getElementById('complianceActionStatus');
   status.textContent = 'Running ' + action + '...';
   try {
-    const data = await postJSON('/api/v1/control/compliance', { action: action, format: 'csv', note: 'dashboard ' + action });
+    const data = await postJSON('/api/v1/control/compliance', { action: action, format: format || 'csv', approval_id: approvalID || '', note: 'dashboard ' + action });
     status.textContent = data.message || 'Compliance action completed';
     await loadCompliance();
   } catch (e) {
