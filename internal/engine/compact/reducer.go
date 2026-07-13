@@ -6,11 +6,11 @@
 // with minimal storage overhead.
 //
 // It provides:
-//  1. Causality-preserving reduction -?merges intermediate nodes
+
 //     (short-lived processes, temp pipes) into condensed edges.
-//  2. Semantic summary generation -?abstracts fine-grained I/O
+
 //     into behavior summaries for data > 7 days.
-//  3. Cold/hot data tiering -?RocksDB -?Parquet -?S3 lifecycle.
+
 package compact
 
 import (
@@ -26,16 +26,12 @@ import (
 //
 // ReductionConfig controls the node merging behavior.
 type ReductionConfig struct {
-	// MaxIntermediateLifespan -?processes shorter than this are candidates.
 	MaxIntermediateLifespan time.Duration
 
-	// MaxIntermediateDegree -?nodes with degree -?this are candidates.
 	MaxIntermediateDegree int
 
-	// PreserveExternalIO -?if false, nodes with external IO aren't merged.
 	PreserveExternalIO bool
 
-	// DryRun -?if true, only report what would be merged.
 	DryRun bool
 }
 
@@ -116,13 +112,13 @@ func (r *Reducer) Reduce(graph *provenance.Graph) *ReductionMetrics {
 	}
 
 	// Merge intermediates: for each intermediate node N,
-	// replace paths A -?N -?B with A -?B
+
 	for _, nodeID := range intermediates {
 		if !r.isMergeable(nodeID, edges) {
 			continue
 		}
 
-		// Find all A-墹 and N-墪 edges
+		// Find all A- and N- edges
 		var inEdges, outEdges []*provenance.Edge
 		for _, e := range edges {
 			if e.Target == nodeID {
@@ -202,13 +198,13 @@ func (r *Reducer) isMergeable(nodeID string, edges []*provenance.Edge) bool {
 	return hasIn && hasOut
 }
 
-// performMerge replaces A-墹-墪 with A-墪.
+// performMerge replaces A- - with A- .
 func (r *Reducer) performMerge(inEdges, outEdges []*provenance.Edge,
 	allEdges []*provenance.Edge, metrics *ReductionMetrics) {
 
 	for _, in := range inEdges {
 		for _, out := range outEdges {
-			// Create merged edge: in.Source -?out.Target
+
 			newEdge := &provenance.Edge{
 				Source:    in.Source,
 				Target:    out.Target,

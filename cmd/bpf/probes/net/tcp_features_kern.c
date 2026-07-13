@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0
- * ProvidAPT 鈥-TCP fingerprint extraction
+ * ProvidAPT -TCP fingerprint extraction
  *
  * Hooks:
- *   kprobe/tcp_v4_connect  鈥-captures ISN + TS from outgoing SYN
- *   kprobe/tcp_v4_do_rcv   鈥-captures ISN + TS from incoming SYN
+ * kprobe/tcp_v4_connect -captures ISN + TS from outgoing SYN
+ * kprobe/tcp_v4_do_rcv -captures ISN + TS from incoming SYN
  *
  * The extracted (ISN, TSval) pair forms a unique TCP fingerprint
  * that can be matched across machines for lateral movement detection.
@@ -16,13 +16,13 @@
 
 char LICENSE[] SEC("license") = "GPL";
 
-/* 鈹€鈹€鈹€ Ring buffer for fingerprint events 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
+/* Ring buffer for fingerprint events */
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 1 << 18);
 } rb_tcp SEC(".maps");
 
-/* 鈹€鈹€鈹€ TCP fingerprint event 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
+/* --- TCP fingerprint event --- */
 struct tcp_fingerprint_event {
     __u64 timestamp_ns;
     __u32 pid;
@@ -36,14 +36,14 @@ struct tcp_fingerprint_event {
     __u8  direction;   /* 0=outbound, 1=inbound */
 };
 
-/* 鈹€鈹€鈹€ TCP timestamp option reader 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
+/* --- TCP timestamp option reader --- */
 static __always_inline __u32 read_tsval(struct tcphdr *th) {
     /* Parse TCP options to find the Timestamp option (kind=8) */
     /* In production: parse through options to find TSval at offset 2 */
     return 0; /* Simplified for framework */
 }
 
-/* 鈹€鈹€鈹€ tcp_v4_connect 鈥-outbound connection 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
+/* --- tcp_v4_connect --outbound connection --- */
 SEC("kprobe/tcp_v4_connect")
 int BPF_KPROBE(probe_tcp_connect, struct sock *sk)
 {
@@ -64,7 +64,7 @@ int BPF_KPROBE(probe_tcp_connect, struct sock *sk)
     return 0;
 }
 
-/* 鈹€鈹€鈹€ tcp_v4_do_rcv 鈥-inbound packet received 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
+/* --- tcp_v4_do_rcv --inbound packet received --- */
 SEC("kprobe/tcp_v4_do_rcv")
 int BPF_KPROBE(probe_tcp_rcv, struct sock *sk, struct sk_buff *skb)
 {

@@ -4,9 +4,9 @@
 // Package netmon provides enhanced network monitoring for ProvidAPT.
 //
 // Features:
-//  1. DNS correlation 鈥-map IPs to domain names via UDP/53 monitoring
-//  2. Socket state tracking 鈥-TCP state machine via tcp_set_state hook
-//  3. HTTP awareness 鈥-extract Host/URL for port 80/443 traffic
+// 1. DNS correlation -map IPs to domain names via UDP/53 monitoring
+// 2. Socket state tracking -TCP state machine via tcp_set_state hook
+// 3. HTTP awareness -extract Host/URL for port 80/443 traffic
 package netmon
 
 import (
@@ -16,12 +16,12 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// DNS correlation
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// DNS correlation
+
 // DNSCache maps IPs to the domains they resolved to.
 type DNSCache struct {
 	mu      sync.RWMutex
-	entries map[string]*DNSEntry // IP 鈫-domain info
+	entries map[string]*DNSEntry // IP -> domain info
 }
 
 // DNSEntry holds a resolved domain for an IP.

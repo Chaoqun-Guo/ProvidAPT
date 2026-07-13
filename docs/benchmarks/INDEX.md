@@ -1,22 +1,22 @@
-﻿# 性能基准
+# Benchmarks
 
-本节汇总 ProvidAPT 在不同环境下的性能测试数据与方法说明。
+This section summarizes ProvidAPT performance test methods and results across representative environments.
 
-## 文档列表
+## Documents
 
-| 文档 | 说明 |
+| Document | Description |
 | --- | --- |
-| [benchmark-report.md](benchmark-report.md) | 事件吞吐、延迟、CPU 与内存开销报告 |
+| [benchmark-report.md](benchmark-report.md) | Event throughput, latency, CPU, and memory overhead report |
 
-## 关键指标摘要
+## Key Metrics
 
-| 指标 | 典型值 | 备注 |
+| Metric | Typical Value | Notes |
 | --- | --- | --- |
-| 事件吞吐 | 50K - 150K ops/s | 取决于 Ring Buffer 与内核版本 |
-| 平均延迟 | < 5 μs | eBPF 到用户态传递延迟 |
-| CPU 开销 | 1% - 3% | 典型单机场景 |
-| 内存开销 | 约 200 MB | 包含缓存与存储引擎 |
+| Event throughput | 50K-150K ops/s | Depends on ring-buffer pressure and kernel version |
+| Average latency | < 5 us | eBPF-to-userspace delivery latency |
+| CPU overhead | 1%-3% | Typical single-host workload |
+| Memory overhead | Approximately 200 MB | Includes caches and storage engine |
 
-## 测试方法
+## Method
 
-性能测试基于 `test/benchmark/` 下的自动化脚本与场景集执行。
+Benchmark automation and scenarios are located under `test/benchmark/`.

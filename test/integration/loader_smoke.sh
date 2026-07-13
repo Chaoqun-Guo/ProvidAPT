@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# loader_smoke.sh 鈥-Linux runtime smoke test for the real eBPF loader.
+# loader_smoke.sh -Linux runtime smoke test for the real eBPF loader.
 #
 # Verifies:
 #   1. precompiled lsm_hooks.bpf.o can be built

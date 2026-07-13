@@ -4,9 +4,9 @@
 // Package orch implements global response orchestration for ProvidAPT.
 //
 // Features:
-//  1. Policy dispatcher 鈥-central broadcast of blocking commands
-//  2. Multi-dimensional isolation 鈥-UID block, file hash lock
-//  3. Local policy cache 鈥-offline execution during network partitions
+// 1. Policy dispatcher -central broadcast of blocking commands
+// 2. Multi-dimensional isolation -UID block, file hash lock
+// 3. Local policy cache -offline execution during network partitions
 package orch
 
 import (
@@ -16,8 +16,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Policy dispatcher
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Policy dispatcher
+
 // CommandType defines the type of isolation command.
 type CommandType string
 
@@ -90,7 +90,7 @@ func (pd *PolicyDispatcher) Broadcast(cmdType CommandType, target, description s
 
 	// In production: send gRPC command to each agent
 	for _, agentID := range pd.agents {
-		log.Printf("[dispatch] 鈫-%s: %s %s", agentID, cmdType, target)
+		log.Printf("[dispatch] -> %s: %s %s", agentID, cmdType, target)
 	}
 
 	return cmd

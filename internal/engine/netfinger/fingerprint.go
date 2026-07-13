@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// TCP fingerprint
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+// TCP fingerprint
+
 // TCPFingerprint uniquely identifies a TCP connection across machines.
 type TCPFingerprint struct {
 	// Flow key (5-tuple)
@@ -72,18 +72,18 @@ func NewFingerprint(srcIP string, srcPort uint32, dstIP string, dstPort uint32,
 
 // String returns a human-readable fingerprint summary.
 func (fp *TCPFingerprint) String() string {
-	return fmt.Sprintf("[TCP] %s:%d 鈫?%s:%d | ISN=%d TS=%d | FlowID=%s",
+	return fmt.Sprintf("[TCP] %s:%d -> %s:%d | ISN=%d TS=%d | FlowID=%s",
 		fp.SrcIP, fp.SrcPort, fp.DstIP, fp.DstPort,
 		fp.ISN, fp.Timestamp, fp.FlowID[:16])
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Fingerprint store (in-memory)
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+// Fingerprint store (in-memory)
+
 // FingerprintStore maintains TCP fingerprints for stitching.
 type FingerprintStore struct {
 	mu       sync.Mutex
-	outbound map[string]*TCPFingerprint // FlowID 鈫?fingerprint (outgoing)
-	inbound  map[string]*TCPFingerprint // FlowID 鈫?fingerprint (incoming)
+	outbound map[string]*TCPFingerprint // FlowID -> fingerprint (outgoing)
+	inbound  map[string]*TCPFingerprint // FlowID -> fingerprint (incoming)
 	matched  []*StitchedFlow
 }
 
@@ -125,7 +125,7 @@ func (fs *FingerprintStore) RecordOutbound(fp *TCPFingerprint, agentID string) {
 			MachineB:  "remote",
 		}
 		fs.matched = append(fs.matched, stitch)
-		log.Printf("[finger] STITCHED %s (outbound %s 鈫?inbound remote)", fp.FlowID[:16], fp.DstIP)
+		log.Printf("[finger] STITCHED %s (outbound %s -> inbound remote)", fp.FlowID[:16], fp.DstIP)
 	}
 }
 
@@ -149,7 +149,7 @@ func (fs *FingerprintStore) RecordInbound(fp *TCPFingerprint, agentID string) {
 			MachineB:  agentID,
 		}
 		fs.matched = append(fs.matched, stitch)
-		log.Printf("[finger] STITCHED %s (remote 鈫?inbound %s)", fp.FlowID[:16], fp.SrcIP)
+		log.Printf("[finger] STITCHED %s (remote -> inbound %s)", fp.FlowID[:16], fp.SrcIP)
 	}
 }
 

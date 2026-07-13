@@ -6,7 +6,7 @@ import (
 )
 
 func TestDashboardAlertWorkflowSeparators(t *testing.T) {
-	if strings.Contains(dashboardHTML, " 路 ") {
+	if strings.Contains(dashboardHTML, " \u8def ") {
 		t.Fatal("alert workflow dashboard should not render mojibake separators")
 	}
 	if !strings.Contains(dashboardHTML, " · ") {

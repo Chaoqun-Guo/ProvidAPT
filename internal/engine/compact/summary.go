@@ -46,13 +46,10 @@ type BehaviourSummary struct {
 
 // SummaryConfig controls summary generation.
 type SummaryConfig struct {
-	// MinEventsForSummary -?minimum events to create a summary.
 	MinEventsForSummary int
 
-	// SummaryAge -?events older than this get summarized.
 	SummaryAge time.Duration
 
-	// GroupByProcess -?group by process identity.
 	GroupByProcess bool
 }
 
@@ -102,7 +99,6 @@ func (se *SummaryEngine) SummariseEdges(edges []*provenance.Edge, nodes []*prove
 		summary := se.buildSummary(key, nodes)
 		summary.TotalCalls = int64(len(group))
 
-		// Estimate total bytes: each event -?332 bytes of I/O
 		summary.TotalBytes = int64(len(group)) * 332
 
 		// Time range

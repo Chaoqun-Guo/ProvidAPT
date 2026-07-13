@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Chaoqun-Guo
+// Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -23,19 +23,19 @@ var mitreMapping = map[string]struct {
 	Technique string
 	TID       string
 }{
-	"SENSITIVE_EXFIL":   {"TA0010", "Exfiltration Over C2 Channel", "T1041"},
-	"SCRIPT_CHILD":      {"TA0002", "Command and Scripting Interpreter", "T1059"},
-	"DEEP_TAINT_CHAIN":  {"TA0008", "Lateral Movement", "T1563"},
+	"SENSITIVE_EXFIL":      {"TA0010", "Exfiltration Over C2 Channel", "T1041"},
+	"SCRIPT_CHILD":         {"TA0002", "Command and Scripting Interpreter", "T1059"},
+	"DEEP_TAINT_CHAIN":     {"TA0008", "Lateral Movement", "T1563"},
 	"PRIVILEGE_ESCALATION": {"TA0004", "Exploitation for Privilege Escalation", "T1068"},
-	"MEMORY_ANOMALY":    {"TA0005", "Process Injection", "T1055"},
-	"SIGMA:webshell":    {"TA0003", "Web Shell", "T1505"},
+	"MEMORY_ANOMALY":       {"TA0005", "Process Injection", "T1055"},
+	"SIGMA:webshell":       {"TA0003", "Web Shell", "T1505"},
 }
 
 type mitreEntry struct {
-	Tactic     string `json:"tactic"`
-	Technique  string `json:"technique"`
-	TID        string `json:"tid"`
-	Count      int    `json:"count"`
+	Tactic     string         `json:"tactic"`
+	Technique  string         `json:"technique"`
+	TID        string         `json:"tid"`
+	Count      int            `json:"count"`
 	Severities map[string]int `json:"severities"`
 }
 
@@ -203,7 +203,7 @@ func generateHeatmapHTML(entries []*mitreEntry, totalAlerts int) string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ProvidAPT 鈥-MITRE ATT&CK Heatmap</title>
+<title>ProvidAPT - MITRE ATT&CK Heatmap</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; padding: 40px; }
@@ -226,7 +226,7 @@ func generateHeatmapHTML(entries []*mitreEntry, totalAlerts int) string {
 </style>
 </head>
 <body>
-<h1>ProvidAPT 鈥-MITRE ATT&CK Heatmap</h1>
+<h1>ProvidAPT - MITRE ATT&CK Heatmap</h1>
 <p class="subtitle">Generated ` + time.Now().Format("2006-01-02 15:04:05") + `</p>
 
 <div class="summary-cards">

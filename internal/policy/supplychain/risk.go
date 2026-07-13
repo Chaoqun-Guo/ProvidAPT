@@ -7,32 +7,30 @@ import "path/filepath"
 
 // Risk factors and their base scores.
 const (
-	// RiskFactorUntrustedWriter — binary written by curl/wget/other downloader.
+	// RiskFactorUntrustedWriter is assigned when a downloader writes a binary.
 	RiskFactorUntrustedWriter = 60.0
-	// RiskFactorUnsignedPackage — package not cryptographically signed.
+	// RiskFactorUnsignedPackage is assigned when package signatures fail.
 	RiskFactorUnsignedPackage = 50.0
-	// RiskFactorNoSBOM — binary not found in any SBOM document.
+	// RiskFactorNoSBOM is assigned when a binary is absent from SBOM documents.
 	RiskFactorNoSBOM = 30.0
-	// RiskFactorTamperedAfterInstall — package modified by non-pm process.
+	// RiskFactorTamperedAfterInstall is assigned for post-install tampering.
 	RiskFactorTamperedAfterInstall = 70.0
-	// RiskFactorUntrustedRepo — package from non-official repository.
+	// RiskFactorUntrustedRepo is assigned for non-official package repositories.
 	RiskFactorUntrustedRepo = 40.0
-	// RiskFactorKnownVulnerability — well-known CVE in package version.
+	// RiskFactorKnownVulnerability is assigned for known vulnerable versions.
 	RiskFactorKnownVulnerability = 25.0
-	// RiskFactorSuspiciousOrigin — written to system dir by unknown process.
+	// RiskFactorSuspiciousOrigin is assigned for unknown writes to system paths.
 	RiskFactorSuspiciousOrigin = 35.0
 )
 
 // AssessBinary performs a complete supply-chain risk assessment on a binary.
-// It combines signals from the monitor (package info), SBOM store (known
-// artifacts), and detector (tamper/untrusted checks).
+// It combines signals from the monitor, SBOM store, and tamper detector.
 func AssessBinary(
 	filePath string,
 	monitor *PackageManagerMonitor,
 	sbomStore *SBOMStore,
 	detector *IllegalSourceDetector,
 ) *SupplyChainRisk {
-
 	if !IsInWatchedDir(filePath) {
 		return &SupplyChainRisk{
 			FilePath:  filePath,
@@ -46,44 +44,39 @@ func AssessBinary(
 	score := 0.0
 	pkg := monitor.ResolvePackage(filePath)
 
-	// 1. Check if binary is known via package manager.
 	if pkg == nil {
-		// Not from any package manager.
 		entry := sbomStore.ResolveByPath(filePath)
 		if entry == nil {
 			score += RiskFactorNoSBOM
 			alerts = append(alerts, SupplyChainAlert{
 				Severity:   "MEDIUM",
 				BinaryPath: filePath,
-				Reason:     "SBOM 及包管理器均无记录",
+				Reason:     "No record in SBOM or package manager metadata",
 			})
 			suspectChain = append(suspectChain, "unknown_origin")
 		}
 	} else {
-		// From a package manager — check signature.
 		if !pkg.SigningVerified {
 			score += RiskFactorUnsignedPackage
 			alerts = append(alerts, SupplyChainAlert{
 				Severity:   "HIGH",
 				BinaryPath: filePath,
-				Reason:     "包签名验证失败",
+				Reason:     "Package signature verification failed",
 			})
 			suspectChain = append(suspectChain, "unsigned:"+pkg.PackageManager)
 		}
 
-		// Check for non-official repo.
 		if pkg.SourceRepo != "" && pkg.SourceRepo != "official" {
 			score += RiskFactorUntrustedRepo
 			alerts = append(alerts, SupplyChainAlert{
 				Severity:   "HIGH",
 				BinaryPath: filePath,
-				Reason:     "来自非官方仓库: " + pkg.SourceRepo,
+				Reason:     "Package came from non-official repository: " + pkg.SourceRepo,
 			})
 			suspectChain = append(suspectChain, "untrusted_repo")
 		}
 	}
 
-	// 2. Check the write record.
 	if detector != nil {
 		detector.mu.Lock()
 		writerComm, hasWriter := detector.writtenBy[filePath]
@@ -96,7 +89,7 @@ func AssessBinary(
 					Severity:      "CRITICAL",
 					BinaryPath:    filePath,
 					SourceProcess: writerComm,
-					Reason:        "由下载工具写入系统目录: " + writerComm,
+					Reason:        "Written to a system directory by downloader: " + writerComm,
 				})
 				suspectChain = append(suspectChain, writerComm)
 			} else if !isPackageManagerComm(writerComm) {
@@ -105,19 +98,18 @@ func AssessBinary(
 					Severity:      "MEDIUM",
 					BinaryPath:    filePath,
 					SourceProcess: writerComm,
-					Reason:        "由非包管理器进程写入: " + writerComm,
+					Reason:        "Written by non-package-manager process: " + writerComm,
 				})
 				suspectChain = append(suspectChain, writerComm)
 			}
 		}
-	}
 
-	// 3. Check for tampering after install.
-	tamperRisk := detector.CheckTampered(filePath, "")
-	if tamperRisk != nil {
-		score += RiskFactorTamperedAfterInstall
-		alerts = append(alerts, tamperRisk.Alerts...)
-		suspectChain = append(suspectChain, "tampered")
+		tamperRisk := detector.CheckTampered(filePath, "")
+		if tamperRisk != nil {
+			score += RiskFactorTamperedAfterInstall
+			alerts = append(alerts, tamperRisk.Alerts...)
+			suspectChain = append(suspectChain, "tampered")
+		}
 	}
 
 	score = clampScore(score)
@@ -149,10 +141,10 @@ func BatchAssess(
 // SummariseRisks returns a compact summary of all assessed risks.
 func SummariseRisks(risks map[string]*SupplyChainRisk) map[string]int {
 	summary := map[string]int{
-		"total":   0,
-		"low":     0,
-		"medium":  0,
-		"high":    0,
+		"total":    0,
+		"low":      0,
+		"medium":   0,
+		"high":     0,
 		"critical": 0,
 	}
 	for _, r := range risks {

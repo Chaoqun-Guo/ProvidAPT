@@ -11,7 +11,7 @@
 //	                                  ↓
 //	                           EntropyDetector (KL vs baseline)
 //	                                  ↓
-//	                           Anomaly? → Force full data upload
+
 package graphsketch
 
 // ─────────────────────────────────────────────────────────────────

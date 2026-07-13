@@ -13,11 +13,11 @@ import (
 
 // Detection pattern IDs for supply-chain threats.
 const (
-	PatUntrustedInstall  = "SC-001" // curl/wget writes to /usr/bin
-	PatTamperedPackage   = "SC-002" // package modified after install
-	PatUnsignedPackage   = "SC-003" // package signature verification failed
-	PatUnmatchedSBOM     = "SC-004" // binary not found in any SBOM
-	PatSuspiciousOrigin  = "SC-005" // written by non-package-manager to system dir
+	PatUntrustedInstall = "SC-001" // curl/wget writes to /usr/bin
+	PatTamperedPackage  = "SC-002" // package modified after install
+	PatUnsignedPackage  = "SC-003" // package signature verification failed
+	PatUnmatchedSBOM    = "SC-004" // binary not found in any SBOM
+	PatSuspiciousOrigin = "SC-005" // written by non-package-manager to system dir
 )
 
 // IllegalSourceDetector checks each binary's provenance chain to determine
@@ -28,9 +28,9 @@ type IllegalSourceDetector struct {
 	monitor         *PackageManagerMonitor
 	sbomStore       *SBOMStore
 	alerts          []SupplyChainAlert
-	writtenBy       map[string]string        // file path -> writing process comm
-	writeTimestamps map[string]time.Time     // file path -> last write time
-	bindings        map[string]string        // file path -> package name
+	writtenBy       map[string]string    // file path -> writing process comm
+	writeTimestamps map[string]time.Time // file path -> last write time
+	bindings        map[string]string    // file path -> package name
 	alertCh         chan SupplyChainAlert
 }
 
@@ -62,7 +62,6 @@ func (isd *IllegalSourceDetector) RecordWrite(pid uint32, comm string, filePath 
 	isd.writtenBy[filePath] = comm
 	isd.writeTimestamps[filePath] = time.Now()
 
-	// Check if this is an untrusted write (curl/wget direct to system dir).
 	if IsUntrustedWriter(comm) {
 		isd.mu.Unlock()
 		isd.raiseAlert(SupplyChainAlert{
@@ -70,14 +69,13 @@ func (isd *IllegalSourceDetector) RecordWrite(pid uint32, comm string, filePath 
 			Severity:      "CRITICAL",
 			BinaryPath:    filePath,
 			SourceProcess: comm,
-			Reason:        fmt.Sprintf("非法来源: %s 直接写入系统目录 %s", comm, filePath),
+			Reason:        fmt.Sprintf("Illegal source: %s wrote directly to system directory %s", comm, filePath),
 			DetectedAt:    time.Now(),
 		})
 		return
 	}
 	isd.mu.Unlock()
 
-	// Check if this is outside a package manager session.
 	session := isd.monitor.SessionByPID(pid)
 	if session == nil && IsInWatchedDir(filePath) {
 		isd.raiseAlert(SupplyChainAlert{
@@ -85,7 +83,7 @@ func (isd *IllegalSourceDetector) RecordWrite(pid uint32, comm string, filePath 
 			Severity:      "MEDIUM",
 			BinaryPath:    filePath,
 			SourceProcess: comm,
-			Reason:        fmt.Sprintf("可疑来源: %s 写入 %s (非包管理器进程)", comm, filePath),
+			Reason:        fmt.Sprintf("Suspicious source: %s wrote %s outside package-manager control", comm, filePath),
 			DetectedAt:    time.Now(),
 		})
 	}
@@ -106,14 +104,13 @@ func (isd *IllegalSourceDetector) OnBinaryExecution(filePath string, pid uint32)
 	pkg := isd.monitor.ResolvePackage(filePath)
 	isd.mu.Unlock()
 
-	// ── Check 1: Was the binary written by an untrusted process? ──
 	if hasWriteRecord && IsUntrustedWriter(writerComm) {
 		alert := SupplyChainAlert{
 			ID:            fmt.Sprintf("SC-%d", time.Now().UnixNano()),
 			Severity:      "CRITICAL",
 			BinaryPath:    filePath,
 			SourceProcess: writerComm,
-			Reason:        fmt.Sprintf("供应链高风险: %s 由 %s 写入系统目录", filePath, writerComm),
+			Reason:        fmt.Sprintf("High supply-chain risk: %s was written to a system directory by %s", filePath, writerComm),
 			DetectedAt:    time.Now(),
 		}
 		alerts = append(alerts, alert)
@@ -121,17 +118,15 @@ func (isd *IllegalSourceDetector) OnBinaryExecution(filePath string, pid uint32)
 		isd.raiseAlert(alert)
 	}
 
-	// ── Check 2: No package info at all in a system directory ──
 	if pkg == nil && !hasWriteRecord {
-		// Check if SBOM knows about it.
 		entry := isd.sbomStore.ResolveByPath(filePath)
 		if entry == nil {
 			alert := SupplyChainAlert{
-				ID:            fmt.Sprintf("SC-%d", time.Now().UnixNano()),
-				Severity:      "MEDIUM",
-				BinaryPath:    filePath,
-				Reason:        fmt.Sprintf("SBOM 中不存在: %s 未在任何已知软件清单中", filePath),
-				DetectedAt:    time.Now(),
+				ID:         fmt.Sprintf("SC-%d", time.Now().UnixNano()),
+				Severity:   "MEDIUM",
+				BinaryPath: filePath,
+				Reason:     fmt.Sprintf("Missing from SBOM: %s is not present in any known software inventory", filePath),
+				DetectedAt: time.Now(),
 			}
 			alerts = append(alerts, alert)
 			suspectChain = append(suspectChain, "unknown")
@@ -139,7 +134,6 @@ func (isd *IllegalSourceDetector) OnBinaryExecution(filePath string, pid uint32)
 		}
 	}
 
-	// ── Check 3: Unsigned package ──
 	if pkg != nil && !pkg.SigningVerified {
 		alert := SupplyChainAlert{
 			ID:            fmt.Sprintf("SC-%d", time.Now().UnixNano()),
@@ -147,7 +141,7 @@ func (isd *IllegalSourceDetector) OnBinaryExecution(filePath string, pid uint32)
 			BinaryPath:    filePath,
 			SourceProcess: pkg.PackageManager,
 			PackageInfo:   pkg,
-			Reason:        fmt.Sprintf("未签名包: %s %s (签名验证失败)", pkg.Name, pkg.Version),
+			Reason:        fmt.Sprintf("Unsigned package: %s %s failed signature verification", pkg.Name, pkg.Version),
 			DetectedAt:    time.Now(),
 		}
 		alerts = append(alerts, alert)
@@ -182,13 +176,10 @@ func (isd *IllegalSourceDetector) CheckTampered(filePath string, packageManager 
 		return nil
 	}
 
-	// If the writer is the same package manager that installed it, it's fine.
-	// e.g., dpkg re-writing a config file during update.
 	if writerComm == packageManager {
 		return nil
 	}
 
-	// If the writer is in the untrusted list and happened after install -> tampered.
 	if IsUntrustedWriter(writerComm) || (IsInWatchedDir(filePath) && !isPackageManagerComm(writerComm)) {
 		alert := SupplyChainAlert{
 			ID:            fmt.Sprintf("SC-TAMP-%d", time.Now().UnixNano()),
@@ -196,7 +187,7 @@ func (isd *IllegalSourceDetector) CheckTampered(filePath string, packageManager 
 			BinaryPath:    filePath,
 			SourceProcess: writerComm,
 			PackageInfo:   pkg,
-			Reason:        fmt.Sprintf("包被篡改: %s %s 被 %s 修改 (而非包管理器)", pkg.Name, pkg.Version, writerComm),
+			Reason:        fmt.Sprintf("Package tampering: %s %s was modified by %s outside package-manager control", pkg.Name, pkg.Version, writerComm),
 			DetectedAt:    writeTime,
 		}
 		isd.raiseAlert(alert)
@@ -220,7 +211,6 @@ func (isd *IllegalSourceDetector) raiseAlert(alert SupplyChainAlert) {
 	isd.alerts = append(isd.alerts, alert)
 	isd.mu.Unlock()
 
-	// Non-blocking send to channel.
 	select {
 	case isd.alertCh <- alert:
 	default:
@@ -258,8 +248,6 @@ func (isd *IllegalSourceDetector) Stats() map[string]interface{} {
 		"severity_breakdown": severityCounts,
 	}
 }
-
-// ─── Helpers ────────────────────────────────────────────────────
 
 func isPackageManagerComm(comm string) bool {
 	_, ok := packageManagers[comm]

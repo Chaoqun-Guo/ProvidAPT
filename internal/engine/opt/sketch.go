@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Graph sketching 鈥-background summary node
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Graph sketching -background summary node
+
 // SketchNode is a compressed representation of a no-risk subgraph.
 type SketchNode struct {
 	OriginalID   string    `json:"original_id"`  // e.g., "p:1" for systemd
@@ -27,19 +27,19 @@ type SketchNode struct {
 
 // SketchConfig controls which processes get sketched.
 type SketchConfig struct {
-	// MinAge 鈥-process must be older than this to qualify (default 1h).
+	// MinAge -process must be older than this to qualify (default 1h).
 	MinAge time.Duration
 
-	// NoRiskLabels 鈥-labels that indicate no risk.
+	// NoRiskLabels -labels that indicate no risk.
 	NoRiskLabels []string
 
-	// BackgroundPrefixes 鈥-process comm prefixes to auto-sketch.
+	// BackgroundPrefixes -process comm prefixes to auto-sketch.
 	BackgroundPrefixes []string
 
-	// EnableSketching 鈥-master switch.
+	// EnableSketching -master switch.
 	EnableSketching bool
 
-	// DryRun 鈥-if true, log what would be sketched but don't merge.
+	// DryRun -if true, log what would be sketched but don't merge.
 	DryRun bool
 }
 
@@ -61,7 +61,7 @@ func DefaultSketchConfig() *SketchConfig {
 type SketchEngine struct {
 	cfg      *SketchConfig
 	mu       sync.Mutex
-	sketches map[string]*SketchNode // originalID 鈫-sketch
+	sketches map[string]*SketchNode // originalID -> sketch
 }
 
 // NewSketchEngine creates a graph sketching engine.

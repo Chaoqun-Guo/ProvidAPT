@@ -11,7 +11,7 @@ import (
 	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
-// -光偓-光偓-光偓 Tests -光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓-光偓
+// Tests
 
 func TestNewEdgeReducer(t *testing.T) {
 	r := NewEdgeReducer(100, time.Second, nil)
@@ -71,13 +71,11 @@ func TestIngestMergeDuplicate(t *testing.T) {
 		TimestampNs: uint64(time.Now().UnixNano()),
 	}
 
-	// First -?new
 	_, merged1, _ := r.Ingest(evt)
 	if merged1 {
 		t.Error("first should not be merged")
 	}
 
-	// Second -?within window, same source/target/type
 	ce, merged2, _ := r.Ingest(evt)
 	if !merged2 {
 		t.Error("second should be merged")
@@ -172,7 +170,6 @@ func TestEviction(t *testing.T) {
 		return nil
 	})
 
-	// Insert 5 different edges -?3 fit, 2 evicted
 	for i := 0; i < 5; i++ {
 		r.Ingest(&pb.Event{
 			Type: 10, Pid: uint32(100 + i),

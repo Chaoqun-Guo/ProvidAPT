@@ -17,8 +17,8 @@ import (
 	containerpb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/container"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// ContainerInfo 鈥-cached container metadata
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// ContainerInfo -cached container metadata
+
 // ResolvedInfo contains the resolved container metadata for a cgroup.
 type ResolvedInfo struct {
 	CgroupID     uint64
@@ -31,14 +31,14 @@ type ResolvedInfo struct {
 	LastSeen     time.Time
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Container Monitor
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Container Monitor
+
 // Monitor resolves cgroup IDs to container metadata by scanning
 // /proc/<pid>/cgroup and /sys/fs/cgroup/ paths, and optionally
 // querying the Docker/Containerd API.
 type Monitor struct {
 	mu        sync.RWMutex
-	cache     map[uint64]*ResolvedInfo // cgroup_id 鈫-info
+	cache     map[uint64]*ResolvedInfo // cgroup_id -> info
 	resolveCh chan uint64              // cgroup IDs needing resolution
 	stopCh    chan struct{}
 	wg        sync.WaitGroup
@@ -110,7 +110,7 @@ func (m *Monitor) resolve(cgroupID uint64) {
 		m.mu.Lock()
 		m.cache[cgroupID] = info
 		m.mu.Unlock()
-		log.Printf("[container] resolved cgroup %d 鈫-container %s (%s)",
+		log.Printf("[container] resolved cgroup %d ->-container %s (%s)",
 			cgroupID, info.ContainerID, info.Name)
 		return
 	}
@@ -124,8 +124,8 @@ func (m *Monitor) resolve(cgroupID uint64) {
 	}
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Resolution methods
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Resolution methods
+
 // scanProc scans /proc/<pid>/cgroup for matching cgroup ID.
 // This is a simplified approach; in production it finds the process
 // by scanning /proc/*/cgroup for the matching cgroup hierarchy ID.
@@ -217,7 +217,7 @@ func (m *Monitor) scanSysFSCgroup(cgroupID uint64) *ResolvedInfo {
 	return nil
 }
 
-// 鈹€鈹€鈹€ Stats 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Stats
 
 // Stats returns monitor statistics.
 func (m *Monitor) Stats() map[string]interface{} {

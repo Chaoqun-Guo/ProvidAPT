@@ -8,29 +8,27 @@ import (
 	"time"
 )
 
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 // Trigger condition evaluator
 //
 // Evaluates whether a provenance graph node (process) meets the
 // criteria for on-demand memory acquisition.
 //
 // Primary triggers:
-//   1. MPROTECT RW鈫扲X  鈥-tainted process performed mprotect to make
+// 1. MPROTECT RW X -tainted process performed mprotect to make
 //      memory writable+executable (classic shellcode injection).
-//   2. shellcode attr  鈥-the provenance graph already flagged this
+// 2. shellcode attr -the provenance graph already flagged this
 //      process with the "shellcode" attribute (set by the eBPF
-//      memory probe on detecting mprotect RW鈫扲X).
-//   3. fileless attr   鈥-process was started from memfd_create
+// memory probe on detecting mprotect RW X).
+// 3. fileless attr -process was started from memfd_create
 //      or an anonymous file (no disk backing).
-//   4. deep taint      鈥-highly tainted process (depth >= 3) that
+// 4. deep taint -highly tainted process (depth >= 3) that
 //      also has network activity or file operations.
-//   5. supply chain risk 鈥-previously flagged high-risk binary.
-//   6. manual          鈥-explicit request by operator.
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// 5. supply chain risk -previously flagged high-risk binary.
+// 6. manual -explicit request by operator.
 
 // TriggerConfig controls which triggers are active and their thresholds.
 type TriggerConfig struct {
-	// EnableMprotectRX triggers on mprotect RW鈫扲X events (default true).
+	// EnableMprotectRX triggers on mprotect RW X events (default true).
 	EnableMprotectRX bool
 
 	// EnableShellcodeAttr triggers when process has "shellcode" node attr.
@@ -105,14 +103,14 @@ func (te *TriggerEvaluator) Evaluate(
 		nodeAttrs = make(map[string]interface{})
 	}
 
-	// 1. Mprotect RW鈫扲X trigger
+	// 1. Mprotect RW X trigger
 	if te.cfg.EnableMprotectRX {
 		if isTruthyValue(nodeAttrs["shellcode"]) {
 			return &TriggerEvent{
 				PID:       pid,
 				Comm:      comm,
 				Reason:    TrigMprotectRX,
-				Detail:    fmt.Sprintf("杩涚▼ %s(PID %d) 鎵ц浜-mprotect RW鈫扲X (鍙兘鐨-Shellcode 娉ㄥ叆)", comm, pid),
+				Detail:    fmt.Sprintf("process %s (PID %d) executed mprotect RW->RX (possible shellcode injection)", comm, pid),
 				NodeAttrs: nodeAttrs,
 				NodeID:    nodeID,
 				HostID:    hostID,
@@ -124,7 +122,7 @@ func (te *TriggerEvaluator) Evaluate(
 				PID:       pid,
 				Comm:      comm,
 				Reason:    TrigMprotectRX,
-				Detail:    fmt.Sprintf("%s(PID %d) 鍐呭瓨鏉冮檺浠-RW 鍙樻洿涓-RX", comm, pid),
+				Detail:    fmt.Sprintf("process %s (PID %d) executed mprotect RW->RX (possible shellcode injection)", comm, pid),
 				NodeAttrs: nodeAttrs,
 				NodeID:    nodeID,
 				HostID:    hostID,
@@ -140,7 +138,7 @@ func (te *TriggerEvaluator) Evaluate(
 				PID:       pid,
 				Comm:      comm,
 				Reason:    TrigShellcodeAttr,
-				Detail:    fmt.Sprintf("杩涚▼ %s(PID %d) 宸茶鏍囪涓哄寘鍚-Shellcode", comm, pid),
+				Detail:    fmt.Sprintf("process %s (PID %d) is marked as containing shellcode", comm, pid),
 				NodeAttrs: nodeAttrs,
 				NodeID:    nodeID,
 				HostID:    hostID,
@@ -156,7 +154,7 @@ func (te *TriggerEvaluator) Evaluate(
 				PID:       pid,
 				Comm:      comm,
 				Reason:    TrigFilelessExec,
-				Detail:    fmt.Sprintf("杩涚▼ %s(PID %d) 涓烘棤鏂囦欢鎵ц (memfd_create) ", comm, pid),
+				Detail:    fmt.Sprintf("process %s (PID %d) performed fileless execution via memfd_create", comm, pid),
 				NodeAttrs: nodeAttrs,
 				NodeID:    nodeID,
 				HostID:    hostID,
@@ -184,7 +182,7 @@ func (te *TriggerEvaluator) Evaluate(
 				PID:       pid,
 				Comm:      comm,
 				Reason:    TrigDeepTainted,
-				Detail:    fmt.Sprintf("杩涚▼ %s(PID %d) 娣卞害姹＄偣 (depth=%d) 涓斿瓨鍦ㄧ綉缁-鏂囦欢鎿嶄綔", comm, pid, taintDepth),
+				Detail:    fmt.Sprintf("process %s (PID %d) is deeply tainted (depth=%d) and has network/file activity", comm, pid, taintDepth),
 				NodeAttrs: nodeAttrs,
 				NodeID:    nodeID,
 				HostID:    hostID,
@@ -202,7 +200,7 @@ func (te *TriggerEvaluator) Evaluate(
 						PID:       pid,
 						Comm:      comm,
 						Reason:    TrigSupplyChainRisk,
-						Detail:    fmt.Sprintf("杩涚▼ %s(PID %d) 渚涘簲閾鹃闄╃瓑绾- %s", comm, pid, s),
+						Detail:    fmt.Sprintf("process %s (PID %d) has supply-chain risk level %s", comm, pid, s),
 						NodeAttrs: nodeAttrs,
 						NodeID:    nodeID,
 						HostID:    hostID,
@@ -234,7 +232,7 @@ func (te *TriggerEvaluator) EvaluateStringMap(
 	return te.Evaluate(pid, comm, iface, nodeID, hostID, taintDepth)
 }
 
-// 鈹€鈹€ Manual trigger 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Manual trigger
 
 // ManualTrigger creates a trigger event from an explicit operator request.
 func ManualTrigger(pid int, comm string, reason string) *TriggerEvent {
@@ -247,7 +245,7 @@ func ManualTrigger(pid int, comm string, reason string) *TriggerEvent {
 	}
 }
 
-// 鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Helpers
 
 // isTruthyValue checks if an interface value represents boolean true,
 // supporting both bool and string representations ("true", "1").

@@ -317,7 +317,7 @@ func TestParseECFormatsShort(t *testing.T) {
 	}
 }
 
-// 鈹€鈹€ CentralCorrelator tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// CentralCorrelator tests
 
 func TestNewCentralCorrelator(t *testing.T) {
 	cc := NewCentralCorrelator()
@@ -353,7 +353,7 @@ func TestCentralCorrelatorAlert(t *testing.T) {
 		Timestamp:  time.Now(),
 	}
 	cc.Ingest(rec)
-	// Second ingest from same host 鈫?cluster.Count=2, atypical=true, risk > 50
+
 	rec2 := &JA3Record{
 		JA3:        "00000000000000000000000000000002",
 		SourceHost: "host2",

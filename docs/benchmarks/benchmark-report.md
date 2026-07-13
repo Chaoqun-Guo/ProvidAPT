@@ -13,7 +13,7 @@ ProvidAPT's eBPF-based event collection adds measurable but controlled overhead.
 | Memory (steady) | N/A | 85 MB | N/A |
 | Memory (peak) | N/A | 142 MB | N/A |
 | Event throughput | N/A | 52,000 evt/s | N/A |
-| Pebble write latency | N/A | 410 ?s/batch | N/A |
+| Pebble write latency | N/A | 410 us/batch | N/A |
 
 ## 2. Test Configuration
 

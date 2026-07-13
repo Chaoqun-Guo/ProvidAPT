@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package detect -?weight model and path aggregation for
+// Package detect - -> weight model and path aggregation for
 // composite alerting.  Each operation type has a base score;
 // when a process's downstream path exceeds the threshold,
 // a composite alert fires with full provenance context.
@@ -21,17 +21,17 @@ import (
 // These scores represent the intrinsic risk of each operation.
 var EventScores = map[uint32]float64{
 	1:  5,   // EV_PROCESS_FORK
-	2:  20,  // EV_PROCESS_EXEC -?executing any binary
-	10: 2,   // EV_FILE_OPEN -?reading a file (low)
-	11: 15,  // EV_FILE_CREATE -?creating a file
-	12: 10,  // EV_FILE_MODIFY -?modifying a file
+	2:  20,  // EV_PROCESS_EXEC - -> executing any binary
+	10: 2,   // EV_FILE_OPEN - -> reading a file (low)
+	11: 15,  // EV_FILE_CREATE - -> creating a file
+	12: 10,  // EV_FILE_MODIFY - -> modifying a file
 	13: 5,   // EV_FILE_DELETE
-	20: 10,  // EV_NET_CONNECT -?network connection
-	21: 15,  // EV_NET_ACCEPT -?inbound connection
-	50: 60,  // EV_MEMFD_CREATE -?anonymous memory file (suspicious)
-	51: 100, // EV_MPROTECT_RX -?memory shellcode injection
-	52: 50,  // EV_PIPE_WRITE -?pipe data flow (exfiltration risk)
-	53: 20,  // EV_PIPE_READ -?pipe data flow
+	20: 10,  // EV_NET_CONNECT - -> network connection
+	21: 15,  // EV_NET_ACCEPT - -> inbound connection
+	50: 60,  // EV_MEMFD_CREATE - -> anonymous memory file (suspicious)
+	51: 100, // EV_MPROTECT_RX - -> memory shellcode injection
+	52: 50,  // EV_PIPE_WRITE - -> pipe data flow (exfiltration risk)
+	53: 20,  // EV_PIPE_READ - -> pipe data flow
 }
 
 // SensitivePathScores provides additional scoring for file paths.
@@ -214,7 +214,7 @@ func NewCompositeAlert(evt *pb.Event, agg *AggregateResult) *CompositeAlert {
 		ProcessComm:  evt.Comm,
 		TotalScore:   agg.CumulativeScore,
 		Threshold:    CompositeThreshold,
-		TriggerEvent: fmt.Sprintf("%s -?%s", eventTypeName(evt.Type), evt.Pathname),
+		TriggerEvent: fmt.Sprintf("%s - -> %s", eventTypeName(evt.Type), evt.Pathname),
 		CausalChain:  agg.CausalChain,
 	}
 }
@@ -227,9 +227,9 @@ func (ca *CompositeAlert) String() string {
 	fmt.Fprintf(&b, "   Trigger: %s\n", ca.TriggerEvent)
 	b.WriteString("   Causal Chain:\n")
 	for i, node := range ca.CausalChain {
-		marker := "鈹斺攢"
+		marker := "`-"
 		if i < len(ca.CausalChain)-1 {
-			marker = "鈹溾攢"
+			marker = "|-"
 		}
 		fmt.Fprintf(&b, "   %s [%.0f] %s (PID %d) %s -> %s\n",
 			marker, node.Score, node.Comm, node.PID, node.Action, node.Target)

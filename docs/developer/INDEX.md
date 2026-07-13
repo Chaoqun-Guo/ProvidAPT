@@ -1,21 +1,21 @@
-# 开发者文档
+# Developer Documentation
 
-本节面向希望扩展、集成、测试或发布 ProvidAPT 的开发者与维护者。
+This section is for developers and maintainers who extend, integrate, test, or release ProvidAPT.
 
-## 文档列表
+## Documents
 
-| 文档 | 说明 |
+| Document | Description |
 | --- | --- |
-| [api-reference.md](api-reference.md) | gRPC / HTTP API 定义、请求响应结构与错误码 |
-| [data-schema.md](data-schema.md) | Protobuf 数据模型、事件类型与关系结构 |
-| [testing.md](testing.md) | 单元测试、集成测试与性能测试说明 |
-| [upgrade-guide.md](upgrade-guide.md) | 当前发布线升级、预检与回滚说明 |
-| [package-build.md](package-build.md) | 商业 Linux 包生命周期和安装资产要求 |
-| [release-readiness.md](release-readiness.md) | 发布前最终检查清单 |
-| [release-notes-v1.2.2.md](release-notes-v1.2.2.md) | `v1.2.2` 发布说明 |
-| [changelog.md](changelog.md) | 工程侧变更记录 |
+| [api-reference.md](api-reference.md) | gRPC and HTTP API definitions, request and response structures, and error codes |
+| [data-schema.md](data-schema.md) | Protobuf data model, event types, and relationship structure |
+| [testing.md](testing.md) | Unit, integration, and performance testing |
+| [upgrade-guide.md](upgrade-guide.md) | Upgrade, preflight, and rollback guidance |
+| [package-build.md](package-build.md) | Commercial Linux package lifecycle and installation asset requirements |
+| [release-readiness.md](release-readiness.md) | Final pre-release checklist |
+| [release-notes-v1.2.2.md](release-notes-v1.2.2.md) | Release notes for `v1.2.2` |
+| [changelog.md](changelog.md) | Engineering change log |
 
-## 快速开发
+## Quick Development Commands
 
 ```bash
 make build-ebpf

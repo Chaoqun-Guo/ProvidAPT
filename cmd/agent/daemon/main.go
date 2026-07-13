@@ -136,6 +136,26 @@ func collectSystemEnvironment(hostname string) systemEnvironment {
 	return env
 }
 
+func stableAgentID(hostname string) string {
+	name := strings.TrimSpace(hostname)
+	if name == "" {
+		name = "unknown"
+	}
+	for _, path := range []string{"/etc/machine-id", "/var/lib/dbus/machine-id"} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		machineID := strings.TrimSpace(string(data))
+		if machineID == "" {
+			continue
+		}
+		sum := sha256.Sum256([]byte(machineID))
+		return fmt.Sprintf("%s-%s", name, hex.EncodeToString(sum[:])[:8])
+	}
+	return name
+}
+
 type deliveryActionAuditStore struct {
 	mu      sync.RWMutex
 	entries []api.NotifyDeliveryAudit
@@ -1366,6 +1386,7 @@ func main() {
 	if err != nil || hostname == "" {
 		hostname = "unknown"
 	}
+	agentID := stableAgentID(hostname)
 	systemEnv := collectSystemEnvironment(hostname)
 
 	telemetryInterval, err := time.ParseDuration(cfg.Telemetry.Interval)
@@ -1393,7 +1414,7 @@ func main() {
 		}
 
 		return telemetry.Summary{
-			AgentID:              hostname,
+			AgentID:              agentID,
 			Hostname:             systemEnv.Hostname,
 			OS:                   systemEnv.OS,
 			OSVersion:            systemEnv.OSVersion,
@@ -3110,33 +3131,33 @@ func main() {
 		}
 	}()
 
-	// ── gRPC management server (mTLS) ──────────────────
-	if cfg.TLS.Enable {
-		mgmtCfg := &mgmt.ServerConfig{
-			ListenAddr:        cfg.API.GRPC,
-			CertFile:          cfg.TLS.CertFile,
-			KeyFile:           cfg.TLS.KeyFile,
-			CAFile:            cfg.TLS.CAFile,
-			EnableTLS:         true,
-			RequireClientCert: true,
-			StateFile:         filepath.Join(cfg.Output.Dir, "control-plane-state.json"),
-			PolicyBundleDir:   filepath.Join(cfg.Output.Dir, "policy-bundles"),
-		}
-		mgmtServer, err = mgmt.NewServer(mgmtCfg)
-		if err != nil {
-			logx.System().Error("mgmt server init failed", "error", err)
-			os.Exit(1)
-		}
-		mgmtServer.SetController(bpfLoader.Ctrl)
-		mgmtServer.SetAnalyzer(apt)
-		mgmtServer.StartAlertForwarder(apt.AlertCh)
-		if err := mgmtServer.Start(); err != nil {
-			logx.System().Error("mgmt server start failed", "error", err)
-			os.Exit(1)
-		}
-		defer mgmtServer.Stop()
-		logx.System().Info("mgmt gRPC server started", "addr", cfg.API.GRPC, "tls", true)
+	// ── gRPC management + telemetry server ──────────────
+	mgmtCfg := &mgmt.ServerConfig{
+		ListenAddr:      cfg.API.GRPC,
+		EnableTLS:       cfg.TLS.Enable,
+		StateFile:       filepath.Join(cfg.Output.Dir, "control-plane-state.json"),
+		PolicyBundleDir: filepath.Join(cfg.Output.Dir, "policy-bundles"),
 	}
+	if cfg.TLS.Enable {
+		mgmtCfg.CertFile = cfg.TLS.CertFile
+		mgmtCfg.KeyFile = cfg.TLS.KeyFile
+		mgmtCfg.CAFile = cfg.TLS.CAFile
+		mgmtCfg.RequireClientCert = true
+	}
+	mgmtServer, err = mgmt.NewServer(mgmtCfg)
+	if err != nil {
+		logx.System().Error("mgmt server init failed", "error", err)
+		os.Exit(1)
+	}
+	mgmtServer.SetController(bpfLoader.Ctrl)
+	mgmtServer.SetAnalyzer(apt)
+	mgmtServer.StartAlertForwarder(apt.AlertCh)
+	if err := mgmtServer.Start(); err != nil {
+		logx.System().Error("mgmt server start failed", "error", err)
+		os.Exit(1)
+	}
+	defer mgmtServer.Stop()
+	logx.System().Info("mgmt gRPC server started", "addr", cfg.API.GRPC, "tls", cfg.TLS.Enable, "mtls", cfg.TLS.Enable)
 
 	// ── Real-time alert persistence (NDJSON) ──────────────
 	alertPath := filepath.Join(cfg.Output.Dir, "alerts.ndjson")

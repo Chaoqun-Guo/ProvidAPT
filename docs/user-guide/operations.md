@@ -56,10 +56,10 @@ Recommended data layout:
 
 ```text
 /var/lib/providapt/
-??? store/
-??? hashcache/
-??? lowprio/
-??? anchors/
+|- store/
+|- hashcache/
+|- lowprio/
+`- anchors/
 ```
 
 Backup flow:
@@ -98,7 +98,7 @@ Fleet APIs:
 ```bash
 curl http://<server>:18080/api/v1/control/overview
 curl http://<server>:18080/api/v1/control/fleet
-curl "http://<server>:18080/api/v1/control/fleet?group=prod&tag=linux"
+curl "http://<server>:18080/api/v1/control/fleet -> group=prod&tag=linux"
 ```
 
 Agent status values:

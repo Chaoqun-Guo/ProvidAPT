@@ -4,9 +4,9 @@
 // Package store implements the central server storage layer for ProvidAPT.
 //
 // Features:
-//  1. Graph database connector 鈥-Neo4j/JanusGraph for global graph
-//  2. Global indexing 鈥-HostID, Identity, IP for millisecond backtracking
-//  3. Data lifecycle 鈥-30-day archive, hot/cold separation
+// 1. Graph database connector -Neo4j/JanusGraph for global graph
+// 2. Global indexing -HostID, Identity, IP for millisecond backtracking
+// 3. Data lifecycle -30-day archive, hot/cold separation
 package graphdb
 
 import (
@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Graph database abstraction
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Graph database abstraction
+
 // GraphDB is the interface for graph database operations.
 // Supports Neo4j, JanusGraph, or any Cypher-compatible backend.
 type GraphDB interface {
@@ -59,7 +59,7 @@ type GlobalEdge struct {
 	Time     time.Time              `json:"time"`
 }
 
-// 鈹€鈹€鈹€ In-memory graph database (fallback) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// In-memory graph database (fallback)
 
 // MemGraphDB is an in-memory graph database for development/testing.
 // In production, replace with Neo4j/JanusGraph connector.
@@ -197,7 +197,7 @@ func matchProps(nodeProps map[string]interface{}, query map[string]interface{}) 
 	return true
 }
 
-// 鈹€鈹€鈹€ Insert subgraph 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Insert subgraph
 
 // InsertSubgraph inserts an agent-reported subgraph into the global graph.
 func InsertSubgraph(db GraphDB, nodes []GlobalNode, edges []GlobalEdge) error {

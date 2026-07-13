@@ -7,7 +7,7 @@
 // real eBPF support (CI, Docker, cross-compilation).
 //
 // To load real eBPF objects:
-//   make build-ebpf                    # compile .bpf.c 鈫?.bpf.o
+
 //   go build -tags bpf ./cmd/...    # use real loader
 //
 // The bpf2go-generated file (bpf_bpfel.go / bpf_bpfeb.go) can also

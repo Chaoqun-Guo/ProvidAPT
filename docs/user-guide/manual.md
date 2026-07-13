@@ -8,12 +8,12 @@ This manual covers day-to-day operation of ProvidAPT, including command-line wor
 
 ProvidAPT ships with the following primary tools:
 
-- `providaptctl` ? control and status operations
-- `providaptd` ? main daemon
-- `providapt-watchdog` ? watchdog companion
-- `providapt-verify` ? integrity verification
-- `providapt-deanon` ? authorized de-anonymization
-- `providapt-heal` ? incident response helper
+- `providaptctl` - control and status operations
+- `providaptd` - main daemon
+- `providapt-watchdog` - watchdog companion
+- `providapt-verify` - integrity verification
+- `providapt-deanon` - authorized de-anonymization
+- `providapt-heal` - incident response helper
 
 ### `providaptctl`
 
@@ -90,8 +90,8 @@ sudo providapt-verify -data /var/lib/providapt/store -output /tmp/integrity_repo
 
 Exit codes:
 
-- `0` ? all checks passed
-- `2` ? tampering detected
+- `0`  ->  all checks passed
+- `2`  ->  tampering detected
 
 ### `providapt-deanon`
 

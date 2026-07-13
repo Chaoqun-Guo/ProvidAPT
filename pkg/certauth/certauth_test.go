@@ -122,7 +122,6 @@ func TestNeedsRotation(t *testing.T) {
 		t.Error("fresh cert should not need rotation")
 	}
 
-	// For a 10-year cert, asking "does it expire in 20 years?" should say yes
 	needed, err = NeedsRotation(certFile, 20*365*24*time.Hour)
 	if err != nil {
 		t.Fatal(err)

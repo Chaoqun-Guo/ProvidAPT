@@ -15,10 +15,7 @@ import (
 // Interactive Q&A Engine
 //
 // Supports questions like:
-//   "How did this process connect to the network?"
-//   "What files did bash modify?"
-//   "Who forked this process?"
-//   "What is the attack path from the web server to the C2?"
+
 // ═══════════════════════════════════════════════════════════════
 
 // QAEngine answers questions by searching the provenance graph.

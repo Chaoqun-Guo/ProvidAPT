@@ -50,7 +50,7 @@ type SearchParams struct {
 // ── Event search endpoint ───────────────────────────────────────
 
 // handleEventSearch searches event logs and alert files.
-// GET /api/v1/events/search?pattern=...&severity=...&since=...&until=...&limit=...&offset=...
+
 func (s *Server) handleEventSearch(w http.ResponseWriter, r *http.Request) error {
 	params := SearchParams{
 		Pattern:  r.URL.Query().Get("pattern"),
@@ -100,7 +100,7 @@ func (s *Server) handleEventSearch(w http.ResponseWriter, r *http.Request) error
 }
 
 // handleEventRecent returns the most recent events across all log files.
-// GET /api/v1/events/recent?limit=50
+
 func (s *Server) handleEventRecent(w http.ResponseWriter, r *http.Request) error {
 	limit := queryInt(r, "limit", 50)
 	if limit <= 0 || limit > 1000 {

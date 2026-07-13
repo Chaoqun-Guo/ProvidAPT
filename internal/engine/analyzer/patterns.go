@@ -174,8 +174,8 @@ func checkScriptChild(te *TaintEngine) []*Alert {
 			}
 			wNode := te.nodes[writerID]
 			fileNode := te.nodes[fileID]
-			wLabel := "?"
-			fLabel := "?"
+			wLabel := " -> "
+			fLabel := " -> "
 			if wNode != nil {
 				wLabel = wNode.Label
 			}
@@ -303,14 +303,14 @@ func checkMemoryAnomaly(te *TaintEngine) []*Alert {
 
 		if v, ok := node.Attributes["shellcode"]; ok {
 			if b, isBool := v.(bool); isBool && b {
-				reasons = append(reasons, "mprotect RW->RX (可能的 Shellcode 注入)")
+				reasons = append(reasons, "mprotect RW->RX (possible shellcode injection)")
 				severity = SeverityCritical
 			}
 		}
 
 		if v, ok := node.Attributes["fileless"]; ok {
 			if b, isBool := v.(bool); isBool && b {
-				reasons = append(reasons, "无文件执行 (memfd_create)")
+				reasons = append(reasons, "fileless execution (memfd_create)")
 				if severity < SeverityHigh {
 					severity = SeverityHigh
 				}

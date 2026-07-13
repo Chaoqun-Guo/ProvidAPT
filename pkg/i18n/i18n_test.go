@@ -1,8 +1,6 @@
 package i18n
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestDefaultLocale(t *testing.T) {
 	if Locale() != "en" {
@@ -11,12 +9,12 @@ func TestDefaultLocale(t *testing.T) {
 }
 
 func TestSetLocale(t *testing.T) {
-	SetLocale("zh")
-	if Locale() != "zh" {
-		t.Errorf("locale = %q, want zh", Locale())
+	SetLocale("en-US")
+	if Locale() != "en" {
+		t.Errorf("locale = %q, want en", Locale())
 	}
 
-	SetLocale("en")
+	SetLocale("unsupported")
 	if Locale() != "en" {
 		t.Errorf("locale = %q, want en", Locale())
 	}
@@ -28,12 +26,6 @@ func TestT(t *testing.T) {
 		t.Errorf("T(daemon_starting) = %q", s)
 	}
 
-	SetLocale("zh")
-	if s := T("daemon_starting"); s != "ProvidAPT 守护进程正在启动" {
-		t.Errorf("T(daemon_starting) = %q", s)
-	}
-
-	SetLocale("en")
 	if s := T("nonexistent_key"); s != "nonexistent_key" {
 		t.Errorf("T(nonexistent) = %q, want the key itself", s)
 	}
@@ -67,9 +59,9 @@ func TestFmtString(t *testing.T) {
 }
 
 func TestInitFromEnv(t *testing.T) {
-	t.Setenv("PROVIDAPT_LOCALE", "zh")
+	t.Setenv("PROVIDAPT_LOCALE", "en_US")
 	InitFromEnv()
-	if Locale() != "zh" {
+	if Locale() != "en" {
 		t.Errorf("after InitFromEnv, locale = %q", Locale())
 	}
 }

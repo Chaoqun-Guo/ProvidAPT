@@ -14,7 +14,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/container"
 )
 
-// 鈹€鈹€鈹€ Container monitor tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Container monitor tests
 
 func TestNewMonitor(t *testing.T) {
 	m := container.New()
@@ -80,7 +80,7 @@ func TestListContainers(t *testing.T) {
 	t.Logf("containers: %d", len(list))
 }
 
-// 鈹€鈹€鈹€ CLI trace tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// CLI trace tests
 
 func TestDefaultTraceRequest(t *testing.T) {
 	req := cli.DefaultTraceRequest()
@@ -171,7 +171,7 @@ func TestFormatText(t *testing.T) {
 	t.Logf("Trace:\n%s", text)
 }
 
-// 鈹€鈹€鈹€ Protobuf tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Protobuf tests
 
 func TestContainerInfoProto(t *testing.T) {
 	ci := &containerpb.ContainerInfo{
@@ -207,7 +207,7 @@ func TestContainerEventProto(t *testing.T) {
 	}
 }
 
-// 鈹€鈹€鈹€ Integration test 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Integration test
 
 func TestV21Integration(t *testing.T) {
 	// 1. Container monitor

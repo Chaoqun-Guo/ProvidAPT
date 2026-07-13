@@ -66,7 +66,7 @@ func (a *Alert) ConsoleLine() string {
 
 // Markdown returns a Markdown-formatted alert.
 func (a *Alert) Markdown() string {
-	return fmt.Sprintf("## 婵☆偓绲介崯顖炴儊?ProvidAPT Alert\n\n"+
+	return fmt.Sprintf("## ProvidAPT Alert\n\n"+
 		"**Rule:** %s  \n"+
 		"**Severity:** `%s`  \n"+
 		"**Score:** %.1f  \n"+

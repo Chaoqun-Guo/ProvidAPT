@@ -1,37 +1,28 @@
-# 快速入门
+# Getting Started
 
-本节帮助你在不同环境中安装、评估、部署并运行 ProvidAPT。
+This section explains how to install, evaluate, deploy, and operate ProvidAPT in common Linux environments.
 
-## 文档列表
+## Documents
 
-| 文档 | 说明 |
+| Document | Description |
 | --- | --- |
-| [install.md](install.md) | 英文安装指南 |
-| [install.zh.md](install.zh.md) | 中文安装指南 |
-| [commercial-install.md](commercial-install.md) | 商业 Linux 安装、卸载与升级预检 |
-| [deployment.md](deployment.md) | 英文部署指南 |
-| [deployment.zh.md](deployment.zh.md) | 中文部署指南 |
-| [evaluation.md](evaluation.md) | 客户评估与 POC 指南 |
+| [install.md](install.md) | Installation guide for source and package-based installs |
+| [commercial-install.md](commercial-install.md) | Commercial Linux installation, removal, upgrade, and preflight checks |
+| [deployment.md](deployment.md) | Production deployment guide |
+| [evaluation.md](evaluation.md) | Customer evaluation and proof-of-concept guide |
 
-## 前置要求
+## Prerequisites
 
-- Linux 内核 5.8+；推荐 5.11+ 以启用 BPF LSM。
-- BTF 支持，通常位于 `/sys/kernel/btf/vmlinux`。
-- `clang` 12+、`llvm-strip`、`libbpf` 1.0+。
-- Go 1.25+。
+- Linux kernel 5.8 or later; kernel 5.11 or later is recommended for BPF LSM.
+- BTF support, typically available at `/sys/kernel/btf/vmlinux`.
+- `clang` 12 or later, `llvm-strip`, and `libbpf` 1.0 or later.
+- Go 1.25 or later for source builds.
 
-## 快速命令
+## Quick Commands
 
 ```bash
-# 检查环境
 make verify-env
-
-# 安装依赖
 make install-deps
-
-# 构建并安装
 make install-local
-
-# 启动 daemon
 sudo systemctl start providapt.service
 ```

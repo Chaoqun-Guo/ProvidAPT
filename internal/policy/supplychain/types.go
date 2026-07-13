@@ -4,9 +4,9 @@
 // Package supplychain implements supply-chain provenance tracking for ProvidAPT.
 //
 // It provides three capabilities:
-//  1. Package manager monitoring 鈥-track apt/yum/pip writes to system directories
-//  2. SBOM association 鈥-import SPDX/CycloneDX and bind package info to graph nodes
-//  3. Illegal source detection 鈥-flag binaries written by untrusted processes
+// 1. Package manager monitoring -track apt/yum/pip writes to system directories
+// 2. SBOM association -import SPDX/CycloneDX and bind package info to graph nodes
+// 3. Illegal source detection -flag binaries written by untrusted processes
 package supplychain
 
 import "time"

@@ -41,8 +41,8 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/telemetry"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Server
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Server
+
 // Server implements the ProvidAPTManagement gRPC service.
 type Server struct {
 	addr      string
@@ -180,22 +180,22 @@ type alertSubscription struct {
 
 // ServerConfig for the gRPC management server.
 type ServerConfig struct {
-	// ListenAddr 鈥-gRPC listen address (default ":50051").
+	// ListenAddr -gRPC listen address (default ":50051").
 	ListenAddr string
 
-	// CertFile 鈥-TLS certificate file path.
+	// CertFile -TLS certificate file path.
 	CertFile string
 
-	// KeyFile 鈥-TLS private key file path.
+	// KeyFile -TLS private key file path.
 	KeyFile string
 
-	// CAFile 鈥-CA certificate file for client verification.
+	// CAFile -CA certificate file for client verification.
 	CAFile string
 
-	// RequireClientCert 鈥-if true, clients must present a valid cert.
+	// RequireClientCert -if true, clients must present a valid cert.
 	RequireClientCert bool
 
-	// EnableTLS 鈥-if true, use TLS (mTLS if RequireClientCert).
+	// EnableTLS -if true, use TLS (mTLS if RequireClientCert).
 	EnableTLS bool
 
 	// AgentStaleAfter marks agents as STALE when no summary is received.
@@ -407,7 +407,7 @@ func (s *Server) Stop() {
 	log.Printf("[mgmt] server stopped")
 }
 
-// 鈹€鈹€鈹€ gRPC handler implementations 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// gRPC handler implementations
 
 // Query handles provenance data queries.
 func (s *Server) Query(ctx context.Context, req *mgmtpb.QueryRequest) (*mgmtpb.QueryResponse, error) {
@@ -558,7 +558,7 @@ func (s *Server) applyWhitelistUpdate(w *mgmtpb.WhitelistUpdate, clientInfo stri
 		}
 
 	case "comm":
-		// Comm-based whitelist 鈥-currently unsupported via gRPC
+		// Comm-based whitelist -currently unsupported via gRPC
 		switch w.Action {
 		case "add":
 			excluded, err := s.ctrl.ExcludeComms([]string{w.Value})
@@ -1430,7 +1430,7 @@ func hasTag(tags []string, want string) bool {
 	return false
 }
 
-// 鈹€鈹€鈹€ mTLS 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// mTLS
 
 // loadTLSConfig loads TLS configuration with optional mutual auth.
 func loadTLSConfig(cfg *ServerConfig) (*tls.Config, error) {
@@ -1497,8 +1497,8 @@ func clientIdentity(ctx context.Context) string {
 	return "unknown"
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Self-signed certificate generator (development only)
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Self-signed certificate generator (development only)
+
 func clientCertFingerprint(ctx context.Context) string {
 	if p, ok := peer.FromContext(ctx); ok {
 		if tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo); ok {
@@ -1637,8 +1637,8 @@ func generateEphemeralCert() (tls.Certificate, error) {
 	}, nil
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Client (for management center)
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Client (for management center)
+
 // ClientConfig for connecting to the proviAPT management server.
 type ClientConfig struct {
 	ServerAddr string

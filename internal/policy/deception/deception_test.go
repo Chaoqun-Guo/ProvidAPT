@@ -119,7 +119,7 @@ func TestHoneytokenDefDefaultContent(t *testing.T) {
 	ht := HoneytokenDef{
 		Path:  "/tmp/test.txt",
 		Type:  HoneytokenCredentials,
-		Label: "测试诱饵文件",
+		Label: "Test decoy file",
 	}
 	if ht.Content != "" {
 		t.Errorf("expected empty content, got %s", ht.Content)

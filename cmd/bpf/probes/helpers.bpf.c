@@ -58,7 +58,7 @@ __always_inline static const char *path_basename(const char *path, u32 max_len)
  *   "fifo" — pipe / FIFO         (S_ISFIFO)
  *   "chr"  — character device    (S_ISCHR)
  *   "blk"  — block device        (S_ISBLK)
- *   "?"    — unknown
+
  *
  * Not used in the hot path; provided for analysis convenience.
  */

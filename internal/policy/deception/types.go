@@ -3,15 +3,11 @@
 
 // Package deception implements active defense through honeytoken
 // deception. It injects phantom sensitive files into directory
-// listings (via overlayfs mounts), monitors for access to these
-// files via eBPF, and freezes triggering processes via CGroups.
+// listings, monitors file access via eBPF, and freezes triggering
+// processes via cgroups.
 package deception
 
 import "time"
-
-// ─────────────────────────────────────────────────────────────────
-// Honeytoken definitions
-// ─────────────────────────────────────────────────────────────────
 
 // HoneytokenType classifies the kind of honeytoken.
 type HoneytokenType string
@@ -25,7 +21,7 @@ const (
 	HoneytokenVault       HoneytokenType = "vault"       // vault token file
 )
 
-// Honeytoken eBPF map flags — mirrors cmd/bpf/headers/deception.h.
+// Honeytoken eBPF map flags, mirroring cmd/bpf/headers/deception.h.
 const (
 	HONEYPOT_ACTIVE    = 1 << 0 // honeytoken injection active
 	HONEYPOT_TRIGGERED = 1 << 1 // honeytoken was accessed
@@ -34,9 +30,8 @@ const (
 
 // HoneytokenDef describes a single honeytoken file to inject.
 type HoneytokenDef struct {
-	// Path is the full path where the honeytoken appears (e.g.,
-	// "/tmp/backup_credentials.xml"). The file does not exist on
-	// the real filesystem — it is injected via overlay mount.
+	// Path is the full path where the honeytoken appears. The file does not
+	// exist on the real filesystem; it is injected via overlay mount.
 	Path string `json:"path"`
 
 	// Type classifies the honeytoken for alerting purposes.
@@ -48,14 +43,9 @@ type HoneytokenDef struct {
 	// Content is the fake file content shown when the file is read.
 	Content string `json:"content,omitempty"`
 
-	// Tripwire, when true, immediately freezes any process that
-	// touches this file (no further analysis needed).
+	// Tripwire, when true, immediately freezes any process that touches this file.
 	Tripwire bool `json:"tripwire"`
 }
-
-// ─────────────────────────────────────────────────────────────────
-// Trigger event
-// ─────────────────────────────────────────────────────────────────
 
 // TriggerType describes how a honeytoken was triggered.
 type TriggerType string
@@ -69,28 +59,20 @@ const (
 
 // HoneypotTrigger is emitted when a process accesses a honeytoken.
 type HoneypotTrigger struct {
-	// Process info.
 	PID  uint32 `json:"pid"`
 	PPID uint32 `json:"ppid,omitempty"`
 	UID  uint32 `json:"uid,omitempty"`
 	Comm string `json:"comm"`
 
-	// Honeytoken info.
 	Path      string         `json:"path"`
 	PathHash  uint32         `json:"path_hash"`
 	TokenType HoneytokenType `json:"token_type"`
 	Trigger   TriggerType    `json:"trigger"`
 
-	// Risk assessment.
 	Tripwire bool `json:"tripwire"`
 
-	// Timing.
 	Timestamp time.Time `json:"timestamp"`
 }
-
-// ─────────────────────────────────────────────────────────────────
-// Freeze state
-// ─────────────────────────────────────────────────────────────────
 
 // FreezeState tracks the state of a frozen process.
 type FreezeState string
@@ -129,10 +111,6 @@ type FreezeRecord struct {
 	ReleasedAt  *time.Time      `json:"released_at,omitempty"`
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Overlay mount state
-// ─────────────────────────────────────────────────────────────────
-
 // OverlayMount describes an active overlayfs mount for honeytoken injection.
 type OverlayMount struct {
 	TargetDir string    `json:"target_dir"` // directory being overlaid
@@ -142,10 +120,6 @@ type OverlayMount struct {
 	Created   time.Time `json:"created"`
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Configuration
-// ─────────────────────────────────────────────────────────────────
-
 // Config configures the deception module.
 type Config struct {
 	// Enabled activates deception features.
@@ -154,23 +128,19 @@ type Config struct {
 	// Honeytokens defines the list of fake files to inject.
 	Honeytokens []HoneytokenDef
 
-	// OverlayDir is the base directory for overlayfs work dirs
-	// (default: /tmp/providapt-honeypot).
+	// OverlayDir is the base directory for overlayfs work dirs.
 	OverlayDir string
 
-	// CGroupMount is the cgroup v2 mount point (default: /sys/fs/cgroup).
+	// CGroupMount is the cgroup v2 mount point.
 	CGroupMount string
 
-	// CGroupName is the cgroup subgroup name for frozen processes
-	// (default: providapt-freeze).
+	// CGroupName is the cgroup subgroup name for frozen processes.
 	CGroupName string
 
-	// CPUQuota is the CPU quota for frozen processes as a percentage
-	// (default: 1, meaning 1% of a single core).
+	// CPUQuota is the CPU quota for frozen processes as a percentage.
 	CPUQuota int
 
-	// PreserveContext, when true, captures /proc/PID/{maps,fd,env}
-	// on freeze (default: true).
+	// PreserveContext captures /proc/PID/{maps,fd,env} on freeze when true.
 	PreserveContext bool
 
 	// OnTrigger, if set, is called when a honeytoken is triggered.
@@ -199,35 +169,35 @@ func DefaultHoneytokens() []HoneytokenDef {
 		{
 			Path:     "/tmp/backup_credentials.xml",
 			Type:     HoneytokenCredentials,
-			Label:    "数据库备份凭据 — 诱饵文件",
+			Label:    "Database backup credentials - decoy file",
 			Tripwire: true,
-			Content:  `<?xml version="1.0"?><credentials><database host="prod-db-01.internal" port="3306" user="root" password="P@ssw0rd_Prod!2024"/></credentials>`,
+			Content:  `< -> xml version="1.0" -> ><credentials><database host="prod-db-01.internal" port="3306" user="root" password="P@ssw0rd_Prod!2024"/></credentials>`,
 		},
 		{
 			Path:     "/var/tmp/db_backup_2024.sql",
 			Type:     HoneytokenBackup,
-			Label:    "数据库备份 — 诱饵文件",
+			Label:    "Database backup - decoy file",
 			Tripwire: true,
 			Content:  "-- MySQL dump 8.0\nCREATE DATABASE `production`;\nINSERT INTO `users` VALUES (1,'admin','$2a$10$...');\n",
 		},
 		{
 			Path:     "/home/deploy/.ssh/id_rsa_backup",
 			Type:     HoneytokenKey,
-			Label:    "SSH 私钥 — 诱饵文件",
+			Label:    "SSH private key - decoy file",
 			Tripwire: false,
 			Content:  "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlw...\n-----END OPENSSH PRIVATE KEY-----\n",
 		},
 		{
 			Path:     "/etc/providapt/config_backup.json",
 			Type:     HoneytokenConfig,
-			Label:    "系统配置备份 — 诱饵文件",
+			Label:    "System configuration backup - decoy file",
 			Tripwire: true,
 			Content:  `{"api_key":"sk-prod-xxxxxxxxxxxx","vault_addr":"https://vault.internal:8200","vault_token":"hvs.prod.xxxx"}`,
 		},
 		{
 			Path:     "/root/.kube/config_backup",
 			Type:     HoneytokenKubeconfig,
-			Label:    "K8s 管理员配置 — 诱饵文件",
+			Label:    "Kubernetes administrator config - decoy file",
 			Tripwire: true,
 			Content:  "apiVersion: v1\nkind: Config\nclusters:\n- cluster:\n    server: https://k8s-prod.internal:6443\n    certificate-authority-data: LS0t...\n",
 		},

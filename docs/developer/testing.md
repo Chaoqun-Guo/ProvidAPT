@@ -28,8 +28,8 @@ Current total coverage: **~61%** (as of v1.2.2). CI enforces a minimum of **20%*
 ### Running Coverage Locally
 
 ```bash
-make coverage          # Text summary 鈫?build/coverage/coverage.txt
-make coverage-html     # HTML report 鈫?build/coverage/coverage.html
+make coverage          # Text summary -> build/coverage/coverage.txt
+make coverage-html     # HTML report -> build/coverage/coverage.html
 ```
 
 ### Quality Gate

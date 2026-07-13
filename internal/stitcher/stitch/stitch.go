@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Connection mapping table
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+// Connection mapping table
+
 // FlowFingerprint uniquely identifies a TCP flow.
 // Derived from (src_ip, src_port, dst_ip, dst_port, isn, tsval).
 type FlowFingerprint struct {
@@ -59,8 +59,8 @@ type StitchEdge struct {
 // StitchTable is the central connection mapping table.
 type StitchTable struct {
 	mu          sync.Mutex
-	outbound    map[string]*ConnectionRecord // flowID 鈫?outbound conn
-	inbound     map[string]*ConnectionRecord // flowID 鈫?inbound conn
+	outbound    map[string]*ConnectionRecord // flowID -> outbound conn
+	inbound     map[string]*ConnectionRecord // flowID ->inbound conn
 	edges       []*StitchEdge                // produced stitch edges
 	edgeCounter int
 	window      time.Duration // matching window (default 30s)
@@ -75,7 +75,7 @@ func NewStitchTable() *StitchTable {
 	}
 }
 
-// 鈹€鈹€鈹€ Record ingestion 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Record ingestion
 
 // RecordOutbound stores an outbound connection event.
 // If a matching inbound record exists within the time window,
@@ -98,7 +98,7 @@ func (st *StitchTable) RecordOutbound(flowID, agentID string, pid uint32, comm s
 	defer st.mu.Unlock()
 
 	st.outbound[flowID] = rec
-	log.Printf("[stitch] OUTBOUND: %s 鈫?%s (agent=%s pid=%d flow=%s)", srcIP, dstIP, agentID, pid, flowID[:16])
+	log.Printf("[stitch] OUTBOUND: %s ->%s (agent=%s pid=%d flow=%s)", srcIP, dstIP, agentID, pid, flowID[:16])
 
 	// Check for matching inbound
 	if inbound, ok := st.inbound[flowID]; ok {
@@ -132,7 +132,7 @@ func (st *StitchTable) RecordInbound(flowID, agentID string, pid uint32, comm st
 	defer st.mu.Unlock()
 
 	st.inbound[flowID] = rec
-	log.Printf("[stitch] INBOUND: %s 鈫?%s (agent=%s pid=%d flow=%s)", srcIP, dstIP, agentID, pid, flowID[:16])
+	log.Printf("[stitch] INBOUND: %s ->%s (agent=%s pid=%d flow=%s)", srcIP, dstIP, agentID, pid, flowID[:16])
 
 	// Check for matching outbound
 	if outbound, ok := st.outbound[flowID]; ok {
@@ -164,9 +164,8 @@ func (st *StitchTable) createEdge(outbound, inbound *ConnectionRecord) *StitchEd
 		CreatedAt:   time.Now(),
 	}
 
-	// Taint propagation: outbound taint 鈫?inbound process
 	if outbound.Tainted {
-		log.Printf("[stitch] TAINT PROPAGATION: %s/%s 鈫?%s/%s (source=%s)",
+		log.Printf("[stitch] TAINT PROPAGATION: %s/%s ->%s/%s (source=%s)",
 			outbound.AgentID, outbound.Comm, inbound.AgentID, inbound.Comm,
 			outbound.TaintSource)
 		inbound.Tainted = true
@@ -178,13 +177,13 @@ func (st *StitchTable) createEdge(outbound, inbound *ConnectionRecord) *StitchEd
 	}
 
 	st.edges = append(st.edges, edge)
-	log.Printf("[stitch] EDGE: %s 鈫?%s via flow %s (rel=%s, tainted=%v)",
+	log.Printf("[stitch] EDGE: %s ->%s via flow %s (rel=%s, tainted=%v)",
 		outbound.AgentID, inbound.AgentID, edge.FlowID[:16], edge.Relation, edge.Tainted)
 
 	return edge
 }
 
-// 鈹€鈹€鈹€ Queries 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Queries
 
 // Edges returns all stitched edges.
 func (st *StitchTable) Edges() []*StitchEdge {

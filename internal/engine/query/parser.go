@@ -24,23 +24,23 @@ const (
 	tokRETURN
 	tokSTARTSWITH
 	tokCONTAINS
-	tokLPAREN    // (
-	tokRPAREN    // )
-	tokLBRACKET  // [
-	tokRBRACKET  // ]
-	tokCOLON     // :
-	tokMINUS     // -
-	tokRARROW    // ->
-	tokCOMMA     // ,
-	tokDOT       // .
-	tokEQ        // =
-	tokGT        // >
-	tokLT        // <
-	tokGTE       // >=
-	tokLTE       // <=
-	tokSTRING    // "..." or '...'
-	tokIDENT     // identifier
-	tokNUMBER    // number
+	tokLPAREN   // (
+	tokRPAREN   // )
+	tokLBRACKET // [
+	tokRBRACKET // ]
+	tokCOLON    // :
+	tokMINUS    // -
+	tokRARROW   // ->
+	tokCOMMA    // ,
+	tokDOT      // .
+	tokEQ       // =
+	tokGT       // >
+	tokLT       // <
+	tokGTE      // >=
+	tokLTE      // <=
+	tokSTRING   // "..." or '...'
+	tokIDENT    // identifier
+	tokNUMBER   // number
 )
 
 type token struct {
@@ -211,10 +211,10 @@ func (l *lexer) nextToken() (token, error) {
 // ═══════════════════════════════════════════════════════════════
 
 type parser struct {
-	lexer  *lexer
-	curr   token
-	peek   token
-	err    error
+	lexer *lexer
+	curr  token
+	peek  token
+	err   error
 }
 
 // Parse parses a ProvQL query string into an AST.
@@ -478,7 +478,6 @@ func (p *parser) parseTimeWindow() (*TimeWindow, error) {
 	return &TimeWindow{Start: start, End: end}, nil
 }
 
-// parseProjections: IDENT ('.' IDENT)? (',' ...)*
 func (p *parser) parseProjections() ([]Projection, error) {
 	var projs []Projection
 

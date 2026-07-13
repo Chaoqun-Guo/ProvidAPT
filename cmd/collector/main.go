@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// cluster-test-harness 鈥-HTTP/JSON API wrapping all current release components
+// cluster-test-harness -HTTP/JSON API wrapping all current release components
 // for the Python integration test script.
 //
 // Usage: go run . [--port 8722]
@@ -92,7 +92,7 @@ func main() {
 	}
 }
 
-// 鈹€鈹€鈹€ JSON helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// JSON helpers
 
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -110,7 +110,7 @@ func readJSON(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
-// 鈹€鈹€鈹€ Stitch handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Stitch handlers
 
 func handleIngestOutbound(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -194,7 +194,7 @@ func handleStitchStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, centralServer.Stats())
 }
 
-// 鈹€鈹€鈹€ JA3 handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// JA3 handlers
 
 func handleJA3Ingest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -254,7 +254,7 @@ func handleJA3Stats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, correlator.Stats())
 }
 
-// 鈹€鈹€鈹€ Graph handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Graph handlers
 
 func handleGraphCreateNode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -392,7 +392,7 @@ func parseGraphNode(r *http.Request) (*store.GlobalNode, error) {
 	}, nil
 }
 
-// 鈹€鈹€鈹€ Blast radius handler 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Blast radius handler
 
 func handleBlastCalculate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -415,7 +415,7 @@ func handleBlastCalculate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// 鈹€鈹€鈹€ Queue (performance) handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Queue (performance) handlers
 
 func handleQueueEnqueue(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -509,7 +509,7 @@ func handleQueueStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, queueMgr.Stats())
 }
 
-// 鈹€鈹€鈹€ Router handlers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Router handlers
 
 func handleRouterRoute(w http.ResponseWriter, r *http.Request) {
 	hostID := r.URL.Query().Get("host_id")
@@ -544,7 +544,7 @@ func handleRouterStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, router.Stats())
 }
 
-// 鈹€鈹€鈹€ Combined stats handler 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Combined stats handler
 
 func handleAllStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{

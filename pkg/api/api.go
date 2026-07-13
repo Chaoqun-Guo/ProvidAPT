@@ -1889,8 +1889,6 @@ func (s *Server) handleNotifyDeliveries(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// ── Graph export: /api/v1/graph/export?pid=1234&start=...&end=... ──
-
 func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) error {
 	q := r.URL.Query()
 	nodes := s.graph.Nodes()

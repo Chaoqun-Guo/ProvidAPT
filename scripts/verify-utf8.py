@@ -41,7 +41,7 @@ SKIP_PARTS = {
     "test/integration/supply_chain_test.sh",
 }
 
-MOJIBAKE_MARKERS = ("闁", "閳", "鈥?", "锟", "�")
+MOJIBAKE_MARKERS = ("\u95c1", "\u95b3", "\u9225", "\u951f", "\ufffd")
 
 
 def should_skip(path: Path) -> bool:

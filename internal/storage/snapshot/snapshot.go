@@ -5,9 +5,9 @@
 // ProvidAPT storage layer.
 //
 // Features:
-//  1. RocksDB Checkpoint snapshots 鈥-every 10 minutes
-//  2. Active entity table 鈥-PIDs/inodes changed in last 5 minutes
-//  3. GetDiff(t1, t2) 鈥-efficient delta extraction for AI engine
+// 1. RocksDB Checkpoint snapshots -every 10 minutes
+// 2. Active entity table -PIDs/inodes changed in last 5 minutes
+// 3. GetDiff(t1, t2) -efficient delta extraction for AI engine
 package snapshot
 
 import (
@@ -22,20 +22,20 @@ import (
 	"github.com/cockroachdb/pebble/vfs"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Snapshot manager
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Snapshot manager
+
 // SnapshotConfig controls the snapshot behaviour.
 type SnapshotConfig struct {
-	// SnapDir 鈥-directory for checkpoint snapshots.
+	// SnapDir -directory for checkpoint snapshots.
 	SnapDir string
 
-	// SnapInterval 鈥-how often to create snapshots (default 10m).
+	// SnapInterval -how often to create snapshots (default 10m).
 	SnapInterval time.Duration
 
-	// Retention 鈥-how many snapshots to keep (default 72 = 12h).
+	// Retention -how many snapshots to keep (default 72 = 12h).
 	Retention int
 
-	// EnableSnapshots 鈥-master switch.
+	// EnableSnapshots -master switch.
 	EnableSnapshots bool
 }
 

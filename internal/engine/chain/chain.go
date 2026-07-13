@@ -4,10 +4,10 @@
 // Package chain provides forensic-grade data integrity for ProvidAPT.
 //
 // Features:
-//  1. Hash chaining 鈥-each event includes the hash of the previous event
-//  2. Merkle tree 鈥-periodic root hash computation
-//  3. Anchoring 鈥-root hash written to /dev/kmsg and remote server
-//  4. Verification 鈥-CLI tool to detect tampering
+// 1. Hash chaining -each event includes the hash of the previous event
+// 2. Merkle tree -periodic root hash computation
+// 3. Anchoring -root hash written to /dev/kmsg and remote server
+// 4. Verification -CLI tool to detect tampering
 package chain
 
 import (
@@ -20,8 +20,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Hash chain
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Hash chain
+
 // ChainRecord is a single entry in the hash chain.
 type ChainRecord struct {
 	Index     int64  `json:"index"`

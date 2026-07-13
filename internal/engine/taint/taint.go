@@ -4,9 +4,9 @@
 // Package taint implements dynamic taint tracking for ProvidAPT.
 //
 // Taint sources:  socket_read from non-internal IPs
-// Propagation:    tainted process 鈫-files it writes, processes it forks
+// Propagation: tainted process -files it writes, processes it forks
 //
-//	tainted file 鈫-processes that read it
+// tainted file -processes that read it
 //
 // Decay:          crypto/signing operations can clear taint
 // Alert:          tainted process touching /etc/shadow, ptrace, etc.
@@ -23,8 +23,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Taint levels
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Taint levels
+
 // Level describes how strongly a node is tainted.
 type Level int
 
@@ -50,7 +50,7 @@ func (l Level) String() string {
 	}
 }
 
-// 鈹€鈹€鈹€ Taint state 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Taint state
 
 // State holds the taint status of a node.
 type State struct {
@@ -62,23 +62,23 @@ type State struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Config
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Config
+
 // Config for the taint engine.
 type Config struct {
-	// NonInternalPrefixes 鈥-IP prefixes considered external.
+	// NonInternalPrefixes -IP prefixes considered external.
 	NonInternalPrefixes []string
 
-	// CleanCommands 鈥-exec commands that can clear taint.
+	// CleanCommands -exec commands that can clear taint.
 	CleanCommands []string
 
-	// SensitivePaths 鈥-paths that trigger alerts when accessed by tainted procs.
+	// SensitivePaths -paths that trigger alerts when accessed by tainted procs.
 	SensitivePaths []string
 
-	// TaintDecayAfter 鈥-how long before taint auto-decays (0 = never).
+	// TaintDecayAfter -how long before taint auto-decays (0 = never).
 	TaintDecayAfter time.Duration
 
-	// EnableAlerting 鈥-if true, emit alerts on taint+trigger.
+	// EnableAlerting -if true, emit alerts on taint+trigger.
 	EnableAlerting bool
 }
 
@@ -121,13 +121,13 @@ func MatchTaint(pattern, value string) bool {
 	return strings.EqualFold(value, pattern)
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// TaintEngine
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// TaintEngine
+
 // TaintEngine manages taint propagation and alerting.
 type TaintEngine struct {
 	cfg     *Config
 	mu      sync.RWMutex
-	states  map[string]*State // nodeID 鈫-taint state
+	states  map[string]*State // nodeID -> taint state
 	alerts  []TaintAlert
 	alertID atomic.Int64
 }
@@ -157,8 +157,8 @@ func New(cfg *Config) *TaintEngine {
 	}
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Taint source detection
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Taint source detection
+
 // IsExternalIP checks if an IP is not in the internal prefixes list.
 // IsExternalIP checks whether a given IP string is external (not in private ranges).
 // Supports both IPv4 and IPv6. Invalid IP strings are returned as internal (safe default).
@@ -211,8 +211,8 @@ func (te *TaintEngine) MarkSocketSource(processID, comm, sourceIP string) *State
 	return state
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Propagation
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Propagation
+
 // PropagateRead is called when a process reads a file.
 // If the file is tainted, the process becomes tainted.
 func (te *TaintEngine) PropagateRead(processID, fileID, comm string) *State {
@@ -288,14 +288,14 @@ func (te *TaintEngine) propagate(targetID, targetType string,
 	if state.Level >= HighlyTainted {
 		level = "HIGH_TAINT"
 	}
-	log.Printf("[taint] PROPAGATE: %s 鈫-%s (level=%s, reason=%s)",
+	log.Printf("[taint] PROPAGATE: %s ->-%s (level=%s, reason=%s)",
 		sourceID, targetID, level, reason)
 
 	return state
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Taint decay and cleaning
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Taint decay and cleaning
+
 // IsCleanCommand checks if a command can clear taint.
 func (te *TaintEngine) IsCleanCommand(comm string) bool {
 	for _, clean := range te.cfg.CleanCommands {
@@ -340,8 +340,8 @@ func (te *TaintEngine) DecayTaint() int {
 	return decayed
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Sensitive action checking and alerting
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Sensitive action checking and alerting
+
 // IsSensitivePath checks if a path triggers alerts.
 // Uses path.Clean to normalize path traversal (e.g. /etc/../etc/shadow).
 func (te *TaintEngine) IsSensitivePath(rawPath string) bool {
@@ -393,15 +393,15 @@ func (te *TaintEngine) CheckAction(processID, comm, action, target string) *Tain
 		te.mu.Lock()
 		te.alerts = append(te.alerts, alert)
 		te.mu.Unlock()
-		log.Printf("[taint] ALERT [%s] tainted process %s(%s) %s 鈫-%s (IP: %s)",
+		log.Printf("[taint] ALERT [%s] tainted process %s(%s) %s ->-%s (IP: %s)",
 			alert.Severity, comm, processID, action, target, state.SourceIP)
 	}
 
 	return &alert
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Queries
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Queries
+
 // GetTaint returns the taint state of a node.
 func (te *TaintEngine) GetTaint(nodeID string) *State {
 	te.mu.RLock()

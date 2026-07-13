@@ -35,7 +35,6 @@ type EvidenceRecord struct {
 	CaptureHash    string `json:"capture_hash"`     // hex
 	GraphPathHash  string `json:"graph_path_hash"`  // hex
 
-	// Graph binding -?provenance path summary
 	GraphPathSummary string `json:"graph_path_summary"`
 
 	// File locations

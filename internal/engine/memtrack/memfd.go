@@ -4,11 +4,11 @@
 // Package memtrack implements memory execution tracing for ProvidAPT.
 //
 // Tracks:
-//  1. memfd_create 鈥-anonymous memory-backed file descriptors
-//  2. mmap PROT_EXEC 鈥-executable memory mappings
-//  3. fexecve 鈥-execution from memory file descriptors
+// 1. memfd_create -anonymous memory-backed file descriptors
+// 2. mmap PROT_EXEC -executable memory mappings
+// 3. fexecve -execution from memory file descriptors
 //
-// Enables complete "memory download 鈫-memory execution" provenance chains.
+// Enables complete "memory download -memory execution" provenance chains.
 package memtrack
 
 import (
@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Memory file tracking
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Memory file tracking
+
 // MemfdEntry represents an anonymous memory file created via memfd_create.
 type MemfdEntry struct {
 	FD        int       `json:"fd"`
@@ -36,7 +36,7 @@ type MemfdEntry struct {
 // MemfdTracker monitors anonymous memory file operations.
 type MemfdTracker struct {
 	mu      sync.Mutex
-	entries map[int]*MemfdEntry // fd 鈫-entry
+	entries map[int]*MemfdEntry // fd -> entry
 	history []*MemfdEntry       // completed entries
 }
 
@@ -86,7 +86,7 @@ func (mt *MemfdTracker) OnExec(fd int, pid uint32, comm string) *MemfdEntry {
 		// Move to history
 		delete(mt.entries, fd)
 		mt.history = append(mt.history, entry)
-		log.Printf("[memfd] EXEC fd=%d (%s) by pid=%d comm=%s 鈥-chain complete", fd, entry.Name, pid, comm)
+		log.Printf("[memfd] EXEC fd=%d (%s) by pid=%d comm=%s ->-chain complete", fd, entry.Name, pid, comm)
 		return entry
 	}
 	return nil
@@ -117,7 +117,7 @@ func (mt *MemfdTracker) ActiveCount() int {
 	return len(mt.entries)
 }
 
-// CompletedChains returns all completed memfd鈫抏xec chains.
+// CompletedChains returns all completed memfd xec chains.
 func (mt *MemfdTracker) CompletedChains() []*MemfdEntry {
 	mt.mu.Lock()
 	defer mt.mu.Unlock()

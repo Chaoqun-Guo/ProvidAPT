@@ -4,9 +4,9 @@
 // Package dist implements distributed system infrastructure for ProvidAPT.
 //
 // Features:
-//  1. Global Entity ID 鈥-HostID + BootID for globally unique identifiers
-//  2. gRPC streaming 鈥-non-blocking telemetry pipeline with reconnection
-//  3. Metadata compression 鈥-dictionary-based GUID compression
+// 1. Global Entity ID -HostID + BootID for globally unique identifiers
+// 2. gRPC streaming -non-blocking telemetry pipeline with reconnection
+// 3. Metadata compression -dictionary-based GUID compression
 package dist
 
 import (
@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-// Global Entity ID (GUID)
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺-
+// Global Entity ID (GUID)
+
 // GUID represents a globally unique entity identifier.
 type GUID struct {
 	HostID  string `json:"host_id"`  // system UUID or hostname
@@ -33,7 +33,7 @@ type GlobalIDStore struct {
 	mu     sync.Mutex
 	hostID string
 	bootID string
-	cache  map[string]*GUID // localID 鈫-GUID
+	cache  map[string]*GUID // localID -> GUID
 }
 
 // NewGlobalIDStore creates a global ID store.
@@ -76,7 +76,7 @@ func (g *GlobalIDStore) GetOrCreate(localID string) *GUID {
 // Resolve parses a FullID back into its components.
 // In production, this would query the central index.
 func Resolve(fullID string) (*GUID, bool) {
-	// FullID = SHA256(HostID + BootID + LocalID) 鈫-64 hex chars
+	// FullID = SHA256(HostID + BootID + LocalID) -64 hex chars
 	// This is one-way; for reverse lookup, query the central RocksDB.
 	if len(fullID) != 64 {
 		return nil, false
@@ -91,7 +91,7 @@ func computeFullID(hostID, bootID, localID string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// 鈹€鈹€鈹€ Host/Boot ID resolution 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Host/Boot ID resolution
 
 func resolveHostID() string {
 	// Try /etc/machine-id (systemd)
@@ -110,7 +110,7 @@ func resolveHostID() string {
 }
 
 func resolveBootID() string {
-	// /proc/sys/kernel/random/boot_id 鈥-unique per boot
+	// /proc/sys/kernel/random/boot_id -unique per boot
 	if data, err := os.ReadFile("/proc/sys/kernel/random/boot_id"); err == nil {
 		return string(trimSpace(data))
 	}

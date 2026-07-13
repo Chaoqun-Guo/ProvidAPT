@@ -131,7 +131,6 @@ func TestAggregatePathMultipleEvents(t *testing.T) {
 func TestThresholdExceeded(t *testing.T) {
 	se := NewScoreEngine(nil)
 
-	// mprotect RX alone exceeds 150? No (100 pts). But memfd + mprotect = 160.
 	evt1 := &pb.Event{Type: 50, Pid: 200, Comm: "python"} // 60
 	evt2 := &pb.Event{Type: 51, Pid: 200, Comm: "python"} // 100
 
