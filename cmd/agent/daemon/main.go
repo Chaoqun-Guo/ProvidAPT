@@ -1357,6 +1357,7 @@ func main() {
 	complianceSummaryState := &complianceState{}
 	apiServer.SetAPIAuth(cfg.API.AuthKeys, cfg.API.AuthRoles, cfg.API.AuthIdentities, cfg.API.AuthEnabled)
 	apiServer.SetAPIAuthTenants(cfg.API.AuthTenants)
+	apiServer.SetAPIAuthPermissions(cfg.API.AuthPermissions)
 	apiServer.SetTrustedHeaderAuth(cfg.SSO.TrustedHeaderAuth, cfg.SSO.UserHeader, cfg.SSO.RoleHeader)
 	apiServer.SetTrustedTenantHeader(cfg.SSO.TenantHeader)
 	apiServer.SetCORSOrigins(cfg.API.CORSOrigins)
@@ -1436,6 +1437,24 @@ func main() {
 	}
 
 	var mgmtServer *mgmt.Server
+	apiServer.SetHAStatusFunc(func() api.HAStatus {
+		status := api.HAStatus{
+			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
+			Mode:          "standalone",
+			NodeID:        agentID,
+			Role:          "leader",
+			LeaderID:      agentID,
+			Healthy:       pipelineHealthy && storeHealthy,
+			PeerCount:     0,
+			StateBackend:  filepath.Join(cfg.Output.Dir, "control-plane-state.json"),
+			FailoverReady: false,
+			Message:       "single-node control plane; external HA requires shared state and load balancer orchestration",
+		}
+		if mgmtServer != nil {
+			status.Message = fmt.Sprintf("control plane active; grpc=%s rest=%s agents=%d", cfg.API.GRPC, cfg.API.REST, len(mgmtServer.TelemetryOverview()))
+		}
+		return status
+	})
 
 	telemetryReporter := telemetry.NewReporter(telemetry.ReporterConfig{
 		Endpoint:   cfg.Telemetry.Endpoint,
@@ -4506,7 +4525,38 @@ func toAPIAlertWorkflowItem(item alertflow.Alert) api.AlertWorkflowItem {
 	if !item.SilenceUntil.IsZero() {
 		out.SilenceUntil = item.SilenceUntil.UTC().Format(time.RFC3339)
 	}
+	if deadline, status, secondsLeft := alertWorkflowSLA(item); !deadline.IsZero() {
+		out.SLADeadline = deadline.UTC().Format(time.RFC3339)
+		out.SLAStatus = status
+		out.SLASecondsLeft = secondsLeft
+	}
 	return out
+}
+
+func alertWorkflowSLA(item alertflow.Alert) (time.Time, string, int64) {
+	if item.FirstSeen.IsZero() || item.Status == alertflow.StatusClosed {
+		return time.Time{}, "", 0
+	}
+	duration := 24 * time.Hour
+	switch strings.ToLower(strings.TrimSpace(item.Severity)) {
+	case "critical":
+		duration = 30 * time.Minute
+	case "high":
+		duration = 2 * time.Hour
+	case "medium":
+		duration = 8 * time.Hour
+	case "low":
+		duration = 24 * time.Hour
+	}
+	deadline := item.FirstSeen.Add(duration)
+	secondsLeft := int64(time.Until(deadline).Seconds())
+	status := "within_sla"
+	if secondsLeft < 0 {
+		status = "breached"
+	} else if secondsLeft < int64((duration / 4).Seconds()) {
+		status = "due_soon"
+	}
+	return deadline, status, secondsLeft
 }
 
 func toNotifyAlert(item alertflow.Alert) notify.Alert {

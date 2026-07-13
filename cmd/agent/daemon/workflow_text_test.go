@@ -8,6 +8,7 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/alertflow"
 )
@@ -36,5 +37,24 @@ func TestToAPIAlertWorkflowItemCleansMojibake(t *testing.T) {
 	}
 	if out.Headline != "apache -> bash -> curl" {
 		t.Fatalf("headline = %q", out.Headline)
+	}
+}
+
+func TestToAPIAlertWorkflowItemIncludesSLA(t *testing.T) {
+	item := alertflow.Alert{
+		ID:        "alert-1",
+		Severity:  "critical",
+		Pattern:   "P",
+		Headline:  "critical alert",
+		Status:    alertflow.StatusOpen,
+		FirstSeen: time.Now().UTC().Add(-10 * time.Minute),
+	}
+
+	out := toAPIAlertWorkflowItem(item)
+	if out.SLADeadline == "" || out.SLAStatus == "" {
+		t.Fatalf("missing SLA fields: %#v", out)
+	}
+	if out.SLASecondsLeft <= 0 {
+		t.Fatalf("sla seconds left = %d", out.SLASecondsLeft)
 	}
 }

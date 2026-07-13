@@ -30,8 +30,11 @@ func TestRenderMarkdown(t *testing.T) {
 	}
 
 	out := RenderMarkdown(report)
-	if !strings.Contains(out, "# ProvidAPT Release Readiness Report") {
+	if !strings.Contains(out, "# ProvidAPT Release Evidence") {
 		t.Fatalf("missing title: %s", out)
+	}
+	if !strings.Contains(out, "## P0 Gates") {
+		t.Fatalf("missing P0 gate section: %s", out)
 	}
 	if !strings.Contains(out, "| PASS | `config_valid` | configuration loads |  |  |") {
 		t.Fatalf("missing check row: %s", out)
@@ -68,7 +71,7 @@ func TestWriteReportMarkdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "ProvidAPT Release Readiness Report") {
+	if !strings.Contains(string(data), "ProvidAPT Release Evidence") {
 		t.Fatalf("unexpected markdown report: %s", string(data))
 	}
 }

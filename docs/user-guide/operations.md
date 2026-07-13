@@ -97,6 +97,7 @@ Fleet APIs:
 
 ```bash
 curl http://<server>:18080/api/v1/control/overview
+curl http://<server>:18080/api/v1/control/ha
 curl http://<server>:18080/api/v1/control/fleet
 curl "http://<server>:18080/api/v1/control/fleet -> group=prod&tag=linux"
 ```
@@ -113,3 +114,36 @@ Agent status values:
 The fleet response includes `last_report_at`, `last_report_age_seconds`, and
 `status_reason`, so operators can distinguish a healthy agent from one that has
 stopped reporting.
+
+Batch lifecycle operations:
+
+```bash
+curl -X POST http://<server>:18080/api/v1/control/fleet \
+  -H "Content-Type: application/json" \
+  -d '{"agent_ids":["agent-a","agent-b"],"action":"quarantined","note":"incident containment"}'
+```
+
+The response reports per-agent success or failure, which makes bulk quarantine,
+approval, revocation, and metadata updates safe to automate.
+
+Investigation reports:
+
+```bash
+curl "http://<server>:18080/api/v1/investigation/report?pid=1234&direction=backward&depth=5"
+curl "http://<server>:18080/api/v1/investigation/report?node=p:1234&direction=forward&format=markdown"
+```
+
+The report includes trace scope, risk summary, key observations, timeline nodes,
+and provenance relations for audit handoff or incident review.
+
+Policy diff and alert workflow operations:
+
+```bash
+curl http://<server>:18080/api/v1/control/policies
+curl -X POST http://<server>:18080/api/v1/control/alerts \
+  -H "Content-Type: application/json" \
+  -d '{"action":"silence","alert_ids":["alert-a","alert-b"],"duration":"30m","note":"maintenance window"}'
+```
+
+The dashboard exposes the same flows through `Show Diff`, `Preview Report`,
+`Download Markdown`, and bulk alert action buttons.

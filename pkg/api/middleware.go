@@ -95,14 +95,14 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 	}
 }
 
-func authorizationMiddleware() func(http.Handler) http.Handler {
+func authorizationMiddleware(rolePermissions map[string][]string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			role := CurrentRole(r)
 			if role == "" {
 				role = RoleAdmin
 			}
-			if allowed(role, r.Method, r.URL.Path) {
+			if allowed(role, r.Method, r.URL.Path, rolePermissions) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -170,18 +170,24 @@ func withTenant(r *http.Request, tenant string) *http.Request {
 }
 
 func normalizeRole(role string) string {
-	switch strings.ToLower(strings.TrimSpace(role)) {
+	normalized := strings.ToLower(strings.TrimSpace(role))
+	switch normalized {
 	case RoleAuditor:
 		return RoleAuditor
 	case RoleAnalyst:
 		return RoleAnalyst
-	default:
+	case "", RoleAdmin:
 		return RoleAdmin
+	default:
+		return normalized
 	}
 }
 
-func allowed(role, method, path string) bool {
+func allowed(role, method, path string, rolePermissions map[string][]string) bool {
 	role = normalizeRole(role)
+	if role != RoleAdmin && role != RoleAnalyst && role != RoleAuditor {
+		return allowedByCustomPermissions(role, method, path, rolePermissions)
+	}
 	switch role {
 	case RoleAdmin:
 		return true
@@ -237,6 +243,7 @@ func allowed(role, method, path string) bool {
 			strings.HasPrefix(path, "/ready") ||
 			strings.HasPrefix(path, "/api/v1/status") ||
 			strings.HasPrefix(path, "/api/v1/control/overview") ||
+			strings.HasPrefix(path, "/api/v1/control/ha") ||
 			strings.HasPrefix(path, "/api/v1/control/fleet") ||
 			strings.HasPrefix(path, "/api/v1/control/support") ||
 			strings.HasPrefix(path, "/api/v1/control/backup") ||
@@ -249,11 +256,38 @@ func allowed(role, method, path string) bool {
 			strings.HasPrefix(path, "/api/v1/control/alerts") ||
 			strings.HasPrefix(path, "/api/v1/control/deliveries") ||
 			strings.HasPrefix(path, "/api/v1/alerts") ||
+			strings.HasPrefix(path, "/api/v1/investigation/report") ||
 			strings.HasPrefix(path, "/dashboard") ||
 			path == "/"
 	default:
 		return false
 	}
+}
+
+func allowedByCustomPermissions(role, method, path string, rolePermissions map[string][]string) bool {
+	for _, permission := range rolePermissions[role] {
+		if permissionMatches(permission, method, path) {
+			return true
+		}
+	}
+	return false
+}
+
+func permissionMatches(permission, method, path string) bool {
+	permission = strings.TrimSpace(permission)
+	if permission == "*" {
+		return true
+	}
+	parts := strings.SplitN(permission, ":", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	permMethod := strings.ToUpper(strings.TrimSpace(parts[0]))
+	permPath := strings.TrimSpace(parts[1])
+	if permMethod != "*" && permMethod != strings.ToUpper(method) {
+		return false
+	}
+	return permPath == "*" || path == permPath || strings.HasPrefix(path, strings.TrimRight(permPath, "/")+"/")
 }
 
 type rateLimiter struct {

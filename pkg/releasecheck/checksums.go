@@ -18,7 +18,7 @@ type checksumEntry struct {
 	Artifact string
 }
 
-func checkChecksums(report *Report, path, artifactsDir string) {
+func checkChecksums(report *Report, path, artifactsDir string, requiredArtifactTypes []string) {
 	if strings.TrimSpace(path) == "" {
 		return
 	}
@@ -62,6 +62,7 @@ func checkChecksums(report *Report, path, artifactsDir string) {
 		Status:  StatusPass,
 		Message: fmt.Sprintf("checksums file contains %d artifact entries", len(entries)),
 	})
+	checkArtifactMatrix(report, entries, requiredArtifactTypes)
 	checkArtifactHashes(report, entries, artifactsDir)
 }
 
@@ -146,6 +147,103 @@ func checkArtifactHashes(report *Report, entries []checksumEntry, artifactsDir s
 		Status:  StatusPass,
 		Message: fmt.Sprintf("verified SHA-256 for %d release artifacts", len(entries)),
 	})
+}
+
+func checkArtifactMatrix(report *Report, entries []checksumEntry, requiredTypes []string) {
+	requiredTypes = cleanPathList(requiredTypes)
+	if len(requiredTypes) == 0 {
+		return
+	}
+
+	found := map[string]int{}
+	for _, entry := range entries {
+		for _, artifactType := range classifyArtifactTypes(entry.Artifact) {
+			found[artifactType]++
+		}
+	}
+
+	var missing []string
+	for _, requiredType := range requiredTypes {
+		requiredType = normalizeArtifactType(requiredType)
+		if requiredType == "" {
+			continue
+		}
+		if found[requiredType] == 0 {
+			missing = append(missing, requiredType)
+		}
+	}
+	if len(missing) > 0 {
+		add(report, Check{
+			Name:          "release_artifact_matrix",
+			Status:        StatusFail,
+			Message:       fmt.Sprintf("checksum manifest is missing required artifact type(s): %s", strings.Join(missing, ", ")),
+			FixSuggestion: "Build and include every required commercial artifact in checksums.txt before release sign-off.",
+		})
+		return
+	}
+
+	var coverage []string
+	for artifactType, count := range found {
+		coverage = append(coverage, fmt.Sprintf("%s=%d", artifactType, count))
+	}
+	sortStrings(coverage)
+	add(report, Check{
+		Name:    "release_artifact_matrix",
+		Status:  StatusPass,
+		Message: fmt.Sprintf("required artifact types present (%s)", strings.Join(coverage, ", ")),
+	})
+}
+
+func classifyArtifactTypes(name string) []string {
+	lower := strings.ToLower(strings.TrimSpace(filepath.Base(name)))
+	switch {
+	case strings.HasSuffix(lower, ".deb"):
+		return []string{"deb"}
+	case strings.HasSuffix(lower, ".rpm"):
+		return []string{"rpm"}
+	case strings.HasSuffix(lower, ".tar.gz"), strings.HasSuffix(lower, ".tgz"), strings.HasSuffix(lower, ".zip"):
+		if strings.Contains(lower, "helm") || strings.Contains(lower, "chart") {
+			return []string{"helm_chart"}
+		}
+		if strings.Contains(lower, "oci") || strings.Contains(lower, "image") || strings.Contains(lower, "container") {
+			return []string{"container_image"}
+		}
+		return []string{"archive"}
+	case strings.HasSuffix(lower, ".spdx.json"), strings.HasSuffix(lower, ".cdx.json"), strings.Contains(lower, "sbom"):
+		return []string{"sbom"}
+	default:
+		return nil
+	}
+}
+
+func normalizeArtifactType(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	switch normalized {
+	case "tar", "tarball", "tgz", "zip":
+		return "archive"
+	case "debian":
+		return "deb"
+	case "redhat", "centos", "fedora":
+		return "rpm"
+	case "docker", "oci", "container":
+		return "container_image"
+	case "helm":
+		return "helm_chart"
+	default:
+		return normalized
+	}
+}
+
+func sortStrings(values []string) {
+	for i := 1; i < len(values); i++ {
+		value := values[i]
+		j := i - 1
+		for ; j >= 0 && values[j] > value; j-- {
+			values[j+1] = values[j]
+		}
+		values[j+1] = value
+	}
 }
 
 func safeArtifactPath(base, artifact string) (string, error) {

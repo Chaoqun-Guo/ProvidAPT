@@ -307,6 +307,95 @@ func TestRunVerifiesArtifactHashes(t *testing.T) {
 	}
 }
 
+func TestRunValidatesRequiredArtifactMatrix(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	distDir := filepath.Join(dir, "dist")
+	checksumsPath := filepath.Join(distDir, "checksums.txt")
+
+	if err := os.MkdirAll(distDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	artifacts := map[string][]byte{
+		"providapt_linux_amd64.tar.gz": []byte("tarball"),
+		"providapt_amd64.deb":          []byte("deb"),
+		"providapt_x86_64.rpm":         []byte("rpm"),
+	}
+	var manifest strings.Builder
+	for name, data := range artifacts {
+		if err := os.WriteFile(filepath.Join(distDir, name), data, 0644); err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(data)
+		fmt.Fprintf(&manifest, "%x  %s\n", sum, name)
+	}
+	if err := os.WriteFile(checksumsPath, []byte(manifest.String()), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:             cfgPath,
+		ChecksumsPath:          checksumsPath,
+		ArtifactsDir:           distDir,
+		RequiredArtifactTypes:  []string{"archive", "deb", "rpm"},
+		Version:                "1.2.2",
+		Commit:                 "abcdef0",
+		BuildDate:              "2026-07-08T00:00:00Z",
+		ChecksumsSignaturePath: "",
+	})
+
+	if findCheck(t, report, "release_artifact_matrix").Status != StatusPass {
+		t.Fatalf("expected artifact matrix pass: %+v", report.Checks)
+	}
+	if report.HasFailures() {
+		t.Fatalf("unexpected failures: %+v", report.Checks)
+	}
+}
+
+func TestRunFailsMissingRequiredArtifactType(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	distDir := filepath.Join(dir, "dist")
+	checksumsPath := filepath.Join(distDir, "checksums.txt")
+	artifactData := []byte("tarball")
+
+	if err := os.MkdirAll(distDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(distDir, "providapt_linux_amd64.tar.gz"), artifactData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(artifactData)
+	if err := os.WriteFile(checksumsPath, []byte(fmt.Sprintf("%x  providapt_linux_amd64.tar.gz\n", sum)), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:            cfgPath,
+		ChecksumsPath:         checksumsPath,
+		ArtifactsDir:          distDir,
+		RequiredArtifactTypes: []string{"archive", "deb", "rpm"},
+		Version:               "1.2.2",
+		Commit:                "abcdef0",
+		BuildDate:             "2026-07-08T00:00:00Z",
+	})
+
+	if !report.HasFailures() {
+		t.Fatalf("expected missing artifact type failure: %+v", report.Checks)
+	}
+	check := findCheck(t, report, "release_artifact_matrix")
+	if check.Status != StatusFail || !strings.Contains(check.Message, "deb") || !strings.Contains(check.Message, "rpm") {
+		t.Fatalf("expected missing deb/rpm failure: %+v", report.Checks)
+	}
+}
+
 func TestRunFailsArtifactHashMismatch(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "providapt.toml")

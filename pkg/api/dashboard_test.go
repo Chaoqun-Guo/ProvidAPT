@@ -79,6 +79,10 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"class=\"card clickable\"",
 		"/api/v1/events/recent?limit=50",
 		"/api/v1/graph/export",
+		"investigationNodeInput",
+		"showInvestigationReport",
+		"downloadInvestigationReport",
+		"/api/v1/investigation/report?",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
@@ -136,10 +140,15 @@ func TestDashboardModuleActions(t *testing.T) {
 		"policyTargetTag",
 		"Publish Draft",
 		"Browse Rules",
+		"Show Diff",
+		"data.diff",
 		"loadAlertWorkflowFiltered('open')",
 		"runAlertWorkflowAction('assign'",
 		"runAlertWorkflowAction('silence'",
 		"runAlertWorkflowAction('close'",
+		"runAlertWorkflowBulkAction('close')",
+		"runAlertWorkflowBulkAction('silence')",
+		"sla_status",
 		"showDeliveriesByStatus('dead_letter')",
 		"showDeliveryRisk('channels')",
 		"showDeliveryRisk('tickets')",

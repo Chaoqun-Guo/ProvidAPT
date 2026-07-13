@@ -17,6 +17,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -99,6 +100,23 @@ type ClusterOverview struct {
 
 type ClusterOverviewFunc func() ClusterOverview
 
+type HAStatus struct {
+	UpdatedAt      string   `json:"updated_at"`
+	Mode           string   `json:"mode"`
+	NodeID         string   `json:"node_id,omitempty"`
+	Role           string   `json:"role,omitempty"`
+	LeaderID       string   `json:"leader_id,omitempty"`
+	Healthy        bool     `json:"healthy"`
+	PeerCount      int      `json:"peer_count"`
+	Peers          []string `json:"peers,omitempty"`
+	StateBackend   string   `json:"state_backend,omitempty"`
+	LastCheckpoint string   `json:"last_checkpoint,omitempty"`
+	FailoverReady  bool     `json:"failover_ready"`
+	Message        string   `json:"message,omitempty"`
+}
+
+type HAStatusFunc func() HAStatus
+
 type FleetList struct {
 	UpdatedAt string               `json:"updated_at"`
 	Group     string               `json:"group,omitempty"`
@@ -110,17 +128,32 @@ type FleetList struct {
 type FleetListFunc func(group, tag string) FleetList
 
 type FleetUpdate struct {
-	AgentID string   `json:"agent_id"`
-	Action  string   `json:"action,omitempty"`
-	Group   string   `json:"group,omitempty"`
-	Tags    []string `json:"tags,omitempty"`
-	Status  string   `json:"status,omitempty"`
-	Note    string   `json:"note,omitempty"`
-	Actor   string   `json:"actor,omitempty"`
-	Role    string   `json:"role,omitempty"`
+	AgentID  string   `json:"agent_id"`
+	AgentIDs []string `json:"agent_ids,omitempty"`
+	Action   string   `json:"action,omitempty"`
+	Group    string   `json:"group,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Status   string   `json:"status,omitempty"`
+	Note     string   `json:"note,omitempty"`
+	Actor    string   `json:"actor,omitempty"`
+	Role     string   `json:"role,omitempty"`
 }
 
 type FleetUpdateFunc func(update FleetUpdate) error
+
+type FleetUpdateItemResult struct {
+	AgentID string `json:"agent_id"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+type FleetUpdateResult struct {
+	Status    string                  `json:"status"`
+	Processed int                     `json:"processed"`
+	Succeeded int                     `json:"succeeded"`
+	Failed    int                     `json:"failed"`
+	Results   []FleetUpdateItemResult `json:"results"`
+}
 
 type SupportBundleSummary struct {
 	LastBundlePath  string               `json:"last_bundle_path,omitempty"`
@@ -486,10 +519,18 @@ type PolicyCenter struct {
 	Current   PolicySummary        `json:"current"`
 	Draft     PolicySummary        `json:"draft"`
 	History   []PolicySummary      `json:"history"`
+	Diff      []PolicyDiff         `json:"diff,omitempty"`
 	Actions   []ControlActionAudit `json:"actions,omitempty"`
 }
 
 type PolicyCenterFunc func() PolicyCenter
+
+type PolicyDiff struct {
+	Field  string      `json:"field"`
+	Before interface{} `json:"before,omitempty"`
+	After  interface{} `json:"after,omitempty"`
+	Status string      `json:"status"`
+}
 
 type PolicyBundleDownload struct {
 	Path     string
@@ -540,6 +581,9 @@ type AlertWorkflowItem struct {
 	LastSeen       string            `json:"last_seen,omitempty"`
 	LastNotifiedAt string            `json:"last_notified_at,omitempty"`
 	SilenceUntil   string            `json:"silence_until,omitempty"`
+	SLADeadline    string            `json:"sla_deadline,omitempty"`
+	SLAStatus      string            `json:"sla_status,omitempty"`
+	SLASecondsLeft int64             `json:"sla_seconds_left,omitempty"`
 	Note           string            `json:"note,omitempty"`
 	Details        map[string]string `json:"details,omitempty"`
 }
@@ -554,16 +598,26 @@ type AlertWorkflow struct {
 type AlertWorkflowFunc func(status, assignee string) AlertWorkflow
 
 type AlertWorkflowActionRequest struct {
-	Action   string `json:"action"`
-	AlertID  string `json:"alert_id,omitempty"`
-	Assignee string `json:"assignee,omitempty"`
-	Duration string `json:"duration,omitempty"`
-	Note     string `json:"note,omitempty"`
-	Actor    string `json:"actor,omitempty"`
-	Role     string `json:"role,omitempty"`
+	Action   string   `json:"action"`
+	AlertID  string   `json:"alert_id,omitempty"`
+	AlertIDs []string `json:"alert_ids,omitempty"`
+	Assignee string   `json:"assignee,omitempty"`
+	Duration string   `json:"duration,omitempty"`
+	Note     string   `json:"note,omitempty"`
+	Actor    string   `json:"actor,omitempty"`
+	Role     string   `json:"role,omitempty"`
 }
 
 type AlertWorkflowActionFunc func(req AlertWorkflowActionRequest) (AlertWorkflowItem, error)
+
+type AlertWorkflowActionResult struct {
+	Status    string              `json:"status"`
+	Processed int                 `json:"processed"`
+	Succeeded int                 `json:"succeeded"`
+	Failed    int                 `json:"failed"`
+	Alerts    []AlertWorkflowItem `json:"alerts,omitempty"`
+	Errors    []string            `json:"errors,omitempty"`
+}
 
 type NotifyDeliverySummary struct {
 	Delivered  int `json:"delivered"`
@@ -651,6 +705,42 @@ type NotifyDeliveryActionResult struct {
 
 type NotifyDeliveryActionFunc func(req NotifyDeliveryActionRequest) (NotifyDeliveryActionResult, error)
 
+type InvestigationNode struct {
+	ID        string                 `json:"id"`
+	Label     string                 `json:"label,omitempty"`
+	Type      string                 `json:"type,omitempty"`
+	ProvType  string                 `json:"prov_type,omitempty"`
+	FirstSeen string                 `json:"first_seen,omitempty"`
+	LastSeen  string                 `json:"last_seen,omitempty"`
+	Attrs     map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type InvestigationEdge struct {
+	ID        string                 `json:"id"`
+	Source    string                 `json:"source"`
+	Target    string                 `json:"target"`
+	Relation  string                 `json:"relation"`
+	Timestamp string                 `json:"timestamp,omitempty"`
+	Count     int                    `json:"count,omitempty"`
+	Attrs     map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type InvestigationReport struct {
+	GeneratedAt     string              `json:"generated_at"`
+	StartNode       string              `json:"start_node"`
+	Direction       string              `json:"direction"`
+	Depth           int                 `json:"depth"`
+	NodeCount       int                 `json:"node_count"`
+	EdgeCount       int                 `json:"edge_count"`
+	ProcessCount    int                 `json:"process_count"`
+	FileCount       int                 `json:"file_count"`
+	NetworkCount    int                 `json:"network_count"`
+	RiskSummary     string              `json:"risk_summary"`
+	KeyObservations []string            `json:"key_observations"`
+	Nodes           []InvestigationNode `json:"nodes"`
+	Edges           []InvestigationEdge `json:"edges"`
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Server
 // ═══════════════════════════════════════════════════════════════
@@ -662,6 +752,7 @@ type Server struct {
 	backtracer               *backtrace.Backtracer
 	healthFn                 HealthCheckFunc
 	clusterFn                ClusterOverviewFunc
+	haFn                     HAStatusFunc
 	fleetListFn              FleetListFunc
 	fleetSetFn               FleetUpdateFunc
 	supportFn                SupportBundleFunc
@@ -693,6 +784,7 @@ type Server struct {
 	authRoles                map[string]string
 	authIDs                  map[string]string
 	authTenants              map[string]string
+	authPermissions          map[string][]string
 	authEnabled              bool
 	trustedHeaderAuthEnabled bool
 	trustedUserHeader        string
@@ -722,6 +814,10 @@ func (s *Server) SetHealthFunc(fn HealthCheckFunc) {
 
 func (s *Server) SetClusterOverviewFunc(fn ClusterOverviewFunc) {
 	s.clusterFn = fn
+}
+
+func (s *Server) SetHAStatusFunc(fn HAStatusFunc) {
+	s.haFn = fn
 }
 
 func (s *Server) SetFleetListFunc(fn FleetListFunc) {
@@ -874,6 +970,22 @@ func (s *Server) SetDefaultControlHandlers() {
 			HealthyAgents:  1,
 			DegradedAgents: 0,
 			Agents:         []ClusterAgent{localAgent()},
+		}
+	}
+
+	// 1b. HA Status — standalone by default, override in clustered deployments.
+	s.haFn = func() HAStatus {
+		return HAStatus{
+			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
+			Mode:          "standalone",
+			NodeID:        hostname,
+			Role:          "leader",
+			LeaderID:      hostname,
+			Healthy:       true,
+			PeerCount:     0,
+			StateBackend:  "local",
+			FailoverReady: false,
+			Message:       "single-node control plane",
 		}
 	}
 
@@ -1036,6 +1148,10 @@ func (s *Server) SetAPIAuthTenants(tenants map[string]string) {
 	s.authTenants = tenants
 }
 
+func (s *Server) SetAPIAuthPermissions(permissions map[string][]string) {
+	s.authPermissions = permissions
+}
+
 func (s *Server) SetTrustedHeaderAuth(enabled bool, userHeader, roleHeader string) {
 	s.trustedHeaderAuthEnabled = enabled
 	s.trustedUserHeader = strings.TrimSpace(userHeader)
@@ -1067,7 +1183,7 @@ func (s *Server) buildHandlerChain() http.Handler {
 	if s.rateLimiter != nil {
 		h = rateLimitMiddleware(s.rateLimiter)(h)
 	}
-	h = authorizationMiddleware()(h)
+	h = authorizationMiddleware(s.authPermissions)(h)
 	h = authMiddleware(s.authKeys, s.authRoles, s.authIDs, s.authTenants, s.authEnabled, trustedHeaderAuthConfig{
 		Enabled:      s.trustedHeaderAuthEnabled,
 		UserHeader:   s.trustedUserHeader,
@@ -1117,6 +1233,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	mux.HandleFunc("/api/v1/status", s.jsonHandler(s.handleStatus))
 	mux.HandleFunc("/api/v1/control/overview", s.jsonHandler(s.handleClusterOverview))
+	mux.HandleFunc("/api/v1/control/ha", s.jsonHandler(s.handleHAStatus))
 	mux.HandleFunc("/api/v1/control/fleet", s.jsonHandler(s.handleFleet))
 	mux.HandleFunc("/api/v1/control/support", s.jsonHandler(s.handleSupportBundles))
 	mux.HandleFunc("/api/v1/control/support/download", s.handleSupportBundleDownload)
@@ -1137,6 +1254,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/alerts/", s.jsonHandler(s.handleAlerts))
 	mux.HandleFunc("/api/v1/admin/reload", s.jsonHandler(s.handleReload))
 	mux.HandleFunc("/api/v1/events/search", s.jsonHandler(s.handleEventSearch))
+	mux.HandleFunc("/api/v1/investigation/report", s.jsonHandler(s.handleInvestigationReport))
 	mux.HandleFunc("/dashboard", s.handleDashboard)
 	mux.HandleFunc("/", s.handleDashboard)
 	mux.HandleFunc("/api/v1/events/recent", s.jsonHandler(s.handleEventRecent))
@@ -1227,6 +1345,23 @@ func (s *Server) handleClusterOverview(w http.ResponseWriter, r *http.Request) e
 	return json.NewEncoder(w).Encode(overview)
 }
 
+func (s *Server) handleHAStatus(w http.ResponseWriter, _ *http.Request) error {
+	status := HAStatus{
+		UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
+		Mode:          "standalone",
+		Healthy:       true,
+		StateBackend:  "local",
+		FailoverReady: false,
+	}
+	if s.haFn != nil {
+		status = s.haFn()
+		if status.UpdatedAt == "" {
+			status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		}
+	}
+	return json.NewEncoder(w).Encode(status)
+}
+
 func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
 	case http.MethodGet:
@@ -1268,13 +1403,35 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 		if update.Actor == "" {
 			update.Actor = CurrentActor(r)
 		}
-		if strings.TrimSpace(update.AgentID) == "" {
+		agentIDs := normalizedFleetUpdateAgentIDs(update)
+		if len(agentIDs) == 0 {
 			return fmt.Errorf("agent_id is required")
 		}
-		if err := s.fleetSetFn(update); err != nil {
-			return err
+		result := FleetUpdateResult{
+			Status:  "ok",
+			Results: make([]FleetUpdateItemResult, 0, len(agentIDs)),
 		}
-		return json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		for _, agentID := range agentIDs {
+			item := update
+			item.AgentID = agentID
+			item.AgentIDs = nil
+			result.Processed++
+			if err := s.fleetSetFn(item); err != nil {
+				result.Failed++
+				result.Results = append(result.Results, FleetUpdateItemResult{AgentID: agentID, Status: "failed", Message: err.Error()})
+				continue
+			}
+			result.Succeeded++
+			result.Results = append(result.Results, FleetUpdateItemResult{AgentID: agentID, Status: "ok"})
+		}
+		if result.Failed > 0 {
+			result.Status = "partial"
+			if result.Succeeded == 0 {
+				result.Status = "failed"
+				w.WriteHeader(http.StatusBadRequest)
+			}
+		}
+		return json.NewEncoder(w).Encode(result)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
@@ -1302,6 +1459,61 @@ func filterClusterOverviewForTenant(overview ClusterOverview, tenant string) Clu
 	}
 	filtered.TotalAgents = len(filtered.Agents)
 	return filtered
+}
+
+func normalizedFleetUpdateAgentIDs(update FleetUpdate) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(agentID string) {
+		agentID = strings.TrimSpace(agentID)
+		if agentID == "" || seen[agentID] {
+			return
+		}
+		seen[agentID] = true
+		out = append(out, agentID)
+	}
+	add(update.AgentID)
+	for _, agentID := range update.AgentIDs {
+		add(agentID)
+	}
+	return out
+}
+
+func normalizedAlertActionIDs(req AlertWorkflowActionRequest) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(alertID string) {
+		alertID = strings.TrimSpace(alertID)
+		if alertID == "" || seen[alertID] {
+			return
+		}
+		seen[alertID] = true
+		out = append(out, alertID)
+	}
+	add(req.AlertID)
+	for _, alertID := range req.AlertIDs {
+		add(alertID)
+	}
+	return out
+}
+
+func diffPolicySummaries(current, draft PolicySummary) []PolicyDiff {
+	var diff []PolicyDiff
+	add := func(field string, before, after interface{}) {
+		if fmt.Sprint(before) == fmt.Sprint(after) {
+			return
+		}
+		diff = append(diff, PolicyDiff{Field: field, Before: before, After: after, Status: "changed"})
+	}
+	add("active_rules", current.ActiveRules, draft.ActiveRules)
+	add("sigma_rule_ids", strings.Join(current.SigmaRuleIDs, ","), strings.Join(draft.SigmaRuleIDs, ","))
+	add("whitelist_count", current.WhitelistCount, draft.WhitelistCount)
+	add("taint_source_count", current.TaintSourceCount, draft.TaintSourceCount)
+	add("notes", current.Notes, draft.Notes)
+	if len(diff) == 0 {
+		diff = append(diff, PolicyDiff{Field: "policy", Status: "unchanged"})
+	}
+	return diff
 }
 
 func filterAuditFeedForTenant(feed AuditFeed, tenant string) AuditFeed {
@@ -1731,6 +1943,9 @@ func (s *Server) handlePolicies(w http.ResponseWriter, r *http.Request) error {
 				center.History = []PolicySummary{}
 			}
 		}
+		if len(center.Diff) == 0 {
+			center.Diff = diffPolicySummaries(center.Current, center.Draft)
+		}
 		return json.NewEncoder(w).Encode(center)
 	case http.MethodPost:
 		if s.policyActFn == nil {
@@ -1832,6 +2047,35 @@ func (s *Server) handleAlertWorkflow(w http.ResponseWriter, r *http.Request) err
 		req.Role = CurrentRole(r)
 		if req.Actor == "" {
 			req.Actor = CurrentActor(r)
+		}
+		alertIDs := normalizedAlertActionIDs(req)
+		if len(alertIDs) > 1 {
+			result := AlertWorkflowActionResult{Status: "ok", Alerts: []AlertWorkflowItem{}}
+			for _, alertID := range alertIDs {
+				itemReq := req
+				itemReq.AlertID = alertID
+				itemReq.AlertIDs = nil
+				result.Processed++
+				item, err := s.alertActFn(itemReq)
+				if err != nil {
+					result.Failed++
+					result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", alertID, err))
+					continue
+				}
+				result.Succeeded++
+				result.Alerts = append(result.Alerts, item)
+			}
+			if result.Failed > 0 {
+				result.Status = "partial"
+				if result.Succeeded == 0 {
+					result.Status = "failed"
+					w.WriteHeader(http.StatusBadRequest)
+				}
+			}
+			return json.NewEncoder(w).Encode(result)
+		}
+		if len(alertIDs) == 1 {
+			req.AlertID = alertIDs[0]
 		}
 		result, err := s.alertActFn(req)
 		if err != nil {
@@ -1968,6 +2212,93 @@ func (s *Server) forward(w http.ResponseWriter, nodeID string, depth int) error 
 		queue = next
 	}
 	return writeCytoscape(w, nodes, edges)
+}
+
+func (s *Server) handleInvestigationReport(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
+	startNode := strings.TrimSpace(r.URL.Query().Get("node"))
+	if startNode == "" {
+		if pid := strings.TrimSpace(r.URL.Query().Get("pid")); pid != "" {
+			startNode = "p:" + pid
+		}
+	}
+	if startNode == "" {
+		return fmt.Errorf("node or pid is required")
+	}
+	direction := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("direction")))
+	if direction == "" {
+		direction = "backward"
+	}
+	depth := queryInt(r, "depth", 5)
+	nodes, edges, err := s.traceNodesAndEdges(startNode, direction, depth)
+	if err != nil {
+		return err
+	}
+	report := buildInvestigationReport(startNode, direction, depth, nodes, edges)
+	if strings.EqualFold(r.URL.Query().Get("format"), "markdown") {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		_, err := w.Write([]byte(renderInvestigationMarkdown(report)))
+		return err
+	}
+	return json.NewEncoder(w).Encode(report)
+}
+
+func (s *Server) traceNodesAndEdges(nodeID, direction string, depth int) ([]*provenance.Node, []*provenance.Edge, error) {
+	if depth <= 0 {
+		depth = 1
+	}
+	switch direction {
+	case "backward":
+		result, err := s.backtracer.Trace(&backtrace.TraceRequest{
+			StartID:  nodeID,
+			MaxDepth: depth,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("trace: %w", err)
+		}
+		var nodes []*provenance.Node
+		var edges []*provenance.Edge
+		for _, seg := range result.Segments {
+			nodes = append(nodes, seg.Nodes...)
+			edges = append(edges, seg.Edges...)
+		}
+		return dedupeNodes(nodes), dedupeEdges(edges), nil
+	case "forward":
+		nodes, edges := s.collectForwardTrace(nodeID, depth)
+		return nodes, edges, nil
+	default:
+		return nil, nil, fmt.Errorf("unknown direction: %s (use backward or forward)", direction)
+	}
+}
+
+func (s *Server) collectForwardTrace(nodeID string, depth int) ([]*provenance.Node, []*provenance.Edge) {
+	seen := make(map[string]bool)
+	var nodes []*provenance.Node
+	var edges []*provenance.Edge
+	queue := []string{nodeID}
+	for d := 0; len(queue) > 0 && d < depth; d++ {
+		var next []string
+		for _, id := range queue {
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			if n, ok := s.graph.LookupNode(id); ok && n != nil {
+				nodes = append(nodes, n)
+			}
+			for _, e := range s.graph.Edges() {
+				if e.Source == id && !seen[e.Target] {
+					edges = append(edges, e)
+					next = append(next, e.Target)
+				}
+			}
+		}
+		queue = next
+	}
+	return dedupeNodes(nodes), dedupeEdges(edges)
 }
 
 // ── Alerts: /api/v1/alerts ──────────────────────────────────
@@ -2110,6 +2441,166 @@ func shortRel(rel string) string {
 		return "context"
 	}
 	return rel
+}
+
+func buildInvestigationReport(startNode, direction string, depth int, nodes []*provenance.Node, edges []*provenance.Edge) InvestigationReport {
+	report := InvestigationReport{
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		StartNode:   startNode,
+		Direction:   direction,
+		Depth:       depth,
+		NodeCount:   len(nodes),
+		EdgeCount:   len(edges),
+		Nodes:       make([]InvestigationNode, 0, len(nodes)),
+		Edges:       make([]InvestigationEdge, 0, len(edges)),
+	}
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		switch node.Subtype {
+		case "process":
+			report.ProcessCount++
+		case "file":
+			report.FileCount++
+		case "network":
+			report.NetworkCount++
+		}
+		report.Nodes = append(report.Nodes, InvestigationNode{
+			ID:        node.ID,
+			Label:     node.Label,
+			Type:      node.Subtype,
+			ProvType:  node.ProvType,
+			FirstSeen: formatAPITime(node.FirstSeen),
+			LastSeen:  formatAPITime(node.LastSeen),
+			Attrs:     node.Attributes,
+		})
+	}
+	for _, edge := range edges {
+		if edge == nil {
+			continue
+		}
+		report.Edges = append(report.Edges, InvestigationEdge{
+			ID:        edge.ID,
+			Source:    edge.Source,
+			Target:    edge.Target,
+			Relation:  shortRel(edge.Relation),
+			Timestamp: formatAPITime(edge.Timestamp),
+			Count:     edge.Count,
+			Attrs:     edge.Attributes,
+		})
+	}
+	sort.Slice(report.Nodes, func(i, j int) bool {
+		if report.Nodes[i].FirstSeen == report.Nodes[j].FirstSeen {
+			return report.Nodes[i].ID < report.Nodes[j].ID
+		}
+		return report.Nodes[i].FirstSeen < report.Nodes[j].FirstSeen
+	})
+	sort.Slice(report.Edges, func(i, j int) bool {
+		if report.Edges[i].Timestamp == report.Edges[j].Timestamp {
+			return report.Edges[i].ID < report.Edges[j].ID
+		}
+		return report.Edges[i].Timestamp < report.Edges[j].Timestamp
+	})
+	report.RiskSummary, report.KeyObservations = investigationSummary(report)
+	return report
+}
+
+func investigationSummary(report InvestigationReport) (string, []string) {
+	var observations []string
+	if report.NodeCount == 0 {
+		return "No provenance nodes were found for the requested starting point.", []string{"Verify the node ID or PID and confirm the agent has ingested matching events."}
+	}
+	if report.FileCount > 0 {
+		observations = append(observations, fmt.Sprintf("%d file node(s) are connected to the trace.", report.FileCount))
+	}
+	if report.NetworkCount > 0 {
+		observations = append(observations, fmt.Sprintf("%d network node(s) are connected to the trace.", report.NetworkCount))
+	}
+	if report.ProcessCount > 1 {
+		observations = append(observations, fmt.Sprintf("%d process node(s) indicate process lineage or impact.", report.ProcessCount))
+	}
+	if report.EdgeCount == 0 {
+		observations = append(observations, "The trace contains no connecting edges at the selected depth.")
+	}
+	if len(observations) == 0 {
+		observations = append(observations, "Trace is narrow; increase depth or switch direction for more context.")
+	}
+	level := "Low"
+	if report.NetworkCount > 0 || report.ProcessCount >= 3 {
+		level = "Medium"
+	}
+	if report.NetworkCount > 0 && report.FileCount > 0 && report.ProcessCount >= 2 {
+		level = "High"
+	}
+	return fmt.Sprintf("%s investigation scope: %d node(s), %d edge(s), direction=%s.", level, report.NodeCount, report.EdgeCount, report.Direction), observations
+}
+
+func renderInvestigationMarkdown(report InvestigationReport) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# ProvidAPT Investigation Report\n\n")
+	fmt.Fprintf(&b, "| Field | Value |\n|---|---|\n")
+	fmt.Fprintf(&b, "| Generated At | %s |\n", escapeMarkdownCell(report.GeneratedAt))
+	fmt.Fprintf(&b, "| Start Node | `%s` |\n", escapeMarkdownCell(report.StartNode))
+	fmt.Fprintf(&b, "| Direction | `%s` |\n", escapeMarkdownCell(report.Direction))
+	fmt.Fprintf(&b, "| Depth | %d |\n", report.Depth)
+	fmt.Fprintf(&b, "| Nodes | %d |\n", report.NodeCount)
+	fmt.Fprintf(&b, "| Edges | %d |\n", report.EdgeCount)
+	fmt.Fprintf(&b, "| Risk Summary | %s |\n\n", escapeMarkdownCell(report.RiskSummary))
+	fmt.Fprintf(&b, "## Key Observations\n\n")
+	for _, observation := range report.KeyObservations {
+		fmt.Fprintf(&b, "- %s\n", observation)
+	}
+	fmt.Fprintf(&b, "\n## Timeline\n\n")
+	fmt.Fprintf(&b, "| Time | Type | ID | Label |\n|---|---|---|---|\n")
+	for _, node := range report.Nodes {
+		fmt.Fprintf(&b, "| %s | %s | `%s` | %s |\n", escapeMarkdownCell(node.FirstSeen), escapeMarkdownCell(node.Type), escapeMarkdownCell(node.ID), escapeMarkdownCell(node.Label))
+	}
+	fmt.Fprintf(&b, "\n## Relations\n\n")
+	fmt.Fprintf(&b, "| Time | Relation | Source | Target | Count |\n|---|---|---|---|---|\n")
+	for _, edge := range report.Edges {
+		fmt.Fprintf(&b, "| %s | %s | `%s` | `%s` | %d |\n", escapeMarkdownCell(edge.Timestamp), escapeMarkdownCell(edge.Relation), escapeMarkdownCell(edge.Source), escapeMarkdownCell(edge.Target), edge.Count)
+	}
+	return b.String()
+}
+
+func dedupeNodes(nodes []*provenance.Node) []*provenance.Node {
+	seen := make(map[string]bool, len(nodes))
+	out := make([]*provenance.Node, 0, len(nodes))
+	for _, node := range nodes {
+		if node == nil || seen[node.ID] {
+			continue
+		}
+		seen[node.ID] = true
+		out = append(out, node)
+	}
+	return out
+}
+
+func dedupeEdges(edges []*provenance.Edge) []*provenance.Edge {
+	seen := make(map[string]bool, len(edges))
+	out := make([]*provenance.Edge, 0, len(edges))
+	for _, edge := range edges {
+		if edge == nil || seen[edge.ID] {
+			continue
+		}
+		seen[edge.ID] = true
+		out = append(out, edge)
+	}
+	return out
+}
+
+func formatAPITime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func escapeMarkdownCell(value string) string {
+	value = strings.ReplaceAll(value, "\r\n", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	return strings.ReplaceAll(value, "|", "\\|")
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -38,6 +38,24 @@ curl "http://localhost:8080/api/v1/status?api_key=admin-key"
 | `analyst` | Read-only graph, alert, fleet, policy, delivery, license, and upgrade views; no administrative mutations. |
 | `auditor` | Read-only audit, status, dashboard, and compliance evidence views. |
 
+Custom roles can be declared with explicit method/path permissions:
+
+```toml
+[api.auth_roles]
+"operator-key" = "operator"
+
+[api.auth_permissions]
+operator = [
+  "GET:/api/v1/control/fleet",
+  "GET:/api/v1/control/ha",
+  "GET:/api/v1/investigation/report"
+]
+```
+
+Permission entries use `METHOD:/path/prefix`; `*` is allowed for either method
+or path only when an intentionally broad role is required. Unknown roles without
+`api.auth_permissions` are denied.
+
 ## Tenant Scoping
 
 Use `api.auth_tenants` to bind an API key to a tenant or fleet group. Non-admin requests to `/api/v1/control/fleet` are restricted to the configured tenant. If a non-admin supplies a different `group`, the API returns `403`.
@@ -54,7 +72,7 @@ role_header = "X-Forwarded-Role"
 tenant_header = "X-Forwarded-Tenant"
 ```
 
-When enabled, ProvidAPT reads the configured headers and maps the request to an actor, role, and optional tenant. Missing or unknown roles default to `admin`, so production proxies should always send an explicit role.
+When enabled, ProvidAPT reads the configured headers and maps the request to an actor, role, and optional tenant. Missing roles default to `admin` for local compatibility; unknown custom roles require matching `api.auth_permissions` entries.
 
 ## Security Notes
 

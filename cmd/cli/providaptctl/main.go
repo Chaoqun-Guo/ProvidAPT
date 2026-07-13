@@ -90,6 +90,9 @@ EXAMPLES
     providaptctl -release-check -release-artifacts-dir dist
         Verify release artifact hashes against the checksum manifest.
 
+    providaptctl -release-check -release-required-artifacts archive,deb,rpm
+        Require commercial artifact types to be present in checksums.txt.
+
     providaptctl -release-check -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json
         Validate SPDX or CycloneDX SBOM evidence files.
 `)
@@ -97,52 +100,53 @@ EXAMPLES
 
 func main() {
 	var (
-		status           = flag.Bool("status", false, "Query daemon status")
-		stop             = flag.Bool("stop", false, "Stop the daemon")
-		restart          = flag.Bool("restart", false, "Restart the daemon")
-		cfgPath          = flag.String("config", "/etc/providapt/providapt.toml", "Config file path")
-		jsonOut          = flag.Bool("json", false, "Output in JSON format")
-		diagnose         = flag.Bool("diagnose", false, "Collect diagnostic bundle")
-		diagnoseOut      = flag.String("diagnose-out", "/var/log/providapt", "Diagnostic bundle output directory")
-		audit            = flag.Bool("audit", false, "Query audit log")
-		auditCat         = flag.String("audit-cat", "all", "Audit category: security, admin, system, integrity, all")
-		auditSince       = flag.String("audit-since", "", "Show entries since duration (e.g. 24h, 7d)")
-		auditLimit       = flag.Int("audit-limit", 50, "Max audit entries to show")
-		reload           = flag.Bool("reload", false, "Trigger config reload via daemon API")
-		report           = flag.Bool("report", false, "Generate MITRE ATT&CK heatmap report")
-		reportOut        = flag.String("report-out", "", "Report output path")
-		dashboard        = flag.Bool("dashboard", false, "Live terminal dashboard (real-time monitoring)")
-		bpf              = flag.Bool("bpf", false, "Inspect eBPF state (capabilities, programs, pinned maps)")
-		verify           = flag.Bool("verify", false, "Verify store consistency")
-		verifyRepair     = flag.Bool("repair", false, "Repair fixable issues (used with -verify)")
-		purge            = flag.Bool("purge", false, "Purge stored data")
-		purgeMode        = flag.String("purge-mode", "time", "Purge mode: time, capacity, compliance")
-		purgeCutoff      = flag.String("purge-cutoff", "", "Purge cutoff time (RFC3339, e.g. 2026-01-01T00:00:00Z)")
-		purgeMax         = flag.Int64("purge-maxbytes", 0, "Target remaining bytes for capacity mode")
-		purgeDryRun      = flag.Bool("purge-dry-run", false, "Preview purge without deleting")
-		replay           = flag.Bool("replay", false, "Replay events from NDJSON logs")
-		replayInput      = flag.String("replay-input", "", "Input directory with NDJSON files (default: output dir)")
-		replayMax        = flag.Int("replay-max", 0, "Max events to replay (0 = unlimited)")
-		archive          = flag.Bool("archive", false, "Archive old event logs")
-		archiveDir       = flag.String("archive-dir", "", "Input directory with NDJSON files (default: output dir)")
-		archiveAge       = flag.Int("archive-age", 7, "Archive files older than N days")
-		archiveDryRun    = flag.Bool("archive-dry-run", false, "Preview archive without archiving")
-		genrules         = flag.Bool("genrules", false, "Generate Prometheus alert rules")
-		genrulesOut      = flag.String("genrules-out", "", "Output path for rules file")
-		profileFlag      = flag.Bool("profile", false, "Collect performance profile")
-		backupFlag       = flag.Bool("backup", false, "Backup store to tar.gz archive")
-		backupOut        = flag.String("backup-out", "", "Backup output path (.tar.gz)")
-		restoreFlag      = flag.Bool("restore", false, "Restore store from tar.gz backup")
-		restoreIn        = flag.String("restore-in", "", "Backup input path (.tar.gz)")
-		configCheck      = flag.Bool("config-check", false, "Validate config file and exit")
-		releaseCheck     = flag.Bool("release-check", false, "Run commercial release readiness checks")
-		evidencePath     = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
-		waiverPath       = flag.String("release-waivers", "", "Release warning waiver JSON file")
-		checksumsPath    = flag.String("release-checksums", "", "Release artifact checksums file")
-		checksumsSigPath = flag.String("release-checksums-signature", "", "Release checksums detached signature file")
-		artifactsDir     = flag.String("release-artifacts-dir", "", "Release artifact directory for checksum verification")
-		sbomPaths        = flag.String("release-sbom", "", "Release SBOM JSON file(s), separated by comma or semicolon")
-		releaseOut       = flag.String("release-check-out", "", "Write release check report (.md or .json)")
+		status            = flag.Bool("status", false, "Query daemon status")
+		stop              = flag.Bool("stop", false, "Stop the daemon")
+		restart           = flag.Bool("restart", false, "Restart the daemon")
+		cfgPath           = flag.String("config", "/etc/providapt/providapt.toml", "Config file path")
+		jsonOut           = flag.Bool("json", false, "Output in JSON format")
+		diagnose          = flag.Bool("diagnose", false, "Collect diagnostic bundle")
+		diagnoseOut       = flag.String("diagnose-out", "/var/log/providapt", "Diagnostic bundle output directory")
+		audit             = flag.Bool("audit", false, "Query audit log")
+		auditCat          = flag.String("audit-cat", "all", "Audit category: security, admin, system, integrity, all")
+		auditSince        = flag.String("audit-since", "", "Show entries since duration (e.g. 24h, 7d)")
+		auditLimit        = flag.Int("audit-limit", 50, "Max audit entries to show")
+		reload            = flag.Bool("reload", false, "Trigger config reload via daemon API")
+		report            = flag.Bool("report", false, "Generate MITRE ATT&CK heatmap report")
+		reportOut         = flag.String("report-out", "", "Report output path")
+		dashboard         = flag.Bool("dashboard", false, "Live terminal dashboard (real-time monitoring)")
+		bpf               = flag.Bool("bpf", false, "Inspect eBPF state (capabilities, programs, pinned maps)")
+		verify            = flag.Bool("verify", false, "Verify store consistency")
+		verifyRepair      = flag.Bool("repair", false, "Repair fixable issues (used with -verify)")
+		purge             = flag.Bool("purge", false, "Purge stored data")
+		purgeMode         = flag.String("purge-mode", "time", "Purge mode: time, capacity, compliance")
+		purgeCutoff       = flag.String("purge-cutoff", "", "Purge cutoff time (RFC3339, e.g. 2026-01-01T00:00:00Z)")
+		purgeMax          = flag.Int64("purge-maxbytes", 0, "Target remaining bytes for capacity mode")
+		purgeDryRun       = flag.Bool("purge-dry-run", false, "Preview purge without deleting")
+		replay            = flag.Bool("replay", false, "Replay events from NDJSON logs")
+		replayInput       = flag.String("replay-input", "", "Input directory with NDJSON files (default: output dir)")
+		replayMax         = flag.Int("replay-max", 0, "Max events to replay (0 = unlimited)")
+		archive           = flag.Bool("archive", false, "Archive old event logs")
+		archiveDir        = flag.String("archive-dir", "", "Input directory with NDJSON files (default: output dir)")
+		archiveAge        = flag.Int("archive-age", 7, "Archive files older than N days")
+		archiveDryRun     = flag.Bool("archive-dry-run", false, "Preview archive without archiving")
+		genrules          = flag.Bool("genrules", false, "Generate Prometheus alert rules")
+		genrulesOut       = flag.String("genrules-out", "", "Output path for rules file")
+		profileFlag       = flag.Bool("profile", false, "Collect performance profile")
+		backupFlag        = flag.Bool("backup", false, "Backup store to tar.gz archive")
+		backupOut         = flag.String("backup-out", "", "Backup output path (.tar.gz)")
+		restoreFlag       = flag.Bool("restore", false, "Restore store from tar.gz backup")
+		restoreIn         = flag.String("restore-in", "", "Backup input path (.tar.gz)")
+		configCheck       = flag.Bool("config-check", false, "Validate config file and exit")
+		releaseCheck      = flag.Bool("release-check", false, "Run commercial release readiness checks")
+		evidencePath      = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
+		waiverPath        = flag.String("release-waivers", "", "Release warning waiver JSON file")
+		checksumsPath     = flag.String("release-checksums", "", "Release artifact checksums file")
+		checksumsSigPath  = flag.String("release-checksums-signature", "", "Release checksums detached signature file")
+		artifactsDir      = flag.String("release-artifacts-dir", "", "Release artifact directory for checksum verification")
+		requiredArtifacts = flag.String("release-required-artifacts", "archive,deb,rpm", "Required artifact types in checksum manifest, separated by comma or semicolon")
+		sbomPaths         = flag.String("release-sbom", "", "Release SBOM JSON file(s), separated by comma or semicolon")
+		releaseOut        = flag.String("release-check-out", "", "Write release check report (.md or .json)")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -195,7 +199,7 @@ func main() {
 		cmdConfigCheck(*cfgPath)
 		os.Exit(0)
 	case *releaseCheck:
-		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *checksumsPath, *checksumsSigPath, *artifactsDir, splitReleasePaths(*sbomPaths), *releaseOut))
+		os.Exit(cmdReleaseCheck(*cfgPath, *evidencePath, *waiverPath, *checksumsPath, *checksumsSigPath, *artifactsDir, splitReleasePaths(*requiredArtifacts), splitReleasePaths(*sbomPaths), *releaseOut))
 	case *backupFlag:
 		cmdBackup(*cfgPath, *backupOut)
 		os.Exit(0)
@@ -433,7 +437,7 @@ func cmdDiagnose(outDir string) {
 	t.Render()
 }
 
-func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, checksumsSigPath, artifactsDir string, sbomPaths []string, reportPath string) int {
+func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, checksumsSigPath, artifactsDir string, requiredArtifacts, sbomPaths []string, reportPath string) int {
 	report := releasecheck.Run(releasecheck.Options{
 		ConfigPath:             cfgPath,
 		EvidencePath:           evidencePath,
@@ -441,6 +445,7 @@ func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, checksums
 		ChecksumsPath:          checksumsPath,
 		ChecksumsSignaturePath: checksumsSigPath,
 		ArtifactsDir:           artifactsDir,
+		RequiredArtifactTypes:  requiredArtifacts,
 		SBOMPaths:              sbomPaths,
 		Version:                version.Version,
 		Commit:                 version.Commit,

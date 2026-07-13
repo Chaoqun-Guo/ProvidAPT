@@ -260,6 +260,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button class="secondary" onclick="showPolicyDetails('rules')">Browse Rules</button>
         <button class="secondary" onclick="showPolicyDetails('deployment')">Deployment</button>
         <button class="secondary" onclick="showPolicyDetails('history')">Audit Trail</button>
+        <button class="secondary" onclick="showPolicyDetails('diff')">Show Diff</button>
         <button id="downloadPolicyBundleBtn" class="secondary" onclick="downloadPolicyBundle()">Download Bundle</button>
       </div>
       <div class="policy-editor">
@@ -307,6 +308,10 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       </div>
       <div class="alerts-list" id="workflowAlertsList">
         <div class="loading">Loading workflow alerts...</div>
+      </div>
+      <div class="action-row">
+        <button class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Open Batch</button>
+        <button class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Open Batch</button>
       </div>
       <div class="loading" style="margin-top:12px;">Recent Workflow Actions</div>
       <div class="alerts-list" id="workflowHistoryList">
@@ -376,6 +381,11 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button onclick="showDroppedEvents()">Dropped Events</button>
         <button onclick="showRuntimeDetails('runtime')">Runtime</button>
         <button onclick="window.open('/api/v1/graph/export', '_blank', 'noreferrer')">Export Graph JSON</button>
+      </div>
+      <div class="policy-editor" style="grid-template-columns: 1fr auto auto; margin-bottom:8px;">
+        <input id="investigationNodeInput" placeholder="PID or node ID for investigation report">
+        <button class="secondary" onclick="showInvestigationReport()">Preview Report</button>
+        <button class="secondary" onclick="downloadInvestigationReport()">Download Markdown</button>
       </div>
       <div class="alerts-list" id="investigationList">
         <div class="loading">Click a metric or action to inspect filtered data.</div>
@@ -941,6 +951,9 @@ function showPolicyDetails(scope) {
       renderKVItem('bundle', current.bundle_sha256 || '--', 'sha256'),
       renderKVItem('note', 'queued means rollout is waiting for agent telemetry acknowledgement; applied means all targeted agents reported the policy version', 'state'),
     ];
+  } else if (scope === 'diff') {
+    const diff = data.diff || [];
+    items = diff.map(item => renderKVItem(item.field || 'policy', JSON.stringify(item.before || '--') + ' -> ' + JSON.stringify(item.after || '--'), item.status || 'changed'));
   } else {
     items = history.slice(0, 10).map(item => renderKVItem('v' + (item.version || '--'), (item.state || '--') + ' · rules ' + (item.active_rules || 0) + (item.notes ? (' · ' + item.notes) : ''), formatTime(item.published_at || item.updated_at)));
     items = items.concat(actions.slice(0, 5).map(item => renderKVItem(item.action || 'action', (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : ''), formatTime(item.performed_at))));
@@ -1448,10 +1461,11 @@ function workflowActionButtons(alert) {
 function renderWorkflowAlert(a) {
   const sev = a.severity || 'info';
   const actions = alertTraceActions(a);
+  const sla = a.sla_status ? (' · SLA ' + escapeHTML(a.sla_status)) : '';
   return '<div class="alert-item">' +
     '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
-    '<span class="alert-msg">' + escapeHTML(a.headline || a.pattern || 'Alert') + ' · ' + escapeHTML(a.status || 'open') + (a.assignee ? (' · ' + escapeHTML(a.assignee)) : '') + ' · x' + (a.count || 1) + workflowActionButtons(a) + '</span>' +
-    '<span class="alert-time">' + formatTime(a.last_seen || a.last_notified_at) + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(a.headline || a.pattern || 'Alert') + ' · ' + escapeHTML(a.status || 'open') + (a.assignee ? (' · ' + escapeHTML(a.assignee)) : '') + ' · x' + (a.count || 1) + sla + workflowActionButtons(a) + '</span>' +
+    '<span class="alert-time">' + formatTime(a.sla_deadline || a.last_seen || a.last_notified_at) + '</span>' +
     actions +
     '</div>';
 }
@@ -1493,6 +1507,36 @@ async function runAlertWorkflowAction(action, alertID) {
     setInvestigationItems(updated ? [renderWorkflowAlert(updated)] : [], 'Alert action completed');
   } catch (e) {
     setInvestigationLoading('Alert workflow action failed: ' + e.message);
+  }
+}
+
+async function runAlertWorkflowBulkAction(action) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const alerts = (latestWorkflow.alerts || []).filter(item => String(item.status || '').toLowerCase() === 'open');
+  const ids = alerts.slice(0, 20).map(item => item.id).filter(Boolean);
+  if (ids.length === 0) {
+    setInvestigationLoading('No open alerts available for bulk action');
+    return;
+  }
+  const payload = {
+    action: action,
+    alert_ids: ids,
+    note: 'dashboard bulk ' + action,
+  };
+  if (action === 'silence') {
+    payload.duration = '30m';
+  }
+  try {
+    setInvestigationLoading('Running bulk alert action: ' + action + ' for ' + ids.length + ' alerts...');
+    const result = await postJSON('/api/v1/control/alerts', payload);
+    await loadAlertWorkflow();
+    setInvestigationItems([
+      renderKVItem('bulk ' + action, (result.succeeded || 0) + ' succeeded · ' + (result.failed || 0) + ' failed', result.status || 'done')
+    ], 'Bulk alert action completed');
+  } catch (e) {
+    setInvestigationLoading('Bulk alert workflow action failed: ' + e.message);
   }
 }
 
@@ -1903,6 +1947,40 @@ async function showRuntimeDetails(scope) {
     setInvestigationItems(items, 'Runtime details unavailable');
   } catch (e) {
     setInvestigationLoading('Runtime details unavailable: ' + e.message);
+  }
+}
+
+function investigationReportURL(format) {
+  const input = document.getElementById('investigationNodeInput');
+  const raw = input && input.value ? input.value.trim() : '';
+  const value = raw || '100';
+  const params = new URLSearchParams();
+  if (/^\d+$/.test(value)) params.set('pid', value); else params.set('node', value);
+  params.set('direction', 'backward');
+  params.set('depth', '5');
+  if (format) params.set('format', format);
+  return '/api/v1/investigation/report?' + params.toString();
+}
+
+async function showInvestigationReport() {
+  setInvestigationLoading('Generating investigation report...');
+  try {
+    const report = await fetchJSON(investigationReportURL(''));
+    const items = [
+      renderKVItem('summary', report.risk_summary || '--', report.generated_at),
+      renderKVItem('scope', (report.node_count || 0) + ' nodes · ' + (report.edge_count || 0) + ' edges', report.direction),
+    ].concat((report.key_observations || []).map(item => renderKVItem('observation', item, 'report')));
+    setInvestigationItems(items, 'No investigation report data');
+  } catch (e) {
+    setInvestigationLoading('Investigation report failed: ' + e.message);
+  }
+}
+
+async function downloadInvestigationReport() {
+  try {
+    await downloadWithAuth(investigationReportURL('markdown'), 'providapt-investigation-report.md');
+  } catch (e) {
+    setInvestigationLoading('Investigation report download failed: ' + e.message);
   }
 }
 

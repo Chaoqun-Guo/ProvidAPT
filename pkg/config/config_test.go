@@ -270,6 +270,17 @@ func TestValidateAuthRoles(t *testing.T) {
 	}
 }
 
+func TestValidateCustomAuthRolePermissions(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.API.AuthRoles = map[string]string{"ops-key": "operator"}
+	cfg.API.AuthPermissions = map[string][]string{
+		"operator": []string{"GET:/api/v1/control/fleet"},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate custom role: %v", err)
+	}
+}
+
 func TestPolicyEnvOverrides(t *testing.T) {
 	t.Setenv("PROVIDAPT_POLICY_ENABLED", "true")
 	t.Setenv("PROVIDAPT_POLICY_ENDPOINT", "https://control.example.test:8443")

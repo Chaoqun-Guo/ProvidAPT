@@ -29,6 +29,7 @@ type Options struct {
 	ChecksumsPath          string
 	ChecksumsSignaturePath string
 	ArtifactsDir           string
+	RequiredArtifactTypes  []string
 	SBOMPaths              []string
 	Version                string
 	Commit                 string
@@ -61,6 +62,7 @@ type Report struct {
 	ChecksumsPath          string    `json:"checksums_path,omitempty"`
 	ChecksumsSignaturePath string    `json:"checksums_signature_path,omitempty"`
 	ArtifactsDir           string    `json:"artifacts_dir,omitempty"`
+	RequiredArtifactTypes  []string  `json:"required_artifact_types,omitempty"`
 	SBOMPaths              []string  `json:"sbom_paths,omitempty"`
 	Version                string    `json:"version"`
 	Commit                 string    `json:"commit"`
@@ -84,6 +86,7 @@ func Run(opts Options) Report {
 		ChecksumsPath:          opts.ChecksumsPath,
 		ChecksumsSignaturePath: opts.ChecksumsSignaturePath,
 		ArtifactsDir:           opts.ArtifactsDir,
+		RequiredArtifactTypes:  cleanPathList(opts.RequiredArtifactTypes),
 		SBOMPaths:              opts.SBOMPaths,
 		Version:                opts.Version,
 		Commit:                 opts.Commit,
@@ -96,7 +99,7 @@ func Run(opts Options) Report {
 		checkCommercialConfig(&report, cfg)
 	}
 	checkReleaseEvidence(&report, opts.EvidencePath)
-	checkChecksums(&report, opts.ChecksumsPath, opts.ArtifactsDir)
+	checkChecksums(&report, opts.ChecksumsPath, opts.ArtifactsDir, report.RequiredArtifactTypes)
 	checkChecksumsSignature(&report, opts.ChecksumsSignaturePath)
 	checkSBOMs(&report, opts.SBOMPaths)
 	applyWaivers(&report, opts.WaiverPath)

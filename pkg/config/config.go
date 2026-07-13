@@ -47,16 +47,17 @@ type Config struct {
 	} `json:"capture" yaml:"capture"`
 
 	API struct {
-		GRPC            string            `json:"grpc" yaml:"grpc"`
-		REST            string            `json:"rest" yaml:"rest"`
-		AuthEnabled     bool              `json:"auth_enabled" yaml:"auth_enabled"`
-		AuthKeys        []string          `json:"auth_keys" yaml:"auth_keys"`
-		AuthRoles       map[string]string `json:"auth_roles" yaml:"auth_roles"`
-		AuthIdentities  map[string]string `json:"auth_identities" yaml:"auth_identities"`
-		AuthTenants     map[string]string `json:"auth_tenants" yaml:"auth_tenants"`
-		RateLimitPerSec float64           `json:"rate_limit_per_sec" yaml:"rate_limit_per_sec"`
-		RateLimitBurst  int               `json:"rate_limit_burst" yaml:"rate_limit_burst"`
-		CORSOrigins     []string          `json:"cors_origins" yaml:"cors_origins"`
+		GRPC            string              `json:"grpc" yaml:"grpc"`
+		REST            string              `json:"rest" yaml:"rest"`
+		AuthEnabled     bool                `json:"auth_enabled" yaml:"auth_enabled"`
+		AuthKeys        []string            `json:"auth_keys" yaml:"auth_keys"`
+		AuthRoles       map[string]string   `json:"auth_roles" yaml:"auth_roles"`
+		AuthIdentities  map[string]string   `json:"auth_identities" yaml:"auth_identities"`
+		AuthTenants     map[string]string   `json:"auth_tenants" yaml:"auth_tenants"`
+		AuthPermissions map[string][]string `json:"auth_permissions" yaml:"auth_permissions"`
+		RateLimitPerSec float64             `json:"rate_limit_per_sec" yaml:"rate_limit_per_sec"`
+		RateLimitBurst  int                 `json:"rate_limit_burst" yaml:"rate_limit_burst"`
+		CORSOrigins     []string            `json:"cors_origins" yaml:"cors_origins"`
 	} `json:"api" yaml:"api"`
 
 	SSO struct {
@@ -390,7 +391,8 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("gRPC address %q should be in format :port (e.g. :50051)", c.API.GRPC)
 	}
 	for key, role := range c.API.AuthRoles {
-		if role != "admin" && role != "analyst" && role != "auditor" {
+		role = strings.ToLower(strings.TrimSpace(role))
+		if role != "admin" && role != "analyst" && role != "auditor" && len(c.API.AuthPermissions[role]) == 0 {
 			return fmt.Errorf("unsupported API auth role %q for key %q", role, key)
 		}
 	}

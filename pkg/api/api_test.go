@@ -274,6 +274,33 @@ func TestFleetUpdateEndpoint(t *testing.T) {
 	}
 }
 
+func TestFleetBatchUpdateEndpoint(t *testing.T) {
+	ts := testServer(t)
+	var got []string
+	ts.SetFleetUpdateFunc(func(update FleetUpdate) error {
+		got = append(got, update.AgentID)
+		return nil
+	})
+
+	body := bytes.NewBufferString(`{"agent_ids":["agent-a","agent-b","agent-a"],"action":"quarantined","note":"batch incident"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", body)
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
+	}
+	if len(got) != 2 || got[0] != "agent-a" || got[1] != "agent-b" {
+		t.Fatalf("batch agent IDs = %#v", got)
+	}
+	var result FleetUpdateResult
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("decode result: %v", err)
+	}
+	if result.Processed != 2 || result.Succeeded != 2 || result.Failed != 0 {
+		t.Fatalf("unexpected result = %#v", result)
+	}
+}
+
 func TestFleetUpdateInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth(
@@ -305,6 +332,35 @@ func TestFleetUpdateInjectsActorAndRole(t *testing.T) {
 	}
 }
 
+func TestHAStatusEndpoint(t *testing.T) {
+	ts := testServer(t)
+	ts.SetHAStatusFunc(func() HAStatus {
+		return HAStatus{
+			Mode:          "active-passive",
+			NodeID:        "cp-1",
+			Role:          "leader",
+			LeaderID:      "cp-1",
+			Healthy:       true,
+			PeerCount:     2,
+			Peers:         []string{"cp-2", "cp-3"},
+			StateBackend:  "shared",
+			FailoverReady: true,
+		}
+	})
+
+	w := apiGet(ts, "/api/v1/control/ha")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var status HAStatus
+	if err := json.NewDecoder(w.Body).Decode(&status); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if status.Mode != "active-passive" || !status.FailoverReady || status.PeerCount != 2 || status.UpdatedAt == "" {
+		t.Fatalf("ha status = %#v", status)
+	}
+}
+
 func TestRBACAnalystForbiddenFleetUpdate(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
@@ -314,6 +370,28 @@ func TestRBACAnalystForbiddenFleetUpdate(t *testing.T) {
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
+	}
+}
+
+func TestRBACCustomRolePermissions(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"ops-key"}, map[string]string{"ops-key": "operator"}, nil, true)
+	ts.SetAPIAuthPermissions(map[string][]string{
+		"operator": []string{"GET:/api/v1/control/fleet", "GET:/api/v1/control/ha"},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/ha", nil)
+	req.Header.Set("X-API-Key", "ops-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("custom role allowed status = %d: %s", w.Code, w.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"a1"}`))
+	req.Header.Set("X-API-Key", "ops-key")
+	w = apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("custom role forbidden status = %d", w.Code)
 	}
 }
 
@@ -1204,6 +1282,10 @@ func TestPoliciesEndpoint(t *testing.T) {
 	if !ok || len(actions) != 1 {
 		t.Fatalf("actions = %#v", resp["actions"])
 	}
+	diff, ok := resp["diff"].([]interface{})
+	if !ok || len(diff) == 0 {
+		t.Fatalf("diff = %#v", resp["diff"])
+	}
 }
 
 func TestPolicyActionEndpoint(t *testing.T) {
@@ -1422,6 +1504,32 @@ func TestAlertWorkflowActionEndpoint(t *testing.T) {
 	}
 	if gotReq.Action != "assign" || gotReq.AlertID != "a-1" {
 		t.Fatalf("request = %#v", gotReq)
+	}
+}
+
+func TestAlertWorkflowBulkActionEndpoint(t *testing.T) {
+	ts := testServer(t)
+	var got []string
+	ts.SetAlertWorkflowActionFunc(func(req AlertWorkflowActionRequest) (AlertWorkflowItem, error) {
+		got = append(got, req.AlertID)
+		return AlertWorkflowItem{ID: req.AlertID, Status: "closed"}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"close","alert_ids":["a-1","a-2","a-1"],"note":"duplicate campaign"}`))
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
+	}
+	var resp AlertWorkflowActionResult
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Processed != 2 || resp.Succeeded != 2 || len(resp.Alerts) != 2 {
+		t.Fatalf("bulk result = %#v", resp)
+	}
+	if len(got) != 2 || got[0] != "a-1" || got[1] != "a-2" {
+		t.Fatalf("bulk IDs = %#v", got)
 	}
 }
 
@@ -1817,6 +1925,54 @@ func TestForwardTrace(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&resp)
 	t.Logf("forward trace from p:1: %d nodes, %d edges",
 		resp.Data.NodeCount, resp.Data.EdgeCount)
+}
+
+func TestInvestigationReportEndpoint(t *testing.T) {
+	ts := testServer(t)
+	w := apiGet(ts, "/api/v1/investigation/report?pid=100&direction=backward&depth=3")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+
+	var report InvestigationReport
+	if err := json.NewDecoder(w.Body).Decode(&report); err != nil {
+		t.Fatalf("decode report: %v", err)
+	}
+	if report.StartNode != "p:100" || report.Direction != "backward" {
+		t.Fatalf("unexpected report identity: %+v", report)
+	}
+	if report.NodeCount == 0 || len(report.Nodes) == 0 {
+		t.Fatalf("expected investigation nodes: %+v", report)
+	}
+	if report.RiskSummary == "" || len(report.KeyObservations) == 0 {
+		t.Fatalf("expected report summary: %+v", report)
+	}
+}
+
+func TestInvestigationReportMarkdown(t *testing.T) {
+	ts := testServer(t)
+	w := apiGet(ts, "/api/v1/investigation/report?node=p:100&format=markdown")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Header().Get("Content-Type"), "text/markdown") {
+		t.Fatalf("content type = %q", w.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(w.Body.String(), "ProvidAPT Investigation Report") {
+		t.Fatalf("unexpected markdown: %s", w.Body.String())
+	}
+}
+
+func TestRBACAuditorInvestigationReportAllowed(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/investigation/report?pid=100", nil)
+	req.Header.Set("X-API-Key", "auditor-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("auditor investigation report status = %d: %s", w.Code, w.Body.String())
+	}
 }
 
 func TestBackwardDepthParam(t *testing.T) {
