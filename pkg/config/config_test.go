@@ -733,13 +733,18 @@ compliance:
     - upgrade.preflight
 siem:
   enabled: true
+  provider: splunk
   endpoint: file:///var/log/siem.ndjson
+  token: env:PROVIDAPT_TEST_SIEM_TOKEN
+  index: providapt
+  source_type: providapt:audit
   format: cef
   min_severity: WARNING
   outbox_dir: /var/lib/providapt/siem
   flush_interval: 15s
 `
 	path := writeTempFile(t, "config.*.yaml", yaml)
+	t.Setenv("PROVIDAPT_TEST_SIEM_TOKEN", "hec-token")
 	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -750,7 +755,7 @@ siem:
 	if !cfg.Compliance.RequireApprovals || len(cfg.Compliance.ApprovalActions) != 2 || cfg.Compliance.ApprovalTTL != "2h" || cfg.Compliance.ReportInterval != "12h" {
 		t.Fatalf("approval config = %#v", cfg.Compliance)
 	}
-	if !cfg.SIEM.Enabled || cfg.SIEM.Format != "cef" || cfg.SIEM.MinSeverity != "WARNING" || cfg.SIEM.FlushInterval != "15s" {
+	if !cfg.SIEM.Enabled || cfg.SIEM.Provider != "splunk" || cfg.SIEM.Token != "hec-token" || cfg.SIEM.Index != "providapt" || cfg.SIEM.SourceType != "providapt:audit" || cfg.SIEM.Format != "cef" || cfg.SIEM.MinSeverity != "WARNING" || cfg.SIEM.FlushInterval != "15s" {
 		t.Fatalf("siem config = %#v", cfg.SIEM)
 	}
 }
@@ -765,6 +770,11 @@ func TestValidateCommercialP2Config(t *testing.T) {
 	cfg.SIEM.Format = "xml"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected invalid SIEM format")
+	}
+	cfg = DefaultConfig()
+	cfg.SIEM.Provider = "unknown"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid SIEM provider")
 	}
 	cfg = DefaultConfig()
 	cfg.SIEM.FlushInterval = "0s"

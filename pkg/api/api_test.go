@@ -142,6 +142,40 @@ func TestClusterOverviewEndpoint(t *testing.T) {
 	}
 }
 
+func TestTenantScopedClusterOverview(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"tenant-key"},
+		map[string]string{"tenant-key": RoleAnalyst},
+		map[string]string{"tenant-key": "Tenant Analyst"},
+		true,
+	)
+	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod"})
+	ts.SetClusterOverviewFunc(func() ClusterOverview {
+		return ClusterOverview{
+			UpdatedAt: "2026-06-08T00:00:00Z",
+			Agents: []ClusterAgent{
+				{AgentID: "agent-prod", Group: "prod", Status: "HEALTHY"},
+				{AgentID: "agent-dev", Group: "dev", Status: "DEGRADED"},
+			},
+		}
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/overview", nil)
+	req.Header.Set("X-API-Key", "tenant-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["tenant"] != "prod" || resp["total_agents"] != float64(1) {
+		t.Fatalf("tenant overview = %#v", resp)
+	}
+}
+
 func TestFleetEndpoint(t *testing.T) {
 	ts := testServer(t)
 	ts.SetFleetListFunc(func(group, tag string) FleetList {
@@ -734,6 +768,43 @@ func TestAuditFeedCSVExport(t *testing.T) {
 	body := w.Body.String()
 	if !strings.Contains(body, "id,timestamp,category,severity,source,message,details") || !strings.Contains(body, "audit-1") {
 		t.Fatalf("csv body = %q", body)
+	}
+}
+
+func TestTenantScopedAuditFeed(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"tenant-key"},
+		map[string]string{"tenant-key": RoleAuditor},
+		map[string]string{"tenant-key": "Tenant Auditor"},
+		true,
+	)
+	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod"})
+	ts.SetAuditQueryFunc(func(category, source string, limit int) AuditFeed {
+		return AuditFeed{
+			UpdatedAt: "2026-06-08T02:00:00Z",
+			Category:  category,
+			Source:    source,
+			Entries: []AuditEntry{
+				{ID: "audit-prod", Category: "admin", Source: "policy", Details: map[string]interface{}{"tenant": "prod"}},
+				{ID: "audit-dev", Category: "admin", Source: "policy", Details: map[string]interface{}{"tenant": "dev"}},
+			},
+		}
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/audit?category=admin", nil)
+	req.Header.Set("X-API-Key", "tenant-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	entries := resp["entries"].([]interface{})
+	if resp["tenant"] != "prod" || len(entries) != 1 {
+		t.Fatalf("tenant audit feed = %#v", resp)
 	}
 }
 

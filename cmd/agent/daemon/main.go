@@ -2153,12 +2153,14 @@ func main() {
 			}
 		}
 		status.SIEM.Enabled = cfg.SIEM.Enabled
+		status.SIEM.Provider = firstNonEmpty(strings.TrimSpace(cfg.SIEM.Provider), "generic")
 		status.SIEM.Endpoint = strings.TrimSpace(cfg.SIEM.Endpoint)
 		status.SIEM.Format = firstNonEmpty(strings.TrimSpace(cfg.SIEM.Format), "json")
 		status.SIEM.MinSeverity = firstNonEmpty(strings.TrimSpace(cfg.SIEM.MinSeverity), "INFO")
 		status.SIEM.OutboxPath = siemOutboxPath()
 		status.Approvals = approvalBook.status(cfg.Compliance.RequireApprovals, cfg.Compliance.ApprovalActions, cfg.Compliance.ApprovalTTL)
 		status.RecommendedActions = complianceRecommendations(status)
+		status.ReadinessScore, status.ReadinessGrade = complianceReadiness(status)
 		complianceSummaryState.update(status)
 		return status
 	}
@@ -3861,6 +3863,38 @@ func complianceRecommendations(status api.ComplianceStatus) []string {
 	return out
 }
 
+func complianceReadiness(status api.ComplianceStatus) (int, string) {
+	score := 100
+	if status.RetentionDays == 0 {
+		score -= 20
+	}
+	if status.AuditEntries == 0 {
+		score -= 20
+	}
+	if status.SIEM.Enabled && status.SIEM.LastStatus == "" {
+		score -= 15
+	}
+	if status.SIEM.Enabled && status.SIEM.LastError != "" {
+		score -= 20
+	}
+	if status.Approvals.Enabled && len(status.Approvals.Pending) > 0 {
+		score -= 10
+	}
+	if score < 0 {
+		score = 0
+	}
+	switch {
+	case score >= 90:
+		return score, "A"
+	case score >= 75:
+		return score, "B"
+	case score >= 60:
+		return score, "C"
+	default:
+		return score, "D"
+	}
+}
+
 func approvalRequired(cfg *config.Config, action string) bool {
 	if cfg == nil || !cfg.Compliance.RequireApprovals {
 		return false
@@ -4007,6 +4041,7 @@ func startSIEMForwarder(cfg *config.Config, outboxPath string, state *compliance
 func forwardSIEMOutbox(cfg *config.Config, outboxPath string) (api.SIEMStatus, error) {
 	status := api.SIEMStatus{
 		Enabled:     cfg.SIEM.Enabled,
+		Provider:    firstNonEmpty(strings.TrimSpace(cfg.SIEM.Provider), "generic"),
 		Endpoint:    strings.TrimSpace(cfg.SIEM.Endpoint),
 		Format:      firstNonEmpty(strings.TrimSpace(cfg.SIEM.Format), "json"),
 		MinSeverity: firstNonEmpty(strings.TrimSpace(cfg.SIEM.MinSeverity), "INFO"),
@@ -4036,7 +4071,7 @@ func forwardSIEMOutbox(cfg *config.Config, outboxPath string) (api.SIEMStatus, e
 		status.LastStatus = "idle"
 		return status, nil
 	}
-	if err := deliverSIEMLines(status.Endpoint, lines); err != nil {
+	if err := deliverSIEMLines(cfg, lines); err != nil {
 		status.LastStatus = "failed"
 		status.LastError = err.Error()
 		return status, err
@@ -4052,10 +4087,18 @@ func forwardSIEMOutbox(cfg *config.Config, outboxPath string) (api.SIEMStatus, e
 	return status, nil
 }
 
-func deliverSIEMLines(endpoint string, lines []string) error {
+func deliverSIEMLines(cfg *config.Config, lines []string) error {
+	endpoint := strings.TrimSpace(cfg.SIEM.Endpoint)
 	parsed, err := url.Parse(endpoint)
 	if err != nil {
 		return err
+	}
+	provider := strings.ToLower(firstNonEmpty(strings.TrimSpace(cfg.SIEM.Provider), "generic"))
+	if provider == "splunk" || parsed.Scheme == "splunk" {
+		return deliverSplunkHEC(endpoint, cfg.SIEM.Token, cfg.SIEM.Index, cfg.SIEM.SourceType, lines)
+	}
+	if provider == "elastic" || parsed.Scheme == "elastic" {
+		return deliverElasticBulk(endpoint, cfg.SIEM.Token, cfg.SIEM.Index, lines)
 	}
 	switch strings.ToLower(parsed.Scheme) {
 	case "file":
@@ -4111,6 +4154,90 @@ func deliverSIEMLines(endpoint string, lines []string) error {
 	default:
 		return fmt.Errorf("unsupported SIEM endpoint scheme %q", parsed.Scheme)
 	}
+}
+
+func deliverSplunkHEC(endpoint, token, index, sourceType string, lines []string) error {
+	endpoint = strings.TrimPrefix(strings.TrimSpace(endpoint), "splunk://")
+	if strings.TrimSpace(endpoint) == "" {
+		return fmt.Errorf("splunk HEC endpoint is required")
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	for _, line := range lines {
+		payload := map[string]interface{}{
+			"event": line,
+		}
+		if strings.TrimSpace(index) != "" {
+			payload["index"] = strings.TrimSpace(index)
+		}
+		if strings.TrimSpace(sourceType) != "" {
+			payload["sourcetype"] = strings.TrimSpace(sourceType)
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(string(body)))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if strings.TrimSpace(token) != "" {
+			req.Header.Set("Authorization", "Splunk "+strings.TrimSpace(token))
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("splunk HEC returned %d", resp.StatusCode)
+		}
+	}
+	return nil
+}
+
+func deliverElasticBulk(endpoint, token, index string, lines []string) error {
+	endpoint = strings.TrimPrefix(strings.TrimSpace(endpoint), "elastic://")
+	if strings.TrimSpace(endpoint) == "" {
+		return fmt.Errorf("elastic endpoint is required")
+	}
+	if !strings.HasSuffix(endpoint, "/") {
+		endpoint += "/"
+	}
+	targetIndex := firstNonEmpty(strings.TrimSpace(index), "providapt-events")
+	var builder strings.Builder
+	for _, line := range lines {
+		meta, _ := json.Marshal(map[string]interface{}{"index": map[string]interface{}{"_index": targetIndex}})
+		builder.Write(meta)
+		builder.WriteByte('\n')
+		if strings.HasPrefix(strings.TrimSpace(line), "{") {
+			builder.WriteString(line)
+		} else {
+			wrapped, _ := json.Marshal(map[string]interface{}{"message": line})
+			builder.Write(wrapped)
+		}
+		builder.WriteByte('\n')
+	}
+	req, err := http.NewRequest(http.MethodPost, endpoint+"_bulk", strings.NewReader(builder.String()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-ndjson")
+	if strings.TrimSpace(token) != "" {
+		req.Header.Set("Authorization", "ApiKey "+strings.TrimSpace(token))
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("elastic bulk returned %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func nonEmptyLines(text string) []string {
@@ -4215,11 +4342,13 @@ func writeComplianceHTMLReport(dir string, status api.ComplianceStatus) (string,
 	}
 	rows := []string{
 		fmt.Sprintf("<tr><th>Updated</th><td>%s</td></tr>", escape(status.UpdatedAt)),
+		fmt.Sprintf("<tr><th>Tenant</th><td>%s</td></tr>", escape(firstNonEmpty(status.Tenant, "all"))),
+		fmt.Sprintf("<tr><th>Readiness</th><td>%d / 100 · Grade %s</td></tr>", status.ReadinessScore, escape(status.ReadinessGrade)),
 		fmt.Sprintf("<tr><th>Audit entries</th><td>%d</td></tr>", status.AuditEntries),
 		fmt.Sprintf("<tr><th>Retention</th><td>%d days</td></tr>", status.RetentionDays),
 		fmt.Sprintf("<tr><th>Last archive</th><td>%s (%d archived)</td></tr>", escape(status.LastArchivePath), status.LastArchivedCount),
 		fmt.Sprintf("<tr><th>Last export</th><td>%s</td></tr>", escape(status.LastExportPath)),
-		fmt.Sprintf("<tr><th>SIEM</th><td>%s → %s</td></tr>", escape(status.SIEM.LastStatus), escape(status.SIEM.Endpoint)),
+		fmt.Sprintf("<tr><th>SIEM</th><td>%s · %s → %s</td></tr>", escape(firstNonEmpty(status.SIEM.Provider, "generic")), escape(status.SIEM.LastStatus), escape(status.SIEM.Endpoint)),
 		fmt.Sprintf("<tr><th>Approvals</th><td>%d pending / %d total</td></tr>", len(status.Approvals.Pending), len(status.Approvals.History)),
 	}
 	recommendations := "None"
@@ -4243,6 +4372,7 @@ func writeComplianceHTMLReport(dir string, status api.ComplianceStatus) (string,
 func writeSIEMTestEvent(cfg *config.Config, outboxPath, actor, note string) (api.SIEMStatus, error) {
 	status := api.SIEMStatus{
 		Enabled:     cfg.SIEM.Enabled,
+		Provider:    firstNonEmpty(strings.TrimSpace(cfg.SIEM.Provider), "generic"),
 		Endpoint:    strings.TrimSpace(cfg.SIEM.Endpoint),
 		Format:      firstNonEmpty(strings.TrimSpace(cfg.SIEM.Format), "json"),
 		MinSeverity: firstNonEmpty(strings.TrimSpace(cfg.SIEM.MinSeverity), "INFO"),

@@ -229,7 +229,11 @@ compliance:
 
 siem:
   enabled: true
+  provider: splunk
   endpoint: file:///var/log/providapt/siem.ndjson
+  token: env:PROVIDAPT_SIEM_TOKEN
+  index: providapt
+  source_type: providapt:audit
   format: json
   min_severity: WARNING
   outbox_dir: /var/log/providapt/siem-outbox
@@ -254,12 +258,17 @@ The dashboard includes a `Compliance & SIEM` panel with audit export, retention,
 P4 behavior:
 
 - SIEM events are queued in the outbox and flushed on `siem.flush_interval`.
-- `file://`, `http://`, `https://`, `tcp://`, and `udp://` SIEM endpoints are supported.
+- `file://`, `http://`, `https://`, `tcp://`, and `udp://` SIEM endpoints are supported; `siem.provider: splunk` sends Splunk HEC events and `siem.provider: elastic` sends Elastic `_bulk` payloads.
 - Approval requests are persisted under `<output.dir>/compliance/approvals.json`, expire after `compliance.approval_ttl`, and approved high-risk actions consume one approval.
 - Audit retention archives old entries under the compliance report directory and rewrites the active audit log with retained entries.
-- HTML compliance reports can be generated on demand and are scheduled by `compliance.report_interval`.
+- HTML compliance reports can be generated on demand and are scheduled by `compliance.report_interval`; reports include readiness score, grade, tenant scope, audit retention, SIEM status, and approval counts.
 - License files or `license.max_agents` may enforce reporting-agent seat limits.
 - Upgrade `apply` and `rollback` actions use `upgrade.apply_command` and `upgrade.rollback_command` after checksum/signature preflight and required approvals.
+
+P5 multi-tenant behavior:
+
+- Tenant-scoped API keys from `api.auth_tenants` are restricted to their fleet group across Agent Overview, Fleet, Audit Feed, and Compliance status.
+- Tenant-filtered audit entries match `tenant`, `group`, `target_group`, or comma-separated `tags` metadata in persisted audit details.
 
 Release packages can be built from the same tagged build output with `nfpm`:
 

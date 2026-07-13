@@ -163,7 +163,11 @@ type Config struct {
 
 	SIEM struct {
 		Enabled       bool   `json:"enabled" yaml:"enabled"`
+		Provider      string `json:"provider" yaml:"provider"`
 		Endpoint      string `json:"endpoint" yaml:"endpoint"`
+		Token         string `json:"token" yaml:"token"`
+		Index         string `json:"index" yaml:"index"`
+		SourceType    string `json:"source_type" yaml:"source_type"`
 		Format        string `json:"format" yaml:"format"`
 		MinSeverity   string `json:"min_severity" yaml:"min_severity"`
 		OutboxDir     string `json:"outbox_dir" yaml:"outbox_dir"`
@@ -343,6 +347,7 @@ func resolveSecrets(cfg *Config) {
 	resolveSecretString(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
 	resolveSecretString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
 	resolveSecretString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
+	resolveSecretString(&cfg.SIEM.Token, "PROVIDAPT_SIEM_TOKEN")
 }
 
 func resolveSecretString(field *string, envKey string) {
@@ -442,6 +447,11 @@ func (c *Config) Validate() error {
 	case "", "json", "cef":
 	default:
 		return fmt.Errorf("unsupported siem.format %q", c.SIEM.Format)
+	}
+	switch strings.ToLower(strings.TrimSpace(c.SIEM.Provider)) {
+	case "", "generic", "splunk", "elastic":
+	default:
+		return fmt.Errorf("unsupported siem.provider %q", c.SIEM.Provider)
 	}
 	switch strings.ToUpper(strings.TrimSpace(c.SIEM.MinSeverity)) {
 	case "", "INFO", "WARNING", "CRITICAL":
@@ -545,6 +555,10 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Compliance.ApprovalTTL, "PROVIDAPT_COMPLIANCE_APPROVAL_TTL")
 	overrideString(&cfg.Compliance.ReportInterval, "PROVIDAPT_COMPLIANCE_REPORT_INTERVAL")
 	overrideString(&cfg.SIEM.Endpoint, "PROVIDAPT_SIEM_ENDPOINT")
+	overrideString(&cfg.SIEM.Provider, "PROVIDAPT_SIEM_PROVIDER")
+	overrideString(&cfg.SIEM.Token, "PROVIDAPT_SIEM_TOKEN")
+	overrideString(&cfg.SIEM.Index, "PROVIDAPT_SIEM_INDEX")
+	overrideString(&cfg.SIEM.SourceType, "PROVIDAPT_SIEM_SOURCE_TYPE")
 	overrideString(&cfg.SIEM.Format, "PROVIDAPT_SIEM_FORMAT")
 	overrideString(&cfg.SIEM.MinSeverity, "PROVIDAPT_SIEM_MIN_SEVERITY")
 	overrideString(&cfg.SIEM.OutboxDir, "PROVIDAPT_SIEM_OUTBOX_DIR")

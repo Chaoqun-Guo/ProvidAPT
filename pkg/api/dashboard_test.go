@@ -153,6 +153,8 @@ func TestDashboardModuleActions(t *testing.T) {
 		"runComplianceAction('generate_report', 'html')",
 		"runApprovalAction",
 		"runComplianceAction('test_siem')",
+		"native connector",
+		"readiness",
 		"prepareUpgradeAction('apply')",
 		"prepareUpgradeAction('rollback')",
 		"/api/v1/control/compliance",

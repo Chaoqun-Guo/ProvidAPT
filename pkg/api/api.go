@@ -90,6 +90,7 @@ type ClusterAgent struct {
 
 type ClusterOverview struct {
 	UpdatedAt      string         `json:"updated_at"`
+	Tenant         string         `json:"tenant,omitempty"`
 	TotalAgents    int            `json:"total_agents"`
 	HealthyAgents  int            `json:"healthy_agents"`
 	DegradedAgents int            `json:"degraded_agents"`
@@ -253,6 +254,7 @@ type AuditEntry struct {
 
 type AuditFeed struct {
 	UpdatedAt string       `json:"updated_at"`
+	Tenant    string       `json:"tenant,omitempty"`
 	Category  string       `json:"category,omitempty"`
 	Source    string       `json:"source,omitempty"`
 	Entries   []AuditEntry `json:"entries"`
@@ -262,6 +264,7 @@ type AuditQueryFunc func(category, source string, limit int) AuditFeed
 
 type SIEMStatus struct {
 	Enabled         bool   `json:"enabled"`
+	Provider        string `json:"provider,omitempty"`
 	Endpoint        string `json:"endpoint,omitempty"`
 	Format          string `json:"format,omitempty"`
 	MinSeverity     string `json:"min_severity,omitempty"`
@@ -297,6 +300,7 @@ type ApprovalStatus struct {
 
 type ComplianceStatus struct {
 	UpdatedAt          string         `json:"updated_at"`
+	Tenant             string         `json:"tenant,omitempty"`
 	RetentionDays      int            `json:"retention_days"`
 	MaxAuditEntries    int            `json:"max_audit_entries"`
 	OldestAllowedAt    string         `json:"oldest_allowed_at,omitempty"`
@@ -310,6 +314,8 @@ type ComplianceStatus struct {
 	LastReportPath     string         `json:"last_report_path,omitempty"`
 	LastActionStatus   string         `json:"last_action_status,omitempty"`
 	LastActionMessage  string         `json:"last_action_message,omitempty"`
+	ReadinessScore     int            `json:"readiness_score"`
+	ReadinessGrade     string         `json:"readiness_grade,omitempty"`
 	SIEM               SIEMStatus     `json:"siem"`
 	Approvals          ApprovalStatus `json:"approvals"`
 	RecommendedActions []string       `json:"recommended_actions,omitempty"`
@@ -1215,6 +1221,9 @@ func (s *Server) handleClusterOverview(w http.ResponseWriter, r *http.Request) e
 			overview.Agents = []ClusterAgent{}
 		}
 	}
+	if tenant := CurrentTenant(r); tenant != "" && CurrentRole(r) != RoleAdmin {
+		overview = filterClusterOverviewForTenant(overview, tenant)
+	}
 	return json.NewEncoder(w).Encode(overview)
 }
 
@@ -1270,6 +1279,76 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
 	}
+}
+
+func filterClusterOverviewForTenant(overview ClusterOverview, tenant string) ClusterOverview {
+	tenant = strings.TrimSpace(tenant)
+	filtered := overview
+	filtered.Tenant = tenant
+	filtered.Agents = []ClusterAgent{}
+	filtered.TotalAgents = 0
+	filtered.HealthyAgents = 0
+	filtered.DegradedAgents = 0
+	for _, agent := range overview.Agents {
+		if !agentMatchesTenant(agent, tenant) {
+			continue
+		}
+		filtered.Agents = append(filtered.Agents, agent)
+		if strings.EqualFold(agent.Status, "healthy") || strings.EqualFold(agent.Status, "online") {
+			filtered.HealthyAgents++
+		} else {
+			filtered.DegradedAgents++
+		}
+	}
+	filtered.TotalAgents = len(filtered.Agents)
+	return filtered
+}
+
+func filterAuditFeedForTenant(feed AuditFeed, tenant string) AuditFeed {
+	tenant = strings.TrimSpace(tenant)
+	feed.Tenant = tenant
+	filtered := make([]AuditEntry, 0, len(feed.Entries))
+	for _, entry := range feed.Entries {
+		if auditEntryMatchesTenant(entry, tenant) {
+			filtered = append(filtered, entry)
+		}
+	}
+	feed.Entries = filtered
+	return feed
+}
+
+func agentMatchesTenant(agent ClusterAgent, tenant string) bool {
+	if tenant == "" {
+		return true
+	}
+	if strings.EqualFold(strings.TrimSpace(agent.Group), tenant) {
+		return true
+	}
+	for _, tag := range agent.Tags {
+		if strings.EqualFold(strings.TrimSpace(tag), tenant) {
+			return true
+		}
+	}
+	return false
+}
+
+func auditEntryMatchesTenant(entry AuditEntry, tenant string) bool {
+	if tenant == "" {
+		return true
+	}
+	for _, key := range []string{"tenant", "group", "target_group"} {
+		if value, ok := entry.Details[key]; ok && strings.EqualFold(strings.TrimSpace(fmt.Sprint(value)), tenant) {
+			return true
+		}
+	}
+	if value, ok := entry.Details["tags"]; ok {
+		for _, tag := range strings.Split(fmt.Sprint(value), ",") {
+			if strings.EqualFold(strings.TrimSpace(tag), tenant) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *Server) handleSupportBundles(w http.ResponseWriter, r *http.Request) error {
@@ -1469,6 +1548,9 @@ func (s *Server) handleAuditFeed(w http.ResponseWriter, r *http.Request) error {
 			feed.Entries = []AuditEntry{}
 		}
 	}
+	if tenant := CurrentTenant(r); tenant != "" && CurrentRole(r) != RoleAdmin {
+		feed = filterAuditFeedForTenant(feed, tenant)
+	}
 	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("format")), "csv") {
 		return writeAuditFeedCSV(w, feed)
 	}
@@ -1522,6 +1604,9 @@ func (s *Server) handleCompliance(w http.ResponseWriter, r *http.Request) error 
 			if status.RecommendedActions == nil {
 				status.RecommendedActions = []string{}
 			}
+		}
+		if tenant := CurrentTenant(r); tenant != "" && CurrentRole(r) != RoleAdmin {
+			status.Tenant = tenant
 		}
 		return json.NewEncoder(w).Encode(status)
 	case http.MethodPost:

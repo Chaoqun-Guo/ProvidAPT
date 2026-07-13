@@ -1583,7 +1583,7 @@ async function loadCompliance() {
     const approvals = data.approvals || {};
     setText('cAuditEntries', data.audit_entries || 0);
     setText('cRetention', data.retention_days ? data.retention_days + 'd' : '--');
-    setText('cSIEM', siem.enabled ? (siem.last_status || 'Enabled') : 'Disabled');
+    setText('cSIEM', siem.enabled ? ((siem.provider || 'generic') + ':' + (siem.last_status || 'Enabled')) : 'Disabled');
     setText('cApprovals', (approvals.pending || []).length);
     showComplianceDetails('audit');
   } catch (e) {
@@ -1599,6 +1599,7 @@ function showComplianceDetails(scope) {
   if (scope === 'siem') {
     items = [
       renderKVItem('enabled', siem.enabled ? 'yes' : 'no', siem.format || 'json'),
+      renderKVItem('provider', siem.provider || 'generic', 'native connector'),
       renderKVItem('endpoint', siem.endpoint || siem.outbox_path || '--', siem.min_severity || 'INFO'),
       renderKVItem('last status', siem.last_status || '--', formatTime(siem.last_forwarded_at)),
       renderKVItem('last error', siem.last_error || '--', 'diagnostic'),
@@ -1621,6 +1622,8 @@ function showComplianceDetails(scope) {
   } else {
     items = [
       renderKVItem('audit entries', data.audit_entries || 0, 'current window'),
+      renderKVItem('readiness', (data.readiness_score || 0) + '/100', data.readiness_grade || '--'),
+      renderKVItem('tenant', data.tenant || 'all', 'scope'),
       renderKVItem('oldest audit', data.audit_oldest_at || '--', 'oldest'),
       renderKVItem('newest audit', data.audit_newest_at || '--', 'newest'),
       renderKVItem('last archive', data.last_archive_path || '--', (data.last_archived_count || 0) + ' archived'),

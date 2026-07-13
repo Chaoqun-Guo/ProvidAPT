@@ -614,6 +614,12 @@ components:
         updated_at:
           type: string
           format: date-time
+        tenant:
+          type: string
+        readiness_score:
+          type: integer
+        readiness_grade:
+          type: string
         retention_days:
           type: integer
         max_audit_entries:
@@ -636,6 +642,8 @@ components:
           properties:
             enabled:
               type: boolean
+            provider:
+              type: string
             endpoint:
               type: string
             format:
