@@ -354,6 +354,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       </div>
       <div class="action-row">
         <button id="exportAuditBtn" onclick="runComplianceAction('export_audit')">Export Audit</button>
+        <button id="applyRetentionBtn" class="secondary" onclick="runComplianceAction('apply_retention')">Apply Retention</button>
         <button id="generateComplianceReportBtn" class="secondary" onclick="runComplianceAction('generate_report')">Generate Report</button>
         <button id="testSIEMBtn" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
         <button class="secondary" onclick="loadCompliance()">Refresh Compliance</button>
@@ -1614,6 +1615,7 @@ function showComplianceDetails(scope) {
       renderKVItem('audit entries', data.audit_entries || 0, 'current window'),
       renderKVItem('oldest audit', data.audit_oldest_at || '--', 'oldest'),
       renderKVItem('newest audit', data.audit_newest_at || '--', 'newest'),
+      renderKVItem('last archive', data.last_archive_path || '--', (data.last_archived_count || 0) + ' archived'),
       renderKVItem('last export', data.last_export_path || '--', 'evidence'),
       renderKVItem('last report', data.last_report_path || '--', 'report'),
     ];

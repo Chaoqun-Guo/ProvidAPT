@@ -229,6 +229,7 @@ siem:
   format: json
   min_severity: WARNING
   outbox_dir: /var/log/providapt/siem-outbox
+  flush_interval: 30s
 ```
 
 Useful operations:
@@ -236,13 +237,21 @@ Useful operations:
 ```text
 GET  /api/v1/control/compliance
 POST /api/v1/control/compliance {"action":"export_audit","format":"csv"}
+POST /api/v1/control/compliance {"action":"apply_retention"}
 POST /api/v1/control/compliance {"action":"generate_report"}
 POST /api/v1/control/compliance {"action":"test_siem"}
 POST /api/v1/control/compliance {"action":"request_approval","target":"policy.publish"}
 POST /api/v1/control/compliance {"action":"approve","approval_id":"appr-000001"}
 ```
 
-The dashboard includes a `Compliance & SIEM` panel with audit export, report generation, and SIEM test controls. Generated evidence files are written under `compliance.report_dir` or `<output.dir>/compliance` by default.
+The dashboard includes a `Compliance & SIEM` panel with audit export, retention, report generation, and SIEM test controls. Generated evidence files are written under `compliance.report_dir` or `<output.dir>/compliance` by default.
+
+P3 behavior:
+
+- SIEM events are queued in the outbox and flushed on `siem.flush_interval`.
+- `file://`, `http://`, `https://`, `tcp://`, and `udp://` SIEM endpoints are supported.
+- Approval requests are persisted under `<output.dir>/compliance/approvals.json`.
+- Audit retention archives old entries under the compliance report directory and rewrites the active audit log with retained entries.
 
 Release packages can be built from the same tagged build output with `nfpm`:
 

@@ -709,6 +709,7 @@ siem:
   format: cef
   min_severity: WARNING
   outbox_dir: /var/lib/providapt/siem
+  flush_interval: 15s
 `
 	path := writeTempFile(t, "config.*.yaml", yaml)
 	cfg, err := Load(path)
@@ -721,7 +722,7 @@ siem:
 	if !cfg.Compliance.RequireApprovals || len(cfg.Compliance.ApprovalActions) != 2 {
 		t.Fatalf("approval config = %#v", cfg.Compliance)
 	}
-	if !cfg.SIEM.Enabled || cfg.SIEM.Format != "cef" || cfg.SIEM.MinSeverity != "WARNING" {
+	if !cfg.SIEM.Enabled || cfg.SIEM.Format != "cef" || cfg.SIEM.MinSeverity != "WARNING" || cfg.SIEM.FlushInterval != "15s" {
 		t.Fatalf("siem config = %#v", cfg.SIEM)
 	}
 }
@@ -736,6 +737,11 @@ func TestValidateCommercialP2Config(t *testing.T) {
 	cfg.SIEM.Format = "xml"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected invalid SIEM format")
+	}
+	cfg = DefaultConfig()
+	cfg.SIEM.FlushInterval = "0s"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid SIEM flush interval")
 	}
 }
 

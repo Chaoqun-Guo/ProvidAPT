@@ -29,6 +29,10 @@ type GRPCOptions struct {
 	// EventCh, if set, receives decoded events from ReportEvents.
 	EventCh chan<- *collector.Event
 
+	// TelemetryStorePath, if set, receives ReportEvents metadata and payloads
+	// as NDJSON for durable control-plane ingestion/audit.
+	TelemetryStorePath string
+
 	// Version is the agent version string.
 	Version string
 }

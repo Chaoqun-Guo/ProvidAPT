@@ -160,11 +160,12 @@ type Config struct {
 	} `json:"compliance" yaml:"compliance"`
 
 	SIEM struct {
-		Enabled     bool   `json:"enabled" yaml:"enabled"`
-		Endpoint    string `json:"endpoint" yaml:"endpoint"`
-		Format      string `json:"format" yaml:"format"`
-		MinSeverity string `json:"min_severity" yaml:"min_severity"`
-		OutboxDir   string `json:"outbox_dir" yaml:"outbox_dir"`
+		Enabled       bool   `json:"enabled" yaml:"enabled"`
+		Endpoint      string `json:"endpoint" yaml:"endpoint"`
+		Format        string `json:"format" yaml:"format"`
+		MinSeverity   string `json:"min_severity" yaml:"min_severity"`
+		OutboxDir     string `json:"outbox_dir" yaml:"outbox_dir"`
+		FlushInterval string `json:"flush_interval" yaml:"flush_interval"`
 	} `json:"siem" yaml:"siem"`
 
 	License struct {
@@ -284,6 +285,7 @@ func DefaultConfig() *Config {
 	c.Compliance.ApprovalActions = []string{"policy.publish", "policy.rollback", "upgrade.preflight", "backup.prepare_cutover"}
 	c.SIEM.Format = "json"
 	c.SIEM.MinSeverity = "INFO"
+	c.SIEM.FlushInterval = "30s"
 	c.License.GracePeriodDays = 0
 	return c
 }
@@ -427,6 +429,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("unsupported siem.min_severity %q", c.SIEM.MinSeverity)
 	}
+	if strings.TrimSpace(c.SIEM.FlushInterval) != "" {
+		if _, err := parseDurationString(c.SIEM.FlushInterval); err != nil {
+			return fmt.Errorf("siem.flush_interval: %w", err)
+		}
+	}
 	if c.License.GracePeriodDays < 0 {
 		return fmt.Errorf("license.grace_period_days must be non-negative")
 	}
@@ -512,6 +519,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.SIEM.Format, "PROVIDAPT_SIEM_FORMAT")
 	overrideString(&cfg.SIEM.MinSeverity, "PROVIDAPT_SIEM_MIN_SEVERITY")
 	overrideString(&cfg.SIEM.OutboxDir, "PROVIDAPT_SIEM_OUTBOX_DIR")
+	overrideString(&cfg.SIEM.FlushInterval, "PROVIDAPT_SIEM_FLUSH_INTERVAL")
 
 	overrideBool(&cfg.Kernel.Verbose, "PROVIDAPT_KERNEL_VERBOSE")
 	overrideBool(&cfg.Capture.EnableNet, "PROVIDAPT_CAPTURE_ENABLE_NET")

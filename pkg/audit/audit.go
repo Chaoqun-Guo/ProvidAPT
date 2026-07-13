@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -48,8 +49,17 @@ type Store struct {
 	path        string
 	entries     []Entry
 	maxSize     int
-	maxFileSize int64  // bytes; 0 = no rotation
-	maxBackups  int    // number of rotated files to retain
+	maxFileSize int64 // bytes; 0 = no rotation
+	maxBackups  int   // number of rotated files to retain
+}
+
+// RetentionResult summarizes an audit retention operation.
+type RetentionResult struct {
+	BeforeCount int       `json:"before_count"`
+	KeptCount   int       `json:"kept_count"`
+	Archived    int       `json:"archived"`
+	Cutoff      time.Time `json:"cutoff,omitempty"`
+	ArchivePath string    `json:"archive_path,omitempty"`
 }
 
 // New creates or opens an audit store at <dir>/audit.ndjson.
@@ -170,6 +180,72 @@ func (s *Store) Recent(limit int) ([]Entry, error) {
 	return out, nil
 }
 
+// ApplyRetention archives entries older than retentionDays and rewrites the
+// active audit file with the retained entries. A retentionDays value <= 0 is a
+// no-op. Archived entries are written as NDJSON to archiveDir.
+func (s *Store) ApplyRetention(retentionDays int, archiveDir string, now time.Time) (RetentionResult, error) {
+	result := RetentionResult{}
+	if s == nil || retentionDays <= 0 {
+		return result, nil
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	cutoff := now.Add(-time.Duration(retentionDays) * 24 * time.Hour)
+	result.Cutoff = cutoff
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	result.BeforeCount = len(s.entries)
+	kept := make([]Entry, 0, len(s.entries))
+	archived := make([]Entry, 0)
+	for _, entry := range s.entries {
+		if entry.Timestamp.Before(cutoff) {
+			archived = append(archived, entry)
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	result.KeptCount = len(kept)
+	result.Archived = len(archived)
+	if len(archived) == 0 {
+		return result, nil
+	}
+	if strings.TrimSpace(archiveDir) == "" {
+		archiveDir = filepath.Join(filepath.Dir(s.path), "audit-archive")
+	}
+	if err := os.MkdirAll(archiveDir, 0700); err != nil {
+		return result, fmt.Errorf("audit archive mkdir: %w", err)
+	}
+	archivePath := filepath.Join(archiveDir, "audit-archive-"+now.UTC().Format("20060102T150405Z")+".ndjson")
+	if err := writeEntriesNDJSON(archivePath, archived, 0600); err != nil {
+		return result, err
+	}
+	result.ArchivePath = archivePath
+
+	if err := s.f.Close(); err != nil {
+		return result, fmt.Errorf("close audit before retention rewrite: %w", err)
+	}
+	if err := writeEntriesNDJSON(s.path, kept, 0644); err != nil {
+		f, openErr := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if openErr == nil {
+			s.f = f
+		}
+		return result, err
+	}
+	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return result, fmt.Errorf("reopen audit after retention rewrite: %w", err)
+	}
+	s.f = f
+	s.entries = kept
+	if len(s.entries) > s.maxSize {
+		s.entries = s.entries[len(s.entries)-s.maxSize:]
+	}
+	return result, nil
+}
+
 // Close closes the underlying file.
 func (s *Store) Close() error {
 	s.mu.Lock()
@@ -234,6 +310,21 @@ func (s *Store) rotate() error {
 }
 
 // ── helpers ──────────────────────────────────────────────────────
+
+func writeEntriesNDJSON(path string, entries []Entry, perm os.FileMode) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return fmt.Errorf("audit write %s: %w", path, err)
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	for _, entry := range entries {
+		if err := enc.Encode(entry); err != nil {
+			return fmt.Errorf("audit encode %s: %w", path, err)
+		}
+	}
+	return nil
+}
 
 // replay reads the NDJSON file and populates the in-memory buffer.
 func (s *Store) replay() error {

@@ -148,6 +148,7 @@ func TestDashboardModuleActions(t *testing.T) {
 		"Compliance & SIEM",
 		"loadCompliance",
 		"runComplianceAction('export_audit')",
+		"runComplianceAction('apply_retention')",
 		"runComplianceAction('generate_report')",
 		"runComplianceAction('test_siem')",
 		"/api/v1/control/compliance",

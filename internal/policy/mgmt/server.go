@@ -559,7 +559,21 @@ func (s *Server) applyWhitelistUpdate(w *mgmtpb.WhitelistUpdate, clientInfo stri
 
 	case "comm":
 		// Comm-based whitelist 鈥-currently unsupported via gRPC
-		return "comm-based whitelist requires /proc scan, use pid instead"
+		switch w.Action {
+		case "add":
+			excluded, err := s.ctrl.ExcludeComms([]string{w.Value})
+			if err != nil {
+				return fmt.Sprintf("exclude comm failed: %v", err)
+			}
+			s.recordWhitelistKey("comm:"+w.Value, true)
+			return fmt.Sprintf("comm %s excluded (%d running process(es))", w.Value, excluded)
+		case "remove":
+			s.recordWhitelistKey("comm:"+w.Value, false)
+			return fmt.Sprintf("comm %s removed from policy draft; running PIDs remain excluded until restart or explicit PID unexclude", w.Value)
+		case "clear":
+			s.clearWhitelistKeys()
+			return "comm whitelist metadata cleared"
+		}
 
 	case "path":
 		switch w.Action {

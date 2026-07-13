@@ -189,6 +189,61 @@ func TestReplaySkipsCorruptLines(t *testing.T) {
 	}
 }
 
+func TestApplyRetentionArchivesOldEntries(t *testing.T) {
+	dir := t.TempDir()
+	s, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer s.Close()
+
+	now := time.Date(2026, 7, 12, 12, 0, 0, 0, time.UTC)
+	if err := s.Log(Entry{Timestamp: now.Add(-10 * 24 * time.Hour), Category: CatSystem, Severity: "INFO", Message: "old", Source: "test"}); err != nil {
+		t.Fatalf("log old: %v", err)
+	}
+	if err := s.Log(Entry{Timestamp: now.Add(-1 * 24 * time.Hour), Category: CatSystem, Severity: "INFO", Message: "new", Source: "test"}); err != nil {
+		t.Fatalf("log new: %v", err)
+	}
+
+	result, err := s.ApplyRetention(7, filepath.Join(dir, "archive"), now)
+	if err != nil {
+		t.Fatalf("ApplyRetention: %v", err)
+	}
+	if result.Archived != 1 || result.KeptCount != 1 {
+		t.Fatalf("retention result = %#v", result)
+	}
+	if result.ArchivePath == "" {
+		t.Fatal("expected archive path")
+	}
+	archiveData, err := os.ReadFile(result.ArchivePath)
+	if err != nil {
+		t.Fatalf("read archive: %v", err)
+	}
+	if !strings.Contains(string(archiveData), "old") {
+		t.Fatalf("archive missing old entry: %s", archiveData)
+	}
+	entries, err := s.Recent(10)
+	if err != nil {
+		t.Fatalf("Recent: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Message != "new" {
+		t.Fatalf("kept entries = %#v", entries)
+	}
+
+	reopened, err := New(dir)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer reopened.Close()
+	replayed, err := reopened.Recent(10)
+	if err != nil {
+		t.Fatalf("Recent reopened: %v", err)
+	}
+	if len(replayed) != 1 || replayed[0].Message != "new" {
+		t.Fatalf("replayed entries = %#v", replayed)
+	}
+}
+
 func TestNDJSONFileFormat(t *testing.T) {
 	dir := t.TempDir()
 	s, err := New(dir)

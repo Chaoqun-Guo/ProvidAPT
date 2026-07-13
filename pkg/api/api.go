@@ -299,6 +299,9 @@ type ComplianceStatus struct {
 	AuditEntries       int            `json:"audit_entries"`
 	AuditOldestAt      string         `json:"audit_oldest_at,omitempty"`
 	AuditNewestAt      string         `json:"audit_newest_at,omitempty"`
+	LastRetentionAt    string         `json:"last_retention_at,omitempty"`
+	LastArchivePath    string         `json:"last_archive_path,omitempty"`
+	LastArchivedCount  int            `json:"last_archived_count,omitempty"`
 	LastExportPath     string         `json:"last_export_path,omitempty"`
 	LastReportPath     string         `json:"last_report_path,omitempty"`
 	LastActionStatus   string         `json:"last_action_status,omitempty"`

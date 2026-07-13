@@ -6,6 +6,9 @@ package api
 import (
 	"context"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -466,6 +469,30 @@ func TestReportEvents_UnknownContentType(t *testing.T) {
 }
 
 // ─── Tests: bufconn-based gRPC server start/stop ────────────────────────
+
+func TestReportEvents_PersistsSummaryTelemetry(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "telemetry.ndjson")
+	svr := &provaptTelemetryServer{telemetryPath: path}
+	stream := &mockReportEventsStream{
+		ctx: context.Background(),
+		events: []*pb.CompressedEvent{
+			{ContentType: "summary", Payload: []byte(`{"agent_id":"agent-01"}`), OriginalSize: 23, TimestampNs: 123},
+		},
+	}
+	if err := svr.ReportEvents(stream); err != nil {
+		t.Fatalf("ReportEvents: %v", err)
+	}
+	if stream.ack == nil || !stream.ack.Accepted {
+		t.Fatalf("ack = %#v", stream.ack)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read telemetry sink: %v", err)
+	}
+	if !strings.Contains(string(data), `"content_type":"summary"`) || !strings.Contains(string(data), `"payload_base64"`) {
+		t.Fatalf("unexpected telemetry sink: %s", data)
+	}
+}
 
 func TestGRPCServerStartStop(t *testing.T) {
 	g := provenance.NewGraph()

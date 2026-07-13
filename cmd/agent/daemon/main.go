@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -181,6 +182,12 @@ type approvalStore struct {
 	items   []api.ChangeApproval
 	limit   int
 	counter uint64
+	path    string
+}
+
+type persistedApprovals struct {
+	Counter uint64               `json:"counter"`
+	Items   []api.ChangeApproval `json:"items"`
 }
 
 type licenseDocument struct {
@@ -428,6 +435,46 @@ func newApprovalStore(limit int) *approvalStore {
 	return &approvalStore{items: make([]api.ChangeApproval, 0, limit), limit: limit}
 }
 
+func newPersistentApprovalStore(path string, limit int) *approvalStore {
+	store := newApprovalStore(limit)
+	store.path = strings.TrimSpace(path)
+	if store.path == "" {
+		return store
+	}
+	data, err := os.ReadFile(store.path)
+	if err != nil {
+		return store
+	}
+	var persisted persistedApprovals
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		return store
+	}
+	store.counter = persisted.Counter
+	store.items = append([]api.ChangeApproval(nil), persisted.Items...)
+	if len(store.items) > store.limit {
+		store.items = store.items[:store.limit]
+	}
+	return store
+}
+
+func (s *approvalStore) saveLocked() error {
+	if s == nil || strings.TrimSpace(s.path) == "" {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(persistedApprovals{Counter: s.counter, Items: s.items}, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := s.path + ".tmp"
+	if err := os.WriteFile(tmp, append(data, '\n'), 0600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, s.path)
+}
+
 func (s *approvalStore) request(action, target, actor, note string) api.ChangeApproval {
 	if s == nil {
 		return api.ChangeApproval{}
@@ -448,6 +495,9 @@ func (s *approvalStore) request(action, target, actor, note string) api.ChangeAp
 	if len(s.items) > s.limit {
 		s.items = s.items[:s.limit]
 	}
+	if err := s.saveLocked(); err != nil {
+		log.Printf("[compliance] save approval request: %v", err)
+	}
 	return item
 }
 
@@ -465,6 +515,9 @@ func (s *approvalStore) resolve(id, status, actor, note string) (api.ChangeAppro
 				s.items[i].ApprovedAt = time.Now().UTC().Format(time.RFC3339)
 				if strings.TrimSpace(note) != "" {
 					s.items[i].Note = strings.TrimSpace(note)
+				}
+				if err := s.saveLocked(); err != nil {
+					log.Printf("[compliance] save approval resolution: %v", err)
 				}
 			}
 			return s.items[i], true
@@ -1213,7 +1266,7 @@ func main() {
 	securityAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	licenseAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	upgradeAudit := newControlActionAuditStore(controlActionHistoryLimit)
-	approvalBook := newApprovalStore(controlActionHistoryLimit)
+	approvalBook := newPersistentApprovalStore(filepath.Join(cfg.Output.Dir, "compliance", "approvals.json"), controlActionHistoryLimit)
 	supportState := &supportBundleState{}
 	backupSummaryState := &backupState{}
 	securitySummaryState := &securityState{}
@@ -2087,6 +2140,15 @@ func main() {
 				return api.ComplianceActionResult{Status: "failed", Message: err.Error(), SIEM: &siemStatus, PerformedAt: performedAt}, err
 			}
 			result.Message = "SIEM test event queued"
+		case "apply_retention":
+			retention, err := applyAuditRetention(auditStore, cfg, complianceSummaryState)
+			if err != nil {
+				logControlAudit(auditStore, "compliance", action, req.Actor, req.Role, "", req.Note, "failed", err.Error())
+				return api.ComplianceActionResult{Status: "failed", Message: err.Error(), PerformedAt: performedAt}, err
+			}
+			status = complianceSummaryState.snapshot()
+			result.Path = retention.ArchivePath
+			result.Message = fmt.Sprintf("audit retention applied; archived %d entrie(s)", retention.Archived)
 		case "request_approval":
 			approval := approvalBook.request(req.Target, "", req.Actor, req.Note)
 			status.Approvals = approvalBook.status(cfg.Compliance.RequireApprovals, cfg.Compliance.ApprovalActions)
@@ -2121,6 +2183,10 @@ func main() {
 		logControlAudit(auditStore, "compliance", action, req.Actor, req.Role, result.Path, req.Note, result.Status, result.Message)
 		return result, nil
 	})
+	siemForwarderStop := startSIEMForwarder(cfg, siemOutboxPath(), complianceSummaryState)
+	defer siemForwarderStop()
+	auditRetentionStop := startAuditRetentionScheduler(cfg, auditStore, complianceSummaryState)
+	defer auditRetentionStop()
 	inspectLicense := func() api.LicenseStatus {
 		summary := api.LicenseStatus{
 			UpdatedAt:          time.Now().UTC().Format(time.RFC3339),
@@ -3645,6 +3711,206 @@ func approvalRequired(cfg *config.Config, action string) bool {
 		}
 	}
 	return false
+}
+
+func startAuditRetentionScheduler(cfg *config.Config, auditStore *audit.Store, state *complianceState) func() {
+	if cfg == nil || auditStore == nil || cfg.Compliance.RetentionDays <= 0 {
+		return func() {}
+	}
+	stop := make(chan struct{})
+	go func() {
+		_, _ = applyAuditRetention(auditStore, cfg, state)
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if _, err := applyAuditRetention(auditStore, cfg, state); err != nil {
+					log.Printf("[compliance] audit retention failed: %v", err)
+				}
+			case <-stop:
+				return
+			}
+		}
+	}()
+	return func() { close(stop) }
+}
+
+func applyAuditRetention(auditStore *audit.Store, cfg *config.Config, state *complianceState) (audit.RetentionResult, error) {
+	if auditStore == nil || cfg == nil {
+		return audit.RetentionResult{}, nil
+	}
+	archiveDir := strings.TrimSpace(cfg.Compliance.ReportDir)
+	if archiveDir == "" {
+		archiveDir = filepath.Join(cfg.Output.Dir, "compliance")
+	}
+	archiveDir = filepath.Join(archiveDir, "audit-archive")
+	result, err := auditStore.ApplyRetention(cfg.Compliance.RetentionDays, archiveDir, time.Now().UTC())
+	if err != nil {
+		return result, err
+	}
+	if state != nil {
+		status := state.snapshot()
+		status.LastRetentionAt = time.Now().UTC().Format(time.RFC3339)
+		status.LastArchivePath = result.ArchivePath
+		status.LastArchivedCount = result.Archived
+		status.LastActionStatus = "completed"
+		status.LastActionMessage = fmt.Sprintf("audit retention applied; archived %d entrie(s)", result.Archived)
+		state.update(status)
+	}
+	return result, nil
+}
+
+func startSIEMForwarder(cfg *config.Config, outboxPath string, state *complianceState) func() {
+	if cfg == nil {
+		return func() {}
+	}
+	stop := make(chan struct{})
+	interval, err := time.ParseDuration(firstNonEmpty(strings.TrimSpace(cfg.SIEM.FlushInterval), "30s"))
+	if err != nil || interval <= 0 {
+		interval = 30 * time.Second
+	}
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				status, err := forwardSIEMOutbox(cfg, outboxPath)
+				if err != nil {
+					log.Printf("[siem] forward failed: %v", err)
+				}
+				if state != nil && status.LastStatus != "" {
+					summary := state.snapshot()
+					summary.SIEM = status
+					state.update(summary)
+				}
+			case <-stop:
+				return
+			}
+		}
+	}()
+	return func() { close(stop) }
+}
+
+func forwardSIEMOutbox(cfg *config.Config, outboxPath string) (api.SIEMStatus, error) {
+	status := api.SIEMStatus{
+		Enabled:     cfg.SIEM.Enabled,
+		Endpoint:    strings.TrimSpace(cfg.SIEM.Endpoint),
+		Format:      firstNonEmpty(strings.TrimSpace(cfg.SIEM.Format), "json"),
+		MinSeverity: firstNonEmpty(strings.TrimSpace(cfg.SIEM.MinSeverity), "INFO"),
+		OutboxPath:  outboxPath,
+	}
+	if !cfg.SIEM.Enabled {
+		status.LastStatus = "disabled"
+		return status, nil
+	}
+	if status.Endpoint == "" {
+		status.LastStatus = "failed"
+		status.LastError = "siem.endpoint is required"
+		return status, fmt.Errorf("%s", status.LastError)
+	}
+	data, err := os.ReadFile(outboxPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			status.LastStatus = "idle"
+			return status, nil
+		}
+		status.LastStatus = "failed"
+		status.LastError = err.Error()
+		return status, err
+	}
+	lines := nonEmptyLines(string(data))
+	if len(lines) == 0 {
+		status.LastStatus = "idle"
+		return status, nil
+	}
+	if err := deliverSIEMLines(status.Endpoint, lines); err != nil {
+		status.LastStatus = "failed"
+		status.LastError = err.Error()
+		return status, err
+	}
+	if err := os.WriteFile(outboxPath, nil, 0600); err != nil {
+		status.LastStatus = "failed"
+		status.LastError = err.Error()
+		return status, err
+	}
+	status.ForwardedEvents = len(lines)
+	status.LastForwardedAt = time.Now().UTC().Format(time.RFC3339)
+	status.LastStatus = "forwarded"
+	return status, nil
+}
+
+func deliverSIEMLines(endpoint string, lines []string) error {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "file":
+		path := parsed.Path
+		if path == "" {
+			path = strings.TrimPrefix(endpoint, "file://")
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			return err
+		}
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		for _, line := range lines {
+			if _, err := f.WriteString(line + "\n"); err != nil {
+				return err
+			}
+		}
+		return nil
+	case "http", "https":
+		client := &http.Client{Timeout: 10 * time.Second}
+		for _, line := range lines {
+			req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(line))
+			if err != nil {
+				return err
+			}
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := client.Do(req)
+			if err != nil {
+				return err
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				return fmt.Errorf("siem endpoint returned %d", resp.StatusCode)
+			}
+		}
+		return nil
+	case "tcp", "udp":
+		conn, err := net.DialTimeout(parsed.Scheme, parsed.Host, 10*time.Second)
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+		for _, line := range lines {
+			if _, err := conn.Write([]byte(line + "\n")); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported SIEM endpoint scheme %q", parsed.Scheme)
+	}
+}
+
+func nonEmptyLines(text string) []string {
+	raw := strings.Split(text, "\n")
+	out := make([]string, 0, len(raw))
+	for _, line := range raw {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func exportAuditEvidence(dir string, entries []audit.Entry, format string) (string, error) {

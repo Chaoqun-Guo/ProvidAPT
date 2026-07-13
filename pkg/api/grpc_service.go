@@ -5,9 +5,13 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
@@ -331,7 +335,8 @@ func (s *provaptManagementServer) Check(ctx context.Context, req *pb.HealthCheck
 
 // provaptTelemetryServer implements the ProvidAPTTelemetry gRPC service.
 type provaptTelemetryServer struct {
-	eventCh chan<- *collector.Event
+	eventCh       chan<- *collector.Event
+	telemetryPath string
 }
 
 // Compile-time interface check.
@@ -340,7 +345,8 @@ var _ pb.ProvidAPTTelemetryServer = (*provaptTelemetryServer)(nil)
 // newProvidAPTTelemetryServer creates a telemetry server.
 func newProvidAPTTelemetryServer(opts GRPCOptions) *provaptTelemetryServer {
 	return &provaptTelemetryServer{
-		eventCh: opts.EventCh,
+		eventCh:       opts.EventCh,
+		telemetryPath: opts.TelemetryStorePath,
 	}
 }
 
@@ -365,6 +371,9 @@ func (s *provaptTelemetryServer) ReportEvents(stream pb.ProvidAPTTelemetry_Repor
 		// Decode the raw event payload.
 		// CompressedEvent.Payload contains the raw ringbuf byte sequence.
 		if evt.GetContentType() == "raw" || evt.GetContentType() == "" {
+			if err := s.persistTelemetryEvent(evt, "raw"); err != nil {
+				log.Printf("[grpc] ReportEvents: persist raw event failed: %v", err)
+			}
 			if s.eventCh != nil && len(evt.GetPayload()) > 0 {
 				parsed, err := collector.ParseRawEvent(evt.GetPayload())
 				if err != nil {
@@ -387,6 +396,13 @@ func (s *provaptTelemetryServer) ReportEvents(stream pb.ProvidAPTTelemetry_Repor
 				// No event sink configured — count as accepted but discard.
 				accepted++
 			}
+		} else if evt.GetContentType() == "summary" || evt.GetContentType() == "full" || evt.GetContentType() == "heartbeat" {
+			if err := s.persistTelemetryEvent(evt, evt.GetContentType()); err != nil {
+				log.Printf("[grpc] ReportEvents: persist %s failed: %v", evt.GetContentType(), err)
+				dropped++
+				continue
+			}
+			accepted++
 		} else {
 			log.Printf("[grpc] ReportEvents: unknown content type: %s", evt.GetContentType())
 			dropped++
@@ -398,6 +414,34 @@ func (s *provaptTelemetryServer) ReportEvents(stream pb.ProvidAPTTelemetry_Repor
 
 // registerGRPCServices registers all gRPC service implementations with
 // the server, wiring them to the provided backend dependencies.
+func (s *provaptTelemetryServer) persistTelemetryEvent(evt *pb.CompressedEvent, kind string) error {
+	if strings.TrimSpace(s.telemetryPath) == "" || evt == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(s.telemetryPath), 0700); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(s.telemetryPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	record := map[string]interface{}{
+		"received_at":    time.Now().UTC().Format(time.RFC3339),
+		"content_type":   kind,
+		"original_size":  evt.GetOriginalSize(),
+		"timestamp_ns":   evt.GetTimestampNs(),
+		"payload_size":   len(evt.GetPayload()),
+		"payload_base64": base64.StdEncoding.EncodeToString(evt.GetPayload()),
+	}
+	data, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(append(data, '\n'))
+	return err
+}
+
 func registerGRPCServices(s grpc.ServiceRegistrar, opts GRPCOptions) {
 	pb.RegisterProvidAPTManagementServer(s, newProvidAPTManagementServer(opts))
 	pb.RegisterProvidAPTTelemetryServer(s, newProvidAPTTelemetryServer(opts))
