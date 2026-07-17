@@ -377,7 +377,7 @@ func TestRBACCustomRolePermissions(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"ops-key"}, map[string]string{"ops-key": "operator"}, nil, true)
 	ts.SetAPIAuthPermissions(map[string][]string{
-		"operator": []string{"GET:/api/v1/control/fleet", "GET:/api/v1/control/ha"},
+		"operator": {"GET:/api/v1/control/fleet", "GET:/api/v1/control/ha"},
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/ha", nil)

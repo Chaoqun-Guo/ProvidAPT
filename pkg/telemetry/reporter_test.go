@@ -31,7 +31,7 @@ type fakeAckSender struct {
 }
 
 func (f *fakeAckSender) SendWithContentTypeAck(data []byte, contentType string) (*mgmtpb.ReportAck, error) {
-	if err := f.fakeSender.SendWithContentType(data, contentType); err != nil {
+	if err := f.SendWithContentType(data, contentType); err != nil {
 		return nil, err
 	}
 	return f.ack, nil

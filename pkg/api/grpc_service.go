@@ -425,7 +425,11 @@ func (s *provaptTelemetryServer) persistTelemetryEvent(evt *pb.CompressedEvent, 
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("[grpc] close telemetry event file: %v", err)
+		}
+	}()
 	record := map[string]interface{}{
 		"received_at":    time.Now().UTC().Format(time.RFC3339),
 		"content_type":   kind,

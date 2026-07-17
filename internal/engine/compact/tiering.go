@@ -22,7 +22,6 @@ import (
 // Local index (RocksDB) retains minimal metadata for cold data:
 //
 
-//
 // TieringConfig for the data lifecycle manager.
 type TieringConfig struct {
 	HotPath string

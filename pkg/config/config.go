@@ -255,19 +255,19 @@ func (d *Duration) parse(s string) error {
 	return nil
 }
 
-func parseDurationString(value string) (time.Duration, error) {
+func validateDurationString(value string) error {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return 0, nil
+		return nil
 	}
 	duration, err := time.ParseDuration(trimmed)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	if duration <= 0 {
-		return 0, fmt.Errorf("must be positive")
+		return fmt.Errorf("must be positive")
 	}
-	return duration, nil
+	return nil
 }
 
 // DefaultConfig returns a configuration with sensible defaults.
@@ -413,12 +413,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("unsupported control_plane.role %q (use leader, follower, or observer)", c.ControlPlane.Role)
 	}
 	if strings.TrimSpace(c.ControlPlane.Heartbeat) != "" {
-		if _, err := parseDurationString(c.ControlPlane.Heartbeat); err != nil {
+		if err := validateDurationString(c.ControlPlane.Heartbeat); err != nil {
 			return fmt.Errorf("control_plane.heartbeat: %w", err)
 		}
 	}
 	if strings.TrimSpace(c.ControlPlane.ElectionTimeout) != "" {
-		if _, err := parseDurationString(c.ControlPlane.ElectionTimeout); err != nil {
+		if err := validateDurationString(c.ControlPlane.ElectionTimeout); err != nil {
 			return fmt.Errorf("control_plane.election_timeout: %w", err)
 		}
 	}
@@ -451,7 +451,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("support_bundle.retain_archives must be non-negative")
 	}
 	if strings.TrimSpace(c.Backup.Interval) != "" {
-		if _, err := parseDurationString(c.Backup.Interval); err != nil {
+		if err := validateDurationString(c.Backup.Interval); err != nil {
 			return fmt.Errorf("backup.interval: %w", err)
 		}
 	}
@@ -468,12 +468,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("compliance.max_audit_entries must be non-negative")
 	}
 	if strings.TrimSpace(c.Compliance.ApprovalTTL) != "" {
-		if _, err := parseDurationString(c.Compliance.ApprovalTTL); err != nil {
+		if err := validateDurationString(c.Compliance.ApprovalTTL); err != nil {
 			return fmt.Errorf("compliance.approval_ttl: %w", err)
 		}
 	}
 	if strings.TrimSpace(c.Compliance.ReportInterval) != "" {
-		if _, err := parseDurationString(c.Compliance.ReportInterval); err != nil {
+		if err := validateDurationString(c.Compliance.ReportInterval); err != nil {
 			return fmt.Errorf("compliance.report_interval: %w", err)
 		}
 	}
@@ -493,7 +493,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("unsupported siem.min_severity %q", c.SIEM.MinSeverity)
 	}
 	if strings.TrimSpace(c.SIEM.FlushInterval) != "" {
-		if _, err := parseDurationString(c.SIEM.FlushInterval); err != nil {
+		if err := validateDurationString(c.SIEM.FlushInterval); err != nil {
 			return fmt.Errorf("siem.flush_interval: %w", err)
 		}
 	}
