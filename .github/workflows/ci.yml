@@ -82,11 +82,15 @@ jobs:
             -e POSTGRES_PASSWORD=providapt-ci-pass \
             -p 15432:5432 postgres:16-alpine
           for i in $(seq 1 30); do
-            docker exec providapt-ci-postgres pg_isready -U providapt -d providapt && break
+            docker exec providapt-ci-postgres pg_isready -h 127.0.0.1 -U providapt -d providapt && break
             sleep 1
           done
-          PROVIDAPT_TEST_POSTGRES_DSN='postgresql://providapt:providapt-ci-pass@127.0.0.1:15432/providapt?sslmode=disable' \
-            go test ./pkg/controlplaneha -run TestCoordinatorPostgresIntegration -count=1
+          for i in $(seq 1 5); do
+            PROVIDAPT_TEST_POSTGRES_DSN='postgresql://providapt:providapt-ci-pass@127.0.0.1:15432/providapt?sslmode=disable' \
+              go test ./pkg/controlplaneha -run TestCoordinatorPostgresIntegration -count=1 && break
+            if [ "$i" -eq 5 ]; then exit 1; fi
+            sleep 2
+          done
 
   commercial-release:
     name: commercial release and package smoke
@@ -124,7 +128,7 @@ jobs:
 
       - name: Build commercial release artifacts
         run: |
-          make release-commercial
+          VERSION="0.0.0+${GITHUB_SHA::7}" make release-commercial
 
       - name: Validate SBOM inventory
         run: |
