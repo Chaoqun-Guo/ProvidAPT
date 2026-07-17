@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/backtrace"
@@ -59,6 +60,28 @@ type HealthStatus struct {
 
 // HealthCheckFunc is called by /health to determine daemon health.
 type HealthCheckFunc func() HealthStatus
+
+type RuntimeDiagnostics struct {
+	Version                  string `json:"version,omitempty"`
+	APIRest                  string `json:"api_rest,omitempty"`
+	APIGRPC                  string `json:"api_grpc,omitempty"`
+	APIAuthEnabled           bool   `json:"api_auth_enabled"`
+	TLSEnabled               bool   `json:"tls_enabled"`
+	MTLSEnabled              bool   `json:"mtls_enabled"`
+	KernelAttachmentMode     string `json:"kernel_attachment_mode,omitempty"`
+	PolicyEnabled            bool   `json:"policy_enabled"`
+	PolicyEndpoint           string `json:"policy_endpoint,omitempty"`
+	PolicyBundleDir          string `json:"policy_bundle_dir,omitempty"`
+	AppliedPolicyVersion     int    `json:"applied_policy_version,omitempty"`
+	ControlPlaneMode         string `json:"control_plane_mode,omitempty"`
+	ControlPlaneRole         string `json:"control_plane_role,omitempty"`
+	ControlPlaneStateBackend string `json:"control_plane_state_backend,omitempty"`
+	StorageEncrypted         bool   `json:"storage_encrypted"`
+	StorageKeyConfigured     bool   `json:"storage_key_configured"`
+	OutputDir                string `json:"output_dir,omitempty"`
+	SupportBundleEnabled     bool   `json:"support_bundle_enabled"`
+	UpdatedAt                string `json:"updated_at,omitempty"`
+}
 
 type ClusterAgent struct {
 	AgentID              string   `json:"agent_id"`
@@ -792,6 +815,8 @@ type Server struct {
 	trustedTenantHeader      string
 	rateLimiter              *rateLimiter
 	corsOrigins              []string
+	runtimeMu                sync.RWMutex
+	runtimeDiagnostics       RuntimeDiagnostics
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
@@ -910,6 +935,31 @@ func (s *Server) SetAlertWorkflowActionFunc(fn AlertWorkflowActionFunc) {
 
 func (s *Server) SetNotifyDeliveryFunc(fn NotifyDeliveryFunc) {
 	s.deliveryFn = fn
+}
+
+func (s *Server) SetRuntimeDiagnostics(diag RuntimeDiagnostics) {
+	if diag.Version == "" {
+		diag.Version = version.String()
+	}
+	if diag.UpdatedAt == "" {
+		diag.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	s.runtimeMu.Lock()
+	s.runtimeDiagnostics = diag
+	s.runtimeMu.Unlock()
+}
+
+func (s *Server) runtimeDiagnosticsSnapshot() RuntimeDiagnostics {
+	s.runtimeMu.RLock()
+	diag := s.runtimeDiagnostics
+	s.runtimeMu.RUnlock()
+	if diag.Version == "" {
+		diag.Version = version.String()
+	}
+	if diag.UpdatedAt == "" {
+		diag.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	return diag
 }
 
 func (s *Server) SetNotifyDeliveryActionFunc(fn NotifyDeliveryActionFunc) {
@@ -1288,11 +1338,12 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 	stats := s.graph.Stats()
 	resp := map[string]interface{}{
-		"status":    "running",
-		"nodes":     stats.Nodes,
-		"edges":     stats.Edges,
-		"role":      CurrentRole(r),
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"status":      "running",
+		"nodes":       stats.Nodes,
+		"edges":       stats.Edges,
+		"role":        CurrentRole(r),
+		"timestamp":   time.Now().UTC().Format(time.RFC3339),
+		"diagnostics": s.runtimeDiagnosticsSnapshot(),
 	}
 	// Augment with health fields when available
 	if s.healthFn != nil {
@@ -1300,6 +1351,17 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 		resp["health"] = h.Status
 		resp["uptime_seconds"] = h.UptimeSeconds
 		resp["memory_bytes"] = h.MemoryBytes
+		diag := s.runtimeDiagnosticsSnapshot()
+		if h.Version != "" {
+			diag.Version = h.Version
+		}
+		if h.AttachmentMode != "" {
+			diag.KernelAttachmentMode = h.AttachmentMode
+		}
+		if h.DesiredPolicyVersion > 0 && diag.AppliedPolicyVersion == 0 {
+			diag.AppliedPolicyVersion = h.DesiredPolicyVersion
+		}
+		resp["diagnostics"] = diag
 	}
 	return json.NewEncoder(w).Encode(resp)
 }

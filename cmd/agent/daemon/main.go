@@ -1456,6 +1456,26 @@ func main() {
 	if haStateBackend == "" {
 		haStateBackend = filepath.Join(cfg.Output.Dir, "control-plane-ha.json")
 	}
+	apiServer.SetRuntimeDiagnostics(api.RuntimeDiagnostics{
+		Version:                  version.String(),
+		APIRest:                  cfg.API.REST,
+		APIGRPC:                  cfg.API.GRPC,
+		APIAuthEnabled:           cfg.API.AuthEnabled,
+		TLSEnabled:               cfg.TLS.Enable,
+		MTLSEnabled:              cfg.TLS.Enable,
+		KernelAttachmentMode:     bpfLoader.ModeName(),
+		PolicyEnabled:            cfg.Policy.Enabled,
+		PolicyEndpoint:           policyClientCfg.Endpoint,
+		PolicyBundleDir:          policyClientCfg.BundleDir,
+		AppliedPolicyVersion:     int(appliedPolicyVersion.Load()),
+		ControlPlaneMode:         cfg.ControlPlane.Mode,
+		ControlPlaneRole:         cfg.ControlPlane.Role,
+		ControlPlaneStateBackend: haStateBackend,
+		StorageEncrypted:         cfg.Storage.Encrypt,
+		StorageKeyConfigured:     strings.TrimSpace(cfg.Storage.KeyFile) != "",
+		OutputDir:                cfg.Output.Dir,
+		SupportBundleEnabled:     true,
+	})
 	haCoordinator := controlplaneha.New(controlplaneha.Config{
 		Mode:              cfg.ControlPlane.Mode,
 		NodeID:            firstNonEmpty(strings.TrimSpace(cfg.ControlPlane.NodeID), agentID),

@@ -142,11 +142,12 @@ int BPF_PROG(probe_net_connect, struct socket *sock, struct sockaddr *address, i
 		}
 	}
 
-	/* TCP options bitmap captured from the SYN packet would
-	 * ideally be used here.  For the connect hook we have
-	 * the established socket, so options are negotiated.
-	 * Store a placeholder fingerprint. */
-	e->flags |= (0xB << 16);  /* placeholder TCP options bits */
+	/* TCP SYN options are not available from this established-socket hook.
+	 * Encode a stable tuple-derived network fingerprint in the high flags
+	 * bits so user space can correlate connect events without packet data. */
+	u32 tuple_fp = (((u32)e->payload.net.sport & 0xff) << 16) |
+		       (((u32)e->payload.net.dport & 0xff) << 24);
+	e->flags ^= tuple_fp;
 
 	bpf_ringbuf_submit(e, 0);
 	return 0;

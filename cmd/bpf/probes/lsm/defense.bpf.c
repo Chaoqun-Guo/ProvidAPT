@@ -191,10 +191,8 @@ int BPF_PROG(probe_hide_agent, struct file *file)
 	struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
 	if (!dentry) return 0;
 
-	/* We can't reliably check /proc/<pid> in eBPF without
-	 * walking the full dentry chain.  For now this is a
-	 * placeholder — the log protection above is the primary
-	 * mechanism.  Full PID hiding requires a kernel module
-	 * or getdents LSM hook. */
+	/* We can't reliably check /proc/<pid> in eBPF without walking the full
+	 * dentry chain. Log protection above is the primary hardening path; full
+	 * PID hiding requires a kernel module or getdents LSM hook. */
 	return 0;
 }

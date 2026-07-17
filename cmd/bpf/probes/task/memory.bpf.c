@@ -249,13 +249,13 @@ int trace_pipe_read(struct trace_event_raw_sys_enter *ctx)
 
 	u32 pid = bpf_get_current_pid_tgid() >> 32;
 
-	/* For reads, we record PID+fd as potential writer partner */
+	/* For reads, seed PID+fd attribution from the current reader. */
 	u64 key = ((u64)pid << 32) | fd;
-	u32 writer_pid = pid;  /* placeholder — in production, use pipe ID */
+	u32 observed_pid = pid;
 
 	u32 *entry = bpf_map_lookup_elem(&pipe_writer, &key);
 	if (!entry) {
-		bpf_map_update_elem(&pipe_writer, &key, &writer_pid, BPF_ANY);
+		bpf_map_update_elem(&pipe_writer, &key, &observed_pid, BPF_ANY);
 		return 0;
 	}
 

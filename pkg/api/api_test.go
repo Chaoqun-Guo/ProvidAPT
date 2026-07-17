@@ -427,6 +427,50 @@ func TestRBACAuditorStatusAllowed(t *testing.T) {
 	}
 }
 
+func TestStatusIncludesRuntimeDiagnostics(t *testing.T) {
+	ts := testServer(t)
+	ts.SetRuntimeDiagnostics(RuntimeDiagnostics{
+		Version:                  "v-test",
+		APIRest:                  ":18080",
+		APIGRPC:                  ":18081",
+		APIAuthEnabled:           true,
+		TLSEnabled:               true,
+		MTLSEnabled:              true,
+		KernelAttachmentMode:     "lsm",
+		PolicyEnabled:            true,
+		PolicyEndpoint:           "https://control.example",
+		PolicyBundleDir:          "/var/lib/providapt/policy",
+		AppliedPolicyVersion:     7,
+		ControlPlaneMode:         "cluster",
+		ControlPlaneRole:         "leader",
+		ControlPlaneStateBackend: "postgres://providapt",
+		StorageEncrypted:         true,
+		StorageKeyConfigured:     true,
+		OutputDir:                "/var/log/providapt",
+		SupportBundleEnabled:     true,
+	})
+
+	w := apiGet(ts, "/api/v1/status")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp struct {
+		Diagnostics RuntimeDiagnostics `json:"diagnostics"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Diagnostics.KernelAttachmentMode != "lsm" {
+		t.Fatalf("kernel attachment mode = %q", resp.Diagnostics.KernelAttachmentMode)
+	}
+	if !resp.Diagnostics.APIAuthEnabled || !resp.Diagnostics.StorageEncrypted {
+		t.Fatalf("diagnostics security fields not preserved: %+v", resp.Diagnostics)
+	}
+	if resp.Diagnostics.ControlPlaneStateBackend != "postgres://providapt" {
+		t.Fatalf("state backend = %q", resp.Diagnostics.ControlPlaneStateBackend)
+	}
+}
+
 func TestTrustedHeaderAuth(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)

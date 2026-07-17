@@ -182,6 +182,20 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
       </div>
     </div>
   </div>
+  <div class="panel">
+    <h2>Deployment Diagnostics</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('attachment')"><div class="value" id="diagAttachment">--</div><div class="label">Kernel Mode</div></div>
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('api')"><div class="value" id="diagAPI">--</div><div class="label">API Security</div></div>
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('policy')"><div class="value" id="diagPolicy">--</div><div class="label">Policy Sync</div></div>
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('storage')"><div class="value" id="diagStorage">--</div><div class="label">Storage</div></div>
+      </div>
+      <div class="alerts-list" id="deploymentDiagnosticsList">
+        <div class="loading">Loading deployment diagnostics...</div>
+      </div>
+    </div>
+  </div>
   <div class="panel span-2 agent-overview-panel">
     <h2>Agent Overview</h2>
     <div class="panel-body">
@@ -411,6 +425,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 <script>
 let lastStatus = 'unknown';
 let currentRole = 'admin';
+let latestStatus = {};
 let latestFleet = { agents: [], history: [] };
 let latestOverview = { agents: [] };
 let latestSupport = {};
@@ -644,6 +659,7 @@ function updateStatus(status) {
 async function loadStatus() {
   try {
     const data = await fetchJSON('/api/v1/status');
+    latestStatus = data || {};
     currentRole = (data.role || 'admin').toLowerCase();
     document.getElementById('roleInfo').textContent = 'Role: ' + currentRole;
     const deliveryAdmin = currentRole === 'admin';
@@ -684,7 +700,61 @@ async function loadStatus() {
     if (data.health) updateStatus(data.health);
     if (data.uptime_seconds) document.getElementById('mUptime').textContent = formatUptime(data.uptime_seconds);
     if (data.memory_bytes) document.getElementById('mMemory').textContent = formatBytes(data.memory_bytes);
+    renderDeploymentDiagnostics(data.diagnostics || {});
   } catch(e) { document.getElementById('mNodes').textContent = 'err'; }
+}
+
+function boolState(value, onText, offText) {
+  return value ? onText : offText;
+}
+
+function renderDeploymentDiagnostics(diag) {
+  const apiSecurity = [
+    boolState(diag.api_auth_enabled, 'auth', 'open'),
+    boolState(diag.tls_enabled, 'tls', 'plain')
+  ].join(' · ');
+  const policyState = diag.policy_enabled ? ('v' + (diag.applied_policy_version || 0)) : 'disabled';
+  const storageState = diag.storage_encrypted ? 'encrypted' : 'plain';
+  setText('diagAttachment', diag.kernel_attachment_mode || '--');
+  setText('diagAPI', apiSecurity);
+  setText('diagPolicy', policyState);
+  setText('diagStorage', storageState);
+  const items = [
+    renderKVItem('version', diag.version || '--', 'runtime'),
+    renderKVItem('rest api', diag.api_rest || '--', boolState(diag.api_auth_enabled, 'auth enabled', 'auth disabled')),
+    renderKVItem('grpc api', diag.api_grpc || '--', boolState(diag.mtls_enabled, 'mTLS enabled', 'mTLS disabled')),
+    renderKVItem('policy bundle', diag.policy_bundle_dir || '--', diag.policy_enabled ? 'enabled' : 'disabled'),
+    renderKVItem('control backend', diag.control_plane_state_backend || '--', (diag.control_plane_mode || 'standalone') + ' · ' + (diag.control_plane_role || 'auto')),
+    renderKVItem('storage', diag.output_dir || '--', boolState(diag.storage_encrypted, 'encrypted', 'not encrypted')),
+  ];
+  const list = document.getElementById('deploymentDiagnosticsList');
+  if (list) {
+    list.innerHTML = items.join('');
+  }
+}
+
+function showDeploymentDiagnostics(scope) {
+  const diag = (latestStatus && latestStatus.diagnostics) || {};
+  const rows = [];
+  if (scope === 'attachment') {
+    rows.push(renderKVItem('kernel mode', diag.kernel_attachment_mode || '--', 'active attachment'));
+    rows.push(renderKVItem('version', diag.version || '--', 'daemon build'));
+  } else if (scope === 'api') {
+    rows.push(renderKVItem('rest api', diag.api_rest || '--', boolState(diag.api_auth_enabled, 'auth enabled', 'auth disabled')));
+    rows.push(renderKVItem('grpc api', diag.api_grpc || '--', boolState(diag.mtls_enabled, 'mTLS enabled', 'mTLS disabled')));
+    rows.push(renderKVItem('tls', boolState(diag.tls_enabled, 'enabled', 'disabled'), 'transport'));
+  } else if (scope === 'policy') {
+    rows.push(renderKVItem('policy sync', diag.policy_enabled ? 'enabled' : 'disabled', 'runtime'));
+    rows.push(renderKVItem('endpoint', diag.policy_endpoint || '--', 'control plane'));
+    rows.push(renderKVItem('bundle dir', diag.policy_bundle_dir || '--', 'local cache'));
+    rows.push(renderKVItem('applied version', diag.applied_policy_version || 0, 'agent state'));
+  } else if (scope === 'storage') {
+    rows.push(renderKVItem('output dir', diag.output_dir || '--', 'data path'));
+    rows.push(renderKVItem('encryption', boolState(diag.storage_encrypted, 'enabled', 'disabled'), boolState(diag.storage_key_configured, 'key configured', 'key missing')));
+    rows.push(renderKVItem('state backend', diag.control_plane_state_backend || '--', 'control plane'));
+    rows.push(renderKVItem('support bundle', diag.support_bundle_enabled ? 'available' : 'disabled', 'evidence export'));
+  }
+  setInvestigationItems(rows, 'No deployment diagnostics available');
 }
 
 async function loadHealth() {
