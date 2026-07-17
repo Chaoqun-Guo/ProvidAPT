@@ -12,6 +12,8 @@ CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
 BPFTOOL ?= bpftool
 GO ?= go
+GO_TAGS ?=
+GO_TAG_ARGS := $(if $(strip $(GO_TAGS)),-tags "$(GO_TAGS)")
 
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
@@ -70,13 +72,13 @@ generate-ebpf: build-ebpf
 
 build-userspace:
 	@mkdir -p $(BIN_OUT)
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providaptd ./cmd/agent/daemon
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providaptctl ./cmd/cli/providaptctl
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-watchdog ./cmd/agent/watchdog
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-verify ./cmd/cli/providapt-verify
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-deanon ./cmd/cli/providapt-deanon
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-heal ./cmd/cli/providapt-heal
-	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-sign ./cmd/cli/providapt-sign
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providaptd ./cmd/agent/daemon
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providaptctl ./cmd/cli/providaptctl
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-watchdog ./cmd/agent/watchdog
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-verify ./cmd/cli/providapt-verify
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-deanon ./cmd/cli/providapt-deanon
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-heal ./cmd/cli/providapt-heal
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-sign ./cmd/cli/providapt-sign
 	@echo "Built userspace binaries into $(BIN_OUT)"
 
 install-local: create-user build-core

@@ -15,6 +15,7 @@ REQUIRED_ARTIFACTS="${REQUIRED_ARTIFACTS:-archive,deb,rpm}"
 SIGN_CHECKSUMS="${SIGN_CHECKSUMS:-auto}"
 RUN_SCANS="${RUN_SCANS:-auto}"
 BUILD_EBPF="${BUILD_EBPF:-1}"
+GO_TAGS="${GO_TAGS:-bpf}"
 BUILD_CONTAINER="${BUILD_CONTAINER:-0}"
 BUILD_HELM_ARCHIVE="${BUILD_HELM_ARCHIVE:-1}"
 PACKAGE_FORMATS="${PACKAGE_FORMATS:-all}"
@@ -25,6 +26,7 @@ SYFT_IMAGE="${SYFT_IMAGE:-anchore/syft:v1.38.0}"
 GRYPE_IMAGE="${GRYPE_IMAGE:-anchore/grype:v0.104.0}"
 TRIVY_IMAGE="${TRIVY_IMAGE:-aquasec/trivy:0.67.2}"
 export CGO_ENABLED
+export GO_TAGS
 
 log() {
 	printf '\n==> %s\n' "$*"
@@ -65,6 +67,82 @@ build_helm_archive() {
 	fi
 }
 
+prepare_package_defaults() {
+	mkdir -p "$BUILD_DIR"
+	if [ ! -f "$BUILD_DIR/providapt.toml" ]; then
+		cat > "$BUILD_DIR/providapt.toml" <<EOF
+output:
+  dir: /var/log/providapt
+  format: json
+api:
+  grpc: ":50051"
+  rest: ":8080"
+  auth_enabled: false
+control_plane:
+  mode: standalone
+  role: leader
+storage:
+  encrypt: false
+support_bundle:
+  redact_archives: true
+  retain_archives: 5
+capture:
+  enable_net: true
+  enable_file: true
+  enable_proc: true
+EOF
+	fi
+	if [ ! -f "$BUILD_DIR/providapt.env" ] && [ -f "$PROJECT_DIR/deploy/linux/providapt.env" ]; then
+		cp -f "$PROJECT_DIR/deploy/linux/providapt.env" "$BUILD_DIR/providapt.env"
+	fi
+}
+
+json_escape() {
+	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+spdx_id() {
+	printf '%s' "$1" | sed 's/[^A-Za-z0-9.-]/-/g'
+}
+
+generate_go_module_sbom_fallback() {
+	local spdx="$1"
+	local cdx="$2"
+	local reason="$3"
+	local modules
+	modules="$(mktemp)"
+	if ! (cd "$PROJECT_DIR" && go list -m all > "$modules"); then
+		rm -f "$modules"
+		printf 'ERROR: syft unavailable and go module SBOM fallback failed\n' >&2
+		exit 1
+	fi
+
+	warn "$reason; writing Go module SBOM fallback"
+	{
+		printf '{"spdxVersion":"SPDX-2.3","SPDXID":"SPDXRef-DOCUMENT","name":"ProvidAPT %s","documentNamespace":"https://providapt.local/spdx/%s/%s","creationInfo":{"created":"%s","creators":["Tool: ProvidAPT release pipeline","Tool: go list -m all"]},"packages":[' "$VERSION" "$VERSION" "$COMMIT" "$DATE"
+		local first=1
+		while read -r module version _; do
+			[ -n "$module" ] || continue
+			[ -n "${version:-}" ] || version="local"
+			if [ "$first" = "1" ]; then first=0; else printf ','; fi
+			printf '{"name":"%s","SPDXID":"SPDXRef-Package-%s","versionInfo":"%s","downloadLocation":"NOASSERTION","filesAnalyzed":false}' "$(json_escape "$module")" "$(spdx_id "$module")" "$(json_escape "$version")"
+		done < "$modules"
+		printf ']}\n'
+	} > "$spdx"
+	{
+		printf '{"bomFormat":"CycloneDX","specVersion":"1.5","version":1,"metadata":{"timestamp":"%s","component":{"type":"application","name":"ProvidAPT","version":"%s"}},"components":[' "$DATE" "$VERSION"
+		local first=1
+		while read -r module version _; do
+			[ -n "$module" ] || continue
+			[ -n "${version:-}" ] || version="local"
+			if [ "$first" = "1" ]; then first=0; else printf ','; fi
+			printf '{"type":"library","name":"%s","version":"%s","purl":"pkg:golang/%s@%s"}' "$(json_escape "$module")" "$(json_escape "$version")" "$(json_escape "$module")" "$(json_escape "$version")"
+		done < "$modules"
+		printf ']}\n'
+	} > "$cdx"
+	rm -f "$modules"
+}
+
 generate_sbom() {
 	local spdx="$DIST_DIR/sbom.spdx.json"
 	local cdx="$DIST_DIR/sbom.cdx.json"
@@ -75,22 +153,10 @@ generate_sbom() {
 		if docker run --rm -v "$PROJECT_DIR:/workspace:ro" -v "$DIST_DIR:/out" "$SYFT_IMAGE" dir:/workspace --output "spdx-json=/out/sbom.spdx.json"; then
 			docker run --rm -v "$PROJECT_DIR:/workspace:ro" -v "$DIST_DIR:/out" "$SYFT_IMAGE" dir:/workspace --output "cyclonedx-json=/out/sbom.cdx.json"
 		else
-			warn "dockerized syft failed; writing minimal SBOM placeholders"
-			cat > "$spdx" <<EOF
-{"spdxVersion":"SPDX-2.3","SPDXID":"SPDXRef-DOCUMENT","name":"ProvidAPT ${VERSION}","documentNamespace":"https://providapt.local/spdx/${VERSION}/${COMMIT}","creationInfo":{"created":"${DATE}","creators":["Tool: ProvidAPT release pipeline"]},"packages":[]}
-EOF
-			cat > "$cdx" <<EOF
-{"bomFormat":"CycloneDX","specVersion":"1.5","version":1,"metadata":{"timestamp":"${DATE}","component":{"type":"application","name":"ProvidAPT","version":"${VERSION}"}},"components":[]}
-EOF
+			generate_go_module_sbom_fallback "$spdx" "$cdx" "dockerized syft failed"
 		fi
 	else
-		warn "syft not installed; writing minimal SBOM placeholders"
-		cat > "$spdx" <<EOF
-{"spdxVersion":"SPDX-2.3","SPDXID":"SPDXRef-DOCUMENT","name":"ProvidAPT ${VERSION}","documentNamespace":"https://providapt.local/spdx/${VERSION}/${COMMIT}","creationInfo":{"created":"${DATE}","creators":["Tool: ProvidAPT release pipeline"]},"packages":[]}
-EOF
-		cat > "$cdx" <<EOF
-{"bomFormat":"CycloneDX","specVersion":"1.5","version":1,"metadata":{"timestamp":"${DATE}","component":{"type":"application","name":"ProvidAPT","version":"${VERSION}"}},"components":[]}
-EOF
+		generate_go_module_sbom_fallback "$spdx" "$cdx" "syft not installed"
 	fi
 }
 
@@ -276,7 +342,7 @@ Status: generated release candidate evidence
 
 - Customer-specific API keys, license files, CORS origins, and encryption keys must be replaced before production deployment.
 - Detached checksum signature should be produced with customer-approved signing infrastructure for final publication.
-- The built-in `providapt-sign` tool creates verifiable Ed25519 checksum signatures for air-gapped or customer-managed signing workflows.
+- The built-in providapt-sign tool creates verifiable Ed25519 checksum signatures for air-gapped or customer-managed signing workflows.
 EOF
 	fi
 	"$BUILD_DIR/bin/providaptctl" \
@@ -298,7 +364,7 @@ main() {
 	mkdir -p "$DIST_DIR" "$BUILD_DIR"
 
 	log "Building userspace binaries"
-	(cd "$PROJECT_DIR" && make build-userspace VERSION="$VERSION" COMMIT="$COMMIT" DATE="$DATE")
+	(cd "$PROJECT_DIR" && make build-userspace VERSION="$VERSION" COMMIT="$COMMIT" DATE="$DATE" GO_TAGS="$GO_TAGS")
 
 	if [ "$BUILD_EBPF" = "1" ] || [ "$BUILD_EBPF" = "true" ]; then
 		log "Building eBPF objects"
@@ -307,8 +373,11 @@ main() {
 		warn "BUILD_EBPF disabled; package scripts will use existing build/ebpf objects if present"
 	fi
 
+	log "Preparing package defaults"
+	prepare_package_defaults
+
 	log "Building package artifacts"
-	(cd "$PROJECT_DIR" && VERSION="$VERSION" bash build/packages/build_all.sh "$PACKAGE_FORMATS")
+	(cd "$PROJECT_DIR" && VERSION="$VERSION" GO_TAGS="$GO_TAGS" bash build/packages/build_all.sh "$PACKAGE_FORMATS")
 	copy_dist_artifacts
 
 	if [ "$BUILD_HELM_ARCHIVE" = "1" ] || [ "$BUILD_HELM_ARCHIVE" = "true" ]; then

@@ -46,7 +46,7 @@ sudo ./install.sh
 Edit `/etc/default/providapt` for operational overrides:
 
 ```bash
-PROVIDAPT_DAEMON_ARGS="-log-level info"
+PROVIDAPT_DAEMON_ARGS="-log-level=info"
 PROVIDAPT_BPF_OBJECT_PATH="/usr/local/lib/providapt/ebpf/lsm_hooks.bpf.o"
 ```
 

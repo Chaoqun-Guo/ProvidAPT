@@ -1,4 +1,4 @@
-# ── ProvidAPT Ansible Variables ─────────────────────────────────
+# ProvidAPT Ansible variables.
 # Default variables shared across all hosts.
 
 # ---- Environment ----
@@ -74,9 +74,9 @@ providapt_postgres_sslmode: "{{ lookup('env', 'PROVIDAPT_POSTGRES_SSLMODE') | de
 providapt_postgres_dsn: "postgresql://{{ providapt_postgres_user }}:{{ providapt_postgres_password }}@{{ providapt_postgres_host }}:{{ providapt_postgres_port }}/{{ providapt_postgres_db }}?sslmode={{ providapt_postgres_sslmode }}"
 
 # ---- Monitoring ----
-prometheus_version: latest
-grafana_version: latest
-alertmanager_version: latest
+prometheus_version: v2.54.1
+grafana_version: 11.2.0
+alertmanager_version: v0.27.0
 prometheus_alert_rules_enabled: true
 prometheus_alert_rules_src: providapt_alerts.yml
 prometheus_alert_rules_path: /etc/prometheus/providapt_alerts.yml

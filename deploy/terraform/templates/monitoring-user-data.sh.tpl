@@ -1,5 +1,5 @@
 #!/bin/bash
-# ── Monitoring stack bootstrap ─────────────────────────────────
+# Monitoring stack bootstrap.
 set -euo pipefail
 
 # Install Docker
@@ -18,7 +18,7 @@ apt-get update -qq
 apt-get install -y -qq docker-ce docker-ce-cli containerd.io
 systemctl enable --now docker
 
-# ── Prometheus ─────────────────────────────────────────────────
+# Prometheus
 cat > /etc/prometheus.yml << 'PROM_EOF'
 global:
   scrape_interval: 15s
@@ -47,11 +47,11 @@ docker run -d \
   --restart unless-stopped \
   --network host \
   -v /etc/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
-  prom/prometheus:latest \
+  prom/prometheus:v2.54.1 \
   --config.file=/etc/prometheus/prometheus.yml \
   --storage.tsdb.path=/prometheus
 
-# ── Grafana ────────────────────────────────────────────────────
+# Grafana
 mkdir -p /var/lib/grafana
 
 docker rm -f grafana 2>/dev/null || true
@@ -62,7 +62,7 @@ docker run -d \
   -e GF_SECURITY_ADMIN_PASSWORD=admin \
   -e GF_INSTALL_PLUGINS=grafana-piechart-panel \
   -v /var/lib/grafana:/var/lib/grafana \
-  grafana/grafana:latest
+  grafana/grafana:11.2.0
 
 echo "Monitoring stack bootstrap complete"
 echo "Prometheus: http://$(curl -s http://checkip.amazonaws.com):9090"

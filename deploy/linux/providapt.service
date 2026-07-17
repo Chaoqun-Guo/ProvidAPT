@@ -3,6 +3,8 @@ Description=ProvidAPT provenance monitor
 Documentation=https://github.com/Chaoqun-Guo/ProvidAPT
 Wants=network-online.target
 After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
 
 [Service]
 Type=simple
@@ -11,22 +13,19 @@ Group=root
 EnvironmentFile=-/etc/default/providapt
 ExecStartPre=/usr/bin/test -r /etc/providapt/providapt.toml
 ExecStartPre=/usr/bin/test -d /usr/local/lib/providapt/ebpf
+ExecStartPre=/bin/chown -R providapt:providapt /var/lib/providapt /var/log/providapt /run/providapt
 ExecStart=/usr/local/sbin/providaptd -config /etc/providapt/providapt.toml ${PROVIDAPT_DAEMON_ARGS}
 ExecReload=/bin/kill -HUP $MAINPID
 KillSignal=SIGTERM
 TimeoutStopSec=30
 Restart=on-failure
 RestartSec=5
-StartLimitIntervalSec=300
-StartLimitBurst=10
 
 LimitNOFILE=1048576
 LimitMEMLOCK=infinity
 TasksMax=8192
 
 RuntimeDirectory=providapt
-StateDirectory=providapt
-LogsDirectory=providapt
 ReadWritePaths=/etc/providapt /var/lib/providapt /var/log/providapt /run/providapt
 
 NoNewPrivileges=false
@@ -35,8 +34,8 @@ ProtectHome=true
 ProtectKernelTunables=false
 ProtectKernelModules=false
 ProtectControlGroups=false
-CapabilityBoundingSet=CAP_BPF CAP_SYS_ADMIN CAP_NET_ADMIN CAP_SYS_PTRACE CAP_PERFMON CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH
-AmbientCapabilities=CAP_BPF CAP_SYS_ADMIN CAP_NET_ADMIN CAP_SYS_PTRACE CAP_PERFMON CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_BPF CAP_SYS_ADMIN CAP_NET_ADMIN CAP_SYS_PTRACE CAP_PERFMON CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_CHOWN CAP_SETUID CAP_SETGID
+AmbientCapabilities=CAP_BPF CAP_SYS_ADMIN CAP_NET_ADMIN CAP_SYS_PTRACE CAP_PERFMON CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_CHOWN CAP_SETUID CAP_SETGID
 
 StandardOutput=journal
 StandardError=journal

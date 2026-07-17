@@ -126,9 +126,9 @@ func checkKernelVersion() CheckResult {
 	out, err := exec.Command("uname", "-r").Output()
 	if err != nil {
 		return CheckResult{
-			Name:    "kernel_version",
-			Status:  FAIL,
-			Message: "unable to determine kernel version",
+			Name:          "kernel_version",
+			Status:        FAIL,
+			Message:       "unable to determine kernel version",
 			FixSuggestion: "Ensure the system is running Linux. Run 'uname -r' to check current kernel.",
 		}
 	}
@@ -140,9 +140,9 @@ func evaluateKernelVersion(versionStr string) CheckResult {
 	parts := strings.Split(versionStr, ".")
 	if len(parts) < 2 {
 		return CheckResult{
-			Name:    "kernel_version",
-			Status:  FAIL,
-			Message: fmt.Sprintf("unexpected kernel version format: %s", versionStr),
+			Name:          "kernel_version",
+			Status:        FAIL,
+			Message:       fmt.Sprintf("unexpected kernel version format: %s", versionStr),
 			FixSuggestion: "ProvidAPT requires Linux kernel 4.18 or later, and Linux kernel 5.11 or later is recommended for full eBPF LSM support. Update your kernel and reboot.",
 		}
 	}
@@ -151,9 +151,9 @@ func evaluateKernelVersion(versionStr string) CheckResult {
 	minor, err2 := strconv.Atoi(parts[1])
 	if err1 != nil || err2 != nil {
 		return CheckResult{
-			Name:    "kernel_version",
-			Status:  FAIL,
-			Message: fmt.Sprintf("unable to parse kernel version: %s", versionStr),
+			Name:          "kernel_version",
+			Status:        FAIL,
+			Message:       fmt.Sprintf("unable to parse kernel version: %s", versionStr),
 			FixSuggestion: "ProvidAPT requires Linux kernel 4.18 or later, and Linux kernel 5.11 or later is recommended for full eBPF LSM support.",
 		}
 	}
@@ -168,17 +168,17 @@ func evaluateKernelVersion(versionStr string) CheckResult {
 
 	if major > 4 || (major == 4 && minor >= 18) {
 		return CheckResult{
-			Name:    "kernel_version",
-			Status:  WARN,
-			Message: fmt.Sprintf("kernel %s detected; running in compatibility mode with degraded eBPF features", versionStr),
+			Name:          "kernel_version",
+			Status:        WARN,
+			Message:       fmt.Sprintf("kernel %s detected; running in compatibility mode with degraded eBPF features", versionStr),
 			FixSuggestion: fmt.Sprintf("Upgrade Linux kernel to 5.11 or later for full BPF LSM and fentry support (current: %s). ProvidAPT will continue with fallback attachment where available.", versionStr),
 		}
 	}
 
 	return CheckResult{
-		Name:    "kernel_version",
-		Status:  FAIL,
-		Message: fmt.Sprintf("kernel %d.%d detected, need 4.18+ for compatibility mode or 5.11+ for full support", major, minor),
+		Name:          "kernel_version",
+		Status:        FAIL,
+		Message:       fmt.Sprintf("kernel %d.%d detected, need 4.18+ for compatibility mode or 5.11+ for full support", major, minor),
 		FixSuggestion: fmt.Sprintf("Upgrade Linux kernel to 4.18 or later at minimum, or 5.11 or later for full support (current: %s).", versionStr),
 	}
 }
@@ -204,18 +204,18 @@ func checkBPFLSM() CheckResult {
 	data, err := os.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
 		return CheckResult{
-			Name:    "bpf_lsm",
-			Status:  WARN,
-			Message: "cannot read /sys/kernel/security/lsm",
+			Name:          "bpf_lsm",
+			Status:        WARN,
+			Message:       "cannot read /sys/kernel/security/lsm",
 			FixSuggestion: "BPF LSM may not be enabled. Add 'lsm=bpf' to kernel cmdline in /etc/default/grub GRUB_CMDLINE_LINUX, then run: sudo update-grub && sudo reboot",
 		}
 	}
 
 	if !strings.Contains(string(data), "bpf") {
 		return CheckResult{
-			Name:    "bpf_lsm",
-			Status:  FAIL,
-			Message: "BPF LSM not enabled in kernel security subsystem",
+			Name:          "bpf_lsm",
+			Status:        FAIL,
+			Message:       "BPF LSM not enabled in kernel security subsystem",
 			FixSuggestion: "Add 'lsm=bpf' to kernel boot parameters. Edit /etc/default/grub: GRUB_CMDLINE_LINUX=\"lsm=bpf lockdown=confidentiality\" then: sudo update-grub && sudo reboot",
 		}
 	}
@@ -260,9 +260,9 @@ func checkCapabilities() CheckResult {
 	data, err := os.ReadFile("/proc/self/status")
 	if err != nil {
 		return CheckResult{
-			Name:    "capabilities",
-			Status:  WARN,
-			Message: "cannot determine capabilities",
+			Name:          "capabilities",
+			Status:        WARN,
+			Message:       "cannot determine capabilities",
 			FixSuggestion: "Run as root or grant capabilities: sudo setcap cap_bpf,cap_perfmon,cap_sys_admin+ep /usr/local/sbin/providaptd",
 		}
 	}
@@ -319,9 +319,9 @@ func checkDataDir(cfg *config.Config) CheckResult {
 	// Check directory exists and is writable
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return CheckResult{
-			Name:    "data_dir_writable",
-			Status:  FAIL,
-			Message: fmt.Sprintf("cannot create data directory %s: %v", dir, err),
+			Name:          "data_dir_writable",
+			Status:        FAIL,
+			Message:       fmt.Sprintf("cannot create data directory %s: %v", dir, err),
 			FixSuggestion: fmt.Sprintf("Create the data directory: sudo mkdir -p %s && sudo chown providapt:providapt %s", dir, dir),
 		}
 	}
@@ -329,9 +329,9 @@ func checkDataDir(cfg *config.Config) CheckResult {
 	testFile := filepath.Join(dir, ".sanity-check")
 	if err := os.WriteFile(testFile, []byte{}, 0644); err != nil {
 		return CheckResult{
-			Name:    "data_dir_writable",
-			Status:  FAIL,
-			Message: fmt.Sprintf("data directory %s not writable: %v", dir, err),
+			Name:          "data_dir_writable",
+			Status:        FAIL,
+			Message:       fmt.Sprintf("data directory %s not writable: %v", dir, err),
 			FixSuggestion: fmt.Sprintf("Fix permissions: sudo chown -R providapt:providapt %s && sudo chmod 755 %s", dir, dir),
 		}
 	}
@@ -358,9 +358,9 @@ func checkPIDFile() CheckResult {
 	pid, err := strconv.Atoi(pidStr)
 	if err != nil {
 		return CheckResult{
-			Name:    "pidfile_stale",
-			Status:  WARN,
-			Message: fmt.Sprintf("invalid PID file content: %s", pidStr),
+			Name:          "pidfile_stale",
+			Status:        WARN,
+			Message:       fmt.Sprintf("invalid PID file content: %s", pidStr),
 			FixSuggestion: "Remove the PID file: sudo rm -f /var/run/providaptd.pid",
 		}
 	}
@@ -369,9 +369,9 @@ func checkPIDFile() CheckResult {
 	proc, err := os.FindProcess(pid)
 	if err != nil || proc.Signal(syscall.Signal(0)) != nil {
 		return CheckResult{
-			Name:    "pidfile_stale",
-			Status:  WARN,
-			Message: fmt.Sprintf("stale PID file: pid %d is not running", pid),
+			Name:          "pidfile_stale",
+			Status:        WARN,
+			Message:       fmt.Sprintf("stale PID file: pid %d is not running", pid),
 			FixSuggestion: "Remove the stale PID file: sudo rm -f /var/run/providaptd.pid",
 		}
 	}
@@ -387,9 +387,9 @@ func checkConflictingProgs() CheckResult {
 	out, err := exec.Command("bpftool", "prog", "list").Output()
 	if err != nil {
 		return CheckResult{
-			Name:    "no_conflicting_ebpf",
-			Status:  WARN,
-			Message: "cannot list eBPF programs (bpftool not available)",
+			Name:          "no_conflicting_ebpf",
+			Status:        WARN,
+			Message:       "cannot list eBPF programs (bpftool not available)",
 			FixSuggestion: "Install bpftool to verify eBPF program state: sudo apt install bpftool or equivalent for your distro.",
 		}
 	}
@@ -429,10 +429,10 @@ func checkProvidaptUser() CheckResult {
 	out, err := exec.Command("id", "-u", "providapt").Output()
 	if err != nil {
 		return CheckResult{
-			Name:    "providapt_user",
-			Status:  FAIL,
-			Message: "user 'providapt' does not exist",
-			FixSuggestion: "Create the providapt system user: sudo useradd --system --no-create-home --uid 950 --shell /usr/sbin/nologin --comment 'ProvidAPT daemon user' providapt",
+			Name:          "providapt_user",
+			Status:        FAIL,
+			Message:       "user 'providapt' does not exist",
+			FixSuggestion: "Create the providapt system user: sudo useradd --system --no-create-home --shell /usr/sbin/nologin --comment 'ProvidAPT daemon user' providapt",
 		}
 	}
 
@@ -445,16 +445,9 @@ func checkProvidaptUser() CheckResult {
 		}
 	}
 
-	status := PASS
-	msg := fmt.Sprintf("user 'providapt' exists (UID %d)", uid)
-	if uid != 950 {
-		status = WARN
-		msg = fmt.Sprintf("user 'providapt' has UID %d, expected 950", uid)
-	}
-
 	return CheckResult{
 		Name:    "providapt_user",
-		Status:  status,
-		Message: msg,
+		Status:  PASS,
+		Message: fmt.Sprintf("user 'providapt' exists (UID %d)", uid),
 	}
 }

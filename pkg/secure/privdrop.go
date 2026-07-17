@@ -19,6 +19,24 @@ const (
 	ProvidaptGID  = 950
 )
 
+func providaptIDs() (int, int, error) {
+	u, err := user.Lookup(ProvidaptUser)
+	if err != nil {
+		return ProvidaptUID, ProvidaptGID, fmt.Errorf("lookup user %s: %w", ProvidaptUser, err)
+	}
+
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return ProvidaptUID, ProvidaptGID, fmt.Errorf("parse uid %s: %w", u.Uid, err)
+	}
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
+		return ProvidaptUID, ProvidaptGID, fmt.Errorf("parse gid %s: %w", u.Gid, err)
+	}
+
+	return uid, gid, nil
+}
+
 // DropPrivileges drops from root to the providapt user.
 // Must be called AFTER eBPF programs are loaded and maps are pinned.
 func DropPrivileges() error {
@@ -77,5 +95,9 @@ func IsPrivileged() bool {
 // EnsureDataDirOwnership sets the ownership of path to providapt:providapt.
 // Only effective when running as root.
 func EnsureDataDirOwnership(path string) error {
-	return os.Chown(path, ProvidaptUID, ProvidaptGID)
+	uid, gid, err := providaptIDs()
+	if err != nil {
+		return err
+	}
+	return os.Chown(path, uid, gid)
 }
