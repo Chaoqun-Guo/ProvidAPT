@@ -134,6 +134,7 @@ rpmbuild --define "_topdir $RPM_BUILD_DIR" \
 	--define "version $PACKAGE_VERSION" \
 	--define "release $PACKAGE_RELEASE" \
 	--define "project_dir $PROJECT_DIR" \
+	--define "__os_install_post %{nil}" \
 	--target "$ARCH" \
 	-bb "$RPM_BUILD_DIR/SPECS/providapt.spec"
 
