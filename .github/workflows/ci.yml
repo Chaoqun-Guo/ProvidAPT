@@ -56,9 +56,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq clang llvm libbpf-dev linux-tools-common linux-tools-generic linux-tools-azure linux-cloud-tools-azure
           sudo apt-get install -y -qq "linux-tools-$(uname -r)" "linux-cloud-tools-$(uname -r)" || true
-          if ! command -v bpftool >/dev/null 2>&1; then
-            bpftool_path="$(find /usr/lib/linux-tools* -type f -name bpftool 2>/dev/null | sort -V | tail -n 1)"
-            test -n "$bpftool_path"
+          bpftool_path="$(find /usr/lib/linux-tools* -type f -name bpftool 2>/dev/null | sort -V | tail -n 1)"
+          if [ -n "$bpftool_path" ]; then
             sudo ln -sf "$bpftool_path" /usr/local/bin/bpftool
           fi
           bpftool version
@@ -117,9 +116,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq build-essential fakeroot rpm tar gzip make clang llvm libbpf-dev linux-tools-common linux-tools-generic linux-tools-azure linux-cloud-tools-azure
           sudo apt-get install -y -qq "linux-tools-$(uname -r)" "linux-cloud-tools-$(uname -r)" || true
-          if ! command -v bpftool >/dev/null 2>&1; then
-            bpftool_path="$(find /usr/lib/linux-tools* -type f -name bpftool 2>/dev/null | sort -V | tail -n 1)"
-            test -n "$bpftool_path"
+          bpftool_path="$(find /usr/lib/linux-tools* -type f -name bpftool 2>/dev/null | sort -V | tail -n 1)"
+          if [ -n "$bpftool_path" ]; then
             sudo ln -sf "$bpftool_path" /usr/local/bin/bpftool
           fi
           bpftool version
@@ -187,9 +185,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq clang llvm libbpf-dev linux-tools-common linux-tools-generic linux-tools-azure linux-cloud-tools-azure make
           sudo apt-get install -y -qq "linux-tools-$(uname -r)" "linux-cloud-tools-$(uname -r)" || true
-          if ! command -v bpftool >/dev/null 2>&1; then
-            bpftool_path="$(find /usr/lib/linux-tools* -type f -name bpftool 2>/dev/null | sort -V | tail -n 1)"
-            test -n "$bpftool_path"
+          bpftool_path="$(find /usr/lib/linux-tools* -type f -name bpftool 2>/dev/null | sort -V | tail -n 1)"
+          if [ -n "$bpftool_path" ]; then
             sudo ln -sf "$bpftool_path" /usr/local/bin/bpftool
           fi
           bpftool version
