@@ -361,6 +361,9 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	if err := s.loadState(); err != nil {
 		return nil, err
 	}
+	if err := s.ensureCurrentPolicyBundle(); err != nil {
+		return nil, err
+	}
 	if cfg.ClientCertRevoked == nil {
 		cfg.ClientCertRevoked = s.isClientCertRevoked
 	}
@@ -1159,6 +1162,39 @@ func (s *Server) writePolicyBundle(bundle policyBundle) (string, string, error) 
 		return "", "", fmt.Errorf("replace policy bundle: %w", err)
 	}
 	return path, hash, nil
+}
+
+func (s *Server) ensureCurrentPolicyBundle() error {
+	s.policy.mu.Lock()
+	if s.policy.current.Version <= 0 {
+		s.policy.mu.Unlock()
+		return nil
+	}
+	if strings.TrimSpace(s.policy.current.BundlePath) != "" {
+		if _, err := os.Stat(s.policy.current.BundlePath); err == nil {
+			s.policy.mu.Unlock()
+			return nil
+		}
+	}
+	current := clonePolicyRevision(s.policy.current)
+	bundle := s.buildPolicyBundleLocked(current)
+	path, hash, err := s.writePolicyBundle(bundle)
+	if err != nil {
+		s.policy.mu.Unlock()
+		return err
+	}
+	s.policy.current.BundlePath = path
+	s.policy.current.BundleSHA256 = hash
+	s.policy.draft.BundlePath = path
+	s.policy.draft.BundleSHA256 = hash
+	for index := range s.policy.history {
+		if s.policy.history[index].Version == current.Version {
+			s.policy.history[index].BundlePath = path
+			s.policy.history[index].BundleSHA256 = hash
+		}
+	}
+	s.policy.mu.Unlock()
+	return s.saveState()
 }
 
 func (s *Server) readPolicyBundleLocked(revision PolicyRevision) (policyBundle, error) {

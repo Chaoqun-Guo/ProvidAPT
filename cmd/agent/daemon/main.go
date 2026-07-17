@@ -3732,12 +3732,26 @@ func fetchAndApplyPolicyBundle(ctx context.Context, cfg agentPolicyClientConfig,
 		return appliedPolicyBundleResult{}, err
 	}
 	path := filepath.Join(cfg.BundleDir, fmt.Sprintf("policy-v%d.json", version))
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0600); err != nil {
+	tmp, err := os.CreateTemp(cfg.BundleDir, fmt.Sprintf("policy-v%d-*.json.tmp", version))
+	if err != nil {
 		return appliedPolicyBundleResult{}, err
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	tmpPath := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return appliedPolicyBundleResult{}, err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return appliedPolicyBundleResult{}, err
+	}
+	if err := os.Chmod(tmpPath, 0600); err != nil {
+		_ = os.Remove(tmpPath)
+		return appliedPolicyBundleResult{}, err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
 		return appliedPolicyBundleResult{}, err
 	}
 	return appliedPolicyBundleResult{Path: path, SHA256: actualSHA}, nil

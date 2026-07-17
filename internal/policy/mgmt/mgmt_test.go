@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -768,6 +769,69 @@ func TestQuarantinedAgentTelemetrySkipsPolicyVersion(t *testing.T) {
 	}
 }
 
+func TestNewServerWritesInitialPolicyBundle(t *testing.T) {
+	dir := t.TempDir()
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	cfg.StateFile = filepath.Join(dir, "control-plane-state.json")
+	cfg.PolicyBundleDir = filepath.Join(dir, "policy-bundles")
+
+	s, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	current := s.PolicyCenter().Current
+	if current.Version != 1 {
+		t.Fatalf("initial version = %d, want 1", current.Version)
+	}
+	if current.BundlePath == "" || current.BundleSHA256 == "" {
+		t.Fatalf("initial bundle metadata missing: %#v", current)
+	}
+	if _, err := os.Stat(current.BundlePath); err != nil {
+		t.Fatalf("initial bundle file: %v", err)
+	}
+	s.policy.mu.Lock()
+	bundle, err := s.readPolicyBundleLocked(s.policy.current)
+	s.policy.mu.Unlock()
+	if err != nil {
+		t.Fatalf("read initial bundle: %v", err)
+	}
+	if bundle.Version != 1 || bundle.State != "published" {
+		t.Fatalf("bundle = %#v", bundle)
+	}
+}
+
+func TestNewServerRepairsMissingPolicyBundle(t *testing.T) {
+	dir := t.TempDir()
+	cfg := DefaultServerConfig()
+	cfg.EnableTLS = false
+	cfg.StateFile = filepath.Join(dir, "control-plane-state.json")
+	cfg.PolicyBundleDir = filepath.Join(dir, "policy-bundles")
+
+	s, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	oldBundle := s.PolicyCenter().Current.BundlePath
+	if oldBundle == "" {
+		t.Fatal("initial bundle path empty")
+	}
+	if err := os.Remove(oldBundle); err != nil {
+		t.Fatalf("remove bundle: %v", err)
+	}
+	reloaded, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("reload NewServer: %v", err)
+	}
+	current := reloaded.PolicyCenter().Current
+	if current.BundlePath == "" || current.BundleSHA256 == "" {
+		t.Fatalf("repaired bundle metadata missing: %#v", current)
+	}
+	if _, err := os.Stat(current.BundlePath); err != nil {
+		t.Fatalf("repaired bundle file: %v", err)
+	}
+}
+
 func TestReportEventsEmptyStream(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.EnableTLS = false
@@ -784,7 +848,7 @@ func TestReportEventsEmptyStream(t *testing.T) {
 	if stream.ack == nil || !stream.ack.Accepted {
 		t.Fatal("expected accepted empty telemetry ack")
 	}
-	if stream.ack.Message != "no events received" {
+	if !strings.Contains(stream.ack.Message, "no events received") || !strings.Contains(stream.ack.Message, "policy_version=1") {
 		t.Fatalf("ack message = %q", stream.ack.Message)
 	}
 }

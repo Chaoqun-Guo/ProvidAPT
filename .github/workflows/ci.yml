@@ -64,13 +64,30 @@ jobs:
           go test ./internal/policy/rulescanner ./internal/policy/response ./internal/policy/deception
           go test ./internal/storage/store ./internal/engine/compact ./internal/stitcher/graphsketch ./internal/engine/edgereduce
           GOOS=linux go test -c ./cmd/agent/daemon
+          GOOS=linux go test -c -tags bpf ./cmd/agent/daemon
+
+      - name: PostgreSQL HA integration
+        run: |
+          cleanup() { docker rm -f providapt-ci-postgres >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          docker run -d --name providapt-ci-postgres \
+            -e POSTGRES_DB=providapt \
+            -e POSTGRES_USER=providapt \
+            -e POSTGRES_PASSWORD=providapt-ci-pass \
+            -p 15432:5432 postgres:16-alpine
+          for i in $(seq 1 30); do
+            docker exec providapt-ci-postgres pg_isready -U providapt -d providapt && break
+            sleep 1
+          done
+          PROVIDAPT_TEST_POSTGRES_DSN='postgresql://providapt:providapt-ci-pass@127.0.0.1:15432/providapt?sslmode=disable' \
+            go test ./pkg/controlplaneha -run TestCoordinatorPostgresIntegration -count=1
 
   commercial-release:
     name: commercial release and package smoke
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     env:
-      BUILD_EBPF: "0"
+      BUILD_EBPF: "1"
+      GO_TAGS: "bpf"
       RUN_SCANS: "auto"
       SIGN_CHECKSUMS: "auto"
       PACKAGE_FORMATS: "all"
@@ -91,11 +108,22 @@ jobs:
       - name: Install package tooling
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq build-essential fakeroot rpm tar gzip make
+          sudo apt-get install -y -qq build-essential fakeroot rpm tar gzip make clang llvm libbpf-dev linux-tools-common linux-tools-generic
 
       - name: Build commercial release artifacts
         run: |
           make release-commercial
+
+      - name: Validate SBOM inventory
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          spdx = json.loads(Path("dist/sbom.spdx.json").read_text())
+          cdx = json.loads(Path("dist/sbom.cdx.json").read_text())
+          assert len(spdx.get("packages", [])) > 0, "SPDX SBOM has no packages"
+          assert len(cdx.get("components", [])) > 0, "CycloneDX SBOM has no components"
+          PY
 
       - name: Run package smoke matrix
         run: |

@@ -77,12 +77,26 @@ output:
 api:
   grpc: ":50051"
   rest: ":8080"
-  auth_enabled: false
+  auth_enabled: true
+  auth_keys:
+    - release-admin-key
+  auth_roles:
+    release-admin-key: admin
+  cors_origins:
+    - https://soc.example.com
 control_plane:
   mode: standalone
   role: leader
+  state_backend: /var/log/providapt/control-plane-state.json
 storage:
-  encrypt: false
+  encrypt: true
+  key_file: /etc/providapt/storage.key
+policy:
+  enabled: true
+  endpoint: http://127.0.0.1:8080
+  api_key: release-admin-key
+  poll_interval: 30s
+  bundle_dir: /var/log/providapt/applied-policy-bundles
 support_bundle:
   redact_archives: true
   retain_archives: 5

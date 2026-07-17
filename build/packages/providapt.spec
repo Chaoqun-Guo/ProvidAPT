@@ -93,7 +93,7 @@ getent passwd providapt >/dev/null 2>&1 || \
 %{_libdir}/providapt/ebpf/*.bpf.o
 %config(noreplace) /etc/providapt/providapt.toml
 %config(noreplace) /etc/default/providapt
-%config(noreplace) %{_unitdir}/providapt.service
+%{_unitdir}/providapt.service
 
 %changelog
 * Tue Jun 03 2026 ProvidAPT Team <dev@providapt.io> - 1.0.2-1

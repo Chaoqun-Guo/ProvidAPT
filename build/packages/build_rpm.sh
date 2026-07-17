@@ -122,7 +122,7 @@ fi
 %{_libdir}/providapt/ebpf
 %config(noreplace) /etc/providapt/providapt.toml
 %config(noreplace) /etc/default/providapt
-%config(noreplace) %{_unitdir}/providapt.service
+%{_unitdir}/providapt.service
 
 %changelog
 * Thu Jul 16 2026 ProvidAPT Team <dev@providapt.io> - %{version}-%{release}
