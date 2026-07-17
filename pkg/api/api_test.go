@@ -1322,6 +1322,126 @@ func TestPolicyActionEndpoint(t *testing.T) {
 	}
 }
 
+func TestControlPlaneWriteRejectedOnFollower(t *testing.T) {
+	ts := testServer(t)
+	called := false
+	ts.SetHAStatusFunc(func() HAStatus {
+		return HAStatus{
+			Mode:     "active-passive",
+			NodeID:   "cp-b",
+			Role:     "follower",
+			LeaderID: "cp-a",
+			Peers:    []string{"cp-a:18080", "cp-b:18080"},
+			Healthy:  true,
+		}
+	})
+	ts.SetPolicyActionFunc(func(req PolicyActionRequest) (PolicySummary, error) {
+		called = true
+		return PolicySummary{}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", bytes.NewBufferString(`{"action":"publish"}`))
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status code = %d body=%s", w.Code, w.Body.String())
+	}
+	if called {
+		t.Fatal("policy action should not run on follower")
+	}
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["leader_id"] != "cp-a" || resp["leader_endpoint"] != "http://cp-a:18080" || !strings.Contains(resp["error"], "not leader") {
+		t.Fatalf("unexpected response: %#v", resp)
+	}
+}
+
+func TestControlPlaneWriteAllowedOnLeader(t *testing.T) {
+	ts := testServer(t)
+	called := false
+	ts.SetHAStatusFunc(func() HAStatus {
+		return HAStatus{
+			Mode:     "active-passive",
+			NodeID:   "cp-a",
+			Role:     "leader",
+			LeaderID: "cp-a",
+			Healthy:  true,
+		}
+	})
+	ts.SetPolicyActionFunc(func(req PolicyActionRequest) (PolicySummary, error) {
+		called = true
+		return PolicySummary{Version: 4, State: req.Action}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", bytes.NewBufferString(`{"action":"publish"}`))
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d body=%s", w.Code, w.Body.String())
+	}
+	if !called {
+		t.Fatal("policy action should run on leader")
+	}
+}
+
+func TestControlPlaneWriteRejectedWhenLeaderUnhealthy(t *testing.T) {
+	ts := testServer(t)
+	called := false
+	ts.SetHAStatusFunc(func() HAStatus {
+		return HAStatus{
+			Mode:     "active-passive",
+			NodeID:   "cp-a",
+			Role:     "leader",
+			LeaderID: "cp-a",
+			Healthy:  false,
+		}
+	})
+	ts.SetPolicyActionFunc(func(req PolicyActionRequest) (PolicySummary, error) {
+		called = true
+		return PolicySummary{}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", bytes.NewBufferString(`{"action":"publish"}`))
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status code = %d body=%s", w.Code, w.Body.String())
+	}
+	if called {
+		t.Fatal("policy action should not run on unhealthy leader")
+	}
+}
+
+func TestControlPlaneReloadRejectedOnFollower(t *testing.T) {
+	ts := testServer(t)
+	called := false
+	ts.SetHAStatusFunc(func() HAStatus {
+		return HAStatus{
+			Mode:     "active-passive",
+			NodeID:   "cp-b",
+			Role:     "follower",
+			LeaderID: "cp-a",
+			Healthy:  true,
+		}
+	})
+	ts.SetReloadHandler(func() error {
+		called = true
+		return nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/reload", nil)
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status code = %d body=%s", w.Code, w.Body.String())
+	}
+	if called {
+		t.Fatal("reload should not run on follower")
+	}
+}
+
 func TestPolicyEditActionFields(t *testing.T) {
 	ts := testServer(t)
 	var gotReq PolicyActionRequest

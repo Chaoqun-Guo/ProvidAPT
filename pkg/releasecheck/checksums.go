@@ -2,7 +2,9 @@ package releasecheck
 
 import (
 	"bufio"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -321,6 +323,27 @@ func checkChecksumsSignature(report *Report, path string) {
 		return
 	}
 	format := classifySignatureFormat(data)
+	if format == "providapt-ed25519" {
+		verified, err := verifyProvidAPTEd25519Signature(path, data)
+		if err != nil {
+			add(report, Check{
+				Name:          "release_checksums_signature",
+				Status:        StatusFail,
+				Message:       fmt.Sprintf("cannot verify ProvidAPT Ed25519 checksum signature: %v", err),
+				FixSuggestion: "Regenerate checksums.txt.sig with providapt-sign for the current checksums.txt.",
+			})
+			return
+		}
+		if !verified {
+			add(report, Check{
+				Name:          "release_checksums_signature",
+				Status:        StatusFail,
+				Message:       "ProvidAPT Ed25519 checksum signature mismatch",
+				FixSuggestion: "Regenerate checksums.txt.sig after checksums.txt changes.",
+			})
+			return
+		}
+	}
 	add(report, Check{
 		Name:    "release_checksums_signature",
 		Status:  StatusPass,
@@ -337,9 +360,55 @@ func classifySignatureFormat(data []byte) string {
 		return "minisign"
 	case looksLikeCosignBundle(data):
 		return "cosign-bundle"
+	case looksLikeProvidAPTEd25519(data):
+		return "providapt-ed25519"
 	default:
 		return "unknown-or-binary"
 	}
+}
+
+type providaptSignatureBundle struct {
+	Type          string `json:"type"`
+	Algorithm     string `json:"algorithm"`
+	MessageSHA256 string `json:"message_sha256"`
+	PublicKey     string `json:"public_key"`
+	Signature     string `json:"signature"`
+}
+
+func looksLikeProvidAPTEd25519(data []byte) bool {
+	var bundle providaptSignatureBundle
+	if err := json.Unmarshal(data, &bundle); err != nil {
+		return false
+	}
+	return bundle.Type == "providapt-ed25519-checksums-v1" && strings.EqualFold(bundle.Algorithm, "ed25519")
+}
+
+func verifyProvidAPTEd25519Signature(signaturePath string, data []byte) (bool, error) {
+	var bundle providaptSignatureBundle
+	if err := json.Unmarshal(data, &bundle); err != nil {
+		return false, err
+	}
+	messagePath := strings.TrimSuffix(signaturePath, ".sig")
+	message, err := os.ReadFile(messagePath)
+	if err != nil {
+		return false, fmt.Errorf("read signed message %q: %w", messagePath, err)
+	}
+	sum := sha256.Sum256(message)
+	if !strings.EqualFold(bundle.MessageSHA256, hex.EncodeToString(sum[:])) {
+		return false, nil
+	}
+	pub, err := hex.DecodeString(strings.TrimSpace(bundle.PublicKey))
+	if err != nil {
+		return false, fmt.Errorf("decode public key: %w", err)
+	}
+	if len(pub) != ed25519.PublicKeySize {
+		return false, fmt.Errorf("public key has %d bytes, want %d", len(pub), ed25519.PublicKeySize)
+	}
+	signature, err := base64.StdEncoding.DecodeString(strings.TrimSpace(bundle.Signature))
+	if err != nil {
+		return false, fmt.Errorf("decode signature: %w", err)
+	}
+	return ed25519.Verify(ed25519.PublicKey(pub), message, signature), nil
 }
 
 func looksLikeCosignBundle(data []byte) bool {

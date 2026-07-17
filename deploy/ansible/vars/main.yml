@@ -38,10 +38,59 @@ providapt_env:
   PROVIDAPT_OUTPUT_DIR: "{{ providapt_data_dir }}"
   PROVIDAPT_API_REST: "{{ providapt_api_rest }}"
   PROVIDAPT_API_AUTH_ENABLED: "{{ providapt_api_auth_enabled | string }}"
+  PROVIDAPT_CONTROL_PLANE_MODE: "{{ providapt_control_plane_mode }}"
+  PROVIDAPT_CONTROL_PLANE_NODE_ID: "{{ providapt_control_plane_node_id }}"
+  PROVIDAPT_CONTROL_PLANE_ROLE: "{{ providapt_control_plane_role }}"
+  PROVIDAPT_CONTROL_PLANE_LEADER_ID: "{{ providapt_control_plane_leader_id }}"
+  PROVIDAPT_CONTROL_PLANE_PEERS: "{{ providapt_control_plane_peers | join(',') }}"
+  PROVIDAPT_CONTROL_PLANE_STATE_BACKEND: "{{ providapt_control_plane_state_backend }}"
+  PROVIDAPT_CONTROL_PLANE_HEARTBEAT: "{{ providapt_control_plane_heartbeat }}"
+  PROVIDAPT_CONTROL_PLANE_ELECTION_TIMEOUT: "{{ providapt_control_plane_election_timeout }}"
+
+# ---- Control plane HA ----
+providapt_control_plane_mode: "{{ lookup('env', 'PROVIDAPT_CONTROL_PLANE_MODE') | default('standalone', true) }}"
+providapt_control_plane_node_id: "{{ inventory_hostname }}"
+providapt_control_plane_role: "{{ lookup('env', 'PROVIDAPT_CONTROL_PLANE_ROLE') | default('leader', true) }}"
+providapt_control_plane_leader_id: "{{ lookup('env', 'PROVIDAPT_CONTROL_PLANE_LEADER_ID') | default('', true) }}"
+providapt_control_plane_peers: []
+providapt_control_plane_state_backend: "{{ lookup('env', 'PROVIDAPT_CONTROL_PLANE_STATE_BACKEND') | default(providapt_postgres_dsn if providapt_postgres_enabled else '', true) }}"
+providapt_control_plane_heartbeat: "10s"
+providapt_control_plane_election_timeout: "45s"
+
+# ---- PostgreSQL HA state backend ----
+providapt_postgres_enabled: "{{ (lookup('env', 'PROVIDAPT_POSTGRES_ENABLED') | default('false', true)) | bool }}"
+providapt_postgres_container_name: providapt-postgres
+providapt_postgres_version: "16-alpine"
+providapt_postgres_network_mode: bridge
+providapt_postgres_host: "{{ lookup('env', 'PROVIDAPT_POSTGRES_HOST') | default('127.0.0.1', true) }}"
+providapt_postgres_port: "{{ lookup('env', 'PROVIDAPT_POSTGRES_PORT') | default('5432', true) }}"
+providapt_postgres_ports:
+  - "{{ providapt_postgres_host }}:{{ providapt_postgres_port }}:5432"
+providapt_postgres_data_dir: /var/lib/providapt/postgres
+providapt_postgres_db: "{{ lookup('env', 'PROVIDAPT_POSTGRES_DB') | default('providapt', true) }}"
+providapt_postgres_user: "{{ lookup('env', 'PROVIDAPT_POSTGRES_USER') | default('providapt', true) }}"
+providapt_postgres_password: "{{ lookup('env', 'PROVIDAPT_POSTGRES_PASSWORD') | default('replace-with-strong-password', true) }}"
+providapt_postgres_sslmode: "{{ lookup('env', 'PROVIDAPT_POSTGRES_SSLMODE') | default('disable', true) }}"
+providapt_postgres_dsn: "postgresql://{{ providapt_postgres_user }}:{{ providapt_postgres_password }}@{{ providapt_postgres_host }}:{{ providapt_postgres_port }}/{{ providapt_postgres_db }}?sslmode={{ providapt_postgres_sslmode }}"
 
 # ---- Monitoring ----
 prometheus_version: latest
 grafana_version: latest
+alertmanager_version: latest
+prometheus_alert_rules_enabled: true
+prometheus_alert_rules_src: providapt_alerts.yml
+prometheus_alert_rules_path: /etc/prometheus/providapt_alerts.yml
+grafana_dashboard_enabled: true
+grafana_dashboard_src: providapt_dashboard.json
+alertmanager_enabled: true
+alertmanager_group_wait: 30s
+alertmanager_group_interval: 5m
+alertmanager_repeat_interval: 4h
+alertmanager_critical_repeat_interval: 1h
+alertmanager_default_receiver: default
+alertmanager_critical_receiver: critical
+alertmanager_webhook_url: "{{ lookup('env', 'PROVIDAPT_ALERT_WEBHOOK_URL') | default('', true) }}"
+alertmanager_critical_webhook_url: "{{ lookup('env', 'PROVIDAPT_CRITICAL_ALERT_WEBHOOK_URL') | default('', true) }}"
 # Set via Ansible Vault: ansible-vault encrypt_string 'your-password' --name 'grafana_admin_password'
 # Or pass at runtime: --extra-vars 'grafana_admin_password=your-password'
 grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') | default('changeme', true) }}"

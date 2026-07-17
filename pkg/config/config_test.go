@@ -47,6 +47,12 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Upgrade.CanaryPercent != 10 {
 		t.Fatalf("upgrade canary default = %d", cfg.Upgrade.CanaryPercent)
 	}
+	if cfg.ControlPlane.Mode != "standalone" || cfg.ControlPlane.Role != "leader" {
+		t.Fatalf("control plane defaults = %#v", cfg.ControlPlane)
+	}
+	if cfg.ControlPlane.Heartbeat != "10s" || cfg.ControlPlane.ElectionTimeout != "45s" {
+		t.Fatalf("control plane timing defaults = %#v", cfg.ControlPlane)
+	}
 }
 
 func TestLoadNonExistent(t *testing.T) {
@@ -305,6 +311,61 @@ func TestPolicyEnvOverrides(t *testing.T) {
 	}
 	if cfg.Policy.BundleDir != "/var/lib/providapt/policies" || !cfg.Policy.EnableTLS || cfg.Policy.CAFile != "/etc/providapt/ca.pem" {
 		t.Fatalf("policy tls config = %#v", cfg.Policy)
+	}
+}
+
+func TestControlPlaneEnvOverrides(t *testing.T) {
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_MODE", "active-passive")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_NODE_ID", "cp-1")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_ROLE", "follower")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_LEADER_ID", "cp-0")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_PEERS", "cp-0:18080,cp-1:18080")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_STATE_BACKEND", "s3://providapt-state/control-plane.json")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_HEARTBEAT", "5s")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_ELECTION_TIMEOUT", "20s")
+	t.Setenv("PROVIDAPT_CONTROL_PLANE_FAILOVER_READY", "true")
+
+	cfg, err := Load(t.TempDir() + "/missing.yaml")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ControlPlane.Mode != "active-passive" || cfg.ControlPlane.NodeID != "cp-1" {
+		t.Fatalf("control plane identity = %#v", cfg.ControlPlane)
+	}
+	if cfg.ControlPlane.Role != "follower" || cfg.ControlPlane.LeaderID != "cp-0" {
+		t.Fatalf("control plane leadership = %#v", cfg.ControlPlane)
+	}
+	if len(cfg.ControlPlane.Peers) != 2 || cfg.ControlPlane.Peers[0] != "cp-0:18080" {
+		t.Fatalf("control plane peers = %#v", cfg.ControlPlane.Peers)
+	}
+	if cfg.ControlPlane.StateBackend != "s3://providapt-state/control-plane.json" || !cfg.ControlPlane.FailoverReady {
+		t.Fatalf("control plane state = %#v", cfg.ControlPlane)
+	}
+	if cfg.ControlPlane.Heartbeat != "5s" || cfg.ControlPlane.ElectionTimeout != "20s" {
+		t.Fatalf("control plane timing = %#v", cfg.ControlPlane)
+	}
+}
+
+func TestValidateControlPlaneSettings(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.ControlPlane.Mode = "raft"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid control plane mode")
+	}
+	cfg = DefaultConfig()
+	cfg.ControlPlane.Role = "primary"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid control plane role")
+	}
+	cfg = DefaultConfig()
+	cfg.ControlPlane.Heartbeat = "0s"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid control plane heartbeat")
+	}
+	cfg = DefaultConfig()
+	cfg.ControlPlane.ElectionTimeout = "soon"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid control plane election timeout")
 	}
 }
 

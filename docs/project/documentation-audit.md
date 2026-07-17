@@ -38,6 +38,10 @@ This file groups the current documentation by audience and purpose.
 - `COMMERCIALIZATION_ROADMAP.md`
 - `docs/project/release-evidence-v1.2.2.md`
 - `docs/project/commercial-release-checklist.md`
+- `docs/project/release-artifact-matrix.md`
+- `docs/project/support-sla.md`
+- `docs/project/customer-handoff.md`
+- `docs/project/commercial-approval-record.md`
 
 ## Recommended Reading Paths
 
@@ -66,3 +70,4 @@ This file groups the current documentation by audience and purpose.
 2. `DPA.md`
 3. `LICENSE`
 4. `SECURITY.md`
+5. `docs/project/commercial-approval-record.md`

@@ -4,7 +4,11 @@
 package releasecheck
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -536,6 +540,61 @@ func TestRunFailsEmptyChecksumsSignature(t *testing.T) {
 	}
 	if findCheck(t, report, "release_checksums_signature").Status != StatusFail {
 		t.Fatalf("expected checksums signature fail: %+v", report.Checks)
+	}
+}
+
+func TestRunVerifiesProvidAPTEd25519ChecksumsSignature(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	artifactPath := filepath.Join(dir, "providapt.tar.gz")
+	checksumsPath := filepath.Join(dir, "checksums.txt")
+	signaturePath := filepath.Join(dir, "checksums.txt.sig")
+
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(artifactPath, []byte("artifact"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("artifact"))
+	checksums := fmt.Sprintf("%x  providapt.tar.gz\n", digest)
+	if err := os.WriteFile(checksumsPath, []byte(checksums), 0644); err != nil {
+		t.Fatal(err)
+	}
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := os.ReadFile(checksumsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgDigest := sha256.Sum256(msg)
+	sig := fmt.Sprintf(`{"type":"providapt-ed25519-checksums-v1","algorithm":"ed25519","message_sha256":"%x","public_key":"%s","signature":"%s"}`,
+		msgDigest,
+		hex.EncodeToString(pub),
+		base64.StdEncoding.EncodeToString(ed25519.Sign(priv, msg)),
+	)
+	if err := os.WriteFile(signaturePath, []byte(sig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:             cfgPath,
+		ChecksumsPath:          checksumsPath,
+		ChecksumsSignaturePath: signaturePath,
+		ArtifactsDir:           dir,
+		Version:                "1.2.2",
+		Commit:                 "abcdef0",
+		BuildDate:              "2026-07-08T00:00:00Z",
+	})
+
+	if report.HasFailures() {
+		t.Fatalf("unexpected signature verification failure: %+v", report.Checks)
+	}
+	check := findCheck(t, report, "release_checksums_signature")
+	if check.Status != StatusPass || !strings.Contains(check.Message, "format: providapt-ed25519") {
+		t.Fatalf("expected providapt-ed25519 pass: %+v", check)
 	}
 }
 

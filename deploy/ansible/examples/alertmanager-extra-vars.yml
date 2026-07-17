@@ -1,0 +1,11 @@
+# Example Alertmanager routing variables.
+# Copy this file, replace the URLs, and pass it with:
+#   ansible-playbook -i inventory.yml playbook.yml --extra-vars @examples/alertmanager-extra-vars.yml
+
+alertmanager_enabled: true
+alertmanager_webhook_url: "https://alerts.example.com/providapt/default"
+alertmanager_critical_webhook_url: "https://alerts.example.com/providapt/critical"
+alertmanager_group_wait: 30s
+alertmanager_group_interval: 5m
+alertmanager_repeat_interval: 4h
+alertmanager_critical_repeat_interval: 1h

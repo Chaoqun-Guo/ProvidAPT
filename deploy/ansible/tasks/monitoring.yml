@@ -1,4 +1,4 @@
-# ── Monitoring agent tasks (for the monitoring host) ──────────
+# Monitoring tasks for the monitoring host.
 
 - name: Create Prometheus configuration directory
   ansible.builtin.file:
@@ -17,7 +17,50 @@
     mode: "0644"
   notify: restart prometheus
 
-# Prometheus is managed via docker-compose on the monitoring host
+- name: Deploy Prometheus alert rules
+  ansible.builtin.copy:
+    src: "{{ prometheus_alert_rules_src }}"
+    dest: "{{ prometheus_alert_rules_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: prometheus_alert_rules_enabled
+  notify: restart prometheus
+
+- name: Create Alertmanager configuration directory
+  ansible.builtin.file:
+    path: /etc/alertmanager
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: alertmanager_enabled
+
+- name: Deploy Alertmanager configuration
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: /etc/alertmanager/alertmanager.yml
+    owner: root
+    group: root
+    mode: "0644"
+  when: alertmanager_enabled
+  notify: restart alertmanager
+
+- name: Deploy Alertmanager container
+  community.docker.docker_container:
+    name: alertmanager
+    image: "prom/alertmanager:{{ alertmanager_version }}"
+    state: started
+    restart_policy: always
+    network_mode: host
+    volumes:
+      - /etc/alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+  when: alertmanager_enabled
+
 - name: Deploy Prometheus container
   community.docker.docker_container:
     name: prometheus
@@ -26,12 +69,57 @@
     restart_policy: always
     network_mode: host
     volumes:
-      - /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /etc/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
+
+- name: Create Grafana dashboard provisioning directory
+  ansible.builtin.file:
+    path: /etc/grafana/provisioning/dashboards
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Grafana dashboard directory
+  ansible.builtin.file:
+    path: /etc/grafana/dashboards
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Grafana dashboard provisioning
+  ansible.builtin.copy:
+    dest: /etc/grafana/provisioning/dashboards/providapt.yml
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      apiVersion: 1
+      providers:
+        - name: ProvidAPT
+          orgId: 1
+          folder: ProvidAPT
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /etc/grafana/dashboards
+  notify: restart grafana
+
+- name: Deploy Grafana dashboard
+  ansible.builtin.copy:
+    src: "{{ grafana_dashboard_src }}"
+    dest: /etc/grafana/dashboards/providapt_dashboard.json
+    owner: root
+    group: root
+    mode: "0644"
+  when: grafana_dashboard_enabled
+  notify: restart grafana
 
 - name: Deploy Grafana container
   community.docker.docker_container:
@@ -43,6 +131,7 @@
     env:
       GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
       GF_INSTALL_PLUGINS: grafana-piechart-panel
-
-# TODO: Implement Prometheus alerting rule deployment
-# See deploy/helm/providapt/ for alert rule templates
+    volumes:
+      - /etc/grafana/provisioning:/etc/grafana/provisioning:ro
+      - /etc/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana

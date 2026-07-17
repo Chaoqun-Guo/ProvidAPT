@@ -1,0 +1,105 @@
+# ProvidAPT Prometheus alert rules
+#
+# Usage: include in your prometheus.yml
+#   rule_files:
+#     - "providapt_alerts.yml"
+
+groups:
+  - name: providapt
+    interval: 30s
+    rules:
+
+      # ── Event ingestion ──────────────────────────────────────────
+
+      - alert: ProvidaptNoEvents
+        expr: rate(providapt_events_ingested_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ProvidAPT agent is not ingesting events"
+          description: >
+            No events have been ingested in the last 5 minutes.
+            The eBPF ring buffer may be stalled or the agent may be down.
+
+      - alert: ProvidaptParseErrors
+        expr: rate(providapt_events_parse_errors_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High event parse error rate"
+          description: >
+            Parse errors are occurring at >10/sec. The eBPF program may
+            have a version mismatch with the kernel.
+
+      # ── Provenance graph ────────────────────────────────────────
+
+      - alert: ProvidaptGraphSize
+        expr: providapt_graph_nodes > 50000
+        labels:
+          severity: info
+        annotations:
+          summary: "Large provenance graph ({{ $value }} nodes)"
+          description: >
+            The graph has accumulated many nodes. Consider adjusting
+            the pruning window or increasing resources.
+
+      # ── gRPC transport ──────────────────────────────────────────
+
+      - alert: ProvidaptGrpcErrors
+        expr: rate(providapt_grpc_send_errors_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High gRPC send error rate"
+          description: >
+            gRPC Send is failing at >5/sec. The collector may be
+            unreachable or overloaded.
+
+      - alert: ProvidaptGrpcLatency
+        expr: histogram_quantile(0.95, rate(providapt_grpc_send_duration_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High gRPC send latency (P95 > 5s)"
+          description: >
+            The 95th percentile of gRPC Send calls exceeds 5 seconds.
+            Network congestion or collector overload may be occurring.
+
+      # ── Detection alerts ────────────────────────────────────────
+
+      - alert: ProvidaptCriticalAlert
+        expr: rate(providapt_alerts_triggered_total{severity="CRITICAL"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical severity detection alert fired"
+          description: >
+            A CRITICAL severity alert has been triggered. Immediate
+            investigation is required.
+
+      - alert: ProvidaptHighAlertRate
+        expr: rate(providapt_alerts_triggered_total{severity=~"HIGH|CRITICAL"}[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High alert rate ({{ $value }}/sec)"
+          description: >
+            HIGH or CRITICAL alerts are firing at >10/sec. The system
+            may be under active attack.
+
+      # ── Pipeline processing ─────────────────────────────────────
+
+      - alert: ProvidaptBackpressure
+        expr: rate(providapt_pipeline_backpressure_events_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pipeline backpressure detected"
+          description: >
+            The event pipeline is experiencing backpressure. The system
+            may not be keeping up with the event rate.

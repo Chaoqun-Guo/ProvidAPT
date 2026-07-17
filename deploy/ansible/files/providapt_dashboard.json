@@ -1,0 +1,132 @@
+{
+  "dashboard": {
+    "title": "ProvidAPT — Provenance-based Threat Detection",
+    "version": 1,
+    "editable": true,
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Events Ingested",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "rate(providapt_events_ingested_total[1m])",
+            "legendFormat": "ingested"
+          }
+        ],
+        "yaxes": [{ "format": "short" }, { "format": "short" }],
+        "description": "Rate of events read from the eBPF ring buffer."
+      },
+      {
+        "title": "Parse Errors",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "rate(providapt_events_parse_errors_total[1m])",
+            "legendFormat": "errors"
+          }
+        ],
+        "yaxes": [{ "format": "short" }, { "format": "short" }],
+        "description": "Rate of events that failed to decode."
+      },
+      {
+        "title": "Provenance Graph Size",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "providapt_graph_nodes",
+            "legendFormat": "nodes"
+          },
+          {
+            "expr": "providapt_graph_edges",
+            "legendFormat": "edges"
+          }
+        ],
+        "yaxes": [{ "format": "short" }, { "format": "short" }],
+        "description": "Number of nodes and edges in the in-memory provenance graph."
+      },
+      {
+        "title": "gRPC Sent Bytes",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "rate(providapt_grpc_sent_bytes_total[1m])",
+            "legendFormat": "bytes/s"
+          }
+        ],
+        "yaxes": [{ "format": "bytes" }, { "format": "short" }],
+        "description": "Outbound gRPC throughput."
+      },
+      {
+        "title": "gRPC Errors",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "rate(providapt_grpc_send_errors_total[1m])",
+            "legendFormat": "errors/s"
+          }
+        ],
+        "yaxes": [{ "format": "short" }, { "format": "short" }],
+        "description": "Rate of failed gRPC Send calls."
+      },
+      {
+        "title": "gRPC Send Latency (P95)",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(providapt_grpc_send_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95"
+          }
+        ],
+        "yaxes": [{ "format": "s" }, { "format": "short" }],
+        "description": "95th percentile gRPC send latency."
+      },
+      {
+        "title": "Alerts by Severity",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "rate(providapt_alerts_triggered_total[1m])",
+            "legendFormat": "{{ severity }}"
+          }
+        ],
+        "yaxes": [{ "format": "short" }, { "format": "short" }],
+        "description": "Alert rate broken down by severity."
+      },
+      {
+        "title": "Pipeline Events Processed",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "rate(providapt_pipeline_events_processed_total[1m])",
+            "legendFormat": "processed"
+          }
+        ],
+        "yaxes": [{ "format": "short" }, { "format": "short" }],
+        "description": "Rate of events processed by the pipeline."
+      },
+      {
+        "title": "Pipeline Backpressure",
+        "type": "graph",
+        "span": 6,
+        "targets": [
+          {
+            "expr": "rate(providapt_pipeline_backpressure_events_total[1m])",
+            "legendFormat": "backpressure"
+          }
+        ],
+        "yaxes": [{ "format": "short" }, { "format": "short" }],
+        "description": "Backpressure event rate. Non-zero indicates the system cannot keep up."
+      }
+    ]
+  }
+}

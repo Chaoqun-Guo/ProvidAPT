@@ -24,6 +24,11 @@
       ansible.builtin.import_tasks: tasks/docker.yml
       tags: [always, docker]
 
+    - name: Include PostgreSQL HA state backend tasks
+      ansible.builtin.import_tasks: tasks/postgres.yml
+      tags: [postgres, ha]
+      when: providapt_postgres_enabled
+
     - name: Include ProvidAPT deployment tasks
       ansible.builtin.import_tasks: tasks/providapt.yml
       tags: [providapt]
@@ -49,3 +54,18 @@
         name: prometheus-node-exporter
         state: restarted
         daemon_reload: true
+
+    - name: restart prometheus
+      community.docker.docker_container:
+        name: prometheus
+        restart: true
+
+    - name: restart alertmanager
+      community.docker.docker_container:
+        name: alertmanager
+        restart: true
+
+    - name: restart grafana
+      community.docker.docker_container:
+        name: grafana
+        restart: true

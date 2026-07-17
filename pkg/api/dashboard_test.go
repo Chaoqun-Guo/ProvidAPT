@@ -193,3 +193,37 @@ func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
 		}
 	}
 }
+
+func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
+	expected := []string{
+		"postJSONWithLeaderRetry",
+		"leaderRequestURL",
+		"data.leader_endpoint",
+		"retrying leader",
+		"postJSON('/api/v1/control/support'",
+		"postJSON('/api/v1/control/backup'",
+		"postJSON('/api/v1/control/license'",
+		"postJSON('/api/v1/control/upgrade'",
+		"postJSON('/api/v1/control/policies'",
+		"postJSON('/api/v1/control/deliveries'",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing leader retry content %q", item)
+		}
+	}
+
+	forbidden := []string{
+		"fetch('/api/v1/control/support'",
+		"fetch('/api/v1/control/backup'",
+		"fetch('/api/v1/control/license'",
+		"fetch('/api/v1/control/upgrade'",
+		"fetch('/api/v1/control/policies'",
+		"fetch('/api/v1/control/deliveries'",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard should use postJSON leader retry instead of direct fetch %q", item)
+		}
+	}
+}

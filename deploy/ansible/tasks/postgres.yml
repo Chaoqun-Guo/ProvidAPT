@@ -1,0 +1,54 @@
+# PostgreSQL tasks for production control-plane HA state.
+
+- name: Validate PostgreSQL HA state backend password
+  ansible.builtin.assert:
+    that:
+      - providapt_postgres_password | length >= 12
+      - providapt_postgres_password != 'change-me'
+    fail_msg: >-
+      Set PROVIDAPT_POSTGRES_PASSWORD or providapt_postgres_password to a
+      non-default value with at least 12 characters before enabling Docker
+      PostgreSQL HA state.
+  when: providapt_postgres_enabled
+
+- name: Create PostgreSQL data directory
+  ansible.builtin.file:
+    path: "{{ providapt_postgres_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: providapt_postgres_enabled
+
+- name: Deploy PostgreSQL HA state container
+  community.docker.docker_container:
+    name: "{{ providapt_postgres_container_name }}"
+    image: "postgres:{{ providapt_postgres_version }}"
+    state: started
+    restart_policy: unless-stopped
+    network_mode: "{{ providapt_postgres_network_mode }}"
+    env:
+      POSTGRES_DB: "{{ providapt_postgres_db }}"
+      POSTGRES_USER: "{{ providapt_postgres_user }}"
+      POSTGRES_PASSWORD: "{{ providapt_postgres_password }}"
+    ports: "{{ providapt_postgres_ports }}"
+    volumes:
+      - "{{ providapt_postgres_data_dir }}:/var/lib/postgresql/data"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "pg_isready -U {{ providapt_postgres_user }} -d {{ providapt_postgres_db }}"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  when: providapt_postgres_enabled
+
+- name: Wait for PostgreSQL HA state backend
+  community.docker.docker_container_exec:
+    container: "{{ providapt_postgres_container_name }}"
+    command: "pg_isready -U {{ providapt_postgres_user }} -d {{ providapt_postgres_db }}"
+  register: postgres_ready
+  retries: 18
+  delay: 5
+  until: postgres_ready.rc == 0
+  when: providapt_postgres_enabled

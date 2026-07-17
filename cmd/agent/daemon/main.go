@@ -53,6 +53,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/backup"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/certauth"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/controlplaneha"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/logx"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/notify"
@@ -1043,6 +1044,18 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func parsePositiveDurationOrDefault(value string, fallback time.Duration) time.Duration {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(trimmed)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
+}
+
 func newDeliveryActionAuditStore(limit int) *deliveryActionAuditStore {
 	if limit <= 0 {
 		limit = deliveryAuditHistoryLimit
@@ -1437,21 +1450,50 @@ func main() {
 	}
 
 	var mgmtServer *mgmt.Server
+	haHeartbeat := parsePositiveDurationOrDefault(cfg.ControlPlane.Heartbeat, controlplaneha.DefaultHeartbeatInterval)
+	haElectionTimeout := parsePositiveDurationOrDefault(cfg.ControlPlane.ElectionTimeout, controlplaneha.DefaultElectionTimeout)
+	haStateBackend := strings.TrimSpace(cfg.ControlPlane.StateBackend)
+	if haStateBackend == "" {
+		haStateBackend = filepath.Join(cfg.Output.Dir, "control-plane-ha.json")
+	}
+	haCoordinator := controlplaneha.New(controlplaneha.Config{
+		Mode:              cfg.ControlPlane.Mode,
+		NodeID:            firstNonEmpty(strings.TrimSpace(cfg.ControlPlane.NodeID), agentID),
+		ConfiguredRole:    cfg.ControlPlane.Role,
+		ConfiguredLeader:  cfg.ControlPlane.LeaderID,
+		Peers:             cfg.ControlPlane.Peers,
+		StateBackend:      haStateBackend,
+		Address:           cfg.API.REST,
+		Version:           version.String(),
+		HeartbeatInterval: haHeartbeat,
+		ElectionTimeout:   haElectionTimeout,
+		Healthy: func() bool {
+			return pipelineHealthy && storeHealthy
+		},
+	})
+	haCtx, stopHA := context.WithCancel(context.Background())
+	defer stopHA()
+	go haCoordinator.Start(haCtx)
 	apiServer.SetHAStatusFunc(func() api.HAStatus {
+		haStatus := haCoordinator.Status()
 		status := api.HAStatus{
-			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
-			Mode:          "standalone",
-			NodeID:        agentID,
-			Role:          "leader",
-			LeaderID:      agentID,
-			Healthy:       pipelineHealthy && storeHealthy,
-			PeerCount:     0,
-			StateBackend:  filepath.Join(cfg.Output.Dir, "control-plane-state.json"),
-			FailoverReady: false,
-			Message:       "single-node control plane; external HA requires shared state and load balancer orchestration",
+			UpdatedAt:     haStatus.UpdatedAt.UTC().Format(time.RFC3339),
+			Mode:          haStatus.Mode,
+			NodeID:        haStatus.NodeID,
+			Role:          haStatus.Role,
+			LeaderID:      haStatus.LeaderID,
+			Healthy:       haStatus.Healthy,
+			PeerCount:     haStatus.PeerCount,
+			Peers:         haStatus.Peers,
+			StateBackend:  haStatus.StateBackend,
+			FailoverReady: haStatus.FailoverReady,
+			Message:       haStatus.Message,
+		}
+		if !haStatus.LastCheckpoint.IsZero() {
+			status.LastCheckpoint = haStatus.LastCheckpoint.UTC().Format(time.RFC3339)
 		}
 		if mgmtServer != nil {
-			status.Message = fmt.Sprintf("control plane active; grpc=%s rest=%s agents=%d", cfg.API.GRPC, cfg.API.REST, len(mgmtServer.TelemetryOverview()))
+			status.Message = fmt.Sprintf("%s; grpc=%s rest=%s agents=%d", status.Message, cfg.API.GRPC, cfg.API.REST, len(mgmtServer.TelemetryOverview()))
 		}
 		return status
 	})

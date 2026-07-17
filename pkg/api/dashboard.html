@@ -433,16 +433,34 @@ async function fetchJSON(url) {
 }
 
 async function postJSON(url, payload) {
+  return postJSONWithLeaderRetry(url, payload, false);
+}
+
+async function postJSONWithLeaderRetry(url, payload, retried) {
   const response = await fetch(url, {
     method: 'POST',
     headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
     body: JSON.stringify(payload),
   });
   const data = await response.json();
+  if (response.status === 409 && data && data.leader_endpoint && !retried) {
+    const leaderURL = leaderRequestURL(data.leader_endpoint, url);
+    updateAuthStatus('Current node is follower; retrying leader ' + data.leader_endpoint);
+    return postJSONWithLeaderRetry(leaderURL, payload, true);
+  }
   if (!response.ok) {
     throw new Error(data.error || response.statusText);
   }
   return data;
+}
+
+function leaderRequestURL(leaderEndpoint, originalURL) {
+  const original = new URL(originalURL, window.location.origin);
+  const leader = new URL(leaderEndpoint, window.location.origin);
+  leader.pathname = original.pathname;
+  leader.search = original.search;
+  leader.hash = '';
+  return leader.toString();
 }
 
 async function fetchJSONAnyStatus(url) {
@@ -1053,15 +1071,7 @@ async function runSupportBundleAction(payload) {
   }
   if (exportBtn) exportBtn.disabled = true;
   try {
-    const response = await fetch('/api/v1/control/support', {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || response.statusText);
-    }
+    const data = await postJSON('/api/v1/control/support', payload);
     if (status) {
       status.textContent = (data.message || 'Support bundle exported') + (data.bundle_path ? (': ' + data.bundle_path) : '');
     }
@@ -1169,15 +1179,7 @@ async function runBackupAction(action) {
       : (action === 'prepare_cutover' ? 'Preparing restore cutover plan...' : 'Restoring backup to staging...');
   }
   try {
-    const response = await fetch('/api/v1/control/backup', {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify({ action: action, note: 'dashboard ' + action }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || response.statusText);
-    }
+    const data = await postJSON('/api/v1/control/backup', { action: action, note: 'dashboard ' + action });
     if (status) {
       status.textContent = (data.message || data.status || 'done') + (data.backup_path ? (': ' + data.backup_path) : '');
     }
@@ -1334,15 +1336,7 @@ async function runLicenseAction(payload) {
     status.textContent = 'Validating license...';
   }
   try {
-    const response = await fetch('/api/v1/control/license', {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || response.statusText);
-    }
+    const data = await postJSON('/api/v1/control/license', payload);
     if (status) {
       status.textContent = data.message || 'License validation recorded';
     }
@@ -1367,15 +1361,7 @@ async function runUpgradeAction(payload) {
     status.textContent = 'Recording upgrade action...';
   }
   try {
-    const response = await fetch('/api/v1/control/upgrade', {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || response.statusText);
-    }
+    const data = await postJSON('/api/v1/control/upgrade', payload);
     if (status) {
       status.textContent = data.message || 'Upgrade action recorded';
     }
@@ -1546,15 +1532,7 @@ async function runPolicyAction(payload) {
     status.textContent = 'Running ' + payload.action + '...';
   }
   try {
-    const response = await fetch('/api/v1/control/policies', {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || response.statusText);
-    }
+    await postJSON('/api/v1/control/policies', payload);
     if (status) {
       status.textContent = 'Policy action completed';
     }
@@ -1834,15 +1812,7 @@ async function runDeliveryAction(payload) {
   if (createAllTicketsBtn) createAllTicketsBtn.disabled = true;
   if (refreshBtn) refreshBtn.disabled = true;
   try {
-    const response = await fetch('/api/v1/control/deliveries', {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || response.statusText);
-    }
+    const data = await postJSON('/api/v1/control/deliveries', payload);
     if (status) {
       status.textContent = data.message || data.status || 'Action completed';
     }

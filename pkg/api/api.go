@@ -1362,6 +1362,88 @@ func (s *Server) handleHAStatus(w http.ResponseWriter, _ *http.Request) error {
 	return json.NewEncoder(w).Encode(status)
 }
 
+func (s *Server) requireLeaderForControlWrite(w http.ResponseWriter) bool {
+	if s.haFn == nil {
+		return true
+	}
+	status := s.haFn()
+	mode := strings.ToLower(strings.TrimSpace(status.Mode))
+	if mode == "" || mode == "standalone" {
+		return true
+	}
+	role := strings.ToLower(strings.TrimSpace(status.Role))
+	if role != "leader" {
+		leaderEndpoint := leaderEndpointFromHAStatus(status)
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":           "control-plane write rejected: current node is not leader",
+			"mode":            status.Mode,
+			"role":            status.Role,
+			"node_id":         status.NodeID,
+			"leader_id":       status.LeaderID,
+			"leader_endpoint": leaderEndpoint,
+		})
+		return false
+	}
+	if !status.Healthy {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":     "control-plane write rejected: leader is not healthy",
+			"mode":      status.Mode,
+			"role":      status.Role,
+			"node_id":   status.NodeID,
+			"leader_id": status.LeaderID,
+		})
+		return false
+	}
+	return true
+}
+
+func leaderEndpointFromHAStatus(status HAStatus) string {
+	leaderID := strings.TrimSpace(status.LeaderID)
+	if leaderID == "" {
+		return ""
+	}
+	for _, peer := range status.Peers {
+		trimmed := strings.TrimSpace(peer)
+		if trimmed == "" {
+			continue
+		}
+		id, endpoint := splitPeerEndpoint(trimmed)
+		if id == leaderID {
+			return endpoint
+		}
+	}
+	return ""
+}
+
+func splitPeerEndpoint(peer string) (string, string) {
+	if strings.Contains(peer, "=") {
+		parts := strings.SplitN(peer, "=", 2)
+		return strings.TrimSpace(parts[0]), normalizePeerEndpoint(parts[1])
+	}
+	if strings.Contains(peer, "@") {
+		parts := strings.SplitN(peer, "@", 2)
+		return strings.TrimSpace(parts[0]), normalizePeerEndpoint(parts[1])
+	}
+	host := peer
+	if idx := strings.LastIndex(peer, ":"); idx > 0 {
+		host = peer[:idx]
+	}
+	return strings.TrimSpace(host), normalizePeerEndpoint(peer)
+}
+
+func normalizePeerEndpoint(endpoint string) string {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		return ""
+	}
+	if strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
+		return endpoint
+	}
+	return "http://" + endpoint
+}
+
 func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
 	case http.MethodGet:
@@ -1394,6 +1476,9 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 		if s.fleetSetFn == nil {
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "fleet updates not enabled"})
+		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
 		}
 		var update FleetUpdate
 		if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
@@ -1579,6 +1664,9 @@ func (s *Server) handleSupportBundles(w http.ResponseWriter, r *http.Request) er
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "support bundle actions not enabled"})
 		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
+		}
 		var req SupportBundleActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return fmt.Errorf("decode support bundle action: %w", err)
@@ -1643,6 +1731,9 @@ func (s *Server) handleBackups(w http.ResponseWriter, r *http.Request) error {
 		if s.backupAct == nil {
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "backup actions not enabled"})
+		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
 		}
 		var req BackupActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1714,6 +1805,9 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) error {
 		if s.securityAct == nil {
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "security actions not enabled"})
+		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
 		}
 		var req SecurityActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1826,6 +1920,9 @@ func (s *Server) handleCompliance(w http.ResponseWriter, r *http.Request) error 
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "compliance actions not enabled"})
 		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
+		}
 		var req ComplianceActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return fmt.Errorf("decode compliance action: %w", err)
@@ -1867,6 +1964,9 @@ func (s *Server) handleLicenseStatus(w http.ResponseWriter, r *http.Request) err
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "license actions not enabled"})
 		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
+		}
 		var req LicenseActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return fmt.Errorf("decode license action: %w", err)
@@ -1907,6 +2007,9 @@ func (s *Server) handleUpgradeReadiness(w http.ResponseWriter, r *http.Request) 
 		if s.upgradeAct == nil {
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "upgrade actions not enabled"})
+		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
 		}
 		var req UpgradeActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1951,6 +2054,9 @@ func (s *Server) handlePolicies(w http.ResponseWriter, r *http.Request) error {
 		if s.policyActFn == nil {
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "policy actions not enabled"})
+		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
 		}
 		var req PolicyActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2040,6 +2146,9 @@ func (s *Server) handleAlertWorkflow(w http.ResponseWriter, r *http.Request) err
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "alert workflow actions not enabled"})
 		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
+		}
 		var req AlertWorkflowActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return fmt.Errorf("decode alert workflow action: %w", err)
@@ -2113,6 +2222,9 @@ func (s *Server) handleNotifyDeliveries(w http.ResponseWriter, r *http.Request) 
 		if s.deliveryAct == nil {
 			w.WriteHeader(http.StatusNotImplemented)
 			return json.NewEncoder(w).Encode(map[string]string{"error": "delivery actions not enabled"})
+		}
+		if !s.requireLeaderForControlWrite(w) {
+			return nil
 		}
 		var req NotifyDeliveryActionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2343,6 +2455,9 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) error {
 		return json.NewEncoder(w).Encode(map[string]string{
 			"status": "no reload handler registered",
 		})
+	}
+	if !s.requireLeaderForControlWrite(w) {
+		return nil
 	}
 	if err := s.reloadFn(); err != nil {
 		return fmt.Errorf("reload failed: %w", err)

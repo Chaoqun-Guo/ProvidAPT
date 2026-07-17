@@ -60,6 +60,18 @@ type Config struct {
 		CORSOrigins     []string            `json:"cors_origins" yaml:"cors_origins"`
 	} `json:"api" yaml:"api"`
 
+	ControlPlane struct {
+		Mode            string   `json:"mode" yaml:"mode"`
+		NodeID          string   `json:"node_id" yaml:"node_id"`
+		Role            string   `json:"role" yaml:"role"`
+		LeaderID        string   `json:"leader_id" yaml:"leader_id"`
+		Peers           []string `json:"peers" yaml:"peers"`
+		StateBackend    string   `json:"state_backend" yaml:"state_backend"`
+		Heartbeat       string   `json:"heartbeat" yaml:"heartbeat"`
+		ElectionTimeout string   `json:"election_timeout" yaml:"election_timeout"`
+		FailoverReady   bool     `json:"failover_ready" yaml:"failover_ready"`
+	} `json:"control_plane" yaml:"control_plane"`
+
 	SSO struct {
 		TrustedHeaderAuth bool   `json:"trusted_header_auth" yaml:"trusted_header_auth"`
 		UserHeader        string `json:"user_header" yaml:"user_header"`
@@ -278,6 +290,10 @@ func DefaultConfig() *Config {
 	c.API.RateLimitPerSec = 100
 	c.API.RateLimitBurst = 200
 	c.API.CORSOrigins = []string{"*"}
+	c.ControlPlane.Mode = "standalone"
+	c.ControlPlane.Role = "leader"
+	c.ControlPlane.Heartbeat = "10s"
+	c.ControlPlane.ElectionTimeout = "45s"
 	c.SSO.UserHeader = "X-Forwarded-User"
 	c.SSO.RoleHeader = "X-Forwarded-Role"
 	c.SSO.TenantHeader = "X-Forwarded-Tenant"
@@ -389,6 +405,22 @@ func (c *Config) Validate() error {
 	}
 	if c.API.GRPC != "" && !strings.HasPrefix(c.API.GRPC, ":") {
 		return fmt.Errorf("gRPC address %q should be in format :port (e.g. :50051)", c.API.GRPC)
+	}
+	if mode := strings.ToLower(strings.TrimSpace(c.ControlPlane.Mode)); mode != "" && mode != "standalone" && mode != "active-passive" && mode != "external" {
+		return fmt.Errorf("unsupported control_plane.mode %q (use standalone, active-passive, or external)", c.ControlPlane.Mode)
+	}
+	if role := strings.ToLower(strings.TrimSpace(c.ControlPlane.Role)); role != "" && role != "leader" && role != "follower" && role != "observer" {
+		return fmt.Errorf("unsupported control_plane.role %q (use leader, follower, or observer)", c.ControlPlane.Role)
+	}
+	if strings.TrimSpace(c.ControlPlane.Heartbeat) != "" {
+		if _, err := parseDurationString(c.ControlPlane.Heartbeat); err != nil {
+			return fmt.Errorf("control_plane.heartbeat: %w", err)
+		}
+	}
+	if strings.TrimSpace(c.ControlPlane.ElectionTimeout) != "" {
+		if _, err := parseDurationString(c.ControlPlane.ElectionTimeout); err != nil {
+			return fmt.Errorf("control_plane.election_timeout: %w", err)
+		}
 	}
 	for key, role := range c.API.AuthRoles {
 		role = strings.ToLower(strings.TrimSpace(role))
@@ -507,6 +539,13 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Output.Format, "PROVIDAPT_OUTPUT_FORMAT")
 	overrideString(&cfg.API.GRPC, "PROVIDAPT_API_GRPC")
 	overrideString(&cfg.API.REST, "PROVIDAPT_API_REST")
+	overrideString(&cfg.ControlPlane.Mode, "PROVIDAPT_CONTROL_PLANE_MODE")
+	overrideString(&cfg.ControlPlane.NodeID, "PROVIDAPT_CONTROL_PLANE_NODE_ID")
+	overrideString(&cfg.ControlPlane.Role, "PROVIDAPT_CONTROL_PLANE_ROLE")
+	overrideString(&cfg.ControlPlane.LeaderID, "PROVIDAPT_CONTROL_PLANE_LEADER_ID")
+	overrideString(&cfg.ControlPlane.StateBackend, "PROVIDAPT_CONTROL_PLANE_STATE_BACKEND")
+	overrideString(&cfg.ControlPlane.Heartbeat, "PROVIDAPT_CONTROL_PLANE_HEARTBEAT")
+	overrideString(&cfg.ControlPlane.ElectionTimeout, "PROVIDAPT_CONTROL_PLANE_ELECTION_TIMEOUT")
 	overrideString(&cfg.SSO.UserHeader, "PROVIDAPT_SSO_USER_HEADER")
 	overrideString(&cfg.SSO.RoleHeader, "PROVIDAPT_SSO_ROLE_HEADER")
 	overrideString(&cfg.SSO.TenantHeader, "PROVIDAPT_SSO_TENANT_HEADER")
@@ -575,6 +614,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Storage.Encrypt, "PROVIDAPT_STORAGE_ENCRYPT")
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
 	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
+	overrideBool(&cfg.ControlPlane.FailoverReady, "PROVIDAPT_CONTROL_PLANE_FAILOVER_READY")
 	overrideBool(&cfg.SSO.TrustedHeaderAuth, "PROVIDAPT_SSO_TRUSTED_HEADER_AUTH")
 	overrideBool(&cfg.Telemetry.EnableTLS, "PROVIDAPT_TELEMETRY_ENABLE_TLS")
 	overrideBool(&cfg.Policy.Enabled, "PROVIDAPT_POLICY_ENABLED")
@@ -602,6 +642,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideStringSlice(&cfg.Capture.ExcludeComms, "PROVIDAPT_CAPTURE_EXCLUDE_COMMS")
 	overrideStringSlice(&cfg.Capture.IncludeComms, "PROVIDAPT_CAPTURE_INCLUDE_COMMS")
 	overrideStringSlice(&cfg.Capture.HotPaths, "PROVIDAPT_CAPTURE_HOT_PATHS")
+	overrideStringSlice(&cfg.ControlPlane.Peers, "PROVIDAPT_CONTROL_PLANE_PEERS")
 	overrideStringSlice(&cfg.Compliance.ApprovalActions, "PROVIDAPT_COMPLIANCE_APPROVAL_ACTIONS")
 }
 

@@ -19,6 +19,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   GOTOOLCHAIN: auto
   GOPROXY: https://proxy.golang.org,direct
+  SYFT_VERSION: v1.38.0
 
 jobs:
   goreleaser:
@@ -57,7 +58,7 @@ jobs:
       - name: Install Syft (SBOM)
         uses: anchore/sbom-action@v1
         with:
-          syft-version: latest
+          syft-version: ${{ env.SYFT_VERSION }}
 
       - name: Generate source SBOM
         run: |

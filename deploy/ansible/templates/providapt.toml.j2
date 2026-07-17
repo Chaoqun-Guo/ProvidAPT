@@ -22,6 +22,17 @@ auth_enabled = {{ providapt_api_auth_enabled | lower }}
 rate_limit_per_sec = {{ providapt_api_rate_limit }}
 rate_limit_burst = {{ providapt_api_rate_burst }}
 
+[control_plane]
+mode = "{{ providapt_control_plane_mode }}"
+node_id = "{{ providapt_control_plane_node_id }}"
+role = "{{ providapt_control_plane_role }}"
+leader_id = "{{ providapt_control_plane_leader_id }}"
+peers = [{% for peer in providapt_control_plane_peers %}"{{ peer }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+state_backend = "{{ providapt_control_plane_state_backend }}"
+heartbeat = "{{ providapt_control_plane_heartbeat }}"
+election_timeout = "{{ providapt_control_plane_election_timeout }}"
+failover_ready = {{ (providapt_control_plane_mode == 'active-passive') | lower }}
+
 {% if providapt_tls_enabled %}
 [tls]
 enable = true

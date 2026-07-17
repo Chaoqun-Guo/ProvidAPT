@@ -6,6 +6,8 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 - `make build-ebpf`
 - `make build-userspace`
+- `make release-commercial`
+- `make package-smoke-matrix`
 - `go test ./...` or the scoped package set used in CI
 - `GOOS=linux go test -c ./cmd/agent/daemon`
 - Run `sudo make loader-smoke` on a Linux host when loader changes are included
@@ -71,11 +73,15 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - Confirm `dist/checksums.txt` contains one SHA-256 entry per published release artifact
 - Confirm the checksum manifest includes the required commercial artifact types: `archive`, `deb`, and `rpm`
 - Confirm every artifact listed in `dist/checksums.txt` exists under `dist/` and matches its SHA-256 digest
-- Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured; GPG armored, Minisign, and Cosign bundle evidence are recognized in release reports
+- Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured; `providapt-sign` Ed25519 bundles, GPG armored signatures, Minisign signatures, and Cosign bundle evidence are recognized in release reports
+- When using `providapt-sign`, publish `dist/checksums.txt.pub` with the release handoff package and keep the private key under customer-approved key custody
 - Confirm SBOM artifacts are generated in SPDX and CycloneDX JSON formats
 - Confirm container image labels include source, version, and revision
 - Confirm release artifacts can be verified from a clean machine
 - Confirm dependency and container vulnerability scan results are captured or explicitly waived
+- Confirm release tooling versions are pinned in CI and release logs, including `SYFT_IMAGE`, `GRYPE_IMAGE`, `TRIVY_IMAGE`, and the GitHub Action `SYFT_VERSION`
+- Run the workflow-dispatch `commercial release and package smoke` CI job before customer handoff
+- Confirm required commercial artifacts match `docs/project/release-artifact-matrix.md`
 - Confirm air-gapped delivery bundle includes:
   - binaries and packages
   - Helm chart and default values
@@ -91,6 +97,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
   - `dpo@providapt.io`
   - support intake address or portal
 - Confirm SLA, support severity levels, and escalation paths are documented
+- Confirm support readiness matches `docs/project/support-sla.md`
 - Confirm EULA, DPA, privacy posture, and third-party notices are reviewed for the release
 - Confirm onboarding material exists for:
   - trial / evaluation install
@@ -103,6 +110,8 @@ This checklist is for the final review before tagging a ProvidAPT product releas
   - demo scenario
   - POC success criteria
   - known limitations and supported platforms
+- Confirm customer handoff material matches `docs/project/customer-handoff.md`
+- Confirm final release approvals are captured in `docs/project/commercial-approval-record.md`
 
 ## 8. Documentation Consistency
 

@@ -13,3 +13,13 @@ retain_archives = 5
 
 [telemetry]
 enabled = true
+
+[control_plane]
+mode = "active-passive"
+node_id = "cp-0"
+role = "leader"
+peers = ["cp-0=127.0.0.1:18080", "cp-1=127.0.0.2:18080"]
+state_backend = "postgresql://providapt:providapt-local@127.0.0.1:5432/providapt?sslmode=disable"
+heartbeat = "10s"
+election_timeout = "45s"
+failover_ready = true

@@ -111,6 +111,68 @@ Each publish or rollback writes a versioned policy bundle under `policy-bundles/
 
 Operators can download the current or historical bundle from Policy Center, or directly through `/api/v1/control/policies/bundle?version=<n>`.
 
+## Control-Plane HA and Automatic Failover
+
+ProvidAPT exposes control-plane HA readiness through `/api/v1/control/ha`.
+In production `active-passive` mode, control-plane nodes write heartbeats into
+PostgreSQL and automatically elect the active leader. If the current leader
+misses the election timeout, the remaining healthy node with the lowest stable
+node ID is promoted. PostgreSQL updates run in a transaction protected by an
+advisory lock, so concurrent heartbeats cannot split-brain the leader record.
+
+```yaml
+control_plane:
+  mode: active-passive
+  node_id: cp-1
+  role: follower
+  leader_id: cp-0  # optional preferred leader while healthy
+  peers:
+    - cp-0=https://cp-0.example.com:18080
+    - cp-1=https://cp-1.example.com:18080
+  state_backend: postgresql://providapt:${PROVIDAPT_PG_PASSWORD}@postgres.example.com:5432/providapt?sslmode=require
+  heartbeat: 10s
+  election_timeout: 45s
+  failover_ready: true
+```
+
+Supported modes are `standalone`, `active-passive`, and `external`. Supported
+roles are `leader`, `follower`, and `observer`. For automatic failover, set
+`state_backend` to a PostgreSQL or PostgreSQL-compatible DSN beginning with
+`postgres://` or `postgresql://`. ProvidAPT creates and maintains the
+`providapt_control_plane_ha` table automatically. `failover_ready` is reported
+as true when HA mode is enabled, PostgreSQL is writable, and at least two
+healthy control-plane nodes are active. File-backed state is retained only for
+local testing; production deployments should use PostgreSQL. Use `external`
+mode when Kubernetes, a load balancer, or another orchestrator owns leader
+election.
+
+For Docker-based production deployments, enable the bundled PostgreSQL container
+through Ansible:
+
+```bash
+PROVIDAPT_POSTGRES_ENABLED=true \
+PROVIDAPT_POSTGRES_PASSWORD='<strong-password>' \
+PROVIDAPT_CONTROL_PLANE_MODE=active-passive \
+ansible-playbook -i inventory.yml deploy/ansible/playbook.yml --tags postgres,providapt
+```
+
+The playbook runs `postgres:16-alpine` as `providapt-postgres`, stores data under
+`/var/lib/providapt/postgres`, maps port `5432` by default, and passes the
+generated PostgreSQL DSN to ProvidAPT as `PROVIDAPT_CONTROL_PLANE_STATE_BACKEND`.
+Override `PROVIDAPT_POSTGRES_HOST`, `PROVIDAPT_POSTGRES_PORT`,
+`PROVIDAPT_POSTGRES_DB`, `PROVIDAPT_POSTGRES_USER`, and
+`PROVIDAPT_POSTGRES_SSLMODE` when deploying a dedicated database host or a
+managed PostgreSQL service.
+
+Follower nodes continue serving read-only control-plane views, including health,
+fleet overview, HA status, audit feed, and policy bundle downloads. Mutating
+operations such as fleet enrollment changes, policy publish or rollback, upgrade
+actions, backup actions, support bundle generation, delivery replay, alert
+workflow updates, and admin reload are accepted only by the current healthy
+leader. A follower returns HTTP `409 Conflict` with the current `leader_id` and
+`leader_endpoint` so automation and the dashboard can retry against the active
+node automatically.
+
 Agents can automatically pull and apply the desired policy version after telemetry acknowledgement. Configure:
 
 ```yaml

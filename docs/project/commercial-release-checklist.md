@@ -24,6 +24,7 @@ This checklist turns the engineering release into a customer-ready commercial de
 - Evaluation guide is available at `docs/getting-started/evaluation.md`.
 - Supported platforms, kernel prerequisites, and known limitations are explicit.
 - Air-gapped delivery instructions and offline license process are ready when required.
+- Release artifact requirements are tracked in `docs/project/release-artifact-matrix.md`.
 
 ## Artifact Readiness
 
@@ -41,6 +42,7 @@ This checklist turns the engineering release into a customer-ready commercial de
 - SLA definitions exist for trial, standard, and enterprise customers.
 - Support bundle redaction defaults are reviewed.
 - Escalation path exists for kernel/eBPF compatibility issues.
+- Support severity, response targets, and runbooks are tracked in `docs/project/support-sla.md`.
 
 ## Sales Engineering Readiness
 
@@ -49,6 +51,7 @@ This checklist turns the engineering release into a customer-ready commercial de
 - Sizing guidance covers small, medium, and large deployments.
 - Competitive positioning and limitations are understood by customer-facing teams.
 - Trial-to-production handoff checklist is available.
+- Customer handoff and POC success criteria are tracked in `docs/project/customer-handoff.md`.
 
 ## Final Commercial Gate
 
@@ -57,4 +60,5 @@ Do not publish a commercial release until:
 - `docs/project/release-evidence-v1.2.2.md` is filled in.
 - `docs/developer/release-readiness.md` has no open release-blocking items.
 - Product, engineering, security, legal, support, and sales engineering owners approve.
+- Final approvals are recorded in `docs/project/commercial-approval-record.md`.
 - Known limitations and accepted risks are documented.

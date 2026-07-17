@@ -1,0 +1,40 @@
+# Alertmanager configuration for ProvidAPT.
+# Managed by Ansible. Manual changes will be overwritten.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ["alertname", "cluster", "instance", "severity"]
+  group_wait: "{{ alertmanager_group_wait }}"
+  group_interval: "{{ alertmanager_group_interval }}"
+  repeat_interval: "{{ alertmanager_repeat_interval }}"
+  receiver: "{{ alertmanager_default_receiver }}"
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: "{{ alertmanager_critical_receiver }}"
+      repeat_interval: "{{ alertmanager_critical_repeat_interval }}"
+
+receivers:
+  - name: "default"
+{% if alertmanager_webhook_url | length > 0 %}
+    webhook_configs:
+      - url: "{{ alertmanager_webhook_url }}"
+        send_resolved: true
+{% else %}
+    webhook_configs: []
+{% endif %}
+
+  - name: "critical"
+{% if alertmanager_critical_webhook_url | length > 0 %}
+    webhook_configs:
+      - url: "{{ alertmanager_critical_webhook_url }}"
+        send_resolved: true
+{% elif alertmanager_webhook_url | length > 0 %}
+    webhook_configs:
+      - url: "{{ alertmanager_webhook_url }}"
+        send_resolved: true
+{% else %}
+    webhook_configs: []
+{% endif %}

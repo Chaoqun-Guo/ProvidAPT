@@ -4,7 +4,7 @@
 .PHONY: attack-sim verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial package-smoke-matrix create-user docker-build docker-run help
 
 SHELL := /bin/bash
 
@@ -76,6 +76,7 @@ build-userspace:
 	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-verify ./cmd/cli/providapt-verify
 	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-deanon ./cmd/cli/providapt-deanon
 	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-heal ./cmd/cli/providapt-heal
+	$(GO) build $(LDFLAGS) -o $(BIN_OUT)/providapt-sign ./cmd/cli/providapt-sign
 	@echo "Built userspace binaries into $(BIN_OUT)"
 
 install-local: create-user build-core
@@ -236,6 +237,12 @@ dist-all: build-userspace
 
 dist: dist-all
 
+release-commercial:
+	bash scripts/release/commercial-release.sh
+
+package-smoke-matrix:
+	bash scripts/release/package-smoke-matrix.sh
+
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
 		echo "Creating providapt system user (UID 950)..."; \
@@ -339,3 +346,5 @@ help:
 	@echo '  make dist-deb         Build the .deb package'
 	@echo '  make dist-rpm         Build the .rpm package'
 	@echo '  make dist-tar         Build the portable tarball'
+	@echo '  make release-commercial Build commercial release artifacts, SBOMs, checksums, scans, and readiness report'
+	@echo '  make package-smoke-matrix Test dist packages in Ubuntu/Rocky containers'
