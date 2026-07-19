@@ -1,0 +1,158 @@
+openapi: 3.0.3
+info:
+  title: ProvidAPT Control Plane API
+  version: 1.2.3-rc.1
+  description: HTTP API surface used by the dashboard, agents, and release tooling.
+servers:
+  - url: http://localhost:8080
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+paths:
+  /api/v1/status:
+    get:
+      summary: Runtime status
+      responses:
+        "200":
+          description: Runtime and graph counters.
+  /health:
+    get:
+      summary: Health probe
+      responses:
+        "200":
+          description: Healthy service response.
+  /api/v1/control/overview:
+    get:
+      summary: Control-plane and agent overview
+      responses:
+        "200":
+          description: Fleet summary, diagnostics, and agent reports.
+  /api/v1/control/fleet:
+    get:
+      summary: List fleet agents and action history
+      parameters:
+        - name: group
+          in: query
+          schema:
+            type: string
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fleet records and recent actions.
+    post:
+      summary: Update one or more fleet agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                agent_id:
+                  type: string
+                agent_ids:
+                  type: array
+                  items:
+                    type: string
+                group:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Fleet action result.
+  /api/v1/control/policies:
+    get:
+      summary: Policy bundle, draft, diff, and history
+      responses:
+        "200":
+          description: Policy center state.
+    post:
+      summary: Mutate, validate, publish, or roll back policy
+      responses:
+        "200":
+          description: Policy action result.
+  /api/v1/control/alerts:
+    get:
+      summary: Alert workflow state
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Workflow alerts and history.
+    post:
+      summary: Assign, silence, close, reopen, or bulk-update alerts
+      responses:
+        "200":
+          description: Alert action result.
+  /api/v1/control/deliveries:
+    get:
+      summary: Delivery health and dead letters
+      responses:
+        "200":
+          description: Delivery summary, recent attempts, dead letters, and history.
+    post:
+      summary: Replay delivery attempts or create tickets
+      responses:
+        "200":
+          description: Delivery action result.
+  /api/v1/control/compliance:
+    get:
+      summary: Compliance, audit, SIEM, and approval state
+      responses:
+        "200":
+          description: Compliance readiness and SIEM state.
+    post:
+      summary: Export audit, apply retention, generate reports, test SIEM, or process approvals
+      responses:
+        "200":
+          description: Compliance action result.
+  /api/v1/control/support:
+    get:
+      summary: Support bundle state
+      responses:
+        "200":
+          description: Latest support bundle and history.
+    post:
+      summary: Export support bundle
+      responses:
+        "200":
+          description: Support bundle action result.
+  /api/v1/control/backup:
+    get:
+      summary: Backup and restore state
+      responses:
+        "200":
+          description: Backup state and history.
+    post:
+      summary: Create backup, restore staging, or prepare cutover
+      responses:
+        "200":
+          description: Backup action result.
+  /api/v1/graph/export:
+    get:
+      summary: Export provenance graph JSON
+      responses:
+        "200":
+          description: Cytoscape-compatible graph export.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer

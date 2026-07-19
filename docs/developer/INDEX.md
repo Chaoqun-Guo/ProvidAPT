@@ -7,7 +7,9 @@ This section is for developers and maintainers who extend, integrate, test, or r
 | Document | Description |
 | --- | --- |
 | [api-reference.md](api-reference.md) | gRPC and HTTP API definitions, request and response structures, and error codes |
+| [openapi.yaml](openapi.yaml) | Machine-readable HTTP API contract for tooling and client generation |
 | [config-reference.md](config-reference.md) | Configuration sections and major fields |
+| [config.schema.json](config.schema.json) | Machine-readable configuration schema for validation and editors |
 | [data-schema.md](data-schema.md) | Protobuf data model, event types, and relationship structure |
 | [ebpf-dev.md](ebpf-dev.md) | eBPF development and loader guidance |
 | [event-field-source.md](event-field-source.md) | Source layer for event, alert, audit, and SIEM fields |

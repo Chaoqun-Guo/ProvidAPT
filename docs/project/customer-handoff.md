@@ -6,11 +6,11 @@ This checklist turns a release candidate into a repeatable customer delivery pac
 
 | Item | Owner | Status |
 | --- | --- | --- |
-| Customer scope and success criteria confirmed | Product / SE | pending |
-| Supported platforms and kernel prerequisites reviewed | Engineering / SE | pending |
-| License entitlement and expiry confirmed | Sales / Legal | pending |
-| Deployment topology selected | SE / Customer | pending |
-| Data handling and privacy requirements reviewed | Legal / Security | pending |
+| Customer scope and success criteria confirmed | Product / SE | record before handoff |
+| Supported platforms and kernel prerequisites reviewed | Engineering / SE | record before handoff |
+| License entitlement and expiry confirmed | Sales / Legal | record before handoff |
+| Deployment topology selected | SE / Customer | record before handoff |
+| Data handling and privacy requirements reviewed | Legal / Security | record before handoff |
 
 ## Delivery Package
 
@@ -50,8 +50,8 @@ This checklist turns a release candidate into a repeatable customer delivery pac
 
 | Area | Approver | Decision | Date |
 | --- | --- | --- | --- |
-| Customer owner | pending | pending | pending |
-| Sales engineering | pending | pending | pending |
-| Support | pending | pending | pending |
-| Security | pending | pending | pending |
-| Product | pending | pending | pending |
+| Customer owner | named in handoff packet | approve or reject | ISO-8601 date |
+| Sales engineering | named in handoff packet | approve or reject | ISO-8601 date |
+| Support | named in handoff packet | approve or reject | ISO-8601 date |
+| Security | named in handoff packet | approve or reject | ISO-8601 date |
+| Product | named in handoff packet | approve or reject | ISO-8601 date |

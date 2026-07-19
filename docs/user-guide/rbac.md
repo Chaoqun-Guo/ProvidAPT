@@ -20,7 +20,7 @@ auth_tenants = { "analyst-key" = "prod" }
 curl -H "X-API-Key: admin-key" http://localhost:18080/api/v1/status
 ```
 
-If the deployment supports bearer tokens, use:
+Bearer token syntax is also accepted for API keys:
 
 ```bash
 curl -H "Authorization: Bearer admin-key" http://localhost:18080/api/v1/status

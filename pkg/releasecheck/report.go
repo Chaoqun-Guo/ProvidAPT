@@ -66,6 +66,9 @@ func RenderMarkdown(report Report) string {
 	if report.ArtifactsDir != "" {
 		fmt.Fprintf(&b, "| Artifacts Dir | `%s` |\n", escapePipe(report.ArtifactsDir))
 	}
+	if report.HandoffPath != "" {
+		fmt.Fprintf(&b, "| Handoff Path | `%s` |\n", escapePipe(report.HandoffPath))
+	}
 	if len(report.RequiredArtifactTypes) > 0 {
 		fmt.Fprintf(&b, "| Required Artifacts | `%s` |\n", escapePipe(strings.Join(report.RequiredArtifactTypes, ", ")))
 	}
@@ -82,7 +85,7 @@ func RenderMarkdown(report Report) string {
 	fmt.Fprintf(&b, "## P0 Gates\n\n")
 	fmt.Fprintf(&b, "| Gate | Status | Evidence |\n")
 	fmt.Fprintf(&b, "|---|---|---|\n")
-	for _, gate := range []string{"config_valid", "version_metadata", "release_evidence", "release_checksums", "release_artifact_matrix", "release_artifact_hashes", "release_checksums_signature", "release_sbom"} {
+	for _, gate := range []string{"config_valid", "version_metadata", "release_evidence", "release_checksums", "release_artifact_matrix", "release_artifact_hashes", "release_checksums_signature", "release_sbom", "release_handoff"} {
 		fmt.Fprintf(&b, "| `%s` | %s | %s |\n", gate, strings.ToUpper(bestStatus(report.Checks, gate)), escapePipe(joinCheckMessages(report.Checks, gate)))
 	}
 	fmt.Fprintf(&b, "\n")

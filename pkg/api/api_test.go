@@ -427,6 +427,46 @@ func TestRBACAuditorStatusAllowed(t *testing.T) {
 	}
 }
 
+func TestAuthAcceptsBearerToken(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"admin-key"},
+		map[string]string{"admin-key": RoleAdmin},
+		map[string]string{"admin-key": "SecOps On-Call"},
+		true,
+	)
+	var got FleetUpdate
+	ts.SetFleetUpdateFunc(func(update FleetUpdate) error {
+		got = update
+		return nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","group":"prod"}`))
+	req.Header.Set("Authorization", "Bearer admin-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
+	}
+	if got.Role != RoleAdmin {
+		t.Fatalf("role = %q", got.Role)
+	}
+	if got.Actor != "SecOps On-Call (admin)" {
+		t.Fatalf("actor = %q", got.Actor)
+	}
+}
+
+func TestAuthRejectsMalformedBearerToken(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	req.Header.Set("Authorization", "Bearer")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status code = %d", w.Code)
+	}
+}
+
 func TestStatusIncludesRuntimeDiagnostics(t *testing.T) {
 	ts := testServer(t)
 	ts.SetRuntimeDiagnostics(RuntimeDiagnostics{
@@ -2209,6 +2249,9 @@ func TestCORSHeaders(t *testing.T) {
 
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
 		t.Error("missing CORS header")
+	}
+	if got := w.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Authorization") {
+		t.Fatalf("CORS headers = %q", got)
 	}
 }
 

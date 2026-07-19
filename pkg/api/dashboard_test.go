@@ -191,6 +191,10 @@ func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
 	expected := []string{
 		"apiKeyInput",
 		"providapt_api_key",
+		"testAPIKeyPermissions",
+		"copyStatusCurl",
+		"showRBACPermissions",
+		"Authorization: Bearer",
 		"function authHeaders",
 		"'X-API-Key': apiKey",
 		"downloadWithAuth('/api/v1/control/support/download'",
@@ -202,6 +206,89 @@ func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
 			t.Fatalf("dashboard missing API key auth content %q", item)
+		}
+	}
+}
+
+func TestDashboardAPIErrorObservability(t *testing.T) {
+	expected := []string{
+		"apiStatusBanner",
+		"apiStatusText",
+		"Retry Last Request",
+		"function rememberLastRequest",
+		"function retryLastRequest",
+		"function responseError",
+		"function reportAPIError",
+		"function clearAPIStatus",
+		"function apiErrorHint",
+		"Check the API key and role permissions.",
+		"Check daemon health, network access, and server logs.",
+		"Control plane overview unavailable.",
+		"Workflow alerts unavailable.",
+		"Delivery health unavailable.",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing API error observability content %q", item)
+		}
+	}
+}
+
+func TestDashboardActionableEmptyStates(t *testing.T) {
+	expected := []string{
+		"No agents reporting yet. Start an agent, confirm telemetry endpoint and API credentials",
+		"No workflow alerts. Generate a test event, review active rules",
+		"No delivery attempts yet. Configure notifiers or SIEM delivery",
+		"Fleet action history unavailable. Check control-plane state storage and server logs.",
+		"Delivery action history unavailable. Check delivery queue storage and server logs.",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing actionable empty-state content %q", item)
+		}
+	}
+}
+
+func TestDashboardPolicyValidationGuidance(t *testing.T) {
+	expected := []string{
+		"function validatePolicyMutationInput",
+		"function policyErrorHint",
+		"function policySuccessMessage",
+		"function loadExamplePolicyRule",
+		"Example Sigma rule loaded",
+		"function renderPolicyDiffItem",
+		"Rule ID is required before running",
+		"Paste a Sigma rule with title and detection.condition",
+		"Whitelist target and value are required",
+		"Taint prefix is required",
+		"Request approval in Compliance & SIEM",
+		"Sigma validation passed; draft unchanged",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing policy validation guidance %q", item)
+		}
+	}
+}
+
+func TestDashboardCommercialWorkflowEnhancements(t *testing.T) {
+	expected := []string{
+		"bulkFleetEnrollment('approved')",
+		"bulkFleetEnrollment('quarantined')",
+		"No agents match the current group/tag filter for bulk fleet action",
+		"bulk precheck",
+		"supportBundleRange",
+		"supportBundleIncludes",
+		"supportBundleRedaction",
+		"Prepare cutover blocked: restore a backup to staging first",
+		"function showDeliveryGroup",
+		"showReleaseReadiness",
+		"showAuditSearch",
+		"siem test",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing commercial workflow enhancement %q", item)
 		}
 	}
 }

@@ -40,6 +40,6 @@ This candidate is ready for external Product, Security, Legal, Support, and Sale
 
 ## Known Limitations
 
-- External approvals are still pending in `docs/project/commercial-approval-record.md`.
+- External approvals must be recorded in `docs/project/commercial-approval-record.md` before final publication.
 - The candidate evidence records `6e459ff0-worktree`; rebuild from a clean release commit before final public publication.
 - Container image archive was not generated in the rerun. Generate it with `BUILD_CONTAINER=1` if the target delivery requires air-gapped Docker artifacts.

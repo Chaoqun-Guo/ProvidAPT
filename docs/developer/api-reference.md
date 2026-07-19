@@ -2,6 +2,8 @@
 
 **gRPC Interface** | Plugin Development | External System Integration
 
+The machine-readable HTTP contract is available in [openapi.yaml](openapi.yaml).
+
 ---
 
 ## 1. gRPC Service Definitions

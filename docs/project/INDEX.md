@@ -23,7 +23,7 @@ This section collects engineering documentation for repository governance, layou
 | [production-readiness.md](production-readiness.md) | Production deployment readiness checklist |
 | [sizing-guide.md](sizing-guide.md) | Initial capacity planning guidance for agents, control plane, and PostgreSQL |
 | [third-party-notices.md](third-party-notices.md) | Third-party notice and SBOM review template |
-| [export-control.md](export-control.md) | Export-control review placeholder for international commercial delivery |
+| [export-control.md](export-control.md) | Export-control workflow for international commercial delivery |
 | [support-sla.md](support-sla.md) | Support severity, SLA, and escalation model |
 | [customer-handoff.md](customer-handoff.md) | POC, onboarding, and production handoff checklist |
 | [commercial-approval-record.md](commercial-approval-record.md) | Final commercial release approval record |

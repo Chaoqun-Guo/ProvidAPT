@@ -29,6 +29,7 @@ SKIP_PARTS = {
     ".git",
     ".tmp-bin",
     ".tmp-gocache",
+    ".tmp-gopath",
     ".tmp-gomodcache",
     ".tmp-golangci-cache",
     "build/bin",

@@ -7,12 +7,12 @@ Use this document when a release cannot complete every required security scan be
 | Field | Value |
 | --- | --- |
 | Release | `v1.2.3-rc.1` |
-| Requested by | pending |
-| Requested date | pending |
-| Expiration date | pending |
-| Scope | pending |
-| Blocked control | pending |
-| Reason | pending |
+| Requested by | named release or security owner |
+| Requested date | ISO-8601 date |
+| Expiration date | ISO-8601 date |
+| Scope | exact release, artifact set, customer, and environment |
+| Blocked control | scanner, review, or evidence control requiring waiver |
+| Reason | operational reason the control cannot complete before controlled handoff |
 
 ## Example Scope
 
@@ -31,18 +31,18 @@ For `v1.2.3-rc.1`, `govulncheck` completed successfully and reported no reachabl
 
 | Control | Owner | Status |
 | --- | --- | --- |
-| Run missing scanner in an approved CI or security environment | Security | pending |
-| Restrict delivery to named reviewers or customer POC environment | Product / Sales Engineering | pending |
-| Do not publish immutable final release until waiver is closed or approved | Release owner | pending |
-| Document all known limitations in the handoff bundle | Release owner | pending |
+| Run missing scanner in an approved CI or security environment | Security | required before public release |
+| Restrict delivery to named reviewers or customer POC environment | Product / Sales Engineering | required for controlled handoff |
+| Do not publish immutable final release until waiver is closed or approved | Release owner | required gate |
+| Document all known limitations in the handoff bundle | Release owner | required gate |
 
 ## Approval
 
 | Role | Approver | Decision | Date | Notes |
 | --- | --- | --- | --- | --- |
-| Security | pending | pending | pending | pending |
-| Product | pending | pending | pending | pending |
-| Release owner | pending | pending | pending | pending |
+| Security | named security owner | approve, reject, or request rerun | ISO-8601 date | waiver rationale and expiration |
+| Product | named product owner | approve or reject | ISO-8601 date | customer scope and restrictions |
+| Release owner | named release owner | approve or reject | ISO-8601 date | artifact scope and rollback |
 
 ## Closure
 

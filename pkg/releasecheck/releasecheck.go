@@ -6,8 +6,11 @@
 package releasecheck
 
 import (
+	"archive/zip"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -29,6 +32,7 @@ type Options struct {
 	ChecksumsPath          string
 	ChecksumsSignaturePath string
 	ArtifactsDir           string
+	HandoffPath            string
 	RequiredArtifactTypes  []string
 	SBOMPaths              []string
 	Version                string
@@ -62,6 +66,7 @@ type Report struct {
 	ChecksumsPath          string    `json:"checksums_path,omitempty"`
 	ChecksumsSignaturePath string    `json:"checksums_signature_path,omitempty"`
 	ArtifactsDir           string    `json:"artifacts_dir,omitempty"`
+	HandoffPath            string    `json:"handoff_path,omitempty"`
 	RequiredArtifactTypes  []string  `json:"required_artifact_types,omitempty"`
 	SBOMPaths              []string  `json:"sbom_paths,omitempty"`
 	Version                string    `json:"version"`
@@ -86,6 +91,7 @@ func Run(opts Options) Report {
 		ChecksumsPath:          opts.ChecksumsPath,
 		ChecksumsSignaturePath: opts.ChecksumsSignaturePath,
 		ArtifactsDir:           opts.ArtifactsDir,
+		HandoffPath:            opts.HandoffPath,
 		RequiredArtifactTypes:  cleanPathList(opts.RequiredArtifactTypes),
 		SBOMPaths:              opts.SBOMPaths,
 		Version:                opts.Version,
@@ -102,6 +108,7 @@ func Run(opts Options) Report {
 	checkChecksums(&report, opts.ChecksumsPath, opts.ArtifactsDir, report.RequiredArtifactTypes)
 	checkChecksumsSignature(&report, opts.ChecksumsSignaturePath)
 	checkSBOMs(&report, opts.SBOMPaths)
+	checkHandoffPackage(&report, opts.HandoffPath, opts.Version, opts.Commit)
 	applyWaivers(&report, opts.WaiverPath)
 
 	report.ReleaseReady = report.Failed == 0
@@ -323,6 +330,139 @@ func checkReleaseEvidence(report *Report, path, version, commit string) {
 	}
 
 	add(report, Check{Name: "release_evidence", Status: StatusPass, Message: "release evidence file has no pending placeholders"})
+}
+
+func checkHandoffPackage(report *Report, path, version, commit string) {
+	if strings.TrimSpace(path) == "" {
+		return
+	}
+	text, err := readHandoffText(path)
+	if err != nil {
+		add(report, Check{
+			Name:          "release_handoff",
+			Status:        StatusWarn,
+			Message:       fmt.Sprintf("handoff package unavailable or unreadable: %v", err),
+			FixSuggestion: "Regenerate the customer handoff package after release artifacts and approval documents are updated.",
+		})
+		return
+	}
+	lower := strings.ToLower(text)
+	staleMarkers := []string{
+		"blocked pending external approvals",
+		"generated evidence pending owner signoff",
+		"| pending | pending |",
+	}
+	for _, marker := range staleMarkers {
+		if strings.Contains(lower, marker) {
+			add(report, Check{
+				Name:          "release_handoff",
+				Status:        StatusWarn,
+				Message:       fmt.Sprintf("handoff package contains stale release text %q", marker),
+				FixSuggestion: "Delete the old build/handoff package and rebuild it from the current release documents.",
+			})
+			return
+		}
+	}
+	if !isUnset(version, "dev", "") && !strings.Contains(text, version) {
+		add(report, Check{
+			Name:          "release_handoff",
+			Status:        StatusWarn,
+			Message:       fmt.Sprintf("handoff package does not reference current version %s", version),
+			FixSuggestion: "Rebuild the handoff package for the current release version.",
+		})
+		return
+	}
+	if !isUnset(commit, "none", "") && !strings.Contains(text, commit) {
+		add(report, Check{
+			Name:          "release_handoff",
+			Status:        StatusWarn,
+			Message:       fmt.Sprintf("handoff package does not reference current commit %s", commit),
+			FixSuggestion: "Rebuild the handoff package from the committed release source tree.",
+		})
+		return
+	}
+	add(report, Check{Name: "release_handoff", Status: StatusPass, Message: "handoff package references the current release and has no stale approval markers"})
+}
+
+func readHandoffText(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		return readHandoffDir(path)
+	}
+	if strings.EqualFold(filepath.Ext(path), ".zip") {
+		return readHandoffZip(path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func readHandoffDir(path string) (string, error) {
+	var b strings.Builder
+	candidates := []string{
+		"MANIFEST.md",
+		filepath.Join("docs", "project", "commercial-approval-record.md"),
+		filepath.Join("docs", "project", "customer-handoff.md"),
+		filepath.Join("docs", "project", "external-approval-request-v1.2.3-rc.1.md"),
+	}
+	for _, candidate := range candidates {
+		data, err := os.ReadFile(filepath.Join(path, candidate))
+		if err == nil {
+			b.Write(data)
+			b.WriteByte('\n')
+		}
+	}
+	if b.Len() == 0 {
+		return "", fmt.Errorf("no handoff manifest or approval documents found")
+	}
+	return b.String(), nil
+}
+
+func readHandoffZip(path string) (string, error) {
+	reader, err := zip.OpenReader(path)
+	if err != nil {
+		return "", err
+	}
+	defer reader.Close()
+
+	var b strings.Builder
+	for _, file := range reader.File {
+		name := filepath.ToSlash(file.Name)
+		if !isHandoffTextEntry(name) {
+			continue
+		}
+		rc, err := file.Open()
+		if err != nil {
+			return "", err
+		}
+		data, readErr := io.ReadAll(io.LimitReader(rc, 256*1024))
+		closeErr := rc.Close()
+		if readErr != nil {
+			return "", readErr
+		}
+		if closeErr != nil {
+			return "", closeErr
+		}
+		b.Write(data)
+		b.WriteByte('\n')
+	}
+	if b.Len() == 0 {
+		return "", fmt.Errorf("no handoff manifest or approval documents found in zip")
+	}
+	return b.String(), nil
+}
+
+func isHandoffTextEntry(name string) bool {
+	return strings.HasSuffix(name, "/MANIFEST.md") ||
+		name == "MANIFEST.md" ||
+		strings.HasSuffix(name, "/docs/project/commercial-approval-record.md") ||
+		strings.HasSuffix(name, "/docs/project/customer-handoff.md") ||
+		strings.HasSuffix(name, "/docs/project/external-approval-request-v1.2.3-rc.1.md")
 }
 
 func add(report *Report, check Check) {

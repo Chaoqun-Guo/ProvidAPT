@@ -17,12 +17,12 @@ Use this record for the final release meeting before publishing or customer deli
 
 | Area | Required Evidence | Approver | Decision |
 | --- | --- | --- | --- |
-| Product | scope, value, limitations, roadmap impact | external owner required | pending |
+| Product | scope, value, limitations, roadmap impact | external owner required | requires approval |
 | Engineering | build, tests, install, upgrade, rollback | engineering release owner | approved_with_risk |
-| Security | vulnerability review, hardening, disclosure readiness | external owner required | pending: govulncheck passed; Grype/Trivy unavailable |
-| Legal | EULA, DPA, notices, privacy, trademarks | external owner required | pending |
-| Support | SLA, escalation, support bundle workflow | external owner required | pending |
-| Sales engineering | POC plan, demo, sizing, onboarding | external owner required | pending |
+| Security | vulnerability review, hardening, disclosure readiness | external owner required | requires waiver: govulncheck passed; Grype/Trivy unavailable |
+| Legal | EULA, DPA, notices, privacy, trademarks | external owner required | requires approval |
+| Support | SLA, escalation, support bundle workflow | external owner required | requires approval |
+| Sales engineering | POC plan, demo, sizing, onboarding | external owner required | requires approval |
 
 ## Decision Rules
 
@@ -40,6 +40,6 @@ Use this record for the final release meeting before publishing or customer deli
 
 ## Final Decision
 
-- Decision: blocked pending external approvals
+- Decision: blocked until required external approvals are recorded
 - Release owner: engineering release owner
 - Decision date: 2026-07-19

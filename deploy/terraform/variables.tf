@@ -1,11 +1,11 @@
 variable "cloud_provider" {
-  description = "Cloud provider (aws, gcp, azure, or openstack)"
+  description = "Cloud provider. This module currently supports AWS."
   type        = string
   default     = "aws"
 
   validation {
-    condition     = contains(["aws", "gcp", "azure", "openstack"], var.cloud_provider)
-    error_message = "cloud_provider must be one of: aws, gcp, azure, openstack. Currently only AWS is fully implemented; other providers are stubs."
+    condition     = var.cloud_provider == "aws"
+    error_message = "cloud_provider must be aws. Use a provider-specific module for GCP, Azure, or OpenStack."
   }
 }
 

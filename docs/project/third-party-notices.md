@@ -13,11 +13,11 @@ This document tracks third-party notice obligations for commercial delivery. It 
 
 | Check | Status |
 | --- | --- |
-| SPDX SBOM generated | pending |
-| CycloneDX SBOM generated | pending |
-| direct Go module licenses reviewed | pending |
-| container base image notices reviewed when shipped | pending |
-| third-party notices packaged or linked in handoff | pending |
+| SPDX SBOM generated | required before publication |
+| CycloneDX SBOM generated | required before publication |
+| direct Go module licenses reviewed | required before publication |
+| container base image notices reviewed when shipped | required for container artifacts |
+| third-party notices packaged or linked in handoff | required before customer handoff |
 
 ## Notice Template
 

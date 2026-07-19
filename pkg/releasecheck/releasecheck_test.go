@@ -4,6 +4,7 @@
 package releasecheck
 
 import (
+	"archive/zip"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
@@ -706,6 +707,82 @@ func TestRunFailsUnrecognizedSBOM(t *testing.T) {
 	}
 	if findCheck(t, report, "release_sbom").Status != StatusFail {
 		t.Fatalf("expected SBOM fail: %+v", report.Checks)
+	}
+}
+
+func TestRunWarnsOnStaleHandoffPackage(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	handoffDir := filepath.Join(dir, "handoff")
+	if err := os.MkdirAll(filepath.Join(handoffDir, "docs", "project"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := "Release: v1.2.3\nCommit SHA: abcdef0\n"
+	if err := os.WriteFile(filepath.Join(handoffDir, "MANIFEST.md"), []byte(manifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+	staleApproval := "| Product | pending | pending | External owner required |\n"
+	if err := os.WriteFile(filepath.Join(handoffDir, "docs", "project", "external-approval-request-v1.2.3-rc.1.md"), []byte(staleApproval), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:  cfgPath,
+		HandoffPath: handoffDir,
+		Version:     "v1.2.3",
+		Commit:      "abcdef0",
+		BuildDate:   "2026-07-08T00:00:00Z",
+	})
+
+	check := findCheck(t, report, "release_handoff")
+	if check.Status != StatusWarn || !strings.Contains(check.Message, "stale release text") {
+		t.Fatalf("expected stale handoff warning: %+v", check)
+	}
+	if report.CommercialReady {
+		t.Fatal("expected commercial_ready=false with stale handoff")
+	}
+}
+
+func TestRunPassesCurrentHandoffZip(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	handoffPath := filepath.Join(dir, "handoff.zip")
+	if err := os.WriteFile(cfgPath, []byte("output:\n  dir: /tmp/providapt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create(handoffPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zipWriter := zip.NewWriter(file)
+	writer, err := zipWriter.Create("providapt/MANIFEST.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write([]byte("Version: v1.2.3\nCommit evidence: abcdef0\nExternal approvals are required.\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:  cfgPath,
+		HandoffPath: handoffPath,
+		Version:     "v1.2.3",
+		Commit:      "abcdef0",
+		BuildDate:   "2026-07-08T00:00:00Z",
+	})
+
+	check := findCheck(t, report, "release_handoff")
+	if check.Status != StatusPass {
+		t.Fatalf("expected handoff pass: %+v", check)
 	}
 }
 

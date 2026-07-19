@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://providapt.local/schemas/providapt-config.schema.json",
+  "title": "ProvidAPT Configuration",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "api": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "rest": { "type": "string", "examples": [":8080"] },
+        "grpc": { "type": "string", "examples": [":50051"] },
+        "auth_enabled": { "type": "boolean" },
+        "auth_keys": { "type": "array", "items": { "type": "string" } },
+        "auth_roles": { "type": "object", "additionalProperties": { "type": "string" } },
+        "auth_tenants": { "type": "object", "additionalProperties": { "type": "string" } },
+        "cors_origins": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "include_comms": { "type": "array", "items": { "type": "string" } },
+        "detail_level": { "type": "string", "enum": ["minimal", "standard", "full"] }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "dir": { "type": "string" }
+      }
+    },
+    "control_plane": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "state_backend": { "type": "string", "enum": ["file", "postgres"] },
+        "postgres_dsn": { "type": "string" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "endpoint": { "type": "string" },
+        "api_key": { "type": "string" },
+        "bundle_dir": { "type": "string" }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "interval": { "type": "string" },
+        "retain_archives": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "retention_days": { "type": "integer", "minimum": 1 },
+        "require_approvals": { "type": "boolean" }
+      }
+    },
+    "siem": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "provider": { "type": "string", "enum": ["generic", "splunk", "elastic"] },
+        "endpoint": { "type": "string" },
+        "token": { "type": "string" },
+        "min_severity": { "type": "string" },
+        "outbox_dir": { "type": "string" }
+      }
+    },
+    "upgrade": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "download_url": { "type": "string" },
+        "expected_sha256": { "type": "string" },
+        "signature_path": { "type": "string" },
+        "apply_command": { "type": "string" },
+        "rollback_command": { "type": "string" }
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "path": { "type": "string" },
+        "public_key_path": { "type": "string" }
+      }
+    }
+  }
+}

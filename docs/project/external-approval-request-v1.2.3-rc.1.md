@@ -18,14 +18,14 @@ Commit evidence: `6e459ff0-worktree`
 
 | Area | Approver | Decision | Notes |
 | --- | --- | --- | --- |
-| Product | pending | pending | External owner required |
-| Security | pending | pending | Must accept govulncheck-only evidence or request Grype/Trivy rerun |
-| Legal | pending | pending | External owner required |
-| Support | pending | pending | External owner required |
-| Sales Engineering | pending | pending | External owner required |
+| Product | named product owner | approve or reject | External owner required |
+| Security | named security owner | approve, reject, or request waiver | Must accept govulncheck-only evidence or request Grype/Trivy rerun |
+| Legal | named legal owner | approve or reject | External owner required |
+| Support | named support owner | approve or reject | External owner required |
+| Sales Engineering | named SE owner | approve or reject | External owner required |
 
 ## Engineering Recommendation
 
 - Engineering readiness: approved for release-candidate review.
 - Publication recommendation: do not publish as a final immutable release until external approvals are recorded and the working tree is committed/rebuilt.
-- Delivery recommendation: use `build/handoff/providapt-v1.2.3-rc.1-handoff.zip` as the candidate handoff package for reviewers.
+- Delivery recommendation: regenerate `build/handoff/providapt-v1.2.3-rc.1-handoff.zip` from the current commit and validate it with `providaptctl -release-check -release-handoff` before reviewer delivery.

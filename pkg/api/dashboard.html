@@ -80,6 +80,11 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 
 .loading { color: #8b949e; text-align: center; padding: 12px; font-size: 12px; }
 .error { color: #f85149; text-align: center; padding: 12px; font-size: 13px; }
+.api-status-banner { display:none; margin: 10px 18px 0; border: 1px solid #30363d; border-radius: 8px; padding: 9px 12px; font-size: 12px; background: #161b22; color: #8b949e; }
+.api-status-banner.visible { display:flex; justify-content:space-between; align-items:center; gap: 12px; }
+.api-status-banner.error { border-color:#da3633; background:#2b1618; color:#ffb3ad; text-align:left; }
+.api-status-banner.ok { border-color:#238636; background:#10261c; color:#8ddb8c; }
+.api-status-banner button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px; }
 .mini-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .mini-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px; }
 .mini-card.clickable, .policy-item.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
@@ -138,6 +143,9 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <div class="auth-strip">
       <input id="apiKeyInput" type="password" placeholder="API key for protected control plane">
       <button onclick="saveAPIKey()">Use Key</button>
+      <button onclick="testAPIKeyPermissions()">Test Access</button>
+      <button onclick="copyStatusCurl()">Copy curl</button>
+      <button onclick="showRBACPermissions()">RBAC Matrix</button>
       <button onclick="clearAPIKey()">Clear</button>
       <span class="refresh-info" id="authStatus">No key stored</span>
     </div>
@@ -160,6 +168,12 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
     <span class="refresh-info" id="refreshInfo">--</span>
   </div>
 </header>
+
+<div id="apiStatusBanner" class="api-status-banner" role="status" aria-live="polite">
+  <span id="apiStatusText"></span>
+  <button onclick="retryLastRequest()">Retry Last Request</button>
+  <button onclick="clearAPIStatus()">Dismiss</button>
+</div>
 
 <div class="metrics" id="metrics">
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div><div class="sub">Click to inspect node types</div></div>
@@ -203,6 +217,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <input id="fleetGroup" placeholder="Filter by group" />
         <input id="fleetTag" placeholder="Filter by tag" />
         <button onclick="loadControlOverview()">Apply</button>
+        <button onclick="bulkFleetEnrollment('approved')">Approve Filter</button>
+        <button onclick="bulkFleetEnrollment('quarantined')">Quarantine Filter</button>
       </div>
       <div class="agents-list" id="agentsList">
         <div class="loading">Loading agents...</div>
@@ -226,6 +242,13 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button id="exportSupportBundleBtn" onclick="prepareSupportBundleAction()">Export Support Bundle</button>
         <button id="downloadSupportBundleBtn" class="secondary" onclick="downloadSupportBundle()">Download Latest Archive</button>
         <button class="secondary" onclick="downloadAuditCSV('supportbundle')">Export Audit CSV</button>
+      </div>
+      <div class="policy-editor">
+        <div class="policy-grid">
+          <input id="supportBundleRange" placeholder="Time range, e.g. last 24h">
+          <input id="supportBundleIncludes" placeholder="Include items, e.g. config,logs,audit">
+          <input id="supportBundleRedaction" placeholder="Redaction level, e.g. standard">
+        </div>
       </div>
       <div class="loading" id="supportBundleStatus"></div>
       <div class="alerts-list" id="supportBundleDetails">
@@ -298,6 +321,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
           <button class="secondary" onclick="preparePolicyMutation('remove_whitelist')">Remove Whitelist</button>
           <button class="secondary" onclick="preparePolicyMutation('add_taint')">Add Taint</button>
           <button class="secondary" onclick="preparePolicyMutation('remove_taint')">Remove Taint</button>
+          <button class="secondary" onclick="loadExamplePolicyRule()">Load Example Rule</button>
         </div>
         <div class="action-row" style="margin:0;align-content:start;">
           <button id="publishPolicyBtn" onclick="preparePolicyAction('publish')">Publish Draft</button>
@@ -377,6 +401,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button id="generateComplianceReportBtn" class="secondary" onclick="runComplianceAction('generate_report')">Generate Report</button>
         <button class="secondary" onclick="runComplianceAction('generate_report', 'html')">Generate HTML</button>
         <button id="testSIEMBtn" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
+        <button class="secondary" onclick="showReleaseReadiness()">Release Readiness</button>
+        <button class="secondary" onclick="showAuditSearch()">Audit Search</button>
         <button class="secondary" onclick="loadCompliance()">Refresh Compliance</button>
       </div>
       <div class="loading" id="complianceActionStatus"></div>
@@ -437,14 +463,22 @@ let latestWorkflow = { alerts: [], history: [] };
 let latestDeliveries = { recent: [], dead_letters: [], history: [] };
 let latestCompliance = {};
 let apiKey = localStorage.getItem('providapt_api_key') || '';
+let lastAPIRequest = null;
 
 async function fetchJSON(url) {
-  const r = await fetch(url, { headers: authHeaders() });
-  if (r.status === 401 || r.status === 403) {
-    updateAuthStatus('Authentication required or insufficient role');
+  rememberLastRequest('GET', url);
+  try {
+    const r = await fetch(url, { headers: authHeaders() });
+    if (r.status === 401 || r.status === 403) {
+      updateAuthStatus('Authentication required or insufficient role');
+    }
+    if (!r.ok) throw await responseError(r, url);
+    clearAPIStatus();
+    return r.json();
+  } catch (e) {
+    reportAPIError('GET', url, e);
+    throw e;
   }
-  if (!r.ok) throw new Error(r.statusText);
-  return r.json();
 }
 
 async function postJSON(url, payload) {
@@ -452,6 +486,9 @@ async function postJSON(url, payload) {
 }
 
 async function postJSONWithLeaderRetry(url, payload, retried) {
+  if (!retried) {
+    rememberLastRequest('POST', url, payload);
+  }
   const response = await fetch(url, {
     method: 'POST',
     headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
@@ -464,8 +501,13 @@ async function postJSONWithLeaderRetry(url, payload, retried) {
     return postJSONWithLeaderRetry(leaderURL, payload, true);
   }
   if (!response.ok) {
-    throw new Error(data.error || response.statusText);
+    const err = new Error(data.error || response.statusText);
+    err.status = response.status;
+    err.url = url;
+    reportAPIError('POST', url, err);
+    throw err;
   }
+  clearAPIStatus();
   return data;
 }
 
@@ -483,6 +525,61 @@ async function fetchJSONAnyStatus(url) {
   return r.json();
 }
 
+async function responseError(response, url) {
+  let message = response.statusText || 'request failed';
+  try {
+    const data = await response.clone().json();
+    message = data.error || data.message || message;
+  } catch (e) {
+    try {
+      const text = await response.clone().text();
+      if (text) message = text.slice(0, 240);
+    } catch (ignored) {
+      // Keep status text.
+    }
+  }
+  const err = new Error(message);
+  err.status = response.status;
+  err.url = url;
+  return err;
+}
+
+function reportAPIError(method, url, err) {
+  const banner = document.getElementById('apiStatusBanner');
+  const text = document.getElementById('apiStatusText');
+  if (!banner || !text) {
+    return;
+  }
+  const status = err && err.status ? ('HTTP ' + err.status) : 'network';
+  const message = err && err.message ? err.message : 'request failed';
+  const hint = apiErrorHint(err);
+  text.textContent = method + ' ' + url + ' failed (' + status + '): ' + message + '. ' + hint;
+  banner.className = 'api-status-banner visible error';
+}
+
+function clearAPIStatus() {
+  const banner = document.getElementById('apiStatusBanner');
+  const text = document.getElementById('apiStatusText');
+  if (!banner || !text) {
+    return;
+  }
+  text.textContent = '';
+  banner.className = 'api-status-banner';
+}
+
+function apiErrorHint(err) {
+  if (err && (err.status === 401 || err.status === 403)) {
+    return 'Check the API key and role permissions.';
+  }
+  if (err && err.status === 404) {
+    return 'Confirm the endpoint is available in this build.';
+  }
+  if (err && err.status === 409) {
+    return 'Retry against the active control-plane leader.';
+  }
+  return 'Check daemon health, network access, and server logs.';
+}
+
 function authHeaders() {
   return apiKey ? { 'X-API-Key': apiKey } : {};
 }
@@ -496,6 +593,67 @@ function updateAuthStatus(message) {
   if (status) {
     status.textContent = message || (apiKey ? 'API key stored locally' : 'No key stored');
   }
+}
+
+function rememberLastRequest(method, url, payload) {
+  lastAPIRequest = {
+    method: method,
+    url: url,
+    payload: payload || null,
+  };
+}
+
+async function retryLastRequest() {
+  if (!lastAPIRequest) {
+    updateAuthStatus('No API request has been recorded yet');
+    return;
+  }
+  try {
+    if (lastAPIRequest.method === 'POST') {
+      await postJSON(lastAPIRequest.url, lastAPIRequest.payload || {});
+    } else if (lastAPIRequest.method === 'DOWNLOAD') {
+      await downloadWithAuth(lastAPIRequest.url, (lastAPIRequest.payload && lastAPIRequest.payload.file_name) || 'providapt-download');
+    } else {
+      await fetchJSON(lastAPIRequest.url);
+    }
+    updateAuthStatus('Retried ' + lastAPIRequest.method + ' ' + lastAPIRequest.url);
+  } catch (e) {
+    updateAuthStatus('Retry failed: ' + e.message);
+  }
+}
+
+async function testAPIKeyPermissions() {
+  try {
+    const data = await fetchJSON('/api/v1/status');
+    currentRole = data.role || currentRole || 'viewer';
+    updateAuthStatus('Access OK · role ' + currentRole + ' · version ' + (data.version || '--'));
+    showRBACPermissions();
+  } catch (e) {
+    updateAuthStatus('Access test failed: ' + e.message);
+  }
+}
+
+async function copyStatusCurl() {
+  const header = apiKey ? " -H 'Authorization: Bearer " + apiKey.replace(/'/g, "'\\''") + "'" : '';
+  const command = "curl" + header + " '" + window.location.origin + "/api/v1/status'";
+  try {
+    await navigator.clipboard.writeText(command);
+    updateAuthStatus('Copied status curl command');
+  } catch (e) {
+    updateAuthStatus(command);
+  }
+}
+
+function showRBACPermissions() {
+  const role = currentRole || 'viewer';
+  const matrix = [
+    ['viewer', 'Read status, health, dashboard summaries'],
+    ['analyst', 'Read investigations, alerts, policies, and evidence metadata'],
+    ['auditor', 'Read audit/compliance evidence without graph export'],
+    ['admin', 'Run fleet, policy, workflow, delivery, license, backup, and support actions'],
+  ];
+  const items = matrix.map(item => renderKVItem(item[0], item[1], item[0] === role ? 'current role' : 'available role'));
+  setInvestigationItems(items, 'RBAC permissions unavailable');
 }
 
 function saveAPIKey() {
@@ -517,17 +675,14 @@ function clearAPIKey() {
 }
 
 async function downloadWithAuth(url, defaultName) {
+  rememberLastRequest('DOWNLOAD', url, { file_name: defaultName });
   const response = await fetch(url, { headers: authHeaders() });
   if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const data = await response.json();
-      message = data.error || message;
-    } catch (e) {
-      // Keep status text.
-    }
-    throw new Error(message);
+    const err = await responseError(response, url);
+    reportAPIError('GET', url, err);
+    throw err;
   }
+  clearAPIStatus();
   const blob = await response.blob();
   const disposition = response.headers.get('Content-Disposition') || '';
   const match = disposition.match(/filename="?([^";]+)"?/i);
@@ -701,7 +856,10 @@ async function loadStatus() {
     if (data.uptime_seconds) document.getElementById('mUptime').textContent = formatUptime(data.uptime_seconds);
     if (data.memory_bytes) document.getElementById('mMemory').textContent = formatBytes(data.memory_bytes);
     renderDeploymentDiagnostics(data.diagnostics || {});
-  } catch(e) { document.getElementById('mNodes').textContent = 'err'; }
+  } catch(e) {
+    document.getElementById('mNodes').textContent = 'err';
+    document.getElementById('mEdges').textContent = 'err';
+  }
 }
 
 function boolState(value, onText, offText) {
@@ -787,7 +945,7 @@ async function loadControlOverview() {
     const agents = fleet.agents || [];
     const history = fleet.history || [];
     if (agents.length === 0) {
-      list.innerHTML = '<div class="loading">No agents reporting yet</div>';
+      list.innerHTML = '<div class="loading">No agents reporting yet. Start an agent, confirm telemetry endpoint and API credentials, then refresh this panel.</div>';
     } else {
       list.innerHTML = agents.map(a => {
         const status = (a.status || 'unknown').toLowerCase();
@@ -860,10 +1018,10 @@ async function loadControlOverview() {
       }
     }
   } catch (e) {
-    document.getElementById('agentsList').innerHTML = '<div class="loading">Control plane overview unavailable</div>';
+    document.getElementById('agentsList').innerHTML = '<div class="error">Control plane overview unavailable. ' + escapeHTML(apiErrorHint(e)) + '</div>';
     const historyList = document.getElementById('fleetHistoryList');
     if (historyList) {
-      historyList.innerHTML = '<div class="loading">Fleet action history unavailable</div>';
+      historyList.innerHTML = '<div class="error">Fleet action history unavailable. Check control-plane state storage and server logs.</div>';
     }
   }
 }
@@ -967,6 +1125,32 @@ async function setAgentEnrollment(agentID, status) {
   }
 }
 
+async function bulkFleetEnrollment(status) {
+  if (currentRole !== 'admin') {
+    return;
+  }
+  const agents = latestFleet.agents || [];
+  const ids = agents.map(agent => agent.agent_id).filter(Boolean);
+  if (ids.length === 0) {
+    setInvestigationLoading('No agents match the current group/tag filter for bulk fleet action');
+    return;
+  }
+  try {
+    setInvestigationLoading('Updating ' + ids.length + ' filtered agent(s) to ' + status + '...');
+    const payload = {
+      action: status,
+      status: status,
+      agent_ids: ids,
+      note: 'dashboard bulk fleet ' + status,
+    };
+    await postJSON('/api/v1/control/fleet', payload);
+    await loadControlOverview();
+    setInvestigationItems(ids.slice(0, 20).map(id => renderKVItem('fleet', id, status)), 'Bulk fleet action completed');
+  } catch (e) {
+    setInvestigationLoading('Bulk fleet action failed: ' + e.message);
+  }
+}
+
 async function loadPolicies() {
   try {
     const data = await fetchJSON('/api/v1/control/policies');
@@ -1041,12 +1225,22 @@ function showPolicyDetails(scope) {
     ];
   } else if (scope === 'diff') {
     const diff = data.diff || [];
-    items = diff.map(item => renderKVItem(item.field || 'policy', JSON.stringify(item.before || '--') + ' -> ' + JSON.stringify(item.after || '--'), item.status || 'changed'));
+    items = diff.map(item => renderPolicyDiffItem(item));
   } else {
     items = history.slice(0, 10).map(item => renderKVItem('v' + (item.version || '--'), (item.state || '--') + ' · rules ' + (item.active_rules || 0) + (item.notes ? (' · ' + item.notes) : ''), formatTime(item.published_at || item.updated_at)));
     items = items.concat(actions.slice(0, 5).map(item => renderKVItem(item.action || 'action', (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : ''), formatTime(item.performed_at))));
   }
   setInvestigationItems(items, 'No policy details available');
+}
+
+function renderPolicyDiffItem(item) {
+  const before = item.before == null || item.before === '' ? '--' : JSON.stringify(item.before);
+  const after = item.after == null || item.after === '' ? '--' : JSON.stringify(item.after);
+  return renderKVItem(
+    item.field || 'policy',
+    'Before: ' + before + ' · After: ' + after,
+    item.status || 'changed'
+  );
 }
 
 async function loadSupportBundles() {
@@ -1159,7 +1353,14 @@ function prepareSupportBundleAction() {
   if (currentRole !== 'admin') {
     return;
   }
-  runSupportBundleAction({ reason: 'dashboard', note: 'dashboard export' });
+  runSupportBundleAction({ reason: 'dashboard', note: supportBundleNote() });
+}
+
+function supportBundleNote() {
+  const range = policyInputValue('supportBundleRange') || 'latest';
+  const includes = policyInputValue('supportBundleIncludes') || 'default';
+  const redaction = policyInputValue('supportBundleRedaction') || 'standard';
+  return 'dashboard export · range=' + range + ' · include=' + includes + ' · redaction=' + redaction;
 }
 
 async function downloadSupportBundle() {
@@ -1243,6 +1444,13 @@ function showBackupDetails(scope) {
 async function runBackupAction(action) {
   if (currentRole !== 'admin') return;
   const status = document.getElementById('backupStatus');
+  if (action === 'prepare_cutover' && !latestBackup.last_restore_path) {
+    if (status) {
+      status.textContent = 'Prepare cutover blocked: restore a backup to staging first and verify the staging path.';
+    }
+    showBackupDetails('restore');
+    return;
+  }
   if (status) {
     status.textContent = action === 'create'
       ? 'Creating checkpoint backup...'
@@ -1467,7 +1675,7 @@ async function loadAlertWorkflow() {
     const alerts = data.alerts || [];
     const history = data.history || [];
     if (alerts.length === 0) {
-      list.innerHTML = '<div class="loading">No workflow alerts</div>';
+      list.innerHTML = '<div class="loading">No workflow alerts. Generate a test event, review active rules, or lower the alert filter severity.</div>';
     } else {
       list.innerHTML = alerts.slice(0, 8).map(a => renderWorkflowAlert(a)).join('');
     }
@@ -1488,10 +1696,10 @@ async function loadAlertWorkflow() {
       }
     }
   } catch (e) {
-    document.getElementById('workflowAlertsList').innerHTML = '<div class="loading">Workflow alerts unavailable</div>';
+    document.getElementById('workflowAlertsList').innerHTML = '<div class="error">Workflow alerts unavailable. ' + escapeHTML(apiErrorHint(e)) + '</div>';
     const historyList = document.getElementById('workflowHistoryList');
     if (historyList) {
-      historyList.innerHTML = '<div class="loading">Workflow action history unavailable</div>';
+      historyList.innerHTML = '<div class="error">Workflow action history unavailable. Check alert workflow storage and server logs.</div>';
     }
   }
 }
@@ -1576,6 +1784,10 @@ async function runAlertWorkflowBulkAction(action) {
     setInvestigationLoading('No open alerts available for bulk action');
     return;
   }
+  setInvestigationItems([
+    renderKVItem('bulk precheck', ids.length + ' open alerts selected, capped at 20 per operation', action),
+    renderKVItem('scope', ids.join(', '), 'selected alert ids'),
+  ], 'Bulk alert precheck unavailable');
   const payload = {
     action: action,
     alert_ids: ids,
@@ -1602,14 +1814,14 @@ async function runPolicyAction(payload) {
     status.textContent = 'Running ' + payload.action + '...';
   }
   try {
-    await postJSON('/api/v1/control/policies', payload);
+    const result = await postJSON('/api/v1/control/policies', payload);
     if (status) {
-      status.textContent = 'Policy action completed';
+      status.textContent = policySuccessMessage(payload.action, result);
     }
     await loadPolicies();
   } catch (e) {
     if (status) {
-      status.textContent = 'Policy action failed: ' + e.message;
+      status.textContent = 'Policy action failed: ' + e.message + ' ' + policyErrorHint(payload.action, e.message);
     }
   }
 }
@@ -1648,6 +1860,41 @@ function policyInputValue(id) {
   return el && el.value ? el.value.trim() : '';
 }
 
+function loadExamplePolicyRule() {
+  const ruleID = document.getElementById('policyRuleID');
+  const ruleYAML = document.getElementById('policyRuleYAML');
+  const notes = document.getElementById('policyEditNotes');
+  if (ruleID) {
+    ruleID.value = 'example-suspicious-shell';
+  }
+  if (ruleYAML) {
+    ruleYAML.value = [
+      'title: Suspicious Shell Execution',
+      'id: example-suspicious-shell',
+      'status: test',
+      'description: Detects shells launched by sensitive services',
+      'logsource:',
+      '  product: linux',
+      '  category: process_creation',
+      'detection:',
+      '  selection:',
+      '    comm:',
+      '      - sh',
+      '      - bash',
+      '      - zsh',
+      '  condition: selection',
+      'level: medium',
+    ].join('\n');
+  }
+  if (notes && !notes.value.trim()) {
+    notes.value = 'dashboard example sigma rule validation';
+  }
+  const status = document.getElementById('policyActionStatus');
+  if (status) {
+    status.textContent = 'Example Sigma rule loaded; run Validate Sigma before publishing.';
+  }
+}
+
 function preparePolicyMutation(action) {
   if (currentRole !== 'admin') {
     return;
@@ -1664,7 +1911,61 @@ function preparePolicyMutation(action) {
     payload.taint_prefix = policyInputValue('policyTaintPrefix');
     payload.taint_label = policyInputValue('policyTaintLabel');
   }
+  const validation = validatePolicyMutationInput(action, payload);
+  if (validation) {
+    const status = document.getElementById('policyActionStatus');
+    if (status) {
+      status.textContent = validation;
+    }
+    return;
+  }
   runPolicyAction(payload);
+}
+
+function validatePolicyMutationInput(action, payload) {
+  if (action.endsWith('_sigma')) {
+    if (!payload.rule_id) {
+      return 'Rule ID is required before running ' + action + '.';
+    }
+    if ((action === 'add_sigma' || action === 'update_sigma' || action === 'validate_sigma') && !String(payload.rule_yaml || '').trim()) {
+      return 'Rule YAML is required before running ' + action + '. Paste a Sigma rule with title and detection.condition.';
+    }
+  }
+  if (action === 'add_whitelist' || action === 'remove_whitelist') {
+    if (!payload.whitelist_target || !payload.whitelist_value) {
+      return 'Whitelist target and value are required. Example: target comm, value backup-agent.';
+    }
+  }
+  if (action === 'add_taint' || action === 'remove_taint') {
+    if (!payload.taint_prefix) {
+      return 'Taint prefix is required. Example: 10.0.0.0/8 or suspicious-source.';
+    }
+  }
+  return '';
+}
+
+function policyErrorHint(action, message) {
+  const text = String(message || '').toLowerCase();
+  if (text.indexOf('rule_yaml') >= 0 || text.indexOf('sigma') >= 0) {
+    return 'Check Sigma YAML syntax, title, detection block, and detection.condition.';
+  }
+  if (text.indexOf('approval') >= 0) {
+    return 'Request approval in Compliance & SIEM before publishing or rolling back.';
+  }
+  if (text.indexOf('rule_id') >= 0) {
+    return 'Enter a stable rule ID so policy history remains searchable.';
+  }
+  return 'Review the policy diff and control-plane audit log.';
+}
+
+function policySuccessMessage(action, result) {
+  const version = result && result.version ? (' v' + result.version) : '';
+  const state = result && result.state ? (' · ' + result.state) : '';
+  const deployment = result && result.deployment_status ? (' · deployment ' + result.deployment_status) : '';
+  if (action === 'validate_sigma' || action === 'dry_run_sigma') {
+    return 'Sigma validation passed; draft unchanged' + version + state;
+  }
+  return 'Policy action completed' + version + state + deployment;
 }
 
 async function loadCompliance() {
@@ -1726,6 +2027,42 @@ function showComplianceDetails(scope) {
   document.getElementById('complianceDetails').innerHTML = items.join('');
 }
 
+function showReleaseReadiness() {
+  const data = latestCompliance || {};
+  const support = latestSupport || {};
+  const backup = latestBackup || {};
+  const policies = latestPolicies || {};
+  const license = latestLicense || {};
+  const upgrade = latestUpgrade || {};
+  const checks = [
+    ['compliance', (data.readiness_score || 0) + '/100 · ' + (data.readiness_grade || '--'), (data.readiness_score || 0) >= 80],
+    ['support bundle', support.last_status || 'not exported', support.last_status === 'success' || support.last_archive_path],
+    ['backup', backup.last_backup_path || 'not created', Boolean(backup.last_backup_path)],
+    ['policy bundle', policies.current && policies.current.bundle_sha256 ? policies.current.bundle_sha256.slice(0, 12) : 'missing', Boolean(policies.current && policies.current.bundle_sha256)],
+    ['license', license.present ? 'present' : 'missing', Boolean(license.present)],
+    ['upgrade preflight', upgrade.preflight_ready ? 'ready' : 'not ready', Boolean(upgrade.preflight_ready)],
+  ];
+  const items = checks.map(item => renderKVItem(item[0], item[1], item[2] ? 'pass' : 'action required'));
+  document.getElementById('complianceDetails').innerHTML = items.join('');
+}
+
+async function showAuditSearch() {
+  const params = new URLSearchParams({ category: 'admin', limit: '25' });
+  const sources = ['supportbundle', 'backup', 'policy', 'license', 'upgrade', 'delivery'];
+  const items = [];
+  for (const source of sources) {
+    try {
+      const data = await fetchJSON('/api/v1/control/audit?' + new URLSearchParams({ category: 'admin', source: source, limit: '5' }).toString());
+      const entries = (data && data.entries) || [];
+      items.push(renderKVItem(source, entries.length + ' recent audit entry(s)', 'filter source'));
+    } catch (e) {
+      items.push(renderKVItem(source, 'audit search unavailable: ' + e.message, 'error'));
+    }
+  }
+  items.push(renderKVItem('download', '/api/v1/control/audit?' + params.toString(), 'CSV/JSON endpoint'));
+  document.getElementById('complianceDetails').innerHTML = items.join('');
+}
+
 function renderApprovalItem(item) {
   const id = jsString(item.id || '');
   const actions = currentRole === 'admin'
@@ -1752,6 +2089,15 @@ async function runComplianceAction(action, format, approvalID) {
   try {
     const data = await postJSON('/api/v1/control/compliance', { action: action, format: format || 'csv', approval_id: approvalID || '', note: 'dashboard ' + action });
     status.textContent = data.message || 'Compliance action completed';
+    if (action === 'test_siem') {
+      await loadCompliance();
+      document.getElementById('complianceDetails').innerHTML = [
+        renderKVItem('siem test', data.status || data.message || 'completed', data.provider || 'provider'),
+        renderKVItem('destination', data.endpoint || data.outbox_path || '--', data.format || format || 'json'),
+        renderKVItem('diagnostic', data.error || data.last_error || 'no error returned', data.delivered ? 'delivered' : 'check connector'),
+      ].join('');
+      return;
+    }
     await loadCompliance();
   } catch (e) {
     status.textContent = 'Compliance action failed: ' + e.message;
@@ -1782,7 +2128,7 @@ async function loadDeliveries() {
     setText('dErrors', errorTypes.length);
     const source = deadLetters.length > 0 ? deadLetters : recent;
     if (source.length === 0) {
-      list.innerHTML = '<div class="loading">No delivery attempts yet</div>';
+      list.innerHTML = '<div class="loading">No delivery attempts yet. Configure notifiers or SIEM delivery, then use Test SIEM or Replay All.</div>';
     } else {
       list.innerHTML = source.slice(0, 8).map(item => {
         const ticket = item.ticket_key
@@ -1824,10 +2170,10 @@ async function loadDeliveries() {
       }
     }
   } catch (e) {
-    document.getElementById('deliveryList').innerHTML = '<div class="loading">Delivery health unavailable</div>';
+    document.getElementById('deliveryList').innerHTML = '<div class="error">Delivery health unavailable. ' + escapeHTML(apiErrorHint(e)) + '</div>';
     const historyList = document.getElementById('deliveryHistoryList');
     if (historyList) {
-      historyList.innerHTML = '<div class="loading">Delivery action history unavailable</div>';
+      historyList.innerHTML = '<div class="error">Delivery action history unavailable. Check delivery queue storage and server logs.</div>';
     }
   }
 }
@@ -1866,8 +2212,27 @@ function showDeliveryRisk(scope) {
   } else {
     groups = countBy(all.filter(item => item.error), item => String(item.error || '').split(':')[0].slice(0, 40));
   }
-  const items = groups.map(group => renderKVItem(scope, group.key + ' · ' + group.count + ' record(s)', 'delivery'));
+  const items = groups.map(group => {
+    const key = jsString(group.key);
+    return '<div class="alert-item">' +
+      '<span class="alert-sev sev-medium">' + escapeHTML(scope) + '</span>' +
+      '<span class="alert-msg">' + escapeHTML(group.key) + ' · ' + group.count + ' record(s)' +
+      '<span class="delivery-inline-actions"><button onclick="showDeliveryGroup(\\'' + key + '\\', \\'' + scope + '\\')">Drill Down</button></span></span>' +
+      '<span class="alert-time">delivery</span>' +
+      '</div>';
+  });
   setInvestigationItems(items, 'No delivery ' + scope + ' risk found');
+}
+
+function showDeliveryGroup(key, scope) {
+  const data = latestDeliveries || {};
+  const all = (data.recent || []).concat(data.dead_letters || []);
+  const selected = all.filter(item => {
+    if (scope === 'channels') return String(item.notifier || 'unknown') === key;
+    if (scope === 'tickets') return String(item.ticket_key || 'unknown') === key;
+    return String(item.error || '').split(':')[0].slice(0, 40) === key;
+  });
+  setInvestigationItems(selected.slice(0, 20).map(item => renderDeliveryItem(item, scope)), 'No delivery records found for ' + key);
 }
 
 async function runDeliveryAction(payload) {

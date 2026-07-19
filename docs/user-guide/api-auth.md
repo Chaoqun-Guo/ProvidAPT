@@ -30,6 +30,12 @@ Alternatively, pass the key as a query parameter:
 curl "http://localhost:8080/api/v1/status?api_key=admin-key"
 ```
 
+Bearer token syntax is also accepted:
+
+```bash
+curl -H "Authorization: Bearer admin-key" http://localhost:8080/api/v1/status
+```
+
 ## Roles
 
 | Role | Permissions |

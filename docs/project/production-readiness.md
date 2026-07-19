@@ -15,7 +15,7 @@ Use this checklist before deploying ProvidAPT into a production customer environ
 - TLS is enabled for operator and agent/server traffic.
 - CORS origins are restricted to approved consoles.
 - API keys, SIEM tokens, license files, encryption keys, and TLS private keys are stored in customer-approved secret management.
-- Sample placeholders from `examples/config/providapt.production.yaml` are replaced.
+- Sample values from `examples/config/providapt.production.yaml` are replaced with customer-approved settings.
 - Audit retention matches customer compliance requirements.
 
 ## Storage and Retention

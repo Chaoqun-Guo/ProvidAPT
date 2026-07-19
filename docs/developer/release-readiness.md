@@ -69,7 +69,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 - Confirm `checksums.txt` is generated and signed
 - Confirm release binaries embed version, commit, and build date
-- Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.3-rc.1.md -release-waivers build/release-waivers.json -release-checksums dist/checksums.txt -release-checksums-signature dist/checksums.txt.sig -release-artifacts-dir dist -release-required-artifacts archive,deb,rpm,helm,monitoring -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json -release-check-out build/release-readiness.md`
+- Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.3-rc.1.md -release-waivers build/release-waivers.json -release-checksums dist/checksums.txt -release-checksums-signature dist/checksums.txt.sig -release-artifacts-dir dist -release-handoff build/handoff/providapt-v1.2.3-rc.1-handoff.zip -release-required-artifacts archive,deb,rpm,helm,monitoring -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json -release-check-out build/release-readiness.md`
 - If a commercial warning is intentionally accepted, capture it in `build/release-waivers.json` with `check`, `reason`, `approved_by`, and optional `expires`
 - Confirm `dist/checksums.txt` contains one SHA-256 entry per published release artifact
 - Confirm the checksum manifest includes the required commercial artifact types: `archive`, `deb`, `rpm`, `helm`, and `monitoring`
@@ -112,6 +112,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
   - POC success criteria
   - known limitations and supported platforms
 - Confirm customer handoff material matches `docs/project/customer-handoff.md`
+- Pass `-release-handoff` when a candidate handoff directory or zip exists, so stale approval text or mismatched commit evidence is caught before delivery.
 - Confirm final release approvals are captured in `docs/project/commercial-approval-record.md`
 
 ## 8. Documentation Consistency

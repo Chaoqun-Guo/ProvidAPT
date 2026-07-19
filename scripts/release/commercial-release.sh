@@ -11,6 +11,7 @@ DIST_DIR="${DIST_DIR:-$PROJECT_DIR/dist}"
 BUILD_DIR="${BUILD_DIR:-$PROJECT_DIR/build}"
 EVIDENCE_PATH="${EVIDENCE_PATH:-$BUILD_DIR/release-evidence.md}"
 WAIVERS_PATH="${WAIVERS_PATH:-$BUILD_DIR/release-waivers.json}"
+HANDOFF_PATH="${HANDOFF_PATH:-}"
 REQUIRED_ARTIFACTS="${REQUIRED_ARTIFACTS:-archive,deb,rpm,helm,monitoring}"
 SIGN_CHECKSUMS="${SIGN_CHECKSUMS:-auto}"
 RUN_SCANS="${RUN_SCANS:-auto}"
@@ -381,12 +382,12 @@ Status: generated release candidate evidence
 
 ## Commercial Approval
 
-- Product: generated evidence pending owner signoff
-- Engineering: generated evidence pending owner signoff
-- Security: generated evidence pending owner signoff
-- Legal: generated evidence pending owner signoff
-- Support: generated evidence pending owner signoff
-- Sales engineering: generated evidence pending owner signoff
+- Product: generated evidence requires owner signoff
+- Engineering: generated evidence requires owner signoff
+- Security: generated evidence requires owner signoff
+- Legal: generated evidence requires owner signoff
+- Support: generated evidence requires owner signoff
+- Sales engineering: generated evidence requires owner signoff
 
 ## Known Limitations
 
@@ -395,7 +396,7 @@ Status: generated release candidate evidence
 - The built-in providapt-sign tool creates verifiable Ed25519 checksum signatures for air-gapped or customer-managed signing workflows.
 EOF
 	fi
-	"$BUILD_DIR/bin/providaptctl" \
+	local args=(
 		-release-check \
 		-config "$CONFIG_PATH" \
 		-release-evidence "$EVIDENCE_PATH" \
@@ -406,6 +407,11 @@ EOF
 		-release-required-artifacts "$REQUIRED_ARTIFACTS" \
 		-release-sbom "$DIST_DIR/sbom.spdx.json,$DIST_DIR/sbom.cdx.json" \
 		-release-check-out "$DIST_DIR/release-readiness.md"
+	)
+	if [ -n "$HANDOFF_PATH" ]; then
+		args+=( -release-handoff "$HANDOFF_PATH" )
+	fi
+	"$BUILD_DIR/bin/providaptctl" "${args[@]}"
 }
 
 main() {

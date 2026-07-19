@@ -1,4 +1,4 @@
-# ── Provider Configuration ──────────────────────────────────────
+# Provider configuration
 
 terraform {
   required_version = ">= 1.5.0"
@@ -20,11 +20,11 @@ terraform {
     }
   }
 
-  # ── Remote state backend (configure per-environment) ─────────
+  # Remote state backend (configure per environment)
   # backend "s3" {
-  #   bucket = "providapt-terraform-state"
-  #   key    = "providapt/terraform.tfstate"
-  #   region = "us-east-1"
+  #   bucket  = "providapt-terraform-state"
+  #   key     = "providapt/terraform.tfstate"
+  #   region  = "us-east-1"
   #   encrypt = true
   # }
 }

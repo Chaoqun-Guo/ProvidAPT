@@ -35,7 +35,7 @@ type trustedHeaderAuthConfig struct {
 	TenantHeader string
 }
 
-// authMiddleware validates X-API-Key header against configured keys.
+// authMiddleware validates X-API-Key, Authorization: Bearer, or api_key query credentials against configured keys.
 // When auth is disabled, all requests pass through.
 func authMiddleware(keys []string, roles map[string]string, identities map[string]string, tenants map[string]string, enabled bool, trusted trustedHeaderAuthConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -66,10 +66,7 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 				next.ServeHTTP(w, withRole(r, RoleAdmin))
 				return
 			}
-			key := r.Header.Get("X-API-Key")
-			if key == "" {
-				key = r.URL.Query().Get("api_key")
-			}
+			key := requestAPIKey(r)
 			valid := false
 			for _, k := range keys {
 				if secure.ConstantTimeCompare(key, k) {
@@ -167,6 +164,19 @@ func withActorName(r *http.Request, actor, role string) *http.Request {
 
 func withTenant(r *http.Request, tenant string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), apiTenantContextKey, strings.TrimSpace(tenant)))
+}
+
+func requestAPIKey(r *http.Request) string {
+	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); key != "" {
+		return key
+	}
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
+		parts := strings.Fields(auth)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+			return strings.TrimSpace(parts[1])
+		}
+	}
+	return strings.TrimSpace(r.URL.Query().Get("api_key"))
 }
 
 func normalizeRole(role string) string {
@@ -396,7 +406,7 @@ func corsMiddleware(origins []string) func(http.Handler) http.Handler {
 			}
 			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return

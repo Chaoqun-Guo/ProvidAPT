@@ -18,7 +18,7 @@ func stripANSI(s string) string {
 	return re.ReplaceAllString(s, "")
 }
 
-// ─── Flag parsing tests ───────────────────────────────────────────
+// 鈹€鈹€鈹€ Flag parsing tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestFlagParsingStatus(t *testing.T) {
 	// Simulate: providaptctl -status
@@ -138,7 +138,7 @@ func TestFlagParsingDiagnose(t *testing.T) {
 }
 
 func TestFlagParsingReleaseCheck(t *testing.T) {
-	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-waivers", "/tmp/waivers.json", "-release-checksums", "/tmp/checksums.txt", "-release-checksums-signature", "/tmp/checksums.txt.sig", "-release-artifacts-dir", "/tmp/dist", "-release-sbom", "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json", "-release-check-out", "/tmp/report.md"}
+	os.Args = []string{"providaptctl", "-release-check", "-release-evidence", "/tmp/evidence.md", "-release-waivers", "/tmp/waivers.json", "-release-checksums", "/tmp/checksums.txt", "-release-checksums-signature", "/tmp/checksums.txt.sig", "-release-artifacts-dir", "/tmp/dist", "-release-handoff", "/tmp/handoff.zip", "-release-sbom", "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json", "-release-check-out", "/tmp/report.md"}
 	flag.CommandLine = flag.NewFlagSet("providaptctl", flag.ContinueOnError)
 	releaseCheck := flag.Bool("release-check", false, "")
 	evidencePath := flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "")
@@ -146,6 +146,7 @@ func TestFlagParsingReleaseCheck(t *testing.T) {
 	checksumsPath := flag.String("release-checksums", "", "")
 	checksumsSigPath := flag.String("release-checksums-signature", "", "")
 	artifactsDir := flag.String("release-artifacts-dir", "", "")
+	handoffPath := flag.String("release-handoff", "", "")
 	sbomPaths := flag.String("release-sbom", "", "")
 	reportPath := flag.String("release-check-out", "", "")
 	flag.Parse()
@@ -167,6 +168,9 @@ func TestFlagParsingReleaseCheck(t *testing.T) {
 	if *artifactsDir != "/tmp/dist" {
 		t.Errorf("got release-artifacts-dir=%q", *artifactsDir)
 	}
+	if *handoffPath != "/tmp/handoff.zip" {
+		t.Errorf("got release-handoff=%q", *handoffPath)
+	}
 	if *sbomPaths != "/tmp/sbom.spdx.json,/tmp/sbom.cdx.json" {
 		t.Errorf("got release-sbom=%q", *sbomPaths)
 	}
@@ -175,7 +179,7 @@ func TestFlagParsingReleaseCheck(t *testing.T) {
 	}
 }
 
-// ─── Formatting helper tests ─────────────────────────────────────
+// Formatting helper tests.
 
 func TestYesNo(t *testing.T) {
 	tests := []struct {
@@ -233,7 +237,7 @@ func TestFormatStrings(t *testing.T) {
 	}
 }
 
-// ─── Config file validation tests ────────────────────────────────
+// 鈹€鈹€鈹€ Config file validation tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestConfigCheckWithFile(t *testing.T) {
 	dir := t.TempDir()
@@ -247,7 +251,7 @@ func TestConfigCheckWithFile(t *testing.T) {
 	cmdConfigCheck(cfgPath)
 }
 
-// ─── statusInfo tests ────────────────────────────────────────────
+// 鈹€鈹€鈹€ statusInfo tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 func TestStatusInfoMethods(t *testing.T) {
 	info := statusInfo{

@@ -1,6 +1,6 @@
 # CLI Reference
 
-This document covers the main ProvidAPT command-line tools in the `v1.2.2` release line.
+This document covers the main ProvidAPT command-line tools in the `v1.2.3-rc.1` release line.
 
 ## Tools
 
@@ -44,6 +44,7 @@ providaptctl -release-check \
   -release-checksums dist/checksums.txt \
   -release-checksums-signature dist/checksums.txt.sig \
   -release-artifacts-dir dist \
+  -release-handoff build/handoff/providapt-v1.2.3-rc.1-handoff.zip \
   -release-required-artifacts archive,deb,rpm,helm,monitoring \
   -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json \
   -release-check-out build/release-readiness.md \
@@ -61,6 +62,10 @@ contains at least one artifact entry, and uses `<sha256> <artifact>` rows.
 
 `-release-artifacts-dir` verifies the actual SHA-256 digest of every artifact
 listed in the checksum manifest.
+
+`-release-handoff` validates a candidate handoff directory or zip package. It
+checks that the package references the current version and commit and does not
+contain stale approval markers from an older generated handoff.
 
 `-release-required-artifacts` validates that the checksum manifest includes the
 commercial artifact matrix. The default gate requires `archive`, `deb`, `rpm`,

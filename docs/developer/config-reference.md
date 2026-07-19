@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This reference summarizes the major ProvidAPT configuration sections. Use `providaptctl -config-check` to validate an environment-specific file.
+This reference summarizes the major ProvidAPT configuration sections. Use `providaptctl -config-check` to validate an environment-specific file. For editor integration and automated validation, use the machine-readable schema in [config.schema.json](config.schema.json).
 
 ## API
 

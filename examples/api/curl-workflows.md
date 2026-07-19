@@ -10,6 +10,8 @@ export PROVIDAPT_TOKEN=replace-with-api-token
 alias providapt_api='curl -fsS -H "Authorization: Bearer $PROVIDAPT_TOKEN"'
 ```
 
+Use `X-API-Key: $PROVIDAPT_TOKEN` instead if your reverse proxy standardizes on API-key headers.
+
 ## Status and Overview
 
 ```bash
