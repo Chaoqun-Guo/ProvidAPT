@@ -1,0 +1,40 @@
+rules:
+  - id: suspicious-shell-downloader-chain
+    title: Suspicious shell launched after downloader
+    description: Detects downloader tools writing to temporary paths followed by shell execution.
+    severity: HIGH
+    tags:
+      - process
+      - downloader
+      - execution
+    match:
+      source:
+        type: process
+        comm:
+          any:
+            - curl
+            - wget
+      edge:
+        type: WROTE
+      target:
+        type: file
+        path_prefix:
+          - /tmp/
+          - /var/tmp/
+    correlate:
+      within: 5m
+      next:
+        source:
+          type: file
+        edge:
+          type: READ
+        target:
+          type: process
+          comm:
+            any:
+              - sh
+              - bash
+              - dash
+    response:
+      workflow: alert
+      recommendation: Inspect command line, parent process, downloaded file hash, and user session.

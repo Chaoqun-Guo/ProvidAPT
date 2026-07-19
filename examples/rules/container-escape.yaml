@@ -1,0 +1,26 @@
+rules:
+  - id: container-host-path-access
+    title: Container process accessed host-sensitive path
+    description: Detects container-scoped processes touching host-sensitive files or mounts.
+    severity: HIGH
+    tags:
+      - container
+      - host-access
+    match:
+      source:
+        type: process
+        container_required: true
+      edge:
+        type:
+          any:
+            - READ
+            - WROTE
+      target:
+        type: file
+        path_prefix:
+          - /host/
+          - /proc/1/root/
+          - /var/run/docker.sock
+    response:
+      workflow: alert
+      recommendation: Inspect container image, mount configuration, namespace context, and host provenance.

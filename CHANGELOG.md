@@ -2,6 +2,25 @@
 
 All notable changes to ProvidAPT are documented here.
 
+## v1.2.3-rc.1 (2026-07-19)
+
+### Added
+
+- Added commercial release handoff evidence for `v1.2.3-rc.1`, including release evidence, security scan summary, external approval request, and a hardened production configuration template.
+- Added monitoring bundle validation to the release artifact matrix and release readiness workflow.
+- Added host-mode package smoke testing for Debian, RPM, and tarball artifacts.
+
+### Changed
+
+- Upgraded the release toolchain baseline to Go `1.25.12`.
+- Expanded commercial release checks to require archive, Debian, RPM, Helm, and monitoring artifacts by default.
+- Updated eBPF event ABI documentation to match the current 340-byte raw event layout.
+
+### Security
+
+- Added `govulncheck` reachable-code vulnerability scanning to the commercial release script.
+- Rebuilt the release candidate with Go `1.25.12`; the Linux rerun reported no reachable vulnerabilities.
+- Recorded Grype/Trivy as pending external Security waiver or rerun because Docker registry / socket access was unavailable in the rerun environment.
 ## v1.2.2 (2026-06-09)
 
 ### Fixed
@@ -9,7 +28,7 @@ All notable changes to ProvidAPT are documented here.
 - Fixed `golangci-lint` workflow failure by upgrading from `v2.0` to `v2.12.2` in
   `.github/workflows/lint.yml`, resolving the `unknown flag: --fix` regression
   introduced by golangci-lint v2 API changes
-- Fixed Go version inconsistency in `ci.yml` — `GO_VERSION` now matches across
+- Fixed Go version inconsistency in `ci.yml` -`GO_VERSION` now matches across
   all workflows (`"1.25"`)
 - Upgraded `anchore/sbom-action` from `@v0` to `@v1` for Node 24 compatibility
   in the release pipeline
@@ -24,10 +43,10 @@ All notable changes to ProvidAPT are documented here.
   conventions
 - Added `examples/` directory with usage examples:
   - `examples/README.md`
-  - `examples/client-status/main.go` — API client example
-  - `examples/config/providapt.local.toml` — annotated local config
-  - `examples/provql/queries.sql` — example Provenance Query Language queries
-  - `examples/supportbundle-api/README.md` — support bundle API walkthrough
+  - `examples/client-status/main.go` -API client example
+  - `examples/config/providapt.local.toml` -annotated local config
+  - `examples/provql/queries.sql` -example Provenance Query Language queries
+  - `examples/supportbundle-api/README.md` -support bundle API walkthrough
 
 ### Changed
 

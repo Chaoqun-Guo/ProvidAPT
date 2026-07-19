@@ -7,6 +7,9 @@ This section describes ProvidAPT's design and practices in data security, privac
 | Document | Description |
 | --- | --- |
 | [security-privacy.md](security-privacy.md) | Data masking: sensitive field identification, masking strategies, configuration methods |
+| [data-retention.md](data-retention.md) | Data classes, retention windows, deletion, export, and legal hold guidance |
+| [threat-model.md](threat-model.md) | Assets, trust boundaries, threats, and compensating controls |
+| [privacy-impact.md](privacy-impact.md) | Privacy impact assessment for collected metadata and customer responsibilities |
 
 ## Compliance Design Principles
 

@@ -7,7 +7,7 @@ This file groups the current documentation by audience and purpose.
 - `README.md` - project overview, navigation, build/test quick start
 - `CHANGELOG.md` - customer-visible release history
 - `docs/getting-started/evaluation.md` - customer evaluation and POC guide
-- `docs/developer/release-notes-v1.2.2.md` - current release notes
+- `docs/developer/release-notes-v1.2.3-rc.1.md` - current release candidate notes
 
 ## Legal and Governance
 
@@ -24,12 +24,30 @@ This file groups the current documentation by audience and purpose.
 - `docs/getting-started/`
 - `docs/user-guide/`
 - `docs/compliance/`
+- `docs/getting-started/quick-start.md`
+- `docs/getting-started/docker-compose.md`
+- `docs/getting-started/helm.md`
+- `docs/user-guide/rbac.md`
+- `docs/user-guide/policy-lifecycle.md`
+- `docs/user-guide/fleet-management.md`
+- `docs/user-guide/backup-restore.md`
+- `docs/user-guide/upgrade-rollback.md`
+- `docs/user-guide/siem-integration.md`
+- `docs/user-guide/troubleshooting.md`
+- `docs/compliance/data-retention.md`
+- `docs/compliance/threat-model.md`
+- `docs/compliance/privacy-impact.md`
 
 ## Developer Documentation
 
 - `docs/developer/`
 - `docs/architecture/`
 - `docs/benchmarks/`
+- `docs/developer/config-reference.md`
+- `docs/developer/storage-backends.md`
+- `docs/developer/event-field-source.md`
+- `docs/developer/dashboard-api.md`
+- `docs/developer/rule-engine-internals.md`
 
 ## Project Documentation
 
@@ -37,6 +55,16 @@ This file groups the current documentation by audience and purpose.
 - `DEVELOPMENT_PROGRESS.md`
 - `COMMERCIALIZATION_ROADMAP.md`
 - `docs/project/release-evidence-v1.2.2.md`
+- `docs/project/release-evidence-v1.2.3-rc.1.md`
+- `docs/project/release-security-scan-summary-v1.2.3-rc.1.md`
+- `docs/project/external-approval-request-v1.2.3-rc.1.md`
+- `docs/project/customer-acceptance-test.md`
+- `docs/project/production-readiness.md`
+- `docs/project/sizing-guide.md`
+- `docs/project/security-waiver.md`
+- `docs/project/final-release-runbook.md`
+- `docs/project/third-party-notices.md`
+- `docs/project/export-control.md`
 - `docs/project/commercial-release-checklist.md`
 - `docs/project/release-artifact-matrix.md`
 - `docs/project/support-sla.md`

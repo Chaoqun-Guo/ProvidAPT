@@ -1,0 +1,55 @@
+image:
+  repository: registry.example.com/providapt/providapt
+  tag: v1.2.3-rc.1
+  pullPolicy: IfNotPresent
+
+api:
+  authEnabled: true
+  corsOrigins:
+    - https://soc.example.com
+
+tls:
+  enabled: true
+  existingSecret: providapt-tls
+
+postgresql:
+  enabled: false
+  externalDsnSecret: providapt-postgres-dsn
+  externalDsnKey: dsn
+
+siem:
+  enabled: true
+  provider: splunk
+  endpoint: https://splunk-hec.example.com:8088/services/collector
+  tokenSecret: providapt-siem
+  tokenKey: token
+  minSeverity: WARNING
+
+agent:
+  enabled: true
+  privileged: true
+  hostPID: true
+  nodeSelector:
+    kubernetes.io/os: linux
+  tolerations: []
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+controlPlane:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+retention:
+  auditDays: 365
+  supportBundleDays: 30

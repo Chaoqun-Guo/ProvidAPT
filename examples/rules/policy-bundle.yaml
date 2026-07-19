@@ -1,0 +1,27 @@
+version: 1
+metadata:
+  name: linux-commercial-baseline
+  owner: security-operations
+  description: Example policy bundle combining process, file, network, and container rules.
+rules:
+  - id: suspicious-shell-downloader-chain
+    severity: HIGH
+    source_file: process-exec.yaml
+  - id: sensitive-credential-file-read
+    severity: CRITICAL
+    source_file: file-access.yaml
+  - id: administrative-tool-external-egress
+    severity: WARNING
+    source_file: network-egress.yaml
+  - id: container-host-path-access
+    severity: HIGH
+    source_file: container-escape.yaml
+whitelist:
+  - type: process
+    value: backup-agent
+    reason: approved backup window tooling
+taint_sources:
+  - prefix: /etc/
+    label: system-config
+  - prefix: /root/.ssh/
+    label: privileged-ssh-material

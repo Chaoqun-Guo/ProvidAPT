@@ -39,7 +39,7 @@ For release evidence capture, combine the readiness check with JSON output:
 ```bash
 providaptctl -release-check \
   -config /etc/providapt/providapt.toml \
-  -release-evidence docs/project/release-evidence-v1.2.2.md \
+  -release-evidence docs/project/release-evidence-v1.2.3-rc.1.md \
   -release-waivers build/release-waivers.json \
   -release-checksums dist/checksums.txt \
   -release-checksums-signature dist/checksums.txt.sig \

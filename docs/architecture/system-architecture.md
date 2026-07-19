@@ -1,6 +1,6 @@
 # ProvidAPT System Architecture
 
-This document describes the current production architecture of ProvidAPT for the `v1.2.2` release line.
+This document describes the current production architecture of ProvidAPT for the `v1.2.3-rc.1` release line.
 
 ## Layered Model
 
@@ -39,6 +39,45 @@ Kernel eBPF Layer
 - notifications: `pkg/notify/`
 - support bundle and ticketing: `pkg/supportbundle/`, `pkg/ticketing/`
 - management services: `internal/policy/mgmt/`
+
+## Commercial Deployment Topology
+
+```text
+Linux Agent(s)
+  eBPF capture
+  local filtering
+  health reports
+  provenance event forwarding
+      |
+      | gRPC / mTLS or token-authenticated telemetry
+      v
+Control Plane Server
+  dashboard and REST API
+  fleet overview
+  policy distribution
+  alert workflow
+  support bundle and evidence export
+      |
+      | SQL
+      v
+PostgreSQL
+  fleet state
+  policy and audit state
+  operational metadata
+
+External Integrations
+  -> SIEM / webhook / ticketing
+  -> Prometheus / Grafana
+  -> backup and archive targets
+```
+
+Recommended production posture:
+
+- run the control plane on a dedicated server or orchestrated service
+- use PostgreSQL for production control-plane state
+- keep agents close to monitored workloads
+- enable TLS and authentication before cross-host telemetry
+- route SIEM, support bundle, and backup exports to customer-approved destinations
 
 ## Data Flow
 

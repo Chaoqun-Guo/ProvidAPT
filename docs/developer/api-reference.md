@@ -190,6 +190,25 @@ func init() {
 
 ## 3. External System Integration
 
+### 3.0 HTTP API Conventions
+
+Unless an endpoint explicitly documents otherwise, the REST API follows these conventions:
+
+- Authentication: pass `Authorization: Bearer <token>` when API authentication is enabled.
+- Content type: send JSON request bodies with `Content-Type: application/json`.
+- Errors: failed requests return a non-2xx status and a JSON object containing an `error` field.
+- Pagination: list endpoints may include `limit`, `offset`, `since`, or `cursor` query parameters when supported by the endpoint.
+- Filtering: fleet, alert, graph, and investigation endpoints support narrow filters such as host, group, tag, severity, node, process ID, time range, and direction where implemented.
+
+Example error response:
+
+```json
+{
+  "error": "invalid request",
+  "details": "missing required action"
+}
+```
+
 ### 3.1 Webhook Output
 
 ```json
@@ -228,4 +247,4 @@ Content-Type: application/json
 
 ### 3.3 REST API (Test Harness)
 
-The cluster test harness exposes a REST API for external integration (see [CLI Reference](cli-reference.md#6-integrated-test-harness-http-api)).
+The cluster test harness exposes a REST API for external integration. See the CLI guide in `docs/user-guide/cli.md` for operator command examples.

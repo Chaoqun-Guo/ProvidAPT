@@ -42,7 +42,7 @@ PACKAGE_SMOKE_MODE=host make package-smoke-matrix
 # Equivalent explicit release readiness check:
 providaptctl -release-check \
   -config examples/config/providapt.local.toml \
-  -release-evidence docs/project/release-evidence-v1.2.2.md \
+  -release-evidence docs/project/release-evidence-v1.2.3-rc.1.md \
   -release-waivers build/release-waivers.json \
   -release-checksums dist/checksums.txt \
   -release-checksums-signature dist/checksums.txt.sig \
@@ -58,7 +58,7 @@ providaptctl -release-check \
 - Package artifacts must pass `make package-smoke-matrix` before customer handoff.
 - Every published install artifact and SBOM in `dist/` must appear in `checksums.txt`; signature files, public keys, and readiness reports are release evidence and are excluded.
 - Every entry in `checksums.txt` must resolve to an existing file and match its SHA-256 digest.
-- Required artifact types are `archive`, `deb`, and `rpm` unless a signed release waiver is present.
+- Required commercial artifact types are `archive`, `deb`, `rpm`, `helm`, and `monitoring` unless a signed release waiver is present.
 - SBOM files must be generated in SPDX JSON and CycloneDX JSON formats.
 - Container and Helm artifacts must include immutable version metadata.
 - Set `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container` when producing an offline customer handoff that includes a Docker image archive.

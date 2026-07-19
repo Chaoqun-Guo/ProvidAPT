@@ -1,0 +1,23 @@
+rules:
+  - id: sensitive-credential-file-read
+    title: Sensitive credential file read
+    description: Detects process reads from common credential and key paths.
+    severity: CRITICAL
+    tags:
+      - file
+      - credential-access
+    match:
+      source:
+        type: process
+      edge:
+        type: READ
+      target:
+        type: file
+        path:
+          any:
+            - /etc/shadow
+            - /etc/sudoers
+            - /root/.ssh/id_rsa
+    response:
+      workflow: alert
+      recommendation: Confirm user intent, inspect process ancestry, and preserve the provenance trace.

@@ -1,0 +1,26 @@
+rules:
+  - id: administrative-tool-external-egress
+    title: Administrative tool external egress
+    description: Detects administrative tools creating outbound network connections.
+    severity: WARNING
+    tags:
+      - network
+      - egress
+    match:
+      source:
+        type: process
+        comm:
+          any:
+            - ssh
+            - scp
+            - rsync
+            - nc
+            - ncat
+      edge:
+        type: CONNECTED
+      target:
+        type: network
+        address_scope: external
+    response:
+      workflow: triage
+      recommendation: Check destination, user, maintenance window, and related file reads.

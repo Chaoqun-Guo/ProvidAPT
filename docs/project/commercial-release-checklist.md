@@ -52,12 +52,13 @@ This checklist turns the engineering release into a customer-ready commercial de
 - Competitive positioning and limitations are understood by customer-facing teams.
 - Trial-to-production handoff checklist is available.
 - Customer handoff and POC success criteria are tracked in `docs/project/customer-handoff.md`.
+- Production readiness, sizing, RBAC, SIEM, backup/restore, and policy lifecycle guidance are published under `docs/project/` and `docs/user-guide/`.
 
 ## Final Commercial Gate
 
 Do not publish a commercial release until:
 
-- `docs/project/release-evidence-v1.2.2.md` is filled in.
+- `docs/project/release-evidence-v1.2.3-rc.1.md` or the final version-specific evidence file is filled in.
 - `docs/developer/release-readiness.md` has no open release-blocking items.
 - Product, engineering, security, legal, support, and sales engineering owners approve.
 - Final approvals are recorded in `docs/project/commercial-approval-record.md`.

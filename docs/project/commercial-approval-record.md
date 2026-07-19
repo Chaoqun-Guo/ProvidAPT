@@ -11,7 +11,7 @@ Use this record for the final release meeting before publishing or customer deli
 | Build date | `2026-07-19T01:23:22Z` |
 | Evidence report | `dist/release-readiness.md` |
 | Artifact bundle | `dist/` |
-| Known limitations | `docs/project/release-evidence-v1.2.2.md` |
+| Known limitations | `docs/project/release-evidence-v1.2.3-rc.1.md` |
 
 ## Approval Areas
 

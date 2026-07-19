@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: providapt-postgres
+    environment:
+      POSTGRES_DB: providapt
+      POSTGRES_USER: providapt
+      POSTGRES_PASSWORD: providapt
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U providapt -d providapt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  providapt:
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    container_name: providapt
+    privileged: true
+    pid: host
+    network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - /sys:/sys:ro
+      - /sys/kernel/btf:/sys/kernel/btf:ro
+      - /sys/fs/bpf:/sys/fs/bpf:rw
+      - providapt-log:/var/log/providapt
+      - ../../../scripts/docker/providapt.toml:/etc/providapt/providapt.toml:ro
+    environment:
+      PROVIDAPT_LOG_LEVEL: info
+      PROVIDAPT_OUTPUT_DIR: /var/log/providapt
+      PROVIDAPT_API_REST: ":18080"
+      PROVIDAPT_CONTROL_PLANE_STATE_BACKEND: postgresql://providapt:providapt@127.0.0.1:5432/providapt?sslmode=disable
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  postgres-data:
+  providapt-log:
