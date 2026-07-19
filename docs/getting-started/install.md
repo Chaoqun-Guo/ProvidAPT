@@ -150,13 +150,13 @@ If Go 1.25+ is not available via your package manager:
 
 ```bash
 # Download and install Go
-wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+wget https://go.dev/dl/go1.25.12.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.25.12.linux-amd64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 
 # Verify
-go version  # Should show go1.25.0 or later
+go version  # Should show go1.25.12 or later
 ```
 
 ### 2.3 Automated Dependency Installation

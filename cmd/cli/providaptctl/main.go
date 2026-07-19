@@ -90,7 +90,7 @@ EXAMPLES
     providaptctl -release-check -release-artifacts-dir dist
         Verify release artifact hashes against the checksum manifest.
 
-    providaptctl -release-check -release-required-artifacts archive,deb,rpm
+    providaptctl -release-check -release-required-artifacts archive,deb,rpm,helm,monitoring
         Require commercial artifact types to be present in checksums.txt.
 
     providaptctl -release-check -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json
@@ -144,7 +144,7 @@ func main() {
 		checksumsPath     = flag.String("release-checksums", "", "Release artifact checksums file")
 		checksumsSigPath  = flag.String("release-checksums-signature", "", "Release checksums detached signature file")
 		artifactsDir      = flag.String("release-artifacts-dir", "", "Release artifact directory for checksum verification")
-		requiredArtifacts = flag.String("release-required-artifacts", "archive,deb,rpm", "Required artifact types in checksum manifest, separated by comma or semicolon")
+		requiredArtifacts = flag.String("release-required-artifacts", "archive,deb,rpm,helm,monitoring", "Required artifact types in checksum manifest, separated by comma or semicolon")
 		sbomPaths         = flag.String("release-sbom", "", "Release SBOM JSON file(s), separated by comma or semicolon")
 		releaseOut        = flag.String("release-check-out", "", "Write release check report (.md or .json)")
 	)

@@ -8,6 +8,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - `make build-userspace`
 - `make release-commercial`
 - `make package-smoke-matrix`
+- `PACKAGE_SMOKE_MODE=host make package-smoke-matrix` on disposable Linux validation hosts when Docker registry access is unavailable
 - `go test ./...` or the scoped package set used in CI
 - `GOOS=linux go test -c ./cmd/agent/daemon`
 - Run `sudo make loader-smoke` on a Linux host when loader changes are included
@@ -68,10 +69,10 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 - Confirm `checksums.txt` is generated and signed
 - Confirm release binaries embed version, commit, and build date
-- Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.2.md -release-waivers build/release-waivers.json -release-checksums dist/checksums.txt -release-checksums-signature dist/checksums.txt.sig -release-artifacts-dir dist -release-required-artifacts archive,deb,rpm -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json -release-check-out build/release-readiness.md`
+- Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.2.md -release-waivers build/release-waivers.json -release-checksums dist/checksums.txt -release-checksums-signature dist/checksums.txt.sig -release-artifacts-dir dist -release-required-artifacts archive,deb,rpm,helm,monitoring -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json -release-check-out build/release-readiness.md`
 - If a commercial warning is intentionally accepted, capture it in `build/release-waivers.json` with `check`, `reason`, `approved_by`, and optional `expires`
 - Confirm `dist/checksums.txt` contains one SHA-256 entry per published release artifact
-- Confirm the checksum manifest includes the required commercial artifact types: `archive`, `deb`, and `rpm`
+- Confirm the checksum manifest includes the required commercial artifact types: `archive`, `deb`, `rpm`, `helm`, and `monitoring`
 - Confirm every artifact listed in `dist/checksums.txt` exists under `dist/` and matches its SHA-256 digest
 - Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured; `providapt-sign` Ed25519 bundles, GPG armored signatures, Minisign signatures, and Cosign bundle evidence are recognized in release reports
 - When using `providapt-sign`, publish `dist/checksums.txt.pub` with the release handoff package and keep the private key under customer-approved key custody

@@ -255,7 +255,7 @@ Host-B: SRC=10.0.0.1:45678 → DST=10.0.0.5:22
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Event throughput | 50,000 evt/s | Sustained, with dedup enabled |
-| Event size | 332 bytes | Fixed-size ring buffer record |
+| Event size | 340 bytes | Fixed-size ring buffer record |
 | eBPF hook latency | <1 µs | BPF-verified bounded execution |
 | Graph node memory | ~512 bytes/node | In-memory DAG |
 | LRU cache hit rate | ~85% | 8,192 node capacity |

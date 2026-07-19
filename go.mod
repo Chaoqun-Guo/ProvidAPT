@@ -1,6 +1,6 @@
 module github.com/Chaoqun-Guo/ProvidAPT
 
-go 1.25.0
+go 1.25.12
 
 require (
 	github.com/cilium/ebpf v0.16.0

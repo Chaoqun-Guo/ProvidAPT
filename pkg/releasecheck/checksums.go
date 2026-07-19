@@ -207,6 +207,9 @@ func classifyArtifactTypes(name string) []string {
 		if strings.Contains(lower, "helm") || strings.Contains(lower, "chart") {
 			return []string{"helm_chart"}
 		}
+		if strings.Contains(lower, "monitoring") || strings.Contains(lower, "prometheus") || strings.Contains(lower, "grafana") {
+			return []string{"monitoring_bundle"}
+		}
 		if strings.Contains(lower, "oci") || strings.Contains(lower, "image") || strings.Contains(lower, "container") {
 			return []string{"container_image"}
 		}
@@ -232,6 +235,8 @@ func normalizeArtifactType(value string) string {
 		return "container_image"
 	case "helm":
 		return "helm_chart"
+	case "monitoring", "prometheus", "grafana":
+		return "monitoring_bundle"
 	default:
 		return normalized
 	}

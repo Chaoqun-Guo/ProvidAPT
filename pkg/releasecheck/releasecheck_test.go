@@ -108,7 +108,7 @@ license:
 	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(evidencePath, []byte("| status | pass |\n"), 0644); err != nil {
+	if err := os.WriteFile(evidencePath, []byte("Release: 1.2.2\nCommit SHA: abcdef0\n| status | pass |\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -125,6 +125,50 @@ license:
 	}
 	if report.Summary() == "" {
 		t.Fatal("summary should not be empty")
+	}
+}
+
+func TestRunWarnsOnStaleReleaseEvidenceCommit(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	evidencePath := filepath.Join(dir, "release-evidence.md")
+
+	cfg := []byte(`
+output:
+  dir: /tmp/providapt
+api:
+  auth_enabled: true
+  cors_origins: ["https://soc.example.com"]
+storage:
+  encrypt: true
+  key_file: /etc/providapt/key
+support_bundle:
+  redact_archives: true
+  retain_archives: 5
+license:
+  path: /etc/providapt/license.json
+`)
+	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(evidencePath, []byte("Release: 1.2.2\nCommit SHA: old1234\n| status | pass |\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath:   cfgPath,
+		EvidencePath: evidencePath,
+		Version:      "1.2.2",
+		Commit:       "abcdef0",
+		BuildDate:    "2026-07-08T00:00:00Z",
+	})
+
+	check := findCheck(t, report, "release_evidence")
+	if check.Status != StatusWarn || !strings.Contains(check.Message, "abcdef0") {
+		t.Fatalf("expected stale evidence warning: %+v", check)
+	}
+	if report.CommercialReady {
+		t.Fatal("expected commercial_ready=false with stale release evidence")
 	}
 }
 
@@ -325,9 +369,10 @@ func TestRunValidatesRequiredArtifactMatrix(t *testing.T) {
 	}
 
 	artifacts := map[string][]byte{
-		"providapt_linux_amd64.tar.gz": []byte("tarball"),
-		"providapt_amd64.deb":          []byte("deb"),
-		"providapt_x86_64.rpm":         []byte("rpm"),
+		"providapt_linux_amd64.tar.gz":    []byte("tarball"),
+		"providapt_amd64.deb":             []byte("deb"),
+		"providapt_x86_64.rpm":            []byte("rpm"),
+		"providapt-monitoring-v1.2.2.tgz": []byte("monitoring"),
 	}
 	var manifest strings.Builder
 	for name, data := range artifacts {
@@ -345,7 +390,7 @@ func TestRunValidatesRequiredArtifactMatrix(t *testing.T) {
 		ConfigPath:             cfgPath,
 		ChecksumsPath:          checksumsPath,
 		ArtifactsDir:           distDir,
-		RequiredArtifactTypes:  []string{"archive", "deb", "rpm"},
+		RequiredArtifactTypes:  []string{"archive", "deb", "rpm", "monitoring"},
 		Version:                "1.2.2",
 		Commit:                 "abcdef0",
 		BuildDate:              "2026-07-08T00:00:00Z",

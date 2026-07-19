@@ -16,3 +16,4 @@ This directory contains practical ProvidAPT usage examples for local testing, AP
 - Use `supportbundle-api/` for curl-based operator automation
 - Use `provql/queries.sql` as a starter set for investigations
 - Use `config/providapt.local.toml` as a baseline for a non-production lab setup
+- Use `config/providapt.production.yaml` as a hardened production template before customer-specific secrets are injected

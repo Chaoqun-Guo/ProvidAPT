@@ -13,7 +13,7 @@ This file records the evidence required before publishing or handing off a comme
 | Release tag | `v1.2.2` |
 | Commit SHA | `27ecd239` |
 | Build host / runner | Local Windows host with Linux Docker release build |
-| Go version | `1.25.0` via toolchain auto-download in Linux Docker |
+| Go version | `1.25.12` via toolchain auto-download in Linux Docker |
 | Kernel used for loader validation | Ubuntu 6.8 BPF LSM and CentOS 4.18 kprobe fallback VM validation |
 
 ## Validation Evidence

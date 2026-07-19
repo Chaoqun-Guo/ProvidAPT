@@ -98,7 +98,7 @@ func Run(opts Options) Report {
 	if configLoaded {
 		checkCommercialConfig(&report, cfg)
 	}
-	checkReleaseEvidence(&report, opts.EvidencePath)
+	checkReleaseEvidence(&report, opts.EvidencePath, opts.Version, opts.Commit)
 	checkChecksums(&report, opts.ChecksumsPath, opts.ArtifactsDir, report.RequiredArtifactTypes)
 	checkChecksumsSignature(&report, opts.ChecksumsSignaturePath)
 	checkSBOMs(&report, opts.SBOMPaths)
@@ -274,7 +274,7 @@ func checkVersionMetadata(report *Report, version, commit, date string) {
 	})
 }
 
-func checkReleaseEvidence(report *Report, path string) {
+func checkReleaseEvidence(report *Report, path, version, commit string) {
 	if strings.TrimSpace(path) == "" {
 		return
 	}
@@ -298,6 +298,26 @@ func checkReleaseEvidence(report *Report, path string) {
 			Status:        StatusWarn,
 			Message:       "release evidence contains pending placeholders",
 			FixSuggestion: "Fill release evidence status, links, commit SHA, build host, and accepted limitations before sign-off.",
+		})
+		return
+	}
+
+	if !isUnset(commit, "none", "") && !strings.Contains(text, commit) {
+		add(report, Check{
+			Name:          "release_evidence",
+			Status:        StatusWarn,
+			Message:       fmt.Sprintf("release evidence does not reference current commit %s", commit),
+			FixSuggestion: "Regenerate release evidence from the current commit before commercial sign-off.",
+		})
+		return
+	}
+
+	if !isUnset(version, "dev", "") && !strings.Contains(text, version) {
+		add(report, Check{
+			Name:          "release_evidence",
+			Status:        StatusWarn,
+			Message:       fmt.Sprintf("release evidence does not reference current version %s", version),
+			FixSuggestion: "Regenerate release evidence from the current version before commercial sign-off.",
 		})
 		return
 	}

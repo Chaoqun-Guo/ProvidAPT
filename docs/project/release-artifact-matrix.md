@@ -17,7 +17,7 @@ artifacts. Set `KEEP_BUILD_DIST=1` only when debugging package builders.
 | tar archive | yes | listed in `checksums.txt`; smoke-tested on a clean Linux host |
 | Debian package | yes | install, service start, upgrade, and uninstall logs |
 | RPM package | yes | install, service start, upgrade, and uninstall logs |
-| container image | yes | immutable tag, digest, labels, health check |
+| container image archive | conditional | required for offline or air-gapped handoff; immutable tag, digest, labels, health check |
 | Helm chart | yes | template render, install, upgrade, rollback, uninstall logs |
 | monitoring bundle | yes | Prometheus rules, Alertmanager routing, and Grafana dashboard deploy through Ansible |
 | SBOM SPDX JSON | yes | generated from the release tag |
@@ -34,6 +34,11 @@ artifacts. Set `KEEP_BUILD_DIST=1` only when debugging package builders.
 make release-commercial
 make package-smoke-matrix
 
+# Use explicit host mode only on disposable Linux validation hosts when Docker
+# registry access is unavailable; it installs and purges the Debian package on
+# the host, and validates RPM metadata/extraction without installing the RPM.
+PACKAGE_SMOKE_MODE=host make package-smoke-matrix
+
 # Equivalent explicit release readiness check:
 providaptctl -release-check \
   -config examples/config/providapt.local.toml \
@@ -42,7 +47,7 @@ providaptctl -release-check \
   -release-checksums dist/checksums.txt \
   -release-checksums-signature dist/checksums.txt.sig \
   -release-artifacts-dir dist \
-  -release-required-artifacts archive,deb,rpm \
+  -release-required-artifacts archive,deb,rpm,helm,monitoring \
   -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json \
   -release-check-out build/release-readiness.md
 ```
@@ -56,6 +61,7 @@ providaptctl -release-check \
 - Required artifact types are `archive`, `deb`, and `rpm` unless a signed release waiver is present.
 - SBOM files must be generated in SPDX JSON and CycloneDX JSON formats.
 - Container and Helm artifacts must include immutable version metadata.
+- Set `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container` when producing an offline customer handoff that includes a Docker image archive.
 - All warnings require either remediation or an approved waiver with an expiry date.
 
 ## Air-Gapped Bundle

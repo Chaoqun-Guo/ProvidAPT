@@ -4,7 +4,7 @@
 
 ---
 
-## 1. Wire Format — eBPF Ring Buffer Event (332 bytes)
+## 1. Wire Format — eBPF Ring Buffer Event (340 bytes)
 
 The kernel-userspace communication uses a fixed-size packed struct defined in `cmd/bpf/headers/providapt.h`:
 
@@ -22,10 +22,10 @@ Offset  Size  Field          Type      Description
     36    24  payload        union     Event-specific data
     60     4  sample_hook_id u32       (EV_SAMPLE only)
     64     4  sample_count   u32       (EV_SAMPLE only)
-    60    16  comm           char[16]  Process name (null-terminated)
-    76   256  pathname       char[256] File path / memfd name / C2 IP
+    68    16  comm           char[16]  Process name (null-terminated)
+    84   256  pathname       char[256] File path / memfd name / C2 IP
     --------------------------------    -----------------------------
-    332 total bytes (__attribute__((packed)))
+    340 total bytes (__attribute__((packed)))
 ```
 
 ### 1.1 Event Type Constants

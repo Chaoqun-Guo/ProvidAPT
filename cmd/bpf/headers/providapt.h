@@ -135,9 +135,11 @@ struct net_payload {
  *       28  uid            u32             4
  *       32  gid            u32             4
  *       36  payload        union    24 / 8 max
- *       60  comm           char[16]       16
- *       76  pathname       char[256]     256
- *   ──────                                    332 total
+ *       60  sample_hook_id u32             4
+ *       64  sample_count   u32             4
+ *       68  comm           char[16]       16
+ *       84  pathname       char[256]     256
+ *   ------                                    340 total
  *
  * IMPORTANT:  struct is packed — no alignment padding between gid
  * (offset 32) and the payload union that follows at offset 36.
@@ -161,7 +163,7 @@ struct event {
 		struct net_payload net;
 	} payload;
 
-	/* Sampling payload (when type == EV_SAMPLE) — overlays pathname */
+	/* Sampling payload (when type == EV_SAMPLE) */
 	__u32 sample_hook_id;     /* which hook was being sampled */
 	__u32 sample_count;       /* how many occurrences were merged */
 
@@ -169,6 +171,6 @@ struct event {
 	char pathname[PATH_MAX_LEN];
 } __attribute__((packed));
 
-/* static_assert(sizeof(struct event) == 332, "struct event size mismatch"); */
+/* static_assert(sizeof(struct event) == 340, "struct event size mismatch"); */
 
 #endif /* __PROVIDAPT_H */

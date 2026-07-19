@@ -6,23 +6,23 @@ Use this record for the final release meeting before publishing or customer deli
 
 | Field | Value |
 | --- | --- |
-| Release | pending |
-| Commit SHA | pending |
-| Build date | pending |
-| Evidence report | pending |
-| Artifact bundle | pending |
-| Known limitations | pending |
+| Release | `v1.2.3-rc.1` |
+| Commit SHA | `6e459ff0-worktree` |
+| Build date | `2026-07-19T01:23:22Z` |
+| Evidence report | `dist/release-readiness.md` |
+| Artifact bundle | `dist/` |
+| Known limitations | `docs/project/release-evidence-v1.2.2.md` |
 
 ## Approval Areas
 
 | Area | Required Evidence | Approver | Decision |
 | --- | --- | --- | --- |
-| Product | scope, value, limitations, roadmap impact | pending | pending |
-| Engineering | build, tests, install, upgrade, rollback | pending | pending |
-| Security | vulnerability review, hardening, disclosure readiness | pending | pending |
-| Legal | EULA, DPA, notices, privacy, trademarks | pending | pending |
-| Support | SLA, escalation, support bundle workflow | pending | pending |
-| Sales engineering | POC plan, demo, sizing, onboarding | pending | pending |
+| Product | scope, value, limitations, roadmap impact | external owner required | pending |
+| Engineering | build, tests, install, upgrade, rollback | engineering release owner | approved_with_risk |
+| Security | vulnerability review, hardening, disclosure readiness | external owner required | pending: govulncheck passed; Grype/Trivy unavailable |
+| Legal | EULA, DPA, notices, privacy, trademarks | external owner required | pending |
+| Support | SLA, escalation, support bundle workflow | external owner required | pending |
+| Sales engineering | POC plan, demo, sizing, onboarding | external owner required | pending |
 
 ## Decision Rules
 
@@ -34,10 +34,12 @@ Use this record for the final release meeting before publishing or customer deli
 
 | Risk | Impact | Mitigation | Owner | Expiry |
 | --- | --- | --- | --- | --- |
-| pending | pending | pending | pending | pending |
+| Final customer API keys, TLS certificates, license files, CORS origins, SIEM tokens, and encryption keys are environment-specific | Default artifacts cannot be deployed unchanged to production | Replace all customer-specific values during deployment using `examples/config/providapt.production.yaml` and customer secret management | Customer deployment owner | Before production rollout |
+| Grype/Trivy source scans were unavailable in the Linux rerun | Security evidence is incomplete for unrestricted public publication | Use `docs/project/release-security-scan-summary-v1.2.3-rc.1.md` for govulncheck evidence and run Grype/Trivy later or record an approved Security waiver | Security owner | Before public release |
+| Container image archive was not generated in the Linux rerun | Air-gapped bundle is incomplete if a Docker image handoff is required | Re-run with `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container` for offline customers | Engineering release owner | Before air-gapped handoff |
 
 ## Final Decision
 
-- Decision: pending
-- Release owner: pending
-- Decision date: pending
+- Decision: blocked pending external approvals
+- Release owner: engineering release owner
+- Decision date: 2026-07-19

@@ -11,7 +11,7 @@ DIST_DIR="${DIST_DIR:-$PROJECT_DIR/dist}"
 BUILD_DIR="${BUILD_DIR:-$PROJECT_DIR/build}"
 EVIDENCE_PATH="${EVIDENCE_PATH:-$BUILD_DIR/release-evidence.md}"
 WAIVERS_PATH="${WAIVERS_PATH:-$BUILD_DIR/release-waivers.json}"
-REQUIRED_ARTIFACTS="${REQUIRED_ARTIFACTS:-archive,deb,rpm}"
+REQUIRED_ARTIFACTS="${REQUIRED_ARTIFACTS:-archive,deb,rpm,helm,monitoring}"
 SIGN_CHECKSUMS="${SIGN_CHECKSUMS:-auto}"
 RUN_SCANS="${RUN_SCANS:-auto}"
 BUILD_EBPF="${BUILD_EBPF:-1}"
@@ -238,6 +238,24 @@ run_vulnerability_scans() {
 		warn "vulnerability scans disabled"
 		return
 	fi
+	if command -v govulncheck >/dev/null 2>&1; then
+		govulncheck -version > "$report_dir/govulncheck-version.txt" 2>&1 || true
+		(cd "$PROJECT_DIR" && govulncheck -tags="$GO_TAGS" ./...) > "$report_dir/govulncheck.txt" 2>&1 || {
+			cat "$report_dir/govulncheck.txt" >&2
+			printf 'ERROR: govulncheck reported reachable vulnerabilities\n' >&2
+			exit 1
+		}
+		(cd "$PROJECT_DIR" && govulncheck -json -tags="$GO_TAGS" ./...) > "$report_dir/govulncheck.json" 2> "$report_dir/govulncheck-json.err" || {
+			cat "$report_dir/govulncheck-json.err" >&2
+			printf 'ERROR: govulncheck JSON evidence generation failed\n' >&2
+			exit 1
+		}
+	elif [ "$RUN_SCANS" = "1" ] || [ "$RUN_SCANS" = "true" ]; then
+		printf 'ERROR: RUN_SCANS requires govulncheck for Go reachable-code vulnerability scanning\n' >&2
+		exit 1
+	else
+		warn "govulncheck not installed; Go reachable-code vulnerability scan skipped"
+	fi
 	if command -v grype >/dev/null 2>&1; then
 		grype dir:"$PROJECT_DIR" -o json > "$report_dir/grype-source.json" || warn "grype source scan reported findings"
 	elif command -v docker >/dev/null 2>&1; then
@@ -275,6 +293,22 @@ build_container_image() {
 		-t "providapt:$VERSION" \
 		-f "$PROJECT_DIR/build/docker/Dockerfile.ubuntu" "$PROJECT_DIR"
 	docker image inspect "providapt:$VERSION" > "$DIST_DIR/providapt-container-${VERSION}.inspect.json"
+	docker save "providapt:$VERSION" | gzip -c > "$DIST_DIR/providapt-container-${VERSION}.tar.gz"
+}
+
+build_monitoring_bundle() {
+	local archive="$DIST_DIR/providapt-monitoring-${VERSION}.tgz"
+	local required=(
+		"deploy/ansible/files/providapt_alerts.yml"
+		"deploy/ansible/files/providapt_dashboard.json"
+		"deploy/ansible/tasks/monitoring.yml"
+		"deploy/ansible/templates/prometheus.yml.j2"
+		"deploy/ansible/templates/alertmanager.yml.j2"
+	)
+	for item in "${required[@]}"; do
+		need_file "$PROJECT_DIR/$item"
+	done
+	tar -czf "$archive" -C "$PROJECT_DIR" "${required[@]}"
 }
 
 run_release_check() {
@@ -337,6 +371,8 @@ Status: generated release candidate evidence
 - Userspace build: completed
 - Package formats: archive, deb, rpm
 - Helm archive: generated when chart source is present
+- Monitoring bundle: Prometheus rules, Alertmanager routing, Grafana dashboard, and Ansible deployment task
+- Container image archive: generated when BUILD_CONTAINER=1
 - SBOM: SPDX JSON and CycloneDX JSON generated
 - Checksums: generated for all dist artifacts
 - Checksum signature evidence: ${SIGN_CHECKSUMS}; auto prefers providapt-sign Ed25519 when available
@@ -398,6 +434,9 @@ main() {
 		log "Building Helm chart archive"
 		build_helm_archive
 	fi
+
+	log "Building monitoring bundle"
+	build_monitoring_bundle
 
 	log "Building container evidence"
 	build_container_image

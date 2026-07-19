@@ -44,7 +44,7 @@ providaptctl -release-check \
   -release-checksums dist/checksums.txt \
   -release-checksums-signature dist/checksums.txt.sig \
   -release-artifacts-dir dist \
-  -release-required-artifacts archive,deb,rpm \
+  -release-required-artifacts archive,deb,rpm,helm,monitoring \
   -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json \
   -release-check-out build/release-readiness.md \
   -json
@@ -63,8 +63,9 @@ contains at least one artifact entry, and uses `<sha256> <artifact>` rows.
 listed in the checksum manifest.
 
 `-release-required-artifacts` validates that the checksum manifest includes the
-commercial artifact matrix. The default gate requires `archive`, `deb`, and
-`rpm`; pass an empty value to disable this gate for non-commercial builds.
+commercial artifact matrix. The default gate requires `archive`, `deb`, `rpm`,
+`helm`, and `monitoring`; pass an empty value to disable this gate for
+non-commercial builds.
 
 `-release-checksums-signature` validates that a detached signature file for the
 checksum manifest is present and non-empty. Recognized evidence formats include
