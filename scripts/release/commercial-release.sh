@@ -63,6 +63,10 @@ build_helm_archive() {
 	local archive="$DIST_DIR/providapt-helm-${VERSION}.tgz"
 	if command -v helm >/dev/null 2>&1; then
 		helm package "$chart_dir" --version "${VERSION#v}" --app-version "$VERSION" --destination "$DIST_DIR"
+		local packaged="$DIST_DIR/providapt-${VERSION#v}.tgz"
+		if [ -f "$packaged" ] && [ "$packaged" != "$archive" ]; then
+			mv -f "$packaged" "$archive"
+		fi
 	else
 		tar -czf "$archive" -C "$PROJECT_DIR/deploy/helm" providapt
 	fi

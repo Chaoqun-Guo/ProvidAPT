@@ -373,6 +373,7 @@ func TestRunValidatesRequiredArtifactMatrix(t *testing.T) {
 		"providapt_linux_amd64.tar.gz":    []byte("tarball"),
 		"providapt_amd64.deb":             []byte("deb"),
 		"providapt_x86_64.rpm":            []byte("rpm"),
+		"providapt-helm-v1.2.2.tgz":       []byte("helm"),
 		"providapt-monitoring-v1.2.2.tgz": []byte("monitoring"),
 	}
 	var manifest strings.Builder
@@ -391,7 +392,7 @@ func TestRunValidatesRequiredArtifactMatrix(t *testing.T) {
 		ConfigPath:             cfgPath,
 		ChecksumsPath:          checksumsPath,
 		ArtifactsDir:           distDir,
-		RequiredArtifactTypes:  []string{"archive", "deb", "rpm", "monitoring"},
+		RequiredArtifactTypes:  []string{"archive", "deb", "rpm", "helm", "monitoring"},
 		Version:                "1.2.2",
 		Commit:                 "abcdef0",
 		BuildDate:              "2026-07-08T00:00:00Z",
