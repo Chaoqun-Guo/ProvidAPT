@@ -28,9 +28,9 @@ import (
 
 // VersionTracker manages version numbers for file entities.
 type VersionTracker struct {
-	mu        sync.Mutex
-	latest    map[string]int64  // baseID → current version number
-	created   map[string]bool   // versioned node ID → exists
+	mu      sync.Mutex
+	latest  map[string]int64 // baseID → current version number
+	created map[string]bool  // versioned node ID → exists
 }
 
 // NewVersionTracker creates a version tracker.
@@ -120,8 +120,7 @@ func (g *Graph) getOrCreateBaseFileNode(evt *collector.Event, ts time.Time) (*No
 	versionedID := g.versionTracker.InitVersion(baseID)
 
 	n := g.getOrCreateNode(versionedID, ProvEntity, SubFile, evt.Pathname, ts)
-	n.upsertAttr("inode", evt.Inode)
-	n.upsertAttr("mode", fmt.Sprintf("%o", evt.Mode))
+	g.updateFileNodeAttrs(n, evt)
 	n.touch(ts)
 	return n, versionedID
 }
@@ -133,11 +132,11 @@ func (g *Graph) createNextFileVersion(evt *collector.Event, ts time.Time) (strin
 	prevID, newID := g.versionTracker.NextVersion(baseID)
 
 	prevNode := g.getOrCreateNode(prevID, ProvEntity, SubFile, evt.Pathname, ts)
+	g.updateFileNodeAttrs(prevNode, evt)
 	prevNode.touch(ts)
 
 	n := newNode(newID, ProvEntity, SubFile, evt.Pathname, ts)
-	n.upsertAttr("inode", evt.Inode)
-	n.upsertAttr("mode", fmt.Sprintf("%o", evt.Mode))
+	g.updateFileNodeAttrs(n, evt)
 	n.upsertAttr("version", g.versionTracker.LatestVersion(baseID))
 	g.nodes[newID] = n
 
@@ -146,4 +145,19 @@ func (g *Graph) createNextFileVersion(evt *collector.Event, ts time.Time) (strin
 		g.addEdge(ProvWasDerivedFrom, newID, prevID, ts, nil)
 	}
 	return prevID, newID
+}
+
+func (g *Graph) updateFileNodeAttrs(n *Node, evt *collector.Event) {
+	if n == nil || evt == nil {
+		return
+	}
+	if evt.Pathname != "" && evt.Pathname != "?" {
+		n.Label = evt.Pathname
+		n.upsertAttr("pathname", evt.Pathname)
+	}
+	n.upsertAttr("inode", evt.Inode)
+	n.upsertAttr("dev_major", evt.DevMajor)
+	n.upsertAttr("dev_minor", evt.DevMinor)
+	n.upsertAttr("device", fmt.Sprintf("%d:%d", evt.DevMajor, evt.DevMinor))
+	n.upsertAttr("mode", fmt.Sprintf("%o", evt.Mode))
 }

@@ -46,6 +46,8 @@ type Summary struct {
 	UptimeSeconds        int64  `json:"uptime_seconds"`
 	EventsIngested       uint64 `json:"events_ingested"`
 	EventsDropped        uint64 `json:"events_dropped"`
+	GraphNodes           int    `json:"graph_nodes,omitempty"`
+	GraphEdges           int    `json:"graph_edges,omitempty"`
 	MemoryBytes          uint64 `json:"memory_bytes"`
 	PipelineHealthy      bool   `json:"pipeline_healthy"`
 	StoreHealthy         bool   `json:"store_healthy"`

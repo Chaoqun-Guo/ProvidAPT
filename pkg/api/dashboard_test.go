@@ -39,6 +39,8 @@ func TestDashboardAgentMonitoringFields(t *testing.T) {
 		"Report age:",
 		".status-badge.offline",
 		".status-badge.stale",
+		"updateFleetAggregateMetrics",
+		"graph_nodes",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {

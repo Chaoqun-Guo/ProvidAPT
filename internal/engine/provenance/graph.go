@@ -4,8 +4,8 @@
 package provenance
 
 import (
-	"hash/fnv"
 	"fmt"
+	"hash/fnv"
 	"sync"
 	"time"
 
@@ -30,10 +30,10 @@ import (
 //   - No cycles at construction (events are temporal by nature)
 //   - Concurrent-safe via sync.RWMutex
 type Graph struct {
-	mu         sync.RWMutex
-	nodes      map[string]*Node
-	edges      map[string]*Edge
-	edgeOrder  []string
+	mu        sync.RWMutex
+	nodes     map[string]*Node
+	edges     map[string]*Edge
+	edgeOrder []string
 
 	firstTS   uint64
 	startTime time.Time
@@ -75,7 +75,6 @@ func (g *Graph) AddEvent(evt *collector.Event) {
 	g.recordFirstTS(evt.TimestampNS)
 	ts := g.nsToTime(evt.TimestampNS)
 
-
 	// Track all process PIDs for orphan detection
 	if evt.PID > 0 {
 		g.procStore.RecordProcess(evt.PID)
@@ -95,7 +94,7 @@ func (g *Graph) AddEvent(evt *collector.Event) {
 	case syscall.EventMemfdCreate, syscall.EventMprotectRX,
 		syscall.EventPipeWrite, syscall.EventPipeRead:
 		g.addMemoryEvent(evt, ts)
-}
+	}
 
 	metrics.GraphNodes.Set(float64(len(g.nodes)))
 	metrics.GraphEdges.Set(float64(len(g.edges)))
@@ -137,6 +136,8 @@ func (g *Graph) addFork(evt *collector.Event, ts time.Time) {
 	g.addEdge(ProvWasInformedBy, childID, parentID, ts, map[string]interface{}{
 		"pid":       evt.PID,
 		"child_pid": evt.ChildPID,
+		"event":     evt.Type.String(),
+		"comm":      evt.Comm,
 	})
 }
 
@@ -153,6 +154,9 @@ func (g *Graph) addExec(evt *collector.Event, ts time.Time) {
 	proc.upsertAttr("pid", evt.PID)
 	proc.upsertAttr("uid", evt.UID)
 	proc.upsertAttr("comm", evt.Comm)
+	if evt.ExePath != "" {
+		proc.upsertAttr("exe_path", evt.ExePath)
+	}
 	if st := readStartTime(evt.PID); st != 0 {
 		proc.setAttr("start_time", st)
 	}
@@ -180,6 +184,9 @@ func (g *Graph) addExec(evt *collector.Event, ts time.Time) {
 		g.addEdge(ProvHadSecurityContext, procID, credID, ts, map[string]interface{}{
 			"prev_uid": prevUID,
 			"new_uid":  evt.UID,
+			"event":    evt.Type.String(),
+			"pid":      evt.PID,
+			"comm":     evt.Comm,
 		})
 	}
 
@@ -189,7 +196,12 @@ func (g *Graph) addExec(evt *collector.Event, ts time.Time) {
 		fileNode.touch(ts)
 
 		g.addEdge(ProvUsed, procID, fileID, ts, map[string]interface{}{
-			"type": "exec",
+			"type":  "exec",
+			"event": evt.Type.String(),
+			"pid":   evt.PID,
+			"comm":  evt.Comm,
+			"path":  evt.Pathname,
+			"inode": evt.Inode,
 		})
 	}
 }
@@ -203,16 +215,25 @@ func (g *Graph) addFileUse(evt *collector.Event, ts time.Time) {
 		return
 	}
 
-	procID := nodeID("p", evt.PID)
+	procID := ProcessNodeID(evt.PID)
 	proc := g.getOrCreateNode(procID, ProvActivity, SubProcess,
 		evt.Comm, ts)
 	proc.upsertAttr("pid", evt.PID)
 	proc.upsertAttr("uid", evt.UID)
+	proc.upsertAttr("comm", evt.Comm)
+	if evt.ExePath != "" {
+		proc.upsertAttr("exe_path", evt.ExePath)
+	}
 	proc.touch(ts)
 
 	_, fileID := g.getOrCreateBaseFileNode(evt, ts)
 
 	g.addEdge(ProvUsed, procID, fileID, ts, map[string]interface{}{
+		"event":   evt.Type.String(),
+		"pid":     evt.PID,
+		"comm":    evt.Comm,
+		"path":    evt.Pathname,
+		"inode":   evt.Inode,
 		"f_flags": evt.FFlags,
 	})
 }
@@ -227,17 +248,26 @@ func (g *Graph) addFileGenerate(evt *collector.Event, ts time.Time) {
 		return
 	}
 
-	procID := nodeID("p", evt.PID)
+	procID := ProcessNodeID(evt.PID)
 	proc := g.getOrCreateNode(procID, ProvActivity, SubProcess,
 		evt.Comm, ts)
 	proc.upsertAttr("pid", evt.PID)
 	proc.upsertAttr("uid", evt.UID)
+	proc.upsertAttr("comm", evt.Comm)
+	if evt.ExePath != "" {
+		proc.upsertAttr("exe_path", evt.ExePath)
+	}
 	proc.touch(ts)
 
 	// Create next version node (wasDerivedFrom edge is added internally)
 	prevID, newID := g.createNextFileVersion(evt, ts)
 
 	g.addEdge(ProvWasGeneratedBy, newID, procID, ts, map[string]interface{}{
+		"event":   evt.Type.String(),
+		"pid":     evt.PID,
+		"comm":    evt.Comm,
+		"path":    evt.Pathname,
+		"inode":   evt.Inode,
 		"f_flags": evt.FFlags,
 		"prev":    prevID,
 	})

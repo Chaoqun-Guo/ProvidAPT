@@ -5,6 +5,7 @@ package collector
 
 import (
 	"encoding/binary"
+	"os"
 	"testing"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
@@ -70,6 +71,36 @@ func TestParseRawEvent_FileOpen(t *testing.T) {
 	}
 	if evt.Pathname != "/etc/passwd" {
 		t.Errorf("Pathname = %q, want %q", evt.Pathname, "/etc/passwd")
+	}
+}
+
+func TestParseRawEvent_FileOpenFallbackPathname(t *testing.T) {
+	data := makeRawEvent(t, func(buf []byte) {
+		copy(buf[84:], "\x00")
+	})
+
+	evt, err := ParseRawEvent(data)
+	if err != nil {
+		t.Fatalf("ParseRawEvent: %v", err)
+	}
+
+	if evt.Pathname != "inode://8:3/123456" {
+		t.Fatalf("Pathname = %q, want inode fallback", evt.Pathname)
+	}
+}
+
+func TestEnrichDoesNotOverwritePathname(t *testing.T) {
+	evt := &Event{
+		PID:      uint32(os.Getpid()),
+		UID:      0,
+		Comm:     "test-prog",
+		Pathname: "/tmp/target-file",
+	}
+
+	evt.Enrich()
+
+	if evt.Pathname != "/tmp/target-file" {
+		t.Fatalf("Pathname = %q, want target path unchanged", evt.Pathname)
 	}
 }
 

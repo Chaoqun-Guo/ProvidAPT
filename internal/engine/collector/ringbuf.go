@@ -6,6 +6,7 @@ package collector
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
@@ -101,6 +102,7 @@ type Event struct {
 
 	Comm     string
 	Pathname string
+	ExePath  string
 }
 
 // Start begins reading events from the BPF ring buffer.
@@ -174,6 +176,7 @@ func ParseRawEvent(data []byte) (*Event, error) {
 	// Fixed-length strings
 	evt.Comm = cString(data[commOffset : commOffset+commSize])
 	evt.Pathname = cString(data[pathnameOffset : pathnameOffset+pathnameSize])
+	evt.normalizePathname()
 
 	return evt, nil
 }
@@ -186,4 +189,36 @@ func cString(buf []byte) string {
 		}
 	}
 	return string(buf)
+}
+
+func (e *Event) normalizePathname() {
+	if !isPathBackedEvent(e.Type) || !pathUnavailable(e.Pathname) {
+		return
+	}
+	if e.Inode == 0 {
+		return
+	}
+	e.Pathname = fmt.Sprintf("inode://%d:%d/%d", e.DevMajor, e.DevMinor, e.Inode)
+}
+
+func isPathBackedEvent(typ syscall.EventType) bool {
+	switch typ {
+	case syscall.EventProcessExec,
+		syscall.EventFileOpen,
+		syscall.EventFileCreate,
+		syscall.EventFileModify,
+		syscall.EventFileDelete,
+		syscall.EventFileRename:
+		return true
+	default:
+		return false
+	}
+}
+
+func pathUnavailable(pathname string) bool {
+	pathname = strings.TrimSpace(pathname)
+	return pathname == "" ||
+		pathname == "?" ||
+		pathname == "…" ||
+		strings.Contains(pathname, "鈥")
 }

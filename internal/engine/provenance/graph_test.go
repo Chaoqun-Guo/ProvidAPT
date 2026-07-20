@@ -132,6 +132,7 @@ func TestGraphAddFileOpen(t *testing.T) {
 	g := NewGraph()
 
 	evt := makeEvent(syscall.EventFileOpen, 100, 1, 1000, "cat", "/etc/passwd")
+	evt.ExePath = "/usr/bin/cat"
 	g.AddEvent(evt)
 
 	stats := g.Stats()
@@ -145,6 +146,44 @@ func TestGraphAddFileOpen(t *testing.T) {
 	edges := g.Edges()
 	if edges[0].Relation != ProvUsed {
 		t.Errorf("expected used, got %s", edges[0].Relation)
+	}
+	if edges[0].Attributes["event"] != "file_open" {
+		t.Fatalf("edge event = %v, want file_open", edges[0].Attributes["event"])
+	}
+	if edges[0].Attributes["path"] != "/etc/passwd" {
+		t.Fatalf("edge path = %v, want /etc/passwd", edges[0].Attributes["path"])
+	}
+	if edges[0].Attributes["pid"] != uint32(100) {
+		t.Fatalf("edge pid = %v, want 100", edges[0].Attributes["pid"])
+	}
+
+	nodes := g.Nodes()
+	var processFound, fileFound bool
+	for _, n := range nodes {
+		if n.ID == "p:100" {
+			processFound = true
+			if n.Attributes["exe_path"] != "/usr/bin/cat" {
+				t.Fatalf("process exe_path = %v, want /usr/bin/cat", n.Attributes["exe_path"])
+			}
+		}
+		if n.Subtype == SubFile {
+			fileFound = true
+			if n.Label != "/etc/passwd" {
+				t.Fatalf("file label = %q, want /etc/passwd", n.Label)
+			}
+			if n.Attributes["pathname"] != "/etc/passwd" {
+				t.Fatalf("file pathname = %v, want /etc/passwd", n.Attributes["pathname"])
+			}
+			if n.Attributes["device"] != "8:3" {
+				t.Fatalf("file device = %v, want 8:3", n.Attributes["device"])
+			}
+		}
+	}
+	if !processFound {
+		t.Fatal("process node p:100 not found")
+	}
+	if !fileFound {
+		t.Fatal("file node not found")
 	}
 }
 
@@ -346,8 +385,8 @@ func TestSerializeEmptyGraph(t *testing.T) {
 
 func TestWalkFrom(t *testing.T) {
 	g := NewGraph()
-	g.AddEvent(makeForkEvent(1, 2, 0, "init"))     // child(2) ─→ parent(1)
-	g.AddEvent(makeForkEvent(2, 3, 0, "bash"))       // child(3) ─→ parent(2)
+	g.AddEvent(makeForkEvent(1, 2, 0, "init")) // child(2) ─→ parent(1)
+	g.AddEvent(makeForkEvent(2, 3, 0, "bash")) // child(3) ─→ parent(2)
 
 	var visited []string
 	g.WalkFrom("p:3", func(n *Node, e *Edge, depth int) bool {
@@ -482,4 +521,3 @@ func TestStatsAfterBatchInsert(t *testing.T) {
 		t.Errorf("unexpectedly large node count: %d", stats.Nodes)
 	}
 }
-

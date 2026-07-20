@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -100,6 +101,8 @@ type ClusterAgent struct {
 	LastReportAge        int64    `json:"last_report_age_seconds"`
 	EventsIngested       uint64   `json:"events_ingested,omitempty"`
 	EventsDropped        uint64   `json:"events_dropped,omitempty"`
+	GraphNodes           int      `json:"graph_nodes,omitempty"`
+	GraphEdges           int      `json:"graph_edges,omitempty"`
 	MemoryBytes          uint64   `json:"memory_bytes,omitempty"`
 	UptimeSeconds        int64    `json:"uptime_seconds,omitempty"`
 	PipelineHealthy      bool     `json:"pipeline_healthy"`
@@ -2496,6 +2499,9 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, _ *http.Request, path str
 		return fmt.Errorf("usage: /api/v1/alerts/<id>/svg")
 	}
 	alertID := parts[0]
+	if decoded, err := url.PathUnescape(alertID); err == nil {
+		alertID = decoded
+	}
 
 	svg := generateAlertSVG(alertID, s.graph)
 	w.Header().Set("Content-Type", "image/svg+xml")
@@ -2562,12 +2568,13 @@ type cytoElement struct {
 }
 
 type cytoElemData struct {
-	ID       string `json:"id,omitempty"`
-	Source   string `json:"source,omitempty"`
-	Target   string `json:"target,omitempty"`
-	Label    string `json:"label,omitempty"`
-	NodeType string `json:"type,omitempty"`
-	Class    string `json:"class,omitempty"`
+	ID         string                 `json:"id,omitempty"`
+	Source     string                 `json:"source,omitempty"`
+	Target     string                 `json:"target,omitempty"`
+	Label      string                 `json:"label,omitempty"`
+	NodeType   string                 `json:"type,omitempty"`
+	Class      string                 `json:"class,omitempty"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
 func writeCytoscape(w http.ResponseWriter, nodes []*provenance.Node, edges []*provenance.Edge) error {
@@ -2587,21 +2594,39 @@ func writeCytoscape(w http.ResponseWriter, nodes []*provenance.Node, edges []*pr
 			Group: "nodes",
 			Data: cytoElemData{
 				ID: n.ID, Label: l, NodeType: n.Subtype,
-				Class: n.Subtype,
+				Class: n.Subtype, Attributes: cloneAttributes(n.Attributes),
 			},
 		})
 	}
 	for _, e := range edges {
+		attrs := cloneAttributes(e.Attributes)
+		if attrs == nil {
+			attrs = make(map[string]interface{}, 3)
+		}
+		attrs["relation"] = e.Relation
+		attrs["count"] = e.Count
+		attrs["timestamp"] = e.Timestamp.Format(time.RFC3339Nano)
 		g.Elements = append(g.Elements, cytoElement{
 			Group: "edges",
 			Data: cytoElemData{
 				ID: e.ID, Source: e.Source, Target: e.Target,
 				Label: shortRel(e.Relation),
-				Class: "edge-" + shortRel(e.Relation),
+				Class: "edge-" + shortRel(e.Relation), Attributes: attrs,
 			},
 		})
 	}
 	return json.NewEncoder(w).Encode(g)
+}
+
+func cloneAttributes(attrs map[string]interface{}) map[string]interface{} {
+	if len(attrs) == 0 {
+		return nil
+	}
+	out := make(map[string]interface{}, len(attrs))
+	for k, v := range attrs {
+		out[k] = v
+	}
+	return out
 }
 
 func shortRel(rel string) string {

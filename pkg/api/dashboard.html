@@ -943,6 +943,7 @@ async function loadControlOverview() {
     const list = document.getElementById('agentsList');
     const historyList = document.getElementById('fleetHistoryList');
     const agents = fleet.agents || [];
+    updateFleetAggregateMetrics(agents);
     const history = fleet.history || [];
     if (agents.length === 0) {
       list.innerHTML = '<div class="loading">No agents reporting yet. Start an agent, confirm telemetry endpoint and API credentials, then refresh this panel.</div>';
@@ -975,6 +976,7 @@ async function loadControlOverview() {
             '<span>Mode: ' + (a.attachment_mode || '--') + '</span>' +
             '<span>Events: ' + ((a.events_ingested || 0).toLocaleString()) + '</span>' +
             '<span>Dropped: ' + ((a.events_dropped || 0).toLocaleString()) + '</span>' +
+            '<span>Graph: ' + ((a.graph_nodes || 0).toLocaleString()) + ' nodes / ' + ((a.graph_edges || 0).toLocaleString()) + ' edges</span>' +
             '<span>Memory: ' + formatBytes(a.memory_bytes || 0) + '</span>' +
             '<span>Policy: v' + (a.applied_policy_version || '--') + '</span>' +
             '<span>Enrollment: ' + escapeHTML(enrollment) + enrollmentNote + '</span>' +
@@ -1026,6 +1028,28 @@ async function loadControlOverview() {
   }
 }
 
+function updateFleetAggregateMetrics(agents) {
+  const list = agents || [];
+  if (list.length === 0) return;
+  const totals = list.reduce((acc, agent) => {
+    acc.events += Number(agent.events_ingested || 0);
+    acc.dropped += Number(agent.events_dropped || 0);
+    acc.nodes += Number(agent.graph_nodes || 0);
+    acc.edges += Number(agent.graph_edges || 0);
+    acc.memory += Number(agent.memory_bytes || 0);
+    return acc;
+  }, { events: 0, dropped: 0, nodes: 0, edges: 0, memory: 0 });
+  setText('mEvents', totals.events.toLocaleString());
+  setText('mDropped', totals.dropped.toLocaleString());
+  if (totals.nodes > 0 || totals.edges > 0) {
+    setText('mNodes', totals.nodes.toLocaleString());
+    setText('mEdges', totals.edges.toLocaleString());
+  }
+  if (totals.memory > 0) {
+    setText('mMemory', formatBytes(totals.memory));
+  }
+}
+
 function renderAgentInvestigation(agent, label) {
   const status = (agent.status || 'UNKNOWN').toLowerCase();
   const tags = (agent.tags || []).join(', ') || '--';
@@ -1038,6 +1062,7 @@ function renderAgentInvestigation(agent, label) {
       ' · enrollment ' + escapeHTML(agent.enrollment_status || 'pending') +
       ' · cert ' + escapeHTML(agent.cert_fingerprint ? agent.cert_fingerprint.slice(0, 23) + '…' : '--') +
       ' · events ' + ((agent.events_ingested || 0).toLocaleString()) +
+      ' · graph ' + ((agent.graph_nodes || 0).toLocaleString()) + '/' + ((agent.graph_edges || 0).toLocaleString()) +
       ' · dropped ' + ((agent.events_dropped || 0).toLocaleString()) +
       (agent.status_reason ? (' · ' + escapeHTML(agent.status_reason)) : '') +
     '</span>' +
@@ -2213,15 +2238,18 @@ function showDeliveryRisk(scope) {
     groups = countBy(all.filter(item => item.error), item => String(item.error || '').split(':')[0].slice(0, 40));
   }
   const items = groups.map(group => {
-    const key = jsString(group.key);
     return '<div class="alert-item">' +
       '<span class="alert-sev sev-medium">' + escapeHTML(scope) + '</span>' +
       '<span class="alert-msg">' + escapeHTML(group.key) + ' · ' + group.count + ' record(s)' +
-      '<span class="delivery-inline-actions"><button onclick="showDeliveryGroup(\\'' + key + '\\', \\'' + scope + '\\')">Drill Down</button></span></span>' +
+      '<span class="delivery-inline-actions"><button data-delivery-key="' + escapeHTML(group.key) + '" data-delivery-scope="' + escapeHTML(scope) + '" onclick="showDeliveryGroupFromButton(this)">Drill Down</button></span></span>' +
       '<span class="alert-time">delivery</span>' +
       '</div>';
   });
   setInvestigationItems(items, 'No delivery ' + scope + ' risk found');
+}
+
+function showDeliveryGroupFromButton(button) {
+  showDeliveryGroup(button.dataset.deliveryKey || '', button.dataset.deliveryScope || '');
 }
 
 function showDeliveryGroup(key, scope) {
@@ -2391,6 +2419,7 @@ async function downloadInvestigationReport() {
 
 function loadOperationsSummary() {
   const overview = latestOverview || {};
+  const fleet = latestFleet || {};
   const workflow = latestWorkflow || {};
   const deliveries = latestDeliveries || {};
   const support = latestSupport || {};
@@ -2403,6 +2432,7 @@ function loadOperationsSummary() {
   const openWorkflow = workflowSummary.open || 0;
   const deadLetters = deliverySummary.dead_letter || 0;
   const evidenceReady = support.last_status === 'success' || support.last_archive_path || support.last_bundle_path;
+  updateFleetAggregateMetrics(fleet.agents || overview.agents || []);
 
   document.getElementById('opFleet').textContent = totalAgents ? healthyAgents + '/' + totalAgents : '--';
   document.getElementById('opWorkflow').textContent = openWorkflow;

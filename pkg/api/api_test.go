@@ -2054,17 +2054,24 @@ func TestExport(t *testing.T) {
 	}
 	hasNode := false
 	hasEdge := false
+	hasFileAttrs := false
 	for _, el := range resp.Elements {
 		if el.Group == "nodes" {
 			hasNode = true
 			if el.Data.ID == "" {
 				t.Error("node missing id")
 			}
+			if el.Data.NodeType == "file" && el.Data.Attributes["pathname"] == "/etc/shadow" && el.Data.Attributes["device"] == "8:3" {
+				hasFileAttrs = true
+			}
 		}
 		if el.Group == "edges" {
 			hasEdge = true
 			if el.Data.Source == "" || el.Data.Target == "" {
 				t.Error("edge missing source/target")
+			}
+			if el.Data.Attributes["relation"] == "" {
+				t.Error("edge missing relation attribute")
 			}
 		}
 	}
@@ -2073,6 +2080,9 @@ func TestExport(t *testing.T) {
 	}
 	if !hasEdge {
 		t.Error("no edge elements")
+	}
+	if !hasFileAttrs {
+		t.Error("file node missing pathname/device attributes")
 	}
 }
 
@@ -2299,6 +2309,15 @@ func TestSVGGeneration(t *testing.T) {
 	if !strings.Contains(string(svg), "node-") {
 		t.Error("SVG missing node classes")
 	}
+	if !strings.Contains(string(svg), "Event Structure") {
+		t.Error("SVG missing event structure table")
+	}
+	if !strings.Contains(string(svg), "file_open") {
+		t.Error("SVG missing event name")
+	}
+	if !strings.Contains(string(svg), "path=/etc/shadow") {
+		t.Error("SVG missing target path detail")
+	}
 	t.Logf("SVG size: %d bytes", len(svg))
 }
 
@@ -2315,6 +2334,28 @@ func TestSVGContentType(t *testing.T) {
 	svg := generateAlertSVG("test", g)
 	if !strings.HasPrefix(string(svg), "<svg") {
 		t.Error("SVG should start with <svg")
+	}
+}
+
+func TestSVGFocusedGraph(t *testing.T) {
+	g := testGraph(t)
+	g.AddEvent(&collector.Event{
+		Type:        syscall.EventFileOpen,
+		TimestampNS: 3000,
+		PID:         999,
+		Pathname:    "/unrelated/noise",
+		Inode:       9000,
+		DevMajor:    8,
+		DevMinor:    3,
+		Comm:        "noise",
+	})
+
+	svg := string(generateAlertSVG("p:100", g))
+	if !strings.Contains(svg, "Focused scope: p:100") {
+		t.Error("SVG missing focused scope")
+	}
+	if strings.Contains(svg, "/unrelated/noise") {
+		t.Error("focused SVG includes unrelated graph branch")
 	}
 }
 

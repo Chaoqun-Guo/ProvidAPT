@@ -106,6 +106,8 @@ type AgentTelemetrySnapshot struct {
 	LastReportAge        int64     `json:"last_report_age_seconds"`
 	EventsIngested       uint64    `json:"events_ingested,omitempty"`
 	EventsDropped        uint64    `json:"events_dropped,omitempty"`
+	GraphNodes           int       `json:"graph_nodes,omitempty"`
+	GraphEdges           int       `json:"graph_edges,omitempty"`
 	MemoryBytes          uint64    `json:"memory_bytes,omitempty"`
 	UptimeSeconds        int64     `json:"uptime_seconds,omitempty"`
 	PipelineHealthy      bool      `json:"pipeline_healthy"`
@@ -927,6 +929,8 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 					LastReportAt:         s.telemetry.LastReportAt,
 					EventsIngested:       lastSummary.EventsIngested,
 					EventsDropped:        lastSummary.EventsDropped,
+					GraphNodes:           lastSummary.GraphNodes,
+					GraphEdges:           lastSummary.GraphEdges,
 					MemoryBytes:          lastSummary.MemoryBytes,
 					UptimeSeconds:        lastSummary.UptimeSeconds,
 					PipelineHealthy:      lastSummary.PipelineHealthy,

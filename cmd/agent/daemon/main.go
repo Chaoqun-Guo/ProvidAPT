@@ -1421,6 +1421,7 @@ func main() {
 	buildTelemetrySummary := func() telemetry.Summary {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
+		graphStats := graph.Stats()
 
 		status := "DEGRADED"
 		if pipelineHealthy && storeHealthy {
@@ -1440,6 +1441,8 @@ func main() {
 			UptimeSeconds:        int64(time.Since(startTime).Seconds()),
 			EventsIngested:       eventsIngested,
 			EventsDropped:        eventsDropped,
+			GraphNodes:           graphStats.Nodes,
+			GraphEdges:           graphStats.Edges,
 			MemoryBytes:          m.Alloc,
 			PipelineHealthy:      pipelineHealthy,
 			StoreHealthy:         storeHealthy,
@@ -1607,6 +1610,8 @@ func main() {
 				LastReportAt:         time.Now().UTC().Format(time.RFC3339),
 				EventsIngested:       local.EventsIngested,
 				EventsDropped:        local.EventsDropped,
+				GraphNodes:           local.GraphNodes,
+				GraphEdges:           local.GraphEdges,
 				MemoryBytes:          local.MemoryBytes,
 				UptimeSeconds:        local.UptimeSeconds,
 				PipelineHealthy:      local.PipelineHealthy,
@@ -1635,6 +1640,8 @@ func main() {
 					LastReportAge:        agent.LastReportAge,
 					EventsIngested:       agent.EventsIngested,
 					EventsDropped:        agent.EventsDropped,
+					GraphNodes:           agent.GraphNodes,
+					GraphEdges:           agent.GraphEdges,
 					MemoryBytes:          agent.MemoryBytes,
 					UptimeSeconds:        agent.UptimeSeconds,
 					PipelineHealthy:      agent.PipelineHealthy,
@@ -1686,6 +1693,8 @@ func main() {
 			LastReportAt:         time.Now().UTC().Format(time.RFC3339),
 			EventsIngested:       local.EventsIngested,
 			EventsDropped:        local.EventsDropped,
+			GraphNodes:           local.GraphNodes,
+			GraphEdges:           local.GraphEdges,
 			MemoryBytes:          local.MemoryBytes,
 			UptimeSeconds:        local.UptimeSeconds,
 			PipelineHealthy:      local.PipelineHealthy,
@@ -1717,6 +1726,8 @@ func main() {
 					LastReportAge:        agent.LastReportAge,
 					EventsIngested:       agent.EventsIngested,
 					EventsDropped:        agent.EventsDropped,
+					GraphNodes:           agent.GraphNodes,
+					GraphEdges:           agent.GraphEdges,
 					MemoryBytes:          agent.MemoryBytes,
 					UptimeSeconds:        agent.UptimeSeconds,
 					PipelineHealthy:      agent.PipelineHealthy,
@@ -3291,6 +3302,7 @@ loop:
 					continue
 				}
 			}
+			evt.Enrich()
 			pipe.AddEvent(evt)
 			if err := writer.Write(evt); err != nil {
 				logx.System().Error("event write error", "error", err)
