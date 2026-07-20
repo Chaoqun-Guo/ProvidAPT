@@ -18,7 +18,7 @@ func stripANSI(s string) string {
 	return re.ReplaceAllString(s, "")
 }
 
-// 鈹€鈹€鈹€ Flag parsing tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Flag parsing tests.
 
 func TestFlagParsingStatus(t *testing.T) {
 	// Simulate: providaptctl -status
@@ -237,7 +237,7 @@ func TestFormatStrings(t *testing.T) {
 	}
 }
 
-// 鈹€鈹€鈹€ Config file validation tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Config file validation tests.
 
 func TestConfigCheckWithFile(t *testing.T) {
 	dir := t.TempDir()
@@ -251,7 +251,7 @@ func TestConfigCheckWithFile(t *testing.T) {
 	cmdConfigCheck(cfgPath)
 }
 
-// 鈹€鈹€鈹€ statusInfo tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// statusInfo tests.
 
 func TestStatusInfoMethods(t *testing.T) {
 	info := statusInfo{

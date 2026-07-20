@@ -428,7 +428,9 @@ func readHandoffZip(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	var b strings.Builder
 	for _, file := range reader.File {
