@@ -117,6 +117,12 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .action-row button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 6px 9px; cursor: pointer; font-size: 11px; }
 .policy-editor { display:grid; grid-template-columns: 1fr auto; gap: 8px; margin: 8px 0; }
 .policy-editor textarea { min-height: 54px; resize: vertical; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:8px; font-size:12px; }
+.policy-editor input, .policy-editor textarea, .fleet-toolbar input, .auth-strip input { max-width: 100%; }
+.compact-input-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; width:100%; }
+.compact-input-grid input { min-width:0; width:100%; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:6px 8px; font-size:11px; }
+.policy-editor.compact { grid-template-columns: minmax(0, 1fr); }
+.policy-editor.wide { grid-template-columns: minmax(0, 1fr) auto auto; }
+.action-clicked { box-shadow: 0 0 0 1px #58a6ff inset; }
 .delivery-summary { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
 .action-row button.secondary { background: #30363d; }
 .action-row button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -243,8 +249,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button id="downloadSupportBundleBtn" class="secondary" onclick="downloadSupportBundle()">Download Latest Archive</button>
         <button class="secondary" onclick="downloadAuditCSV('supportbundle')">Export Audit CSV</button>
       </div>
-      <div class="policy-editor">
-        <div class="policy-grid">
+      <div class="policy-editor compact">
+        <div class="compact-input-grid">
           <input id="supportBundleRange" placeholder="Time range, e.g. last 24h">
           <input id="supportBundleIncludes" placeholder="Include items, e.g. config,logs,audit">
           <input id="supportBundleRedaction" placeholder="Redaction level, e.g. standard">
@@ -422,7 +428,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
         <button onclick="showRuntimeDetails('runtime')">Runtime</button>
         <button onclick="window.open('/api/v1/graph/export', '_blank', 'noreferrer')">Export Graph JSON</button>
       </div>
-      <div class="policy-editor" style="grid-template-columns: 1fr auto auto; margin-bottom:8px;">
+      <div class="policy-editor wide" style="margin-bottom:8px;">
         <input id="investigationNodeInput" placeholder="PID or node ID for investigation report">
         <button class="secondary" onclick="showInvestigationReport()">Preview Report</button>
         <button class="secondary" onclick="downloadInvestigationReport()">Download Markdown</button>
@@ -565,6 +571,34 @@ function clearAPIStatus() {
   }
   text.textContent = '';
   banner.className = 'api-status-banner';
+}
+
+function interactionFeedback(message) {
+  const info = document.getElementById('refreshInfo');
+  if (info) {
+    info.textContent = message || 'Action received';
+  }
+}
+
+function requireAdminAction(actionName) {
+  if (currentRole === 'admin') {
+    return true;
+  }
+  const message = (actionName || 'Action') + ' requires admin role';
+  setInvestigationLoading(message);
+  updateAuthStatus(message);
+  return false;
+}
+
+function installInteractionFeedback() {
+  document.addEventListener('click', event => {
+    const target = event.target.closest('button, .clickable');
+    if (!target) return;
+    target.classList.add('action-clicked');
+    const label = (target.textContent || target.getAttribute('aria-label') || target.title || 'Action').trim().replace(/\s+/g, ' ').slice(0, 80);
+    interactionFeedback('Clicked: ' + label);
+    window.setTimeout(() => target.classList.remove('action-clicked'), 450);
+  }, true);
 }
 
 function apiErrorHint(err) {
@@ -1775,7 +1809,7 @@ async function loadAlertWorkflowFiltered(status) {
 }
 
 async function runAlertWorkflowAction(action, alertID) {
-  if (currentRole !== 'admin' || !alertID) {
+  if (!requireAdminAction('Alert workflow action') || !alertID) {
     return;
   }
   const payload = {
@@ -1801,7 +1835,7 @@ async function runAlertWorkflowAction(action, alertID) {
 }
 
 async function runAlertWorkflowBulkAction(action) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Bulk alert workflow action')) {
     return;
   }
   const alerts = (latestWorkflow.alerts || []).filter(item => String(item.status || '').toLowerCase() === 'open');
@@ -2580,6 +2614,7 @@ async function refresh() {
 }
 
 initializePanelLayout();
+installInteractionFeedback();
 updateAuthStatus();
 refresh();
 setInterval(refresh, 5000);

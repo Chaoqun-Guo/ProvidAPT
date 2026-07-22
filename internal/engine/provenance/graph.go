@@ -151,12 +151,7 @@ func (g *Graph) addExec(evt *collector.Event, ts time.Time) {
 	proc := g.getOrCreateNode(procID, ProvActivity, SubProcess,
 		evt.Comm, ts)
 	proc.Label = evt.Comm // update label — exec may change comm from fork parent's
-	proc.upsertAttr("pid", evt.PID)
-	proc.upsertAttr("uid", evt.UID)
-	proc.upsertAttr("comm", evt.Comm)
-	if evt.ExePath != "" {
-		proc.upsertAttr("exe_path", evt.ExePath)
-	}
+	annotateProcessNode(proc, evt)
 	if st := readStartTime(evt.PID); st != 0 {
 		proc.setAttr("start_time", st)
 	}
@@ -196,12 +191,13 @@ func (g *Graph) addExec(evt *collector.Event, ts time.Time) {
 		fileNode.touch(ts)
 
 		g.addEdge(ProvUsed, procID, fileID, ts, map[string]interface{}{
-			"type":  "exec",
-			"event": evt.Type.String(),
-			"pid":   evt.PID,
-			"comm":  evt.Comm,
-			"path":  evt.Pathname,
-			"inode": evt.Inode,
+			"type":    "exec",
+			"event":   evt.Type.String(),
+			"pid":     evt.PID,
+			"comm":    evt.Comm,
+			"cmdline": evt.Cmdline,
+			"path":    evt.Pathname,
+			"inode":   evt.Inode,
 		})
 	}
 }
@@ -218,12 +214,7 @@ func (g *Graph) addFileUse(evt *collector.Event, ts time.Time) {
 	procID := ProcessNodeID(evt.PID)
 	proc := g.getOrCreateNode(procID, ProvActivity, SubProcess,
 		evt.Comm, ts)
-	proc.upsertAttr("pid", evt.PID)
-	proc.upsertAttr("uid", evt.UID)
-	proc.upsertAttr("comm", evt.Comm)
-	if evt.ExePath != "" {
-		proc.upsertAttr("exe_path", evt.ExePath)
-	}
+	annotateProcessNode(proc, evt)
 	proc.touch(ts)
 
 	_, fileID := g.getOrCreateBaseFileNode(evt, ts)
@@ -232,6 +223,7 @@ func (g *Graph) addFileUse(evt *collector.Event, ts time.Time) {
 		"event":   evt.Type.String(),
 		"pid":     evt.PID,
 		"comm":    evt.Comm,
+		"cmdline": evt.Cmdline,
 		"path":    evt.Pathname,
 		"inode":   evt.Inode,
 		"f_flags": evt.FFlags,
@@ -251,12 +243,7 @@ func (g *Graph) addFileGenerate(evt *collector.Event, ts time.Time) {
 	procID := ProcessNodeID(evt.PID)
 	proc := g.getOrCreateNode(procID, ProvActivity, SubProcess,
 		evt.Comm, ts)
-	proc.upsertAttr("pid", evt.PID)
-	proc.upsertAttr("uid", evt.UID)
-	proc.upsertAttr("comm", evt.Comm)
-	if evt.ExePath != "" {
-		proc.upsertAttr("exe_path", evt.ExePath)
-	}
+	annotateProcessNode(proc, evt)
 	proc.touch(ts)
 
 	// Create next version node (wasDerivedFrom edge is added internally)
@@ -266,6 +253,7 @@ func (g *Graph) addFileGenerate(evt *collector.Event, ts time.Time) {
 		"event":   evt.Type.String(),
 		"pid":     evt.PID,
 		"comm":    evt.Comm,
+		"cmdline": evt.Cmdline,
 		"path":    evt.Pathname,
 		"inode":   evt.Inode,
 		"f_flags": evt.FFlags,
@@ -274,6 +262,21 @@ func (g *Graph) addFileGenerate(evt *collector.Event, ts time.Time) {
 }
 
 // ── Node / Edge helpers ──────────────────────────────────────
+
+func annotateProcessNode(proc *Node, evt *collector.Event) {
+	proc.upsertAttr("pid", evt.PID)
+	proc.upsertAttr("tid", evt.TID)
+	proc.upsertAttr("ppid", evt.PPID)
+	proc.upsertAttr("uid", evt.UID)
+	proc.upsertAttr("gid", evt.GID)
+	proc.upsertAttr("comm", evt.Comm)
+	if evt.ExePath != "" {
+		proc.upsertAttr("exe_path", evt.ExePath)
+	}
+	if evt.Cmdline != "" {
+		proc.upsertAttr("cmdline", evt.Cmdline)
+	}
+}
 
 func (g *Graph) getOrCreateNode(id, provType, subtype, label string,
 	ts time.Time) *Node {

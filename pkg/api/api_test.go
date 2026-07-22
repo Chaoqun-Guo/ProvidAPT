@@ -31,7 +31,8 @@ func testGraph(t *testing.T) *provenance.Graph {
 		Type: syscall.EventFileOpen, TimestampNS: 2000,
 		PID: 100, Pathname: "/etc/shadow",
 		Inode: 5000, DevMajor: 8, DevMinor: 3,
-		Comm: "cat",
+		Comm: "cat", ExePath: "/usr/bin/cat", Cmdline: "cat /etc/shadow",
+		PPID: 1, UID: 0, GID: 0,
 	})
 	return g
 }
@@ -2317,6 +2318,12 @@ func TestSVGGeneration(t *testing.T) {
 	}
 	if !strings.Contains(string(svg), "path=/etc/shadow") {
 		t.Error("SVG missing target path detail")
+	}
+	if !strings.Contains(string(svg), "cmdline=cat /etc/shadow") {
+		t.Error("SVG missing process command line detail")
+	}
+	if !strings.Contains(string(svg), "ppid=1") {
+		t.Error("SVG missing parent PID detail")
 	}
 	t.Logf("SVG size: %d bytes", len(svg))
 }

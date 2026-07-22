@@ -255,7 +255,8 @@ func renderSVG(lay *svgLayout) []byte {
   .node-credential rect { fill: #3a2a1a; stroke: #d29922; }
   .node-default rect { fill: #1f232a; stroke: #8b949e; }
   .node .label { fill: #f0f6fc; font: 12px monospace; font-weight: 700; }
-  .node .meta { fill: #8b949e; font: 10px monospace; }
+	.node .meta { fill: #8b949e; font: 10px monospace; }
+  .node title { font: 10px monospace; }
   .edge line { stroke: #8b949e; stroke-width: 1.5; marker-end: url(#arrow); }
   .edge-used line { stroke: #58a6ff; }
   .edge-created line { stroke: #3fb950; }
@@ -316,12 +317,13 @@ func renderSVG(lay *svgLayout) []byte {
 			class = "node-credential"
 		}
 		fmt.Fprintf(&b, `<g class="node %s">
+  <title>%s</title>
   <rect x="%d" y="%d" width="%d" height="%d"/>
   <text class="label" x="%d" y="%d">%s</text>
   <text class="meta" x="%d" y="%d">%s</text>
   <text class="meta" x="%d" y="%d">%s</text>
 </g>
-`, class, n.x, n.y, nodeW, nodeH, n.x+10, n.y+21, escapeXML(n.label),
+`, class, escapeXML(nodeTitle(n)), n.x, n.y, nodeW, nodeH, n.x+10, n.y+21, escapeXML(n.label),
 			n.x+10, n.y+41, escapeXML(n.detail1), n.x+10, n.y+57, escapeXML(n.detail2))
 	}
 
@@ -410,7 +412,7 @@ func minInt(a, b int) int {
 func nodeDetailLine(n *provenance.Node) string {
 	switch n.Subtype {
 	case "process":
-		return compactJoin([]string{kv("pid", n.Attributes["pid"]), kv("uid", n.Attributes["uid"]), kv("comm", n.Attributes["comm"])})
+		return compactJoin([]string{kv("pid", n.Attributes["pid"]), kv("ppid", n.Attributes["ppid"]), kv("uid", n.Attributes["uid"]), kv("comm", n.Attributes["comm"])})
 	case "file":
 		return compactJoin([]string{kv("inode", n.Attributes["inode"]), kv("dev", n.Attributes["device"]), kv("mode", n.Attributes["mode"])})
 	case "network":
@@ -423,7 +425,7 @@ func nodeDetailLine(n *provenance.Node) string {
 func nodeIdentityLine(n *provenance.Node) string {
 	switch n.Subtype {
 	case "process":
-		return truncate(stringAttr(n.Attributes, "exe_path", n.ID), 38)
+		return truncate(firstAttr(n.Attributes, []string{"cmdline", "exe_path"}, n.ID), 38)
 	case "file":
 		return truncate(stringAttr(n.Attributes, "pathname", n.ID), 38)
 	default:
@@ -431,12 +433,16 @@ func nodeIdentityLine(n *provenance.Node) string {
 	}
 }
 
+func nodeTitle(n svgNode) string {
+	return compactJoin([]string{n.id, n.label, n.detail1, n.detail2})
+}
+
 func edgeSummary(e *provenance.Edge) string {
 	return fmt.Sprintf("%s -> %s (%s)", truncate(e.Source, 22), truncate(e.Target, 22), shortRel(e.Relation))
 }
 
 func edgeDetail(e *provenance.Edge) string {
-	keys := []string{"pid", "comm", "path", "inode", "f_flags", "child_pid", "prev"}
+	keys := []string{"pid", "comm", "cmdline", "path", "inode", "f_flags", "child_pid", "prev"}
 	parts := make([]string, 0, len(keys))
 	for _, key := range keys {
 		if text := kv(key, e.Attributes[key]); text != "" {
@@ -459,6 +465,15 @@ func edgeDetail(e *provenance.Edge) string {
 		}
 	}
 	return truncate(compactJoin(parts), 116)
+}
+
+func firstAttr(attrs map[string]interface{}, keys []string, fallback string) string {
+	for _, key := range keys {
+		if value := stringAttr(attrs, key, ""); value != "" {
+			return value
+		}
+	}
+	return fallback
 }
 
 func stringAttr(attrs map[string]interface{}, key, fallback string) string {

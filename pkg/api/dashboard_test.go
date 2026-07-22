@@ -90,6 +90,9 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"showEventDetailsJSON",
 		"eventDetailRows",
 		"raw.schema_version",
+		"installInteractionFeedback",
+		"interactionFeedback",
+		"action-clicked",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
@@ -287,6 +290,8 @@ func TestDashboardCommercialWorkflowEnhancements(t *testing.T) {
 		"supportBundleRange",
 		"supportBundleIncludes",
 		"supportBundleRedaction",
+		"compact-input-grid",
+		"policy-editor compact",
 		"Prepare cutover blocked: restore a backup to staging first",
 		"function showDeliveryGroup",
 		"showReleaseReadiness",
