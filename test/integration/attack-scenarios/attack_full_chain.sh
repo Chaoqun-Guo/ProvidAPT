@@ -18,7 +18,7 @@ if [ -z "${GROUND_TRUTH_PATH:-}" ]; then
 fi
 
 SIM_TMPDIR=$(mktemp -d /tmp/providapt_full_chain_XXXXXX)
-MANIFEST_PATH="${MANIFEST_PATH:-$SIM_TMPDIR/attack_manifest.json}"
+MANIFEST_PATH="${MANIFEST_PATH:-$(dirname "$GROUND_TRUTH_PATH")/${RUN_ID}.manifest.json}"
 PAYLOAD="$SIM_TMPDIR/payload.sh"
 STAGED_TOOL="$SIM_TMPDIR/tools/diagnostic-tool.sh"
 CONFIG_STUB="$SIM_TMPDIR/.config/autostart/providapt-sim.desktop"

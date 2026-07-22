@@ -46,6 +46,7 @@ func TestFullChainSimulationClassifiesAttackSteps(t *testing.T) {
 	script := string(data)
 	required := []string{
 		"providapt.attack_manifest.v1",
+		`MANIFEST_PATH="${MANIFEST_PATH:-$(dirname "$GROUND_TRUTH_PATH")/${RUN_ID}.manifest.json}"`,
 		"providapt.attack_ground_truth.v1",
 		`"chain":"full_chain"`,
 		`"category"`,
