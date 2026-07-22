@@ -34,17 +34,22 @@ type svgEdge struct {
 	src     string
 	dst     string
 	rel     string
+	kind    string
 	event   string
 	summary string
 	detail  string
+	tree    bool
 }
 
 const (
-	nodeW = 220
-	nodeH = 70
-	xPad  = 36
-	yPad  = 78
-	topY  = 56
+	nodeW       = 220
+	nodeH       = 70
+	xPad        = 36
+	yPad        = 34
+	layerGap    = 120
+	topY        = 76
+	minGraphH   = 320
+	edgeLabelDX = 10
 )
 
 func generateAlertSVG(alertID string, graph *provenance.Graph) []byte {
@@ -149,42 +154,45 @@ func capGraph(nodes []*provenance.Node, edges []*provenance.Edge, maxNodes, maxE
 func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout {
 	lay := &svgLayout{}
 	roots := findRoots(nodes, edges)
-	layers := bfsLayers(roots, edges)
+	depth, treeParent, orderedIDs := treeLayoutOrder(nodes, edges, roots)
 
-	y := topY
-	maxLayer := 1
-	for _, layer := range layers {
-		maxLayer = maxInt(maxLayer, len(layer))
-		x := xPad
-		for _, id := range layer {
-			n := findNodeByID(nodes, id)
-			if n == nil {
-				continue
-			}
-			lay.nodes = append(lay.nodes, svgNode{
-				id:      n.ID,
-				label:   truncate(n.Label, 30),
-				detail1: nodeDetailLine(n),
-				detail2: nodeIdentityLine(n),
-				typ:     n.Subtype,
-				x:       x,
-				y:       y,
-			})
-			x += nodeW + xPad
+	maxDepth := 0
+	for row, id := range orderedIDs {
+		n := findNodeByID(nodes, id)
+		if n == nil {
+			continue
 		}
-		y += nodeH + yPad
+		d := depth[id]
+		maxDepth = maxInt(maxDepth, d)
+		lay.nodes = append(lay.nodes, svgNode{
+			id:      n.ID,
+			label:   truncate(n.Label, 30),
+			detail1: nodeDetailLine(n),
+			detail2: nodeIdentityLine(n),
+			typ:     n.Subtype,
+			x:       xPad + d*(nodeW+layerGap),
+			y:       topY + row*(nodeH+yPad),
+		})
 	}
 
-	lay.width = maxInt(820, maxLayer*(nodeW+xPad)+xPad)
-	lay.height = y + maxInt(150, len(edges)*36+74)
+	graphH := topY + len(lay.nodes)*(nodeH+yPad) + 20
+	lay.width = maxInt(960, xPad*2+(maxDepth+1)*nodeW+maxDepth*layerGap)
+	lay.height = maxInt(minGraphH, graphH) + maxInt(150, len(edges)*36+74)
+	usedTreeEdges := map[string]bool{}
 	for _, e := range edges {
+		tree := treeParent[e.Target] == e.Source && !usedTreeEdges[e.Source+"\x00"+e.Target]
+		if tree {
+			usedTreeEdges[e.Source+"\x00"+e.Target] = true
+		}
 		lay.edges = append(lay.edges, svgEdge{
 			src:     e.Source,
 			dst:     e.Target,
 			rel:     shortRel(e.Relation),
+			kind:    edgeKind(e),
 			event:   stringAttr(e.Attributes, "event", shortRel(e.Relation)),
 			summary: edgeSummary(e),
 			detail:  edgeDetail(e),
+			tree:    tree,
 		})
 	}
 	return lay
@@ -236,6 +244,105 @@ func bfsLayers(roots []string, edges []*provenance.Edge) [][]string {
 	return layers
 }
 
+func treeLayoutOrder(nodes []*provenance.Node, edges []*provenance.Edge, roots []string) (map[string]int, map[string]string, []string) {
+	nodeIDs := make([]string, 0, len(nodes))
+	nodeSet := make(map[string]bool, len(nodes))
+	for _, n := range nodes {
+		nodeIDs = append(nodeIDs, n.ID)
+		nodeSet[n.ID] = true
+	}
+	sort.Strings(nodeIDs)
+
+	adj := make(map[string][]string)
+	for _, e := range edges {
+		if !nodeSet[e.Source] || !nodeSet[e.Target] {
+			continue
+		}
+		adj[e.Source] = append(adj[e.Source], e.Target)
+	}
+	for src := range adj {
+		sort.Strings(adj[src])
+	}
+
+	depth := make(map[string]int, len(nodes))
+	treeParent := make(map[string]string, len(nodes))
+	seen := make(map[string]bool, len(nodes))
+	queue := append([]string{}, roots...)
+	sort.Strings(queue)
+	for _, root := range queue {
+		seen[root] = true
+		depth[root] = 0
+	}
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, child := range adj[id] {
+			if seen[child] {
+				continue
+			}
+			seen[child] = true
+			treeParent[child] = id
+			depth[child] = depth[id] + 1
+			queue = append(queue, child)
+		}
+	}
+	for _, id := range nodeIDs {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		depth[id] = 0
+		roots = append(roots, id)
+	}
+
+	var ordered []string
+	visited := make(map[string]bool, len(nodes))
+	var walk func(string)
+	walk = func(id string) {
+		if visited[id] {
+			return
+		}
+		visited[id] = true
+		ordered = append(ordered, id)
+		children := append([]string{}, adj[id]...)
+		sort.SliceStable(children, func(i, j int) bool {
+			left := subtreeWeight(children[i], adj, treeParent, map[string]bool{})
+			right := subtreeWeight(children[j], adj, treeParent, map[string]bool{})
+			if left == right {
+				return children[i] < children[j]
+			}
+			return left > right
+		})
+		for _, child := range children {
+			if treeParent[child] == id {
+				walk(child)
+			}
+		}
+	}
+	sort.Strings(roots)
+	for _, root := range roots {
+		walk(root)
+	}
+	for _, id := range nodeIDs {
+		walk(id)
+	}
+	return depth, treeParent, ordered
+}
+
+func subtreeWeight(id string, adj map[string][]string, treeParent map[string]string, seen map[string]bool) int {
+	if seen[id] {
+		return 0
+	}
+	seen[id] = true
+	total := 1
+	for _, child := range adj[id] {
+		if treeParent[child] == id {
+			total += subtreeWeight(child, adj, treeParent, seen)
+		}
+	}
+	return total
+}
+
 func renderSVG(lay *svgLayout) []byte {
 	var b strings.Builder
 	scope := "Process activity, target entity, observed event, and collected attributes"
@@ -257,27 +364,37 @@ func renderSVG(lay *svgLayout) []byte {
   .node .label { fill: #f0f6fc; font: 12px monospace; font-weight: 700; }
 	.node .meta { fill: #8b949e; font: 10px monospace; }
   .node title { font: 10px monospace; }
-  .edge line { stroke: #8b949e; stroke-width: 1.5; marker-end: url(#arrow); }
-  .edge-used line { stroke: #58a6ff; }
-  .edge-created line { stroke: #3fb950; }
-  .edge-forked line { stroke: #d29922; }
+  .edge path { fill: none; stroke: #8b949e; stroke-width: 1.7; marker-end: url(#arrow-default); }
+  .edge-tree path { stroke-width: 2.1; }
+  .edge-cross path { opacity: .45; stroke-dasharray: 5 4; }
+  .edge-read path, .edge-used path { stroke: #58a6ff; marker-end: url(#arrow-read); }
+  .edge-write path, .edge-created path { stroke: #3fb950; marker-end: url(#arrow-write); }
+  .edge-exec path, .edge-forked path { stroke: #d29922; marker-end: url(#arrow-exec); }
+  .edge-network path { stroke: #f85149; marker-end: url(#arrow-network); }
+  .edge-derived path { stroke: #a371f7; marker-end: url(#arrow-derived); }
+  .edge-context path { stroke: #8b949e; marker-end: url(#arrow-context); stroke-dasharray: 4 3; }
   .edge text { fill: #f0f6fc; font: 10px monospace; text-anchor: middle; paint-order: stroke; stroke: #0d1117; stroke-width: 3px; }
+  .edge-label-read { fill: #b6dcff; }
+  .edge-label-write { fill: #b7f7c2; }
+  .edge-label-exec { fill: #ffd58a; }
+  .edge-label-network { fill: #ffb3ad; }
+  .edge-label-derived { fill: #d8b9ff; }
   .title { fill: #f0f6fc; font: 16px sans-serif; font-weight: bold; }
   .subtitle { fill: #8b949e; font: 11px sans-serif; }
+  .legend text { fill: #c9d1d9; font: 10px monospace; }
   .event-table text { fill: #c9d1d9; font: 11px monospace; }
   .event-table .header { fill: #58a6ff; font-weight: 700; }
   .event-table rect { fill: #161b22; stroke: #30363d; rx: 8; }
   .event-row rect { fill: #0d1117; stroke: #21262d; rx: 6; }
 </style>
 <defs>
-  <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-    <path d="M0,0 L10,5 L0,10 Z" fill="#8b949e"/>
-  </marker>
+  %s
 </defs>
 <rect class="bg" x="0" y="0" width="%d" height="%d"/>
 <text x="18" y="22" class="title">ProvidAPT Provenance Trace</text>
 <text x="18" y="40" class="subtitle">%s</text>
-`, lay.width, lay.height, lay.width, lay.height, lay.width, lay.height, escapeXML(scope))
+<text x="18" y="54" class="subtitle">Tree layout is left-to-right; Causal direction is rendered as source -&gt; target; dashed edges are retained cross-links.</text>
+`, lay.width, lay.height, lay.width, lay.height, svgMarkers(), lay.width, lay.height, escapeXML(scope))
 
 	nodeMap := make(map[string]svgNode)
 	for _, n := range lay.nodes {
@@ -292,18 +409,30 @@ func renderSVG(lay *svgLayout) []byte {
 		if !ok {
 			continue
 		}
-		x1 := src.x + nodeW/2
-		y1 := src.y + nodeH
-		x2 := dst.x + nodeW/2
-		y2 := dst.y
-		midY := (y1 + y2) / 2
-		fmt.Fprintf(&b, `<g class="edge edge-%s">
-  <line x1="%d" y1="%d" x2="%d" y2="%d"/>
-  <text x="%d" y="%d">%s</text>
+		x1 := src.x + nodeW
+		y1 := src.y + nodeH/2
+		x2 := dst.x
+		y2 := dst.y + nodeH/2
+		if dst.x <= src.x {
+			x1 = src.x + nodeW/2
+			y1 = src.y + nodeH
+			x2 = dst.x + nodeW/2
+			y2 = dst.y
+		}
+		midX := (x1 + x2) / 2
+		labelY := (y1+y2)/2 - 6
+		edgeClass := "edge-cross"
+		if e.tree {
+			edgeClass = "edge-tree"
+		}
+		fmt.Fprintf(&b, `<g class="edge %s edge-%s edge-%s" data-direction="%s-&gt;%s" data-tree="%t">
+  <path d="%s"/>
+  <text class="edge-label-%s" x="%d" y="%d">%s -&gt;</text>
 </g>
-`, e.rel, x1, y1, x2, y2, x1, midY-4, escapeXML(e.event))
+`, edgeClass, e.rel, e.kind, escapeXML(e.src), escapeXML(e.dst), e.tree, edgePath(x1, y1, x2, y2), e.kind, midX+edgeLabelDX, labelY, escapeXML(e.event))
 	}
 
+	renderLegend(&b, lay.width)
 	for _, n := range lay.nodes {
 		class := "node-default"
 		switch n.typ {
@@ -361,6 +490,59 @@ func renderEventTable(b *strings.Builder, lay *svgLayout) {
 	b.WriteString("</g>\n")
 }
 
+func renderLegend(b *strings.Builder, width int) {
+	items := []struct {
+		label string
+		color string
+	}{
+		{"read/use", "#58a6ff"},
+		{"write/create", "#3fb950"},
+		{"exec/fork", "#d29922"},
+		{"network", "#f85149"},
+		{"derived", "#a371f7"},
+	}
+	x := maxInt(360, width-430)
+	fmt.Fprintf(b, `<g class="legend" transform="translate(%d,16)">`, x)
+	for i, item := range items {
+		offset := i * 78
+		fmt.Fprintf(b, `<line x1="%d" y1="0" x2="%d" y2="0" stroke="%s" stroke-width="2"/>
+<text x="%d" y="4">%s</text>`, offset, offset+18, item.color, offset+23, escapeXML(item.label))
+	}
+	b.WriteString("</g>\n")
+}
+
+func svgMarkers() string {
+	markers := []struct {
+		id    string
+		color string
+	}{
+		{"default", "#8b949e"},
+		{"read", "#58a6ff"},
+		{"write", "#3fb950"},
+		{"exec", "#d29922"},
+		{"network", "#f85149"},
+		{"derived", "#a371f7"},
+		{"context", "#8b949e"},
+	}
+	var b strings.Builder
+	for _, marker := range markers {
+		fmt.Fprintf(&b, `<marker id="arrow-%s" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+    <path d="M0,0 L10,5 L0,10 Z" fill="%s"/>
+  </marker>
+  `, marker.id, marker.color)
+	}
+	return b.String()
+}
+
+func edgePath(x1, y1, x2, y2 int) string {
+	if x2 > x1 {
+		midX := (x1 + x2) / 2
+		return fmt.Sprintf("M%d,%d C%d,%d %d,%d %d,%d", x1, y1, midX, y1, midX, y2, x2, y2)
+	}
+	arc := maxInt(60, absInt(y2-y1)/2+30)
+	return fmt.Sprintf("M%d,%d C%d,%d %d,%d %d,%d", x1, y1, x1, y1+arc, x2, y2-arc, x2, y2)
+}
+
 func defaultSVG(msg string) []byte {
 	return []byte(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="520" height="120">
   <rect x="0" y="0" width="520" height="120" fill="#0d1117"/>
@@ -400,6 +582,13 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 func minInt(a, b int) int {
@@ -465,6 +654,27 @@ func edgeDetail(e *provenance.Edge) string {
 		}
 	}
 	return truncate(compactJoin(parts), 116)
+}
+
+func edgeKind(e *provenance.Edge) string {
+	event := strings.ToLower(stringAttr(e.Attributes, "event", ""))
+	rel := shortRel(e.Relation)
+	switch {
+	case strings.Contains(event, "connect") || strings.Contains(event, "network"):
+		return "network"
+	case strings.Contains(event, "exec") || strings.Contains(event, "fork") || rel == "forked":
+		return "exec"
+	case strings.Contains(event, "write") || strings.Contains(event, "create") || rel == "created":
+		return "write"
+	case strings.Contains(event, "read") || strings.Contains(event, "open") || rel == "used":
+		return "read"
+	case rel == "derived":
+		return "derived"
+	case rel == "context":
+		return "context"
+	default:
+		return "default"
+	}
 }
 
 func firstAttr(attrs map[string]interface{}, keys []string, fallback string) string {

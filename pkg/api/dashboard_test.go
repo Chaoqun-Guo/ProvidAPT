@@ -218,6 +218,30 @@ func TestDashboardSemanticButtonClasses(t *testing.T) {
 	}
 }
 
+func TestDashboardGroundTruthPanel(t *testing.T) {
+	expected := []string{
+		"Evaluation Ground Truth",
+		"groundTruthFile",
+		"loadGroundTruthFromFile",
+		"loadGroundTruth",
+		"showGroundTruthCorrelation",
+		"/api/v1/evaluation/ground-truth?limit=500",
+		"/api/v1/evaluation/correlation?limit=200",
+		"parseGroundTruthJSONL",
+		"renderGroundTruthRecord",
+		"renderGroundTruthCorrelation",
+		"filterGroundTruth('malicious')",
+		"gtMalicious",
+		"gtBenign",
+		"groundTruthPhaseGrid",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing ground truth content %q", item)
+		}
+	}
+}
+
 func TestDashboardAdminActionsGiveFeedback(t *testing.T) {
 	forbidden := []string{
 		"if (currentRole !== 'admin') {\n    return;\n  }",

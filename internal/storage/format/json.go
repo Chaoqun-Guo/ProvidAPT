@@ -25,6 +25,7 @@ const (
 type JSONWriterOptions struct {
 	MaxFileBytes int64
 	RetainFiles  int
+	RetainBytes  int64
 }
 
 // JSONWriter writes provenance events as newline-delimited JSON.
@@ -36,6 +37,7 @@ type JSONWriter struct {
 	currentBytes int64
 	maxFileBytes int64
 	retainFiles  int
+	retainBytes  int64
 }
 
 // NewJSONWriter creates a JSON lines writer.
@@ -68,6 +70,7 @@ func NewJSONWriterWithOptions(dir string, opts JSONWriterOptions) (*JSONWriter, 
 		filename:     filename,
 		maxFileBytes: opts.MaxFileBytes,
 		retainFiles:  opts.RetainFiles,
+		retainBytes:  opts.RetainBytes,
 	}, nil
 }
 
@@ -87,6 +90,9 @@ func (w *JSONWriter) Write(evt *collector.Event) error {
 	}
 	n, err := w.f.Write(record)
 	w.currentBytes += int64(n)
+	if w.retainBytes > 0 {
+		w.pruneOldFilesBySizeLocked()
+	}
 	return err
 }
 
@@ -124,6 +130,10 @@ func (w *JSONWriter) rotateIfNeededLocked(nextBytes int64) error {
 }
 
 func (w *JSONWriter) pruneOldFilesLocked() {
+	if w.retainBytes > 0 {
+		w.pruneOldFilesBySizeLocked()
+		return
+	}
 	if w.retainFiles <= 0 {
 		matches, _ := filepath.Glob(filepath.Join(w.dir, "providapt-*.ndjson"))
 		for _, path := range matches {
@@ -131,7 +141,7 @@ func (w *JSONWriter) pruneOldFilesLocked() {
 				continue
 			}
 			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				log.Printf("[format/json] prune %s: %v", path, err)
+				log.Printf("[format/json] prune %s by file-count retention failed: %v", path, err)
 			}
 		}
 		return
@@ -153,7 +163,51 @@ func (w *JSONWriter) pruneOldFilesLocked() {
 			continue
 		}
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			log.Printf("[format/json] prune %s: %v", path, err)
+			log.Printf("[format/json] prune %s by file-count retention failed: %v", path, err)
+		} else {
+			log.Printf("[format/json] pruned %s by file-count retention retain_files=%d", path, w.retainFiles)
 		}
+	}
+}
+
+func (w *JSONWriter) pruneOldFilesBySizeLocked() {
+	matches, err := filepath.Glob(filepath.Join(w.dir, "providapt-*.ndjson"))
+	if err != nil || len(matches) == 0 {
+		return
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		iInfo, iErr := os.Stat(matches[i])
+		jInfo, jErr := os.Stat(matches[j])
+		if iErr == nil && jErr == nil && !iInfo.ModTime().Equal(jInfo.ModTime()) {
+			return iInfo.ModTime().After(jInfo.ModTime())
+		}
+		return matches[i] > matches[j]
+	})
+	var total int64
+	for _, path := range matches {
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		total += info.Size()
+	}
+	if total <= w.retainBytes {
+		return
+	}
+	for i := len(matches) - 1; i >= 0 && total > w.retainBytes; i-- {
+		path := matches[i]
+		if path == w.filename {
+			continue
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			log.Printf("[format/json] prune %s by byte-budget retention failed: %v", path, err)
+			continue
+		}
+		total -= info.Size()
+		log.Printf("[format/json] pruned %s by byte-budget retention retained_bytes=%d retain_max_bytes=%d", path, total, w.retainBytes)
 	}
 }

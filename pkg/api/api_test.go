@@ -1682,6 +1682,146 @@ func TestAlertWorkflowEndpoint(t *testing.T) {
 	}
 }
 
+func TestAlertWorkflowEndpointFallsBackToAlertLog(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	alertPath := filepath.Join(dir, "alerts.ndjson")
+	if err := os.WriteFile(alertPath, []byte(`{"AlertNodeID":"p:123","Severity":40,"Pattern":"DEEP_TAINT_CHAIN","Headline":"curl touched sensitive file","Reason":"simulated alert","DetectedAt":"2026-07-22T03:00:00Z"}`+"\n"), 0644); err != nil {
+		t.Fatalf("write alert log: %v", err)
+	}
+	ts.SetAlertLogPath(alertPath)
+
+	w := apiGet(ts, "/api/v1/control/alerts")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp AlertWorkflow
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Summary.Total != 1 || resp.Summary.Open != 1 {
+		t.Fatalf("summary = %#v", resp.Summary)
+	}
+	if len(resp.Alerts) != 1 {
+		t.Fatalf("alerts = %#v", resp.Alerts)
+	}
+	if resp.Alerts[0].ID != "p:123" || resp.Alerts[0].Severity != "HIGH" || resp.Alerts[0].Status != "open" {
+		t.Fatalf("alert = %#v", resp.Alerts[0])
+	}
+}
+
+func TestGroundTruthEndpointLoadsJSONL(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	alertPath := filepath.Join(dir, "alerts.ndjson")
+	if err := os.WriteFile(alertPath, nil, 0644); err != nil {
+		t.Fatalf("write alert log: %v", err)
+	}
+	gtDir := filepath.Join(dir, "ground-truth")
+	if err := os.MkdirAll(gtDir, 0755); err != nil {
+		t.Fatalf("mkdir ground truth: %v", err)
+	}
+	body := strings.Join([]string{
+		`{"schema":"providapt.attack_ground_truth.v1","run_id":"r1","phase":"execution","tactic":"TA0002","technique":"T1059","command":"bash evil.sh","expected_event":"process_exec","expected_relation":"prov:wasInformedBy","actor":"bash","object":"pid:123","malicious":true}`,
+		`{"schema":"providapt.attack_ground_truth.v1","run_id":"r1","phase":"benign","command":"whoami","expected_event":"process_exec","expected_relation":"prov:wasInformedBy","actor":"whoami","object":"stdout","malicious":false}`,
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(gtDir, "r1.jsonl"), []byte(body), 0644); err != nil {
+		t.Fatalf("write ground truth: %v", err)
+	}
+	ts.SetAlertLogPath(alertPath)
+
+	w := apiGet(ts, "/api/v1/evaluation/ground-truth")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp GroundTruthResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Total != 2 || resp.Malicious != 1 || resp.Benign != 1 {
+		t.Fatalf("summary = %#v", resp)
+	}
+	if resp.RunID != "r1" || resp.Records[0].ExpectedEvent != "process_exec" {
+		t.Fatalf("ground truth response = %#v", resp)
+	}
+}
+
+func TestGroundTruthCorrelationEndpoint(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	alertPath := filepath.Join(dir, "alerts.ndjson")
+	if err := os.WriteFile(alertPath, []byte(`{"AlertNodeID":"p:123","Severity":40,"Pattern":"SCRIPT_CHILD","Headline":"bash spawned payload","DetectedAt":"2026-07-22T03:00:00Z"}`+"\n"), 0644); err != nil {
+		t.Fatalf("write alert log: %v", err)
+	}
+	gtDir := filepath.Join(dir, "ground-truth")
+	if err := os.MkdirAll(gtDir, 0755); err != nil {
+		t.Fatalf("mkdir ground truth: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(gtDir, "r1.jsonl"), []byte(`{"run_id":"r1","phase":"execution","command":"bash evil.sh","expected_event":"process_exec","expected_relation":"prov:wasInformedBy","actor":"bash","object":"pid:123","malicious":true}`+"\n"), 0644); err != nil {
+		t.Fatalf("write ground truth: %v", err)
+	}
+	event := `{"schema_version":1,"type":"process_exec","process":{"pid":123,"comm":"bash"},"payload":{"cmdline":"bash evil.sh","child_pid":124},"timestamp_ns":1000}` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "providapt-20260722T030000Z.ndjson"), []byte(event), 0644); err != nil {
+		t.Fatalf("write event log: %v", err)
+	}
+	ts.SetAlertLogPath(alertPath)
+
+	w := apiGet(ts, "/api/v1/evaluation/correlation")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp GroundTruthCorrelation
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Total != 1 || resp.MatchedRecords != 1 || resp.EventMatches != 1 || resp.Traceable != 1 {
+		t.Fatalf("correlation = %#v", resp)
+	}
+	if resp.Records[0].TraceNode != "p:123" {
+		t.Fatalf("trace node = %q", resp.Records[0].TraceNode)
+	}
+}
+
+func TestGroundTruthCorrelationRespectsExpectedEventType(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	alertPath := filepath.Join(dir, "alerts.ndjson")
+	if err := os.WriteFile(alertPath, nil, 0644); err != nil {
+		t.Fatalf("write alert log: %v", err)
+	}
+	gtDir := filepath.Join(dir, "ground-truth")
+	if err := os.MkdirAll(gtDir, 0755); err != nil {
+		t.Fatalf("mkdir ground truth: %v", err)
+	}
+	truth := `{"run_id":"r1","phase":"initial_access","command":"create payload script","expected_event":"file_write","expected_relation":"prov:wasGeneratedBy","actor":"bash","object":"/tmp/evil.sh","malicious":true}` + "\n"
+	if err := os.WriteFile(filepath.Join(gtDir, "r1.jsonl"), []byte(truth), 0644); err != nil {
+		t.Fatalf("write ground truth: %v", err)
+	}
+	events := strings.Join([]string{
+		`{"schema_version":1,"type":"file_open","process":{"pid":123,"comm":"bash"},"payload":{"pathname":"/tmp/evil.sh"},"timestamp_ns":1000}`,
+		`{"schema_version":1,"type":"file_write","process":{"pid":123,"comm":"bash"},"payload":{"pathname":"/tmp/evil.sh"},"timestamp_ns":2000}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "providapt-20260722T030000Z.ndjson"), []byte(events), 0644); err != nil {
+		t.Fatalf("write event log: %v", err)
+	}
+	ts.SetAlertLogPath(alertPath)
+
+	w := apiGet(ts, "/api/v1/evaluation/correlation")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d", w.Code)
+	}
+	var resp GroundTruthCorrelation
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.EventMatches != 1 || len(resp.Records) != 1 || len(resp.Records[0].EventMatches) != 1 {
+		t.Fatalf("correlation = %#v", resp)
+	}
+	if got := resp.Records[0].EventMatches[0].Type; got != "file_write" {
+		t.Fatalf("matched event type = %q", got)
+	}
+}
+
 func TestAlertWorkflowActionEndpoint(t *testing.T) {
 	ts := testServer(t)
 	var gotReq AlertWorkflowActionRequest
@@ -2325,6 +2465,21 @@ func TestSVGGeneration(t *testing.T) {
 	if !strings.Contains(string(svg), "ppid=1") {
 		t.Error("SVG missing parent PID detail")
 	}
+	if !strings.Contains(string(svg), "Causal direction is rendered as source -&gt; target") {
+		t.Error("SVG missing direction explanation")
+	}
+	if !strings.Contains(string(svg), "Tree layout is left-to-right") {
+		t.Error("SVG missing tree layout explanation")
+	}
+	if !strings.Contains(string(svg), `marker-end: url(#arrow-read)`) {
+		t.Error("SVG missing relation-specific arrow marker")
+	}
+	if !strings.Contains(string(svg), `<path d="M`) {
+		t.Error("SVG should render routed paths instead of straight-only lines")
+	}
+	if !strings.Contains(string(svg), `edge-label-read`) {
+		t.Error("SVG missing operation-specific edge label class")
+	}
 	t.Logf("SVG size: %d bytes", len(svg))
 }
 
@@ -2367,6 +2522,65 @@ func TestSVGFocusedGraph(t *testing.T) {
 }
 
 // ── Helpers tests ──────────────────────────────────────────
+
+func TestSVGTreeLayoutKeepsCrossLinksReadable(t *testing.T) {
+	nodes := []*provenance.Node{
+		{ID: "p:1", Label: "parent", Subtype: "process"},
+		{ID: "p:2", Label: "child-a", Subtype: "process"},
+		{ID: "p:3", Label: "child-b", Subtype: "process"},
+		{ID: "f:1", Label: "/tmp/payload", Subtype: "file"},
+	}
+	edges := []*provenance.Edge{
+		{ID: "e1", Source: "p:1", Target: "p:2", Relation: provenance.ProvWasInformedBy, Attributes: map[string]interface{}{"event": "process_fork"}},
+		{ID: "e2", Source: "p:1", Target: "p:3", Relation: provenance.ProvWasInformedBy, Attributes: map[string]interface{}{"event": "process_fork"}},
+		{ID: "e3", Source: "p:2", Target: "f:1", Relation: provenance.ProvWasGeneratedBy, Attributes: map[string]interface{}{"event": "file_write"}},
+		{ID: "e4", Source: "p:3", Target: "f:1", Relation: provenance.ProvUsed, Attributes: map[string]interface{}{"event": "file_open"}},
+	}
+	layout := layoutGraph(nodes, edges)
+	byID := map[string]svgNode{}
+	for _, node := range layout.nodes {
+		byID[node.id] = node
+	}
+	if byID["p:2"].x <= byID["p:1"].x || byID["f:1"].x <= byID["p:2"].x {
+		t.Fatalf("expected left-to-right tree coordinates: %#v", byID)
+	}
+	treeEdges := 0
+	crossEdges := 0
+	for _, edge := range layout.edges {
+		if edge.tree {
+			treeEdges++
+		} else {
+			crossEdges++
+		}
+	}
+	if treeEdges != 3 || crossEdges != 1 {
+		t.Fatalf("tree/cross edge split = %d/%d, want 3/1", treeEdges, crossEdges)
+	}
+	svg := string(renderSVG(layout))
+	if !strings.Contains(svg, `class="edge edge-cross`) || !strings.Contains(svg, `data-tree="false"`) {
+		t.Fatalf("SVG should preserve non-tree links as dashed cross-links: %s", svg)
+	}
+}
+
+func TestLoadAlertsReadsRotatedNDJSON(t *testing.T) {
+	dir := t.TempDir()
+	archive := filepath.Join(dir, "alerts-20260722T010000Z.ndjson")
+	active := filepath.Join(dir, "alerts.ndjson")
+	if err := os.WriteFile(archive, []byte(`{"id":"old","status":"open"}`+"\n"), 0644); err != nil {
+		t.Fatalf("write archive: %v", err)
+	}
+	if err := os.WriteFile(active, []byte(`{"id":"active","status":"open"}`+"\n"), 0644); err != nil {
+		t.Fatalf("write active: %v", err)
+	}
+
+	alerts := loadAlerts(active)
+	if len(alerts) != 2 {
+		t.Fatalf("alerts = %d, want 2: %#v", len(alerts), alerts)
+	}
+	if alerts[0]["id"] != "old" || alerts[1]["id"] != "active" {
+		t.Fatalf("alert order/content = %#v", alerts)
+	}
+}
 
 func TestShortRel(t *testing.T) {
 	tests := []struct{ in, want string }{

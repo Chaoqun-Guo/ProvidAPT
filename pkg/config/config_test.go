@@ -139,14 +139,20 @@ func TestOutputDirDefault(t *testing.T) {
 	if cfg.Output.MaxFileBytes != 16*1024*1024 {
 		t.Errorf("Output.MaxFileBytes = %d", cfg.Output.MaxFileBytes)
 	}
-	if cfg.Output.RetainFiles != 1 {
+	if cfg.Output.RetainFiles != 0 {
 		t.Errorf("Output.RetainFiles = %d", cfg.Output.RetainFiles)
+	}
+	if cfg.Output.RetainMaxBytes != 4*1024*1024*1024 {
+		t.Errorf("Output.RetainMaxBytes = %d", cfg.Output.RetainMaxBytes)
 	}
 	if cfg.Output.AlertMaxFileBytes != 8*1024*1024 {
 		t.Errorf("Output.AlertMaxFileBytes = %d", cfg.Output.AlertMaxFileBytes)
 	}
-	if cfg.Output.AlertRetainFiles != 1 {
+	if cfg.Output.AlertRetainFiles != 0 {
 		t.Errorf("Output.AlertRetainFiles = %d", cfg.Output.AlertRetainFiles)
+	}
+	if cfg.Output.AlertRetainBytes != 256*1024*1024 {
+		t.Errorf("Output.AlertRetainBytes = %d", cfg.Output.AlertRetainBytes)
 	}
 }
 
@@ -177,8 +183,10 @@ output:
   format: json
   max_file_bytes: 1048576
   retain_files: 2
+  retain_max_bytes: 4194304
   alert_max_file_bytes: 524288
   alert_retain_files: 0
+  alert_retain_max_bytes: 1048576
 log:
   level: debug
 api:
@@ -200,11 +208,11 @@ capture:
 	if cfg.Log.Level != "debug" {
 		t.Errorf("log level = %q", cfg.Log.Level)
 	}
-	if cfg.Output.MaxFileBytes != 1048576 || cfg.Output.RetainFiles != 2 {
-		t.Errorf("output event rotation = %d/%d", cfg.Output.MaxFileBytes, cfg.Output.RetainFiles)
+	if cfg.Output.MaxFileBytes != 1048576 || cfg.Output.RetainFiles != 2 || cfg.Output.RetainMaxBytes != 4194304 {
+		t.Errorf("output event rotation = %d/%d/%d", cfg.Output.MaxFileBytes, cfg.Output.RetainFiles, cfg.Output.RetainMaxBytes)
 	}
-	if cfg.Output.AlertMaxFileBytes != 524288 || cfg.Output.AlertRetainFiles != 0 {
-		t.Errorf("output alert rotation = %d/%d", cfg.Output.AlertMaxFileBytes, cfg.Output.AlertRetainFiles)
+	if cfg.Output.AlertMaxFileBytes != 524288 || cfg.Output.AlertRetainFiles != 0 || cfg.Output.AlertRetainBytes != 1048576 {
+		t.Errorf("output alert rotation = %d/%d/%d", cfg.Output.AlertMaxFileBytes, cfg.Output.AlertRetainFiles, cfg.Output.AlertRetainBytes)
 	}
 	if cfg.API.REST != ":9090" {
 		t.Errorf("rest addr = %q", cfg.API.REST)
@@ -239,8 +247,10 @@ dir = "/tmp/providapt-toml"
 format = "json"
 max_file_bytes = 2097152
 retain_files = 3
+retain_max_bytes = 8388608
 alert_max_file_bytes = 1048576
 alert_retain_files = 1
+alert_retain_max_bytes = 2097152
 
 [api]
 rest = ":18080"
@@ -265,11 +275,11 @@ scan_interval = "5s"
 	if cfg.API.REST != ":18080" {
 		t.Fatalf("api rest = %q", cfg.API.REST)
 	}
-	if cfg.Output.MaxFileBytes != 2097152 || cfg.Output.RetainFiles != 3 {
-		t.Fatalf("output event rotation = %d/%d", cfg.Output.MaxFileBytes, cfg.Output.RetainFiles)
+	if cfg.Output.MaxFileBytes != 2097152 || cfg.Output.RetainFiles != 3 || cfg.Output.RetainMaxBytes != 8388608 {
+		t.Fatalf("output event rotation = %d/%d/%d", cfg.Output.MaxFileBytes, cfg.Output.RetainFiles, cfg.Output.RetainMaxBytes)
 	}
-	if cfg.Output.AlertMaxFileBytes != 1048576 || cfg.Output.AlertRetainFiles != 1 {
-		t.Fatalf("output alert rotation = %d/%d", cfg.Output.AlertMaxFileBytes, cfg.Output.AlertRetainFiles)
+	if cfg.Output.AlertMaxFileBytes != 1048576 || cfg.Output.AlertRetainFiles != 1 || cfg.Output.AlertRetainBytes != 2097152 {
+		t.Fatalf("output alert rotation = %d/%d/%d", cfg.Output.AlertMaxFileBytes, cfg.Output.AlertRetainFiles, cfg.Output.AlertRetainBytes)
 	}
 	if got := cfg.Capture.IncludeComms; len(got) != 2 || got[0] != "curl" || got[1] != "bash" {
 		t.Fatalf("include_comms = %#v, want [curl bash]", got)

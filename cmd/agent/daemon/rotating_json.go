@@ -24,9 +24,10 @@ type rotatingJSONEncoder struct {
 	currentBytes int64
 	maxFileBytes int64
 	retainFiles  int
+	retainBytes  int64
 }
 
-func newRotatingJSONEncoder(path string, maxFileBytes int64, retainFiles int) (*rotatingJSONEncoder, error) {
+func newRotatingJSONEncoder(path string, maxFileBytes int64, retainFiles int, retainBytes ...int64) (*rotatingJSONEncoder, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return nil, fmt.Errorf("create json log dir: %w", err)
 	}
@@ -44,6 +45,10 @@ func newRotatingJSONEncoder(path string, maxFileBytes int64, retainFiles int) (*
 	if retainFiles < 0 {
 		retainFiles = defaultAlertRetainFiles
 	}
+	var maxRetainBytes int64
+	if len(retainBytes) > 0 {
+		maxRetainBytes = retainBytes[0]
+	}
 	ext := filepath.Ext(path)
 	base := path[:len(path)-len(ext)]
 	return &rotatingJSONEncoder{
@@ -53,6 +58,7 @@ func newRotatingJSONEncoder(path string, maxFileBytes int64, retainFiles int) (*
 		currentBytes: currentBytes,
 		maxFileBytes: maxFileBytes,
 		retainFiles:  retainFiles,
+		retainBytes:  maxRetainBytes,
 	}, nil
 }
 
@@ -70,6 +76,9 @@ func (e *rotatingJSONEncoder) Encode(v interface{}) error {
 	}
 	n, err := e.f.Write(record)
 	e.currentBytes += int64(n)
+	if e.retainBytes > 0 {
+		e.pruneOldArchivesBySizeLocked()
+	}
 	return err
 }
 
@@ -115,11 +124,15 @@ func (e *rotatingJSONEncoder) archivePath() string {
 }
 
 func (e *rotatingJSONEncoder) pruneOldArchivesLocked() {
+	if e.retainBytes > 0 {
+		e.pruneOldArchivesBySizeLocked()
+		return
+	}
 	if e.retainFiles <= 0 {
 		matches, _ := filepath.Glob(e.archiveGlob)
 		for _, path := range matches {
 			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				log.Printf("[daemon] prune json log %s: %v", path, err)
+				log.Printf("[daemon] prune json log %s by file-count retention failed: %v", path, err)
 			}
 		}
 		return
@@ -138,7 +151,48 @@ func (e *rotatingJSONEncoder) pruneOldArchivesLocked() {
 	})
 	for _, path := range matches[:len(matches)-e.retainFiles] {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			log.Printf("[daemon] prune json log %s: %v", path, err)
+			log.Printf("[daemon] prune json log %s by file-count retention failed: %v", path, err)
+		} else {
+			log.Printf("[daemon] pruned json log %s by file-count retention retain_files=%d", path, e.retainFiles)
 		}
+	}
+}
+
+func (e *rotatingJSONEncoder) pruneOldArchivesBySizeLocked() {
+	matches, err := filepath.Glob(e.archiveGlob)
+	if err != nil || len(matches) == 0 {
+		return
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		iInfo, iErr := os.Stat(matches[i])
+		jInfo, jErr := os.Stat(matches[j])
+		if iErr == nil && jErr == nil && !iInfo.ModTime().Equal(jInfo.ModTime()) {
+			return iInfo.ModTime().After(jInfo.ModTime())
+		}
+		return matches[i] > matches[j]
+	})
+	total := e.currentBytes
+	for _, path := range matches {
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		total += info.Size()
+	}
+	if total <= e.retainBytes {
+		return
+	}
+	for i := len(matches) - 1; i >= 0 && total > e.retainBytes; i-- {
+		path := matches[i]
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			log.Printf("[daemon] prune json log %s by byte-budget retention failed: %v", path, err)
+			continue
+		}
+		total -= info.Size()
+		log.Printf("[daemon] pruned json log %s by byte-budget retention retained_bytes=%d retain_max_bytes=%d", path, total, e.retainBytes)
 	}
 }

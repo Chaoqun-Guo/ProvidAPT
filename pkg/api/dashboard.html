@@ -139,6 +139,15 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .delivery-inline-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .delivery-inline-actions button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
 .delivery-inline-actions button.secondary { background: #30363d; }
+.ground-truth-toolbar { display:grid; grid-template-columns: minmax(160px, 1fr) auto auto auto; gap: 6px; margin: 8px 0; align-items:center; }
+.ground-truth-toolbar input[type="file"] { min-width:0; color:#8b949e; font-size:11px; }
+.truth-phase-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; margin: 8px 0; }
+.truth-record { align-items:flex-start; }
+.truth-record .alert-msg { display:block; line-height:1.35; }
+.truth-record code { color:#8b949e; font-size:11px; }
+.truth-badge { display:inline-block; padding:1px 6px; border-radius:999px; font-size:10px; margin-right:6px; border:1px solid #30363d; }
+.truth-badge.malicious { color:#ffb3ad; border-color:#da3633; background:#2b1618; }
+.truth-badge.benign { color:#b7f7c2; border-color:#238636; background:#10261c; }
 .trace-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-left: 8px; }
 .trace-actions a { color: #58a6ff; border: 1px solid #30363d; border-radius: 999px; padding: 2px 7px; font-size: 11px; text-decoration: none; white-space: nowrap; }
 .trace-actions a:hover { background: #1a1f27; border-color: #58a6ff; text-decoration: none; }
@@ -372,6 +381,28 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
     </div>
   </div>
   <div class="panel">
+    <h2>Evaluation Ground Truth</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="filterGroundTruth('all')"><div class="value" id="gtTotal">--</div><div class="label">Records</div></div>
+        <div class="policy-item clickable" onclick="filterGroundTruth('malicious')"><div class="value" id="gtMalicious">--</div><div class="label">Malicious</div></div>
+        <div class="policy-item clickable" onclick="filterGroundTruth('benign')"><div class="value" id="gtBenign">--</div><div class="label">Benign</div></div>
+        <div class="policy-item clickable" onclick="showGroundTruthCorrelation()"><div class="value" id="gtRunID">--</div><div class="label">Run ID</div></div>
+      </div>
+      <div class="ground-truth-toolbar">
+        <input id="groundTruthFile" type="file" accept=".jsonl,.json,application/json">
+        <button class="secondary" onclick="loadGroundTruthFromFile()">Load Local JSONL</button>
+        <button class="secondary" onclick="loadGroundTruth()">Load Server</button>
+        <button class="secondary" onclick="showGroundTruthCorrelation()">Correlate</button>
+      </div>
+      <div class="truth-phase-grid" id="groundTruthPhaseGrid"></div>
+      <div class="loading" id="groundTruthStatus">Load a ground truth JSONL file or server records.</div>
+      <div class="alerts-list" id="groundTruthList">
+        <div class="loading">No ground truth loaded yet.</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
     <h2>Delivery Health</h2>
     <div class="panel-body">
       <div class="policy-grid">
@@ -476,6 +507,9 @@ let latestPolicies = {};
 let latestWorkflow = { alerts: [], history: [] };
 let latestDeliveries = { recent: [], dead_letters: [], history: [] };
 let latestCompliance = {};
+let latestGroundTruth = { records: [], phases: {}, files: [] };
+let latestGroundTruthCorrelation = { records: [] };
+let groundTruthFilter = 'all';
 let apiKey = localStorage.getItem('providapt_api_key') || '';
 let lastAPIRequest = null;
 
@@ -798,6 +832,18 @@ function setText(id, value) {
 
 function jsString(value) {
   return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function truncateText(value, max) {
+  const text = String(value == null ? '' : value);
+  if (text.length <= max) return text;
+  return text.slice(0, Math.max(0, max - 3)) + '...';
+}
+
+function formatNumber(value) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return '0';
+  return num % 1 === 0 ? String(num) : num.toFixed(1);
 }
 
 function handleCardKey(event, fn) {
@@ -1917,6 +1963,208 @@ async function runAlertWorkflowBulkAction(action) {
   }
 }
 
+async function loadGroundTruth() {
+  const status = document.getElementById('groundTruthStatus');
+  if (status) status.textContent = 'Loading server ground truth records...';
+  try {
+    const data = await fetchJSON('/api/v1/evaluation/ground-truth?limit=500');
+    latestGroundTruth = data || { records: [], phases: {}, files: [] };
+    groundTruthFilter = 'all';
+    renderGroundTruth();
+  } catch (e) {
+    latestGroundTruth = { records: [], phases: {}, files: [] };
+    renderGroundTruth('Server ground truth unavailable: ' + e.message + '. Use Load Local JSONL for local evidence files.');
+  }
+}
+
+async function loadGroundTruthFromFile() {
+  const input = document.getElementById('groundTruthFile');
+  const file = input && input.files && input.files[0];
+  if (!file) {
+    renderGroundTruth('Choose a .jsonl ground truth file first.');
+    return;
+  }
+  const text = await file.text();
+  const records = parseGroundTruthJSONL(text, file.name);
+  latestGroundTruth = summarizeGroundTruthRecords(records, [file.name]);
+  groundTruthFilter = 'all';
+  renderGroundTruth();
+}
+
+function parseGroundTruthJSONL(text, sourceFile) {
+  return String(text || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+    try {
+      const record = JSON.parse(line);
+      record.source_file = record.source_file || sourceFile;
+      return record;
+    } catch (e) {
+      return null;
+    }
+  }).filter(Boolean);
+}
+
+function summarizeGroundTruthRecords(records, files) {
+  const phases = {};
+  let malicious = 0;
+  let benign = 0;
+  records.forEach(record => {
+    if (record.malicious) malicious += 1; else benign += 1;
+    const phase = record.phase || 'unknown';
+    phases[phase] = (phases[phase] || 0) + 1;
+  });
+  return {
+    updated_at: new Date().toISOString(),
+    run_id: records[0] ? (records[0].run_id || '') : '',
+    files: files || [],
+    total: records.length,
+    malicious: malicious,
+    benign: benign,
+    phases: phases,
+    records: records,
+  };
+}
+
+function renderGroundTruth(message) {
+  const data = latestGroundTruth || {};
+  const records = data.records || [];
+  const filtered = records.filter(record => {
+    if (groundTruthFilter === 'malicious') return !!record.malicious;
+    if (groundTruthFilter === 'benign') return !record.malicious;
+    if (groundTruthFilter && groundTruthFilter !== 'all') return String(record.phase || '') === groundTruthFilter;
+    return true;
+  });
+  setText('gtTotal', data.total != null ? data.total : records.length);
+  setText('gtMalicious', data.malicious != null ? data.malicious : records.filter(r => r.malicious).length);
+  setText('gtBenign', data.benign != null ? data.benign : records.filter(r => !r.malicious).length);
+  setText('gtRunID', truncateText(data.run_id || '--', 16));
+  renderGroundTruthPhases(data.phases || {});
+  const status = document.getElementById('groundTruthStatus');
+  if (status) {
+    const files = (data.files || []).join(', ');
+    status.textContent = message || (records.length
+      ? 'Loaded ' + records.length + ' record(s)' + (data.run_id ? ' from run ' + data.run_id : '') + (files ? ' · ' + files : '')
+      : 'No server ground truth found. Upload a local JSONL file or place records under /var/log/providapt/ground-truth/.');
+  }
+  const list = document.getElementById('groundTruthList');
+  if (!list) return;
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="loading">No ground truth records match this filter.</div>';
+    return;
+  }
+  list.innerHTML = filtered.slice(0, 80).map(renderGroundTruthRecord).join('');
+}
+
+function renderGroundTruthPhases(phases) {
+  const grid = document.getElementById('groundTruthPhaseGrid');
+  if (!grid) return;
+  const entries = Object.entries(phases || {}).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    grid.innerHTML = '';
+    return;
+  }
+  grid.innerHTML = entries.map(([phase, count]) =>
+    '<div class="mini-card clickable" data-ground-truth-phase="' + escapeHTML(phase) + '">' +
+    '<div class="value">' + count + '</div><div class="label">' + escapeHTML(phase) + '</div></div>'
+  ).join('');
+  grid.querySelectorAll('[data-ground-truth-phase]').forEach(item => {
+    item.onclick = () => filterGroundTruth(item.getAttribute('data-ground-truth-phase'));
+  });
+}
+
+function renderGroundTruthRecord(record) {
+  const kind = record.malicious ? 'malicious' : 'benign';
+  const object = record.object || '';
+  const nodeID = groundTruthNodeID(record);
+  const traceLink = nodeID
+    ? '<a href="/api/v1/alerts/' + encodeURIComponent(nodeID) + '/svg" target="_blank" rel="noreferrer">Trace SVG</a>'
+    : '';
+  const eventLink = record.expected_event || record.command || record.actor
+    ? '<a href="/api/v1/events/search?pattern=' + encodeURIComponent(record.actor || record.expected_event || record.command || '') + '&limit=50" target="_blank" rel="noreferrer">Events</a>'
+    : '';
+  return '<div class="alert-item truth-record">' +
+    '<span class="alert-sev sev-' + (record.malicious ? 'high' : 'low') + '">' + escapeHTML(record.phase || 'unknown') + '</span>' +
+    '<span class="alert-msg"><span class="truth-badge ' + kind + '">' + kind + '</span>' +
+    escapeHTML(record.command || record.technique || 'ground truth record') +
+    '<br><code>' + escapeHTML((record.actor || '?') + ' -> ' + object + ' · ' + (record.expected_event || '?') + ' · ' + (record.expected_relation || '?')) + '</code></span>' +
+    '<span class="trace-actions">' + traceLink + eventLink + '</span>' +
+    '</div>';
+}
+
+function filterGroundTruth(filter) {
+  groundTruthFilter = filter || 'all';
+  renderGroundTruth();
+  setInvestigationItems((latestGroundTruth.records || []).filter(record => {
+    if (groundTruthFilter === 'malicious') return !!record.malicious;
+    if (groundTruthFilter === 'benign') return !record.malicious;
+    if (groundTruthFilter !== 'all') return String(record.phase || '') === groundTruthFilter;
+    return true;
+  }).slice(0, 20).map(record => renderKVItem(record.phase || 'ground truth', record.command || record.technique || '', (record.actor || '?') + ' -> ' + (record.object || '?'))), 'No ground truth records loaded');
+}
+
+async function showGroundTruthCorrelation() {
+  try {
+    const data = await fetchJSON('/api/v1/evaluation/correlation?limit=200');
+    latestGroundTruthCorrelation = data || { records: [] };
+    renderGroundTruthCorrelation(data);
+    return;
+  } catch (e) {
+    setInvestigationLoading('Server correlation unavailable; using browser-loaded ground truth: ' + e.message);
+  }
+  renderLocalGroundTruthCorrelation();
+}
+
+function renderGroundTruthCorrelation(data) {
+  const records = (data && data.records) || [];
+  const rows = [
+    renderKVItem('coverage', formatNumber(data.coverage_percent || 0) + '%', (data.matched_records || 0) + '/' + (data.total || 0) + ' matched'),
+    renderKVItem('event matches', data.event_matches || 0, 'records with raw event evidence'),
+    renderKVItem('alert matches', data.alert_matches || 0, 'records with workflow alert evidence'),
+    renderKVItem('traceable records', data.traceable || 0, 'records with p:<pid> trace links'),
+  ];
+  records.slice(0, 24).forEach(row => {
+    const truth = row.ground_truth || {};
+    const label = (truth.phase || 'ground truth') + (truth.malicious ? ' · malicious' : ' · benign');
+    const value = row.status || 'unknown';
+    const matches = (row.event_matches || []).length + ' events, ' + (row.alert_matches || []).length + ' alerts';
+    const trace = row.trace_node ? ' · trace ' + row.trace_node : '';
+    rows.push(renderKVItem(label, value, matches + trace));
+  });
+  setInvestigationItems(rows, 'No ground truth correlation data available');
+  const status = document.getElementById('groundTruthStatus');
+  if (status) {
+    status.textContent = 'Correlation coverage ' + formatNumber(data.coverage_percent || 0) + '% · ' + (data.matched_records || 0) + '/' + (data.total || 0) + ' records matched';
+  }
+}
+
+function renderLocalGroundTruthCorrelation() {
+  const records = latestGroundTruth.records || [];
+  const alerts = latestWorkflow.alerts || [];
+  const rows = [
+    renderKVItem('ground truth records', records.length, (latestGroundTruth.run_id || 'no run id')),
+    renderKVItem('loaded alerts', alerts.length, alerts.length ? 'workflow available' : 'no workflow alerts loaded'),
+  ];
+  records.filter(record => record.malicious).slice(0, 10).forEach(record => {
+    const hit = alerts.find(alert => alertMatchesTruth(alert, record));
+    rows.push(renderKVItem(record.phase || 'malicious', hit ? 'matched alert ' + hit.id : 'no direct alert match', record.actor + ' -> ' + record.object));
+  });
+  setInvestigationItems(rows, 'Load ground truth and alerts before correlating.');
+}
+
+function alertMatchesTruth(alert, record) {
+  const haystack = [alert.id, alert.pattern, alert.headline, alert.reason].join(' ').toLowerCase();
+  return [record.actor, record.object, record.expected_event, record.phase]
+    .filter(Boolean)
+    .some(value => haystack.indexOf(String(value).toLowerCase()) >= 0);
+}
+
+function groundTruthNodeID(record) {
+  const object = String(record.object || '');
+  if (/^p:\d+$/.test(object)) return object;
+  const pidMatch = object.match(/^pid:(\d+)$/);
+  if (pidMatch) return 'p:' + pidMatch[1];
+  return '';
+}
+
 async function runPolicyAction(payload) {
   const status = document.getElementById('policyActionStatus');
   if (status) {
@@ -2658,7 +2906,7 @@ function initializePanelLayout() {
 async function refresh() {
   const now = new Date();
   document.getElementById('refreshInfo').textContent = 'Updated: ' + now.toLocaleTimeString();
-  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadBackups(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadCompliance()]);
+  await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadBackups(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadCompliance(), loadGroundTruth()]);
   loadOperationsSummary();
   classifyDashboardButtons();
 }

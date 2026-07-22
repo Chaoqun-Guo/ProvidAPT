@@ -1346,6 +1346,7 @@ func main() {
 	writer, err := storage.NewWriterWithOptions(cfg.Output.Dir, cfg.Output.Format, storage.JSONWriterOptions{
 		MaxFileBytes: cfg.Output.MaxFileBytes,
 		RetainFiles:  cfg.Output.RetainFiles,
+		RetainBytes:  cfg.Output.RetainMaxBytes,
 	})
 	if err != nil {
 		logx.System().Error("storage writer init failed", "error", err)
@@ -1355,6 +1356,7 @@ func main() {
 
 	// ── API server with /health and /metrics ────────────
 	apiServer := api.NewServer(cfg.API.REST, graph, nil)
+	apiServer.SetAlertLogPath(filepath.Join(cfg.Output.Dir, "alerts.ndjson"))
 	deliveryAudit := newDeliveryActionAuditStore(deliveryAuditHistoryLimit)
 	policyAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	workflowAudit := newControlActionAuditStore(controlActionHistoryLimit)
@@ -3256,7 +3258,7 @@ func main() {
 
 	// ── Real-time alert persistence (NDJSON) ──────────────
 	alertPath := filepath.Join(cfg.Output.Dir, "alerts.ndjson")
-	alertEnc, err := newRotatingJSONEncoder(alertPath, cfg.Output.AlertMaxFileBytes, cfg.Output.AlertRetainFiles)
+	alertEnc, err := newRotatingJSONEncoder(alertPath, cfg.Output.AlertMaxFileBytes, cfg.Output.AlertRetainFiles, cfg.Output.AlertRetainBytes)
 	if err != nil {
 		logx.System().Error("alert file open failed", "error", err)
 	}

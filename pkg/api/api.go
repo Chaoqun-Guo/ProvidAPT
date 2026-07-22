@@ -9,6 +9,7 @@
 package api
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -31,9 +32,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/metrics"
 )
 
-// ═══════════════════════════════════════════════════════════════
 // Health check types
-// ═══════════════════════════════════════════════════════════════
 
 // HealthStatus represents the current health of the daemon.
 type HealthStatus struct {
@@ -645,6 +644,58 @@ type AlertWorkflowActionResult struct {
 	Errors    []string            `json:"errors,omitempty"`
 }
 
+type GroundTruthRecord struct {
+	Schema           string                 `json:"schema,omitempty"`
+	RunID            string                 `json:"run_id,omitempty"`
+	Timestamp        string                 `json:"timestamp,omitempty"`
+	Phase            string                 `json:"phase,omitempty"`
+	Tactic           string                 `json:"tactic,omitempty"`
+	Technique        string                 `json:"technique,omitempty"`
+	Command          string                 `json:"command,omitempty"`
+	ExpectedEvent    string                 `json:"expected_event,omitempty"`
+	ExpectedRelation string                 `json:"expected_relation,omitempty"`
+	Actor            string                 `json:"actor,omitempty"`
+	Object           string                 `json:"object,omitempty"`
+	Malicious        bool                   `json:"malicious"`
+	SourceFile       string                 `json:"source_file,omitempty"`
+	Extra            map[string]interface{} `json:"extra,omitempty"`
+}
+
+type GroundTruthResponse struct {
+	UpdatedAt  string              `json:"updated_at"`
+	RunID      string              `json:"run_id,omitempty"`
+	Files      []string            `json:"files"`
+	Total      int                 `json:"total"`
+	Malicious  int                 `json:"malicious"`
+	Benign     int                 `json:"benign"`
+	Phases     map[string]int      `json:"phases"`
+	Records    []GroundTruthRecord `json:"records"`
+	SourceHint string              `json:"source_hint,omitempty"`
+}
+
+type GroundTruthCorrelation struct {
+	UpdatedAt       string                         `json:"updated_at"`
+	RunID           string                         `json:"run_id,omitempty"`
+	Total           int                            `json:"total"`
+	Malicious       int                            `json:"malicious"`
+	Benign          int                            `json:"benign"`
+	MatchedRecords  int                            `json:"matched_records"`
+	EventMatches    int                            `json:"event_matches"`
+	AlertMatches    int                            `json:"alert_matches"`
+	Traceable       int                            `json:"traceable"`
+	CoveragePercent float64                        `json:"coverage_percent"`
+	Records         []GroundTruthCorrelationRecord `json:"records"`
+}
+
+type GroundTruthCorrelationRecord struct {
+	GroundTruth  GroundTruthRecord   `json:"ground_truth"`
+	TraceNode    string              `json:"trace_node,omitempty"`
+	EventMatches []EventRecord       `json:"event_matches,omitempty"`
+	AlertMatches []AlertWorkflowItem `json:"alert_matches,omitempty"`
+	Status       string              `json:"status"`
+	Reason       string              `json:"reason,omitempty"`
+}
+
 type NotifyDeliverySummary struct {
 	Delivered  int `json:"delivered"`
 	Retrying   int `json:"retrying"`
@@ -767,9 +818,7 @@ type InvestigationReport struct {
 	Edges           []InvestigationEdge `json:"edges"`
 }
 
-// ═══════════════════════════════════════════════════════════════
 // Server
-// ═══════════════════════════════════════════════════════════════
 
 type Server struct {
 	addr                     string
@@ -820,6 +869,7 @@ type Server struct {
 	corsOrigins              []string
 	runtimeMu                sync.RWMutex
 	runtimeDiagnostics       RuntimeDiagnostics
+	alertLogPath             string
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
@@ -833,6 +883,10 @@ func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
 	s.SetDefaultControlHandlers()
 	s.mux = s.buildMux()
 	return s
+}
+
+func (s *Server) SetAlertLogPath(path string) {
+	s.alertLogPath = path
 }
 
 // SetHealthFunc registers a health check callback for the /health endpoint.
@@ -1015,7 +1069,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 1. Cluster Overview — returns this node as a single-agent cluster.
+	// 1. Cluster Overview - returns this node as a single-agent cluster.
 	s.clusterFn = func() ClusterOverview {
 		return ClusterOverview{
 			UpdatedAt:      time.Now().UTC().Format(time.RFC3339),
@@ -1026,7 +1080,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 1b. HA Status — standalone by default, override in clustered deployments.
+	// 1b. HA Status - standalone by default, override in clustered deployments.
 	s.haFn = func() HAStatus {
 		return HAStatus{
 			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
@@ -1042,7 +1096,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 2. Fleet List — returns the local agent.
+	// 2. Fleet List - returns the local agent.
 	s.fleetListFn = func(group, tag string) FleetList {
 		return FleetList{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -1053,7 +1107,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 3. Support Bundles — check for existing bundle files.
+	// 3. Support Bundles - check for existing bundle files.
 	s.supportFn = func() SupportBundleSummary {
 		summary := SupportBundleSummary{
 			History: []ControlActionAudit{},
@@ -1075,7 +1129,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		return summary
 	}
 
-	// 4. Audit Feed — returns an empty feed (requires audit store).
+	// 4. Audit Feed - returns an empty feed (requires audit store).
 	s.auditFn = func(category, source string, limit int) AuditFeed {
 		return AuditFeed{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -1085,7 +1139,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 5. License Status — check for license file at common paths.
+	// 5. License Status - check for license file at common paths.
 	s.licenseFn = func() LicenseStatus {
 		ls := LicenseStatus{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -1111,7 +1165,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		return ls
 	}
 
-	// 6. Upgrade Readiness — show current version.
+	// 6. Upgrade Readiness - show current version.
 	s.upgradeFn = func() UpgradeReadiness {
 		ur := UpgradeReadiness{
 			UpdatedAt:      time.Now().UTC().Format(time.RFC3339),
@@ -1136,7 +1190,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		return ur
 	}
 
-	// 7. Policy Center — return current rules count if available.
+	// 7. Policy Center - return current rules count if available.
 	s.policyFn = func() PolicyCenter {
 		return PolicyCenter{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -1156,7 +1210,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 8. Alert Workflow — return empty alert list.
+	// 8. Alert Workflow - return empty alert list.
 	s.alertsFn = func(status, assignee string) AlertWorkflow {
 		return AlertWorkflow{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -1172,7 +1226,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 9. Notify Delivery Center — return empty delivery records.
+	// 9. Notify Delivery Center - return empty delivery records.
 	s.deliveryFn = func() NotifyDeliveryCenter {
 		return NotifyDeliveryCenter{
 			UpdatedAt:   time.Now().UTC().Format(time.RFC3339),
@@ -1228,7 +1282,7 @@ func (s *Server) SetCORSOrigins(origins []string) {
 }
 
 func (s *Server) buildHandlerChain() http.Handler {
-	// Middleware order: auth → rate limit → recovery → CORS → logging → handler
+	// Middleware order: auth -> rate limit -> recovery -> CORS -> logging -> handler
 	var h http.Handler = s.mux
 	h = loggingMiddleware(h)
 	h = corsMiddleware(s.corsOrigins)(h)
@@ -1307,6 +1361,8 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/alerts/", s.jsonHandler(s.handleAlerts))
 	mux.HandleFunc("/api/v1/admin/reload", s.jsonHandler(s.handleReload))
 	mux.HandleFunc("/api/v1/events/search", s.jsonHandler(s.handleEventSearch))
+	mux.HandleFunc("/api/v1/evaluation/ground-truth", s.jsonHandler(s.handleGroundTruth))
+	mux.HandleFunc("/api/v1/evaluation/correlation", s.jsonHandler(s.handleGroundTruthCorrelation))
 	mux.HandleFunc("/api/v1/investigation/report", s.jsonHandler(s.handleInvestigationReport))
 	mux.HandleFunc("/dashboard", s.handleDashboard)
 	mux.HandleFunc("/", s.handleDashboard)
@@ -1334,9 +1390,7 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-// ═══════════════════════════════════════════════════════════════
 // Handlers
-// ═══════════════════════════════════════════════════════════════
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 	stats := s.graph.Stats()
@@ -2205,6 +2259,13 @@ func (s *Server) handleAlertWorkflow(w http.ResponseWriter, r *http.Request) err
 				workflow.Alerts = []AlertWorkflowItem{}
 			}
 		}
+		if len(workflow.Alerts) == 0 {
+			diskAlerts := loadAlertWorkflowItems(s.alertLogPath, r.URL.Query().Get("status"), r.URL.Query().Get("assignee"))
+			if len(diskAlerts) > 0 {
+				workflow.Alerts = diskAlerts
+				workflow.Summary = summarizeAlertWorkflowItems(diskAlerts)
+			}
+		}
 		return json.NewEncoder(w).Encode(workflow)
 	case http.MethodPost:
 		if s.alertActFn == nil {
@@ -2323,7 +2384,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) error {
 	return writeCytoscape(w, nodes, edges)
 }
 
-// ── Node operations: /api/v1/graph/node/{id}/backward or /forward ──
+//  Node operations: /api/v1/graph/node/{id}/backward or /forward
 
 func (s *Server) handleNode(w http.ResponseWriter, r *http.Request) error {
 	// Parse path: /api/v1/graph/node/<id>/<action>
@@ -2478,10 +2539,10 @@ func (s *Server) collectForwardTrace(nodeID string, depth int) ([]*provenance.No
 	return dedupeNodes(nodes), dedupeEdges(edges)
 }
 
-// ── Alerts: /api/v1/alerts ──────────────────────────────────
+//  Alerts: /api/v1/alerts
 
 func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) error {
-	alerts := loadAlerts("")
+	alerts := loadAlerts(s.alertLogPath)
 	// Check for /alerts/{id}/svg sub-path
 	if rest := strings.TrimPrefix(r.URL.Path, "/api/v1/alerts"); rest != "" && rest != "/" {
 		return s.handleAlertSVG(w, r, strings.TrimPrefix(rest, "/"))
@@ -2509,7 +2570,7 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, _ *http.Request, path str
 	return err
 }
 
-// ── Admin: /api/v1/admin/reload ──────────────────────────────
+//  Admin: /api/v1/admin/reload
 
 // handleReload triggers a config reload of all components.
 // POST only; returns 405 for other methods.
@@ -2535,9 +2596,7 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) error {
 	})
 }
 
-// ═══════════════════════════════════════════════════════════════
 // Middleware
-// ═══════════════════════════════════════════════════════════════
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2547,9 +2606,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// ═══════════════════════════════════════════════════════════════
 // Cytoscape.js JSON writer
-// ═══════════════════════════════════════════════════════════════
 
 type cytoGraph struct {
 	Data     cytoMeta      `json:"data"`
@@ -2805,9 +2862,7 @@ func escapeMarkdownCell(value string) string {
 	return strings.ReplaceAll(value, "|", "\\|")
 }
 
-// ═══════════════════════════════════════════════════════════════
 // Helpers
-// ═══════════════════════════════════════════════════════════════
 
 func queryInt(r *http.Request, key string, def int) int {
 	s := r.URL.Query().Get(key)
@@ -2849,15 +2904,612 @@ func filterByPID(nodes []*provenance.Node, edges []*provenance.Edge, prefix stri
 
 func loadAlerts(path string) []map[string]interface{} {
 	if path == "" {
-		path = "/var/log/providapt/alerts.json"
+		path = "/var/log/providapt/alerts.ndjson"
 	}
+	paths := alertLogPaths(path)
+	var alerts []map[string]interface{}
+	for _, candidate := range paths {
+		alerts = append(alerts, readAlertRecords(candidate)...)
+	}
+	return alerts
+}
+
+func alertLogPaths(path string) []string {
+	ext := filepath.Ext(path)
+	base := strings.TrimSuffix(path, ext)
+	var paths []string
+	if matches, err := filepath.Glob(base + "-*" + ext); err == nil {
+		sort.Slice(matches, func(i, j int) bool {
+			iInfo, iErr := os.Stat(matches[i])
+			jInfo, jErr := os.Stat(matches[j])
+			if iErr == nil && jErr == nil && !iInfo.ModTime().Equal(jInfo.ModTime()) {
+				return iInfo.ModTime().Before(jInfo.ModTime())
+			}
+			return matches[i] < matches[j]
+		})
+		paths = append(paths, matches...)
+	}
+	paths = append(paths, path)
+	if strings.HasSuffix(path, ".ndjson") {
+		paths = append(paths, strings.TrimSuffix(path, ".ndjson")+".json")
+	}
+	return paths
+}
+
+func readAlertRecords(path string) []map[string]interface{} {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
-	var alerts []map[string]interface{}
-	if err := json.Unmarshal(data, &alerts); err != nil {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
 		return nil
 	}
+	if strings.HasPrefix(trimmed, "[") {
+		var alerts []map[string]interface{}
+		if err := json.Unmarshal([]byte(trimmed), &alerts); err != nil {
+			return nil
+		}
+		return alerts
+	}
+	var alerts []map[string]interface{}
+	for _, line := range strings.Split(trimmed, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var alert map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &alert); err == nil {
+			alerts = append(alerts, alert)
+		}
+	}
 	return alerts
+}
+
+func (s *Server) handleGroundTruth(w http.ResponseWriter, r *http.Request) error {
+	switch r.Method {
+	case http.MethodGet:
+		limit := queryInt(r, "limit", 200)
+		resp := loadGroundTruthRecords(s.groundTruthDir(), limit)
+		return json.NewEncoder(w).Encode(resp)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (s *Server) handleGroundTruthCorrelation(w http.ResponseWriter, r *http.Request) error {
+	switch r.Method {
+	case http.MethodGet:
+		limit := queryInt(r, "limit", 100)
+		if limit <= 0 || limit > 500 {
+			limit = 100
+		}
+		resp := s.correlateGroundTruth(limit)
+		return json.NewEncoder(w).Encode(resp)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (s *Server) correlateGroundTruth(limit int) GroundTruthCorrelation {
+	gt := loadGroundTruthRecords(s.groundTruthDir(), limit)
+	out := GroundTruthCorrelation{
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		RunID:     gt.RunID,
+		Total:     gt.Total,
+		Malicious: gt.Malicious,
+		Benign:    gt.Benign,
+		Records:   []GroundTruthCorrelationRecord{},
+	}
+	alerts := loadAlertWorkflowItems(s.alertLogPath, "", "")
+	eventDir := s.eventLogDir()
+	eventCandidates, _ := recentGroundTruthEvents(eventDir, 5000, 8*1024*1024)
+	for _, record := range gt.Records {
+		row := GroundTruthCorrelationRecord{
+			GroundTruth: record,
+			TraceNode:   groundTruthTraceNode(record),
+			Status:      "unmatched",
+		}
+		row.EventMatches = groundTruthEventMatches(eventCandidates, record, 5)
+		row.AlertMatches = groundTruthAlertMatches(alerts, record, 5)
+		if len(row.EventMatches) > 0 {
+			out.EventMatches++
+		}
+		if len(row.AlertMatches) > 0 {
+			out.AlertMatches++
+		}
+		if row.TraceNode != "" {
+			out.Traceable++
+		}
+		switch {
+		case len(row.EventMatches) > 0 && len(row.AlertMatches) > 0:
+			row.Status = "event_and_alert_match"
+			out.MatchedRecords++
+		case len(row.EventMatches) > 0:
+			row.Status = "event_match"
+			out.MatchedRecords++
+		case len(row.AlertMatches) > 0:
+			row.Status = "alert_match"
+			out.MatchedRecords++
+		default:
+			row.Reason = "No event or alert text matched actor/object/event tokens in current retention window."
+		}
+		out.Records = append(out.Records, row)
+	}
+	if out.Total > 0 {
+		out.CoveragePercent = float64(out.MatchedRecords) * 100 / float64(out.Total)
+	}
+	return out
+}
+
+func (s *Server) eventLogDir() string {
+	if strings.TrimSpace(s.alertLogPath) != "" {
+		return filepath.Dir(s.alertLogPath)
+	}
+	return resolveOutputDir()
+}
+
+func recentGroundTruthEvents(dir string, limit int, maxBytesPerFile int64) ([]EventRecord, error) {
+	files, err := findEventFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+	var out []EventRecord
+	for i := len(files) - 1; i >= 0 && len(out) < limit; i-- {
+		records, err := tailEventFileWindow(files[i], limit-len(out), maxBytesPerFile)
+		if err != nil {
+			continue
+		}
+		out = append(out, records...)
+	}
+	return out, nil
+}
+
+func tailEventFileWindow(path string, limit int, maxBytes int64) ([]EventRecord, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	offset := int64(0)
+	if maxBytes > 0 && info.Size() > maxBytes {
+		offset = info.Size() - maxBytes
+	}
+	if _, err := file.Seek(offset, 0); err != nil {
+		return nil, err
+	}
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 256*1024)
+	if offset > 0 && scanner.Scan() {
+		// Drop the first partial line from the bounded tail window.
+	}
+	var records []EventRecord
+	for scanner.Scan() {
+		var raw map[string]interface{}
+		if err := json.Unmarshal(scanner.Bytes(), &raw); err != nil {
+			continue
+		}
+		records = append(records, mapToRecord(raw))
+		if len(records) > limit {
+			records = records[1:]
+		}
+	}
+	return records, scanner.Err()
+}
+
+func groundTruthEventMatches(events []EventRecord, record GroundTruthRecord, max int) []EventRecord {
+	queries := groundTruthQueries(record)
+	seen := map[string]bool{}
+	var out []EventRecord
+	for _, item := range events {
+		if !groundTruthEventTypeMatches(record.ExpectedEvent, item.Type, item.Subtype) {
+			continue
+		}
+		haystack := strings.ToLower(strings.Join([]string{
+			item.Type,
+			item.Subtype,
+			item.Label,
+			item.Comm,
+			strconv.FormatUint(uint64(item.PID), 10),
+			fmt.Sprint(item.Raw),
+		}, " "))
+		for _, query := range queries {
+			if query == "" || !strings.Contains(haystack, strings.ToLower(query)) {
+				continue
+			}
+			key := fmt.Sprintf("%s/%d/%s/%s", item.Timestamp, item.PID, item.Comm, item.Label)
+			if !seen[key] {
+				seen[key] = true
+				out = append(out, item)
+			}
+			break
+		}
+		if len(out) >= max {
+			return out
+		}
+	}
+	return out
+}
+
+func groundTruthEventTypeMatches(expected, eventType, subtype string) bool {
+	expected = strings.ToLower(strings.TrimSpace(expected))
+	if expected == "" {
+		return true
+	}
+	actual := strings.ToLower(strings.TrimSpace(strings.Join([]string{eventType, subtype}, " ")))
+	switch expected {
+	case "file_write", "write":
+		return strings.Contains(actual, "write") || strings.Contains(actual, "create") || strings.Contains(actual, "rename")
+	case "file_open", "file_read", "read":
+		return strings.Contains(actual, "open") || strings.Contains(actual, "read")
+	case "process_exec", "proc_exec", "exec":
+		return strings.Contains(actual, "exec") || strings.Contains(actual, "fork") || strings.Contains(actual, "spawn")
+	case "network_connect", "connect":
+		return strings.Contains(actual, "connect") || strings.Contains(actual, "net") || strings.Contains(actual, "socket")
+	default:
+		return strings.Contains(actual, expected)
+	}
+}
+
+func groundTruthAlertMatches(alerts []AlertWorkflowItem, record GroundTruthRecord, max int) []AlertWorkflowItem {
+	queries := groundTruthQueries(record)
+	var out []AlertWorkflowItem
+	for _, alert := range alerts {
+		haystack := strings.ToLower(strings.Join([]string{alert.ID, alert.Pattern, alert.Headline, alert.Reason, alert.Source}, " "))
+		for _, query := range queries {
+			if query != "" && strings.Contains(haystack, strings.ToLower(query)) {
+				out = append(out, alert)
+				break
+			}
+		}
+		if len(out) >= max {
+			return out
+		}
+	}
+	return out
+}
+
+func groundTruthQueries(record GroundTruthRecord) []string {
+	candidates := []string{
+		record.Actor,
+		record.Object,
+		filepath.Base(record.Object),
+		record.ExpectedEvent,
+		record.ExpectedRelation,
+		record.Command,
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(strings.TrimPrefix(candidate, "pid:"))
+		if candidate == "" || candidate == "." || len(candidate) < 2 || seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+		out = append(out, candidate)
+	}
+	return out
+}
+
+func groundTruthTraceNode(record GroundTruthRecord) string {
+	object := strings.TrimSpace(record.Object)
+	if strings.HasPrefix(object, "p:") {
+		return object
+	}
+	if strings.HasPrefix(object, "pid:") {
+		pid := strings.TrimSpace(strings.TrimPrefix(object, "pid:"))
+		if pid != "" {
+			return "p:" + pid
+		}
+	}
+	return ""
+}
+
+func (s *Server) groundTruthDir() string {
+	if strings.TrimSpace(s.alertLogPath) != "" {
+		return filepath.Join(filepath.Dir(s.alertLogPath), "ground-truth")
+	}
+	return "/var/log/providapt/ground-truth"
+}
+
+func loadGroundTruthRecords(dir string, limit int) GroundTruthResponse {
+	if limit <= 0 {
+		limit = 200
+	}
+	resp := GroundTruthResponse{
+		UpdatedAt:  time.Now().UTC().Format(time.RFC3339),
+		Files:      []string{},
+		Phases:     map[string]int{},
+		Records:    []GroundTruthRecord{},
+		SourceHint: dir,
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	if err != nil || len(matches) == 0 {
+		return resp
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		iInfo, iErr := os.Stat(matches[i])
+		jInfo, jErr := os.Stat(matches[j])
+		if iErr == nil && jErr == nil && !iInfo.ModTime().Equal(jInfo.ModTime()) {
+			return iInfo.ModTime().After(jInfo.ModTime())
+		}
+		return matches[i] > matches[j]
+	})
+	for _, path := range matches {
+		if len(resp.Records) >= limit {
+			break
+		}
+		resp.Files = append(resp.Files, filepath.Base(path))
+		for _, record := range readGroundTruthFile(path, limit-len(resp.Records)) {
+			if resp.RunID == "" {
+				resp.RunID = record.RunID
+			}
+			resp.Total++
+			if record.Malicious {
+				resp.Malicious++
+			} else {
+				resp.Benign++
+			}
+			if record.Phase != "" {
+				resp.Phases[record.Phase]++
+			}
+			resp.Records = append(resp.Records, record)
+			if len(resp.Records) >= limit {
+				break
+			}
+		}
+	}
+	return resp
+}
+
+func readGroundTruthFile(path string, limit int) []GroundTruthRecord {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var records []GroundTruthRecord
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if limit > 0 && len(records) >= limit {
+			break
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var raw map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &raw); err != nil {
+			continue
+		}
+		records = append(records, groundTruthRecordFromMap(raw, filepath.Base(path)))
+	}
+	return records
+}
+
+func groundTruthRecordFromMap(raw map[string]interface{}, sourceFile string) GroundTruthRecord {
+	record := GroundTruthRecord{
+		Schema:           stringFromMap(raw, "schema"),
+		RunID:            stringFromMap(raw, "run_id"),
+		Timestamp:        stringFromMap(raw, "timestamp"),
+		Phase:            stringFromMap(raw, "phase"),
+		Tactic:           stringFromMap(raw, "tactic"),
+		Technique:        stringFromMap(raw, "technique"),
+		Command:          stringFromMap(raw, "command"),
+		ExpectedEvent:    stringFromMap(raw, "expected_event"),
+		ExpectedRelation: stringFromMap(raw, "expected_relation"),
+		Actor:            stringFromMap(raw, "actor"),
+		Object:           stringFromMap(raw, "object"),
+		Malicious:        boolFromMap(raw, "malicious"),
+		SourceFile:       sourceFile,
+		Extra:            map[string]interface{}{},
+	}
+	known := map[string]bool{
+		"schema": true, "run_id": true, "timestamp": true, "phase": true,
+		"tactic": true, "technique": true, "command": true,
+		"expected_event": true, "expected_relation": true, "actor": true,
+		"object": true, "malicious": true,
+	}
+	for key, value := range raw {
+		if !known[key] {
+			record.Extra[key] = value
+		}
+	}
+	if len(record.Extra) == 0 {
+		record.Extra = nil
+	}
+	return record
+}
+
+func stringFromMap(raw map[string]interface{}, key string) string {
+	value, ok := raw[key]
+	if !ok || value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
+}
+
+func boolFromMap(raw map[string]interface{}, key string) bool {
+	value, ok := raw[key]
+	if !ok || value == nil {
+		return false
+	}
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), "true")
+	default:
+		return false
+	}
+}
+
+func loadAlertWorkflowItems(path, statusFilter, assigneeFilter string) []AlertWorkflowItem {
+	records := loadAlerts(path)
+	items := make([]AlertWorkflowItem, 0, len(records))
+	for _, record := range records {
+		item := alertRecordToWorkflowItem(record)
+		if item.ID == "" && item.Pattern == "" && item.Headline == "" {
+			continue
+		}
+		if !matchesWorkflowFilter(item, statusFilter, assigneeFilter) {
+			continue
+		}
+		items = append(items, item)
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].LastSeen < items[j].LastSeen
+	})
+	return items
+}
+
+func alertRecordToWorkflowItem(record map[string]interface{}) AlertWorkflowItem {
+	status := lowerString(firstRecordValue(record, "status", "Status"))
+	if status == "" {
+		status = "open"
+	}
+	firstSeen := recordTimeString(firstRecordValue(record, "first_seen", "FirstSeen", "detected_at", "DetectedAt", "timestamp", "Timestamp"))
+	lastSeen := recordTimeString(firstRecordValue(record, "last_seen", "LastSeen", "detected_at", "DetectedAt", "timestamp", "Timestamp"))
+	count := intFromRecord(firstRecordValue(record, "count", "Count"), 1)
+	if count <= 0 {
+		count = 1
+	}
+	details := map[string]string{}
+	for _, key := range []string{"AlertNodeID", "alert_node_id", "node_id", "source", "Source"} {
+		if value := strings.TrimSpace(fmt.Sprint(firstRecordValue(record, key))); value != "" && value != "<nil>" {
+			details[strings.ToLower(key)] = value
+		}
+	}
+	return AlertWorkflowItem{
+		ID:        firstString(record, "id", "ID", "alert_id", "AlertID", "AlertNodeID", "alert_node_id"),
+		Severity:  normalizeAlertSeverity(firstRecordValue(record, "severity", "Severity")),
+		Pattern:   firstString(record, "pattern", "Pattern"),
+		Headline:  firstString(record, "headline", "Headline", "message", "Message"),
+		Reason:    firstString(record, "reason", "Reason"),
+		Source:    firstString(record, "source", "Source"),
+		Status:    status,
+		Assignee:  firstString(record, "assignee", "Assignee"),
+		Count:     count,
+		FirstSeen: firstSeen,
+		LastSeen:  lastSeen,
+		Details:   details,
+	}
+}
+
+func summarizeAlertWorkflowItems(items []AlertWorkflowItem) AlertWorkflowSummary {
+	var summary AlertWorkflowSummary
+	for _, item := range items {
+		summary.Total++
+		switch lowerString(item.Status) {
+		case "assigned":
+			summary.Assigned++
+		case "suppressed", "silenced":
+			summary.Suppressed++
+		case "closed":
+			summary.Closed++
+		default:
+			summary.Open++
+		}
+	}
+	return summary
+}
+
+func matchesWorkflowFilter(item AlertWorkflowItem, statusFilter, assigneeFilter string) bool {
+	if statusFilter = strings.TrimSpace(strings.ToLower(statusFilter)); statusFilter != "" && lowerString(item.Status) != statusFilter {
+		return false
+	}
+	if assigneeFilter = strings.TrimSpace(assigneeFilter); assigneeFilter != "" && item.Assignee != assigneeFilter {
+		return false
+	}
+	return true
+}
+
+func firstRecordValue(record map[string]interface{}, keys ...string) interface{} {
+	for _, key := range keys {
+		if value, ok := record[key]; ok && value != nil {
+			return value
+		}
+	}
+	return nil
+}
+
+func firstString(record map[string]interface{}, keys ...string) string {
+	value := firstRecordValue(record, keys...)
+	if value == nil {
+		return ""
+	}
+	text := strings.TrimSpace(fmt.Sprint(value))
+	if text == "<nil>" {
+		return ""
+	}
+	return text
+}
+
+func lowerString(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	text := strings.TrimSpace(fmt.Sprint(value))
+	if text == "<nil>" {
+		return ""
+	}
+	return strings.ToLower(text)
+}
+
+func normalizeAlertSeverity(value interface{}) string {
+	switch v := value.(type) {
+	case float64:
+		switch int(v) {
+		case 10:
+			return "INFO"
+		case 20:
+			return "LOW"
+		case 30:
+			return "MEDIUM"
+		case 40:
+			return "HIGH"
+		case 50:
+			return "CRITICAL"
+		default:
+			return fmt.Sprintf("%.0f", v)
+		}
+	default:
+		text := strings.TrimSpace(fmt.Sprint(value))
+		if text == "" || text == "<nil>" {
+			return "UNKNOWN"
+		}
+		return strings.ToUpper(text)
+	}
+}
+
+func intFromRecord(value interface{}, fallback int) int {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case string:
+		if parsed, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func recordTimeString(value interface{}) string {
+	text := strings.TrimSpace(fmt.Sprint(value))
+	if text == "" || text == "<nil>" {
+		return ""
+	}
+	if ts, err := time.Parse(time.RFC3339Nano, text); err == nil {
+		return ts.UTC().Format(time.RFC3339)
+	}
+	return text
 }
