@@ -139,6 +139,37 @@ func TestJSONWriterMultipleEvents(t *testing.T) {
 	}
 }
 
+func TestJSONWriterRotatesAndPrunes(t *testing.T) {
+	dir := t.TempDir()
+	w, err := NewJSONWriter(dir)
+	if err != nil {
+		t.Fatalf("NewJSONWriter failed: %v", err)
+	}
+	w.maxFileBytes = 350
+	w.retainFiles = 2
+
+	for i := 0; i < 6; i++ {
+		evt := testEvent()
+		evt.PID = uint32(100 + i)
+		evt.Pathname = strings.Repeat("x", 120)
+		if err := w.Write(evt); err != nil {
+			t.Fatalf("Write %d failed: %v", i, err)
+		}
+	}
+	w.Close()
+
+	matches, err := filepath.Glob(filepath.Join(dir, "providapt-*.ndjson"))
+	if err != nil {
+		t.Fatalf("Glob failed: %v", err)
+	}
+	if len(matches) > 2 {
+		t.Fatalf("retained files = %d, want <= 2: %#v", len(matches), matches)
+	}
+	if len(matches) < 2 {
+		t.Fatalf("expected rotation to create at least 2 files, got %d", len(matches))
+	}
+}
+
 func TestJSONWriterCloseIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	w, err := NewJSONWriter(dir)
