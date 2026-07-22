@@ -2074,9 +2074,15 @@ function renderGroundTruthPhases(phases) {
 function renderGroundTruthRecord(record) {
   const kind = record.malicious ? 'malicious' : 'benign';
   const object = record.object || '';
+  const step = record.step_id || (record.step_index ? 'step-' + String(record.step_index).padStart(2, '0') : '');
+  const tactic = record.tactic_name || record.tactic || record.phase || 'unknown';
+  const technique = record.technique_name || record.technique || '';
   const nodeID = groundTruthNodeID(record);
   const traceLink = nodeID
     ? '<a href="/api/v1/alerts/' + encodeURIComponent(nodeID) + '/svg" target="_blank" rel="noreferrer">Trace SVG</a>'
+    : '';
+  const mitreLink = record.mitre_url
+    ? '<a href="' + escapeHTML(record.mitre_url) + '" target="_blank" rel="noreferrer">MITRE</a>'
     : '';
   const eventLink = record.expected_event || record.command || record.actor
     ? '<a href="/api/v1/events/search?pattern=' + encodeURIComponent(record.actor || record.expected_event || record.command || '') + '&limit=50" target="_blank" rel="noreferrer">Events</a>'
@@ -2084,9 +2090,9 @@ function renderGroundTruthRecord(record) {
   return '<div class="alert-item truth-record">' +
     '<span class="alert-sev sev-' + (record.malicious ? 'high' : 'low') + '">' + escapeHTML(record.phase || 'unknown') + '</span>' +
     '<span class="alert-msg"><span class="truth-badge ' + kind + '">' + kind + '</span>' +
-    escapeHTML(record.command || record.technique || 'ground truth record') +
-    '<br><code>' + escapeHTML((record.actor || '?') + ' -> ' + object + ' · ' + (record.expected_event || '?') + ' · ' + (record.expected_relation || '?')) + '</code></span>' +
-    '<span class="trace-actions">' + traceLink + eventLink + '</span>' +
+    escapeHTML((step ? step + ' · ' : '') + (record.step_name || record.command || record.technique || 'ground truth record')) +
+    '<br><code>' + escapeHTML(tactic + (technique ? ' / ' + technique : '') + ' · ' + (record.actor || '?') + ' -> ' + object + ' · ' + (record.expected_event || '?') + ' · ' + (record.expected_relation || '?')) + '</code></span>' +
+    '<span class="trace-actions">' + traceLink + eventLink + mitreLink + '</span>' +
     '</div>';
 }
 

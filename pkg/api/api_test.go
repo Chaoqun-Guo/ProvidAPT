@@ -1722,7 +1722,7 @@ func TestGroundTruthEndpointLoadsJSONL(t *testing.T) {
 		t.Fatalf("mkdir ground truth: %v", err)
 	}
 	body := strings.Join([]string{
-		`{"schema":"providapt.attack_ground_truth.v1","run_id":"r1","phase":"execution","tactic":"TA0002","technique":"T1059","command":"bash evil.sh","expected_event":"process_exec","expected_relation":"prov:wasInformedBy","actor":"bash","object":"pid:123","malicious":true}`,
+		`{"schema":"providapt.attack_ground_truth.v1","run_id":"r1","step_index":2,"step_id":"step-02","step_name":"Execute payload","phase":"execution","tactic":"TA0002","tactic_id":"TA0002","tactic_name":"Execution","technique":"T1059.004 Unix Shell","technique_id":"T1059.004","technique_name":"Unix Shell","mitre_url":"https://attack.mitre.org/techniques/T1059/004/","command":"bash evil.sh","expected_event":"process_exec","expected_relation":"prov:wasInformedBy","actor":"bash","object":"pid:123","malicious":true}`,
 		`{"schema":"providapt.attack_ground_truth.v1","run_id":"r1","phase":"benign","command":"whoami","expected_event":"process_exec","expected_relation":"prov:wasInformedBy","actor":"whoami","object":"stdout","malicious":false}`,
 	}, "\n")
 	if err := os.WriteFile(filepath.Join(gtDir, "r1.jsonl"), []byte(body), 0644); err != nil {
@@ -1743,6 +1743,9 @@ func TestGroundTruthEndpointLoadsJSONL(t *testing.T) {
 	}
 	if resp.RunID != "r1" || resp.Records[0].ExpectedEvent != "process_exec" {
 		t.Fatalf("ground truth response = %#v", resp)
+	}
+	if resp.Records[0].StepID != "step-02" || resp.Records[0].TechniqueID != "T1059.004" || !strings.Contains(resp.Records[0].MITREURL, "/T1059/004/") {
+		t.Fatalf("ground truth MITRE fields = %#v", resp.Records[0])
 	}
 }
 
@@ -2453,6 +2456,12 @@ func TestSVGGeneration(t *testing.T) {
 	if !strings.Contains(string(svg), "Event Structure") {
 		t.Error("SVG missing event structure table")
 	}
+	if !strings.Contains(string(svg), `preserveAspectRatio="xMidYMin meet"`) || !strings.Contains(string(svg), `margin:0 auto`) {
+		t.Error("SVG missing responsive centered viewport")
+	}
+	if !strings.Contains(string(svg), "categories") || !strings.Contains(string(svg), "Discovery or Credential Access / File Reads") {
+		t.Error("SVG missing categorized event summary")
+	}
 	if !strings.Contains(string(svg), "file_open") {
 		t.Error("SVG missing event name")
 	}
@@ -2559,6 +2568,9 @@ func TestSVGTreeLayoutKeepsCrossLinksReadable(t *testing.T) {
 	svg := string(renderSVG(layout))
 	if !strings.Contains(svg, `class="edge edge-cross`) || !strings.Contains(svg, `data-tree="false"`) {
 		t.Fatalf("SVG should preserve non-tree links as dashed cross-links: %s", svg)
+	}
+	if !strings.Contains(svg, "Execution / Process Activity") || !strings.Contains(svg, "Persistence or Collection / File Writes") {
+		t.Fatalf("SVG should categorize event groups: %s", svg)
 	}
 }
 

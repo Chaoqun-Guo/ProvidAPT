@@ -16,11 +16,20 @@ func TestAttackSimulationRecordsGroundTruth(t *testing.T) {
 		"GROUND_TRUTH_PATH",
 		"/var/log/providapt/ground-truth",
 		"providapt.attack_ground_truth.v1",
+		`"step_index"`,
+		`"step_id"`,
+		`"step_name"`,
+		`"tactic_id"`,
+		`"tactic_name"`,
+		`"technique_id"`,
+		`"technique_name"`,
+		`"mitre_url"`,
 		`"expected_event"`,
 		`"expected_relation"`,
 		`"malicious"`,
-		"record_truth \"command_and_control\"",
-		"record_truth \"benign\"",
+		`https://attack.mitre.org/techniques/`,
+		`record_truth 9 "Attempt HTTP C2 with curl" "command_and_control"`,
+		`record_truth 13 "Benign identity query" "benign"`,
 	}
 	for _, want := range required {
 		if !strings.Contains(script, want) {

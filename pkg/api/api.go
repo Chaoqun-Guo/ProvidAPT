@@ -648,9 +648,17 @@ type GroundTruthRecord struct {
 	Schema           string                 `json:"schema,omitempty"`
 	RunID            string                 `json:"run_id,omitempty"`
 	Timestamp        string                 `json:"timestamp,omitempty"`
+	StepIndex        int                    `json:"step_index,omitempty"`
+	StepID           string                 `json:"step_id,omitempty"`
+	StepName         string                 `json:"step_name,omitempty"`
 	Phase            string                 `json:"phase,omitempty"`
 	Tactic           string                 `json:"tactic,omitempty"`
+	TacticID         string                 `json:"tactic_id,omitempty"`
+	TacticName       string                 `json:"tactic_name,omitempty"`
 	Technique        string                 `json:"technique,omitempty"`
+	TechniqueID      string                 `json:"technique_id,omitempty"`
+	TechniqueName    string                 `json:"technique_name,omitempty"`
+	MITREURL         string                 `json:"mitre_url,omitempty"`
 	Command          string                 `json:"command,omitempty"`
 	ExpectedEvent    string                 `json:"expected_event,omitempty"`
 	ExpectedRelation string                 `json:"expected_relation,omitempty"`
@@ -3299,9 +3307,17 @@ func groundTruthRecordFromMap(raw map[string]interface{}, sourceFile string) Gro
 		Schema:           stringFromMap(raw, "schema"),
 		RunID:            stringFromMap(raw, "run_id"),
 		Timestamp:        stringFromMap(raw, "timestamp"),
+		StepIndex:        intFromMap(raw, "step_index"),
+		StepID:           stringFromMap(raw, "step_id"),
+		StepName:         stringFromMap(raw, "step_name"),
 		Phase:            stringFromMap(raw, "phase"),
 		Tactic:           stringFromMap(raw, "tactic"),
+		TacticID:         stringFromMap(raw, "tactic_id"),
+		TacticName:       stringFromMap(raw, "tactic_name"),
 		Technique:        stringFromMap(raw, "technique"),
+		TechniqueID:      stringFromMap(raw, "technique_id"),
+		TechniqueName:    stringFromMap(raw, "technique_name"),
+		MITREURL:         stringFromMap(raw, "mitre_url"),
 		Command:          stringFromMap(raw, "command"),
 		ExpectedEvent:    stringFromMap(raw, "expected_event"),
 		ExpectedRelation: stringFromMap(raw, "expected_relation"),
@@ -3312,8 +3328,10 @@ func groundTruthRecordFromMap(raw map[string]interface{}, sourceFile string) Gro
 		Extra:            map[string]interface{}{},
 	}
 	known := map[string]bool{
-		"schema": true, "run_id": true, "timestamp": true, "phase": true,
-		"tactic": true, "technique": true, "command": true,
+		"schema": true, "run_id": true, "timestamp": true, "step_index": true,
+		"step_id": true, "step_name": true, "phase": true, "tactic": true,
+		"tactic_id": true, "tactic_name": true, "technique": true,
+		"technique_id": true, "technique_name": true, "mitre_url": true, "command": true,
 		"expected_event": true, "expected_relation": true, "actor": true,
 		"object": true, "malicious": true,
 	}
@@ -3334,6 +3352,25 @@ func stringFromMap(raw map[string]interface{}, key string) string {
 		return ""
 	}
 	return strings.TrimSpace(fmt.Sprint(value))
+}
+
+func intFromMap(raw map[string]interface{}, key string) int {
+	value, ok := raw[key]
+	if !ok || value == nil {
+		return 0
+	}
+	switch typed := value.(type) {
+	case float64:
+		return int(typed)
+	case int:
+		return typed
+	case json.Number:
+		n, _ := typed.Int64()
+		return int(n)
+	default:
+		n, _ := strconv.Atoi(strings.TrimSpace(fmt.Sprint(value)))
+		return n
+	}
 }
 
 func boolFromMap(raw map[string]interface{}, key string) bool {

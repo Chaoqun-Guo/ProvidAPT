@@ -16,6 +16,7 @@ type svgLayout struct {
 	edges    []svgEdge
 	width    int
 	height   int
+	graphH   int
 	scope    string
 	truncate bool
 }
@@ -39,6 +40,13 @@ type svgEdge struct {
 	summary string
 	detail  string
 	tree    bool
+}
+
+type svgEventGroup struct {
+	key        string
+	title      string
+	edges      []svgEdge
+	crossLinks int
 }
 
 const (
@@ -157,27 +165,31 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 	depth, treeParent, orderedIDs := treeLayoutOrder(nodes, edges, roots)
 
 	maxDepth := 0
+	for _, id := range orderedIDs {
+		maxDepth = maxInt(maxDepth, depth[id])
+	}
+	graphW := (maxDepth+1)*nodeW + maxDepth*layerGap
+	lay.width = maxInt(1120, xPad*2+graphW)
+	contentX := maxInt(xPad, (lay.width-graphW)/2)
 	for row, id := range orderedIDs {
 		n := findNodeByID(nodes, id)
 		if n == nil {
 			continue
 		}
 		d := depth[id]
-		maxDepth = maxInt(maxDepth, d)
 		lay.nodes = append(lay.nodes, svgNode{
 			id:      n.ID,
 			label:   truncate(n.Label, 30),
 			detail1: nodeDetailLine(n),
 			detail2: nodeIdentityLine(n),
 			typ:     n.Subtype,
-			x:       xPad + d*(nodeW+layerGap),
+			x:       contentX + d*(nodeW+layerGap),
 			y:       topY + row*(nodeH+yPad),
 		})
 	}
 
 	graphH := topY + len(lay.nodes)*(nodeH+yPad) + 20
-	lay.width = maxInt(960, xPad*2+(maxDepth+1)*nodeW+maxDepth*layerGap)
-	lay.height = maxInt(minGraphH, graphH) + maxInt(150, len(edges)*36+74)
+	lay.graphH = maxInt(minGraphH, graphH)
 	usedTreeEdges := map[string]bool{}
 	for _, e := range edges {
 		tree := treeParent[e.Target] == e.Source && !usedTreeEdges[e.Source+"\x00"+e.Target]
@@ -195,6 +207,7 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 			tree:    tree,
 		})
 	}
+	lay.height = lay.graphH + eventTableHeight(lay.edges) + 50
 	return lay
 }
 
@@ -352,7 +365,7 @@ func renderSVG(lay *svgLayout) []byte {
 	if lay.truncate {
 		scope += " (truncated for readability)"
 	}
-	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" preserveAspectRatio="xMidYMin meet" style="max-width:100vw;height:auto;display:block;margin:0 auto;background:#0d1117;">
 <style>
   .bg { fill: #0d1117; }
   .node rect { stroke-width: 1.2; rx: 8; }
@@ -384,8 +397,11 @@ func renderSVG(lay *svgLayout) []byte {
   .legend text { fill: #c9d1d9; font: 10px monospace; }
   .event-table text { fill: #c9d1d9; font: 11px monospace; }
   .event-table .header { fill: #58a6ff; font-weight: 700; }
+  .event-table .group-title { fill: #f0f6fc; font-weight: 700; }
+  .event-table .group-meta { fill: #8b949e; }
   .event-table rect { fill: #161b22; stroke: #30363d; rx: 8; }
   .event-row rect { fill: #0d1117; stroke: #21262d; rx: 6; }
+  .event-group rect { fill: #10151d; stroke: #30363d; rx: 7; }
 </style>
 <defs>
   %s
@@ -462,32 +478,117 @@ func renderSVG(lay *svgLayout) []byte {
 }
 
 func renderEventTable(b *strings.Builder, lay *svgLayout) {
-	tableY := topY
-	for _, n := range lay.nodes {
-		tableY = maxInt(tableY, n.y+nodeH)
-	}
-	tableY += 50
-	tableH := maxInt(110, len(lay.edges)*36+58)
+	tableY := lay.graphH + 24
+	groups := groupedSVGEvents(lay.edges)
+	tableH := eventTableHeight(lay.edges)
 	fmt.Fprintf(b, `<g class="event-table">
   <rect x="18" y="%d" width="%d" height="%d"/>
-  <text class="header" x="34" y="%d">Event Structure</text>
-`, tableY, lay.width-36, tableH, tableY+24)
+  <text class="header" x="34" y="%d">Event Structure (%d categories, %d edges)</text>
+`, tableY, lay.width-36, tableH, tableY+24, len(groups), len(lay.edges))
 	if len(lay.edges) == 0 {
 		fmt.Fprintf(b, `  <text x="34" y="%d">No edges are available for this trace.</text>
 </g>
 `, tableY+52)
 		return
 	}
-	for i, e := range lay.edges {
-		y := tableY + 38 + i*36
-		fmt.Fprintf(b, `<g class="event-row">
-  <rect x="30" y="%d" width="%d" height="30"/>
-  <text x="42" y="%d">#%02d %-14s %s</text>
-  <text x="42" y="%d">%s</text>
-</g>
-`, y, lay.width-60, y+13, i+1, escapeXML(e.event), escapeXML(e.summary), y+26, escapeXML(e.detail))
+	y := tableY + 42
+	for _, group := range groups {
+		visibleRows := minInt(len(group.edges), 3)
+		groupH := 34 + visibleRows*22
+		if len(group.edges) > visibleRows {
+			groupH += 18
+		}
+		fmt.Fprintf(b, `<g class="event-group">
+  <rect x="30" y="%d" width="%d" height="%d"/>
+  <text class="group-title" x="42" y="%d">%s</text>
+  <text class="group-meta" x="280" y="%d">%d edge(s), %d cross-link(s)</text>
+`, y, lay.width-60, groupH, y+18, escapeXML(group.title), y+18, len(group.edges), group.crossLinks)
+		for i, e := range group.edges {
+			if i >= visibleRows {
+				break
+			}
+			rowY := y + 40 + i*22
+			fmt.Fprintf(b, `  <text x="52" y="%d">#%02d %-14s %s</text>
+  <text class="group-meta" x="52" y="%d">%s</text>
+`, rowY, i+1, escapeXML(e.event), escapeXML(e.summary), rowY+12, escapeXML(e.detail))
+		}
+		if len(group.edges) > visibleRows {
+			fmt.Fprintf(b, `  <text class="group-meta" x="52" y="%d">... %d more event relation(s) collapsed in this category</text>
+`, y+40+visibleRows*22, len(group.edges)-visibleRows)
+		}
+		b.WriteString("</g>\n")
+		y += groupH + 10
 	}
 	b.WriteString("</g>\n")
+}
+
+func eventTableHeight(edges []svgEdge) int {
+	groups := groupedSVGEvents(edges)
+	if len(groups) == 0 {
+		return 110
+	}
+	height := 58
+	for _, group := range groups {
+		visibleRows := minInt(len(group.edges), 3)
+		height += 34 + visibleRows*22 + 10
+		if len(group.edges) > visibleRows {
+			height += 18
+		}
+	}
+	return maxInt(150, height)
+}
+
+func groupedSVGEvents(edges []svgEdge) []svgEventGroup {
+	groupMap := map[string]*svgEventGroup{}
+	for _, edge := range edges {
+		key, title := svgEventCategory(edge)
+		group, ok := groupMap[key]
+		if !ok {
+			group = &svgEventGroup{key: key, title: title}
+			groupMap[key] = group
+		}
+		group.edges = append(group.edges, edge)
+		if !edge.tree {
+			group.crossLinks++
+		}
+	}
+	order := []string{"execution", "file-read", "file-write", "network", "derived", "context", "other"}
+	var groups []svgEventGroup
+	for _, key := range order {
+		if group, ok := groupMap[key]; ok {
+			groups = append(groups, *group)
+			delete(groupMap, key)
+		}
+	}
+	var rest []string
+	for key := range groupMap {
+		rest = append(rest, key)
+	}
+	sort.Strings(rest)
+	for _, key := range rest {
+		groups = append(groups, *groupMap[key])
+	}
+	return groups
+}
+
+func svgEventCategory(edge svgEdge) (string, string) {
+	event := strings.ToLower(edge.event + " " + edge.rel + " " + edge.kind)
+	switch {
+	case strings.Contains(event, "exec") || strings.Contains(event, "fork") || edge.kind == "exec":
+		return "execution", "Execution / Process Activity"
+	case strings.Contains(event, "connect") || strings.Contains(event, "network") || edge.kind == "network":
+		return "network", "Command and Control / Network"
+	case strings.Contains(event, "write") || strings.Contains(event, "create") || edge.kind == "write":
+		return "file-write", "Persistence or Collection / File Writes"
+	case strings.Contains(event, "read") || strings.Contains(event, "open") || edge.kind == "read":
+		return "file-read", "Discovery or Credential Access / File Reads"
+	case edge.kind == "derived":
+		return "derived", "Data Derivation"
+	case edge.kind == "context":
+		return "context", "Security Context"
+	default:
+		return "other", "Other Provenance Relations"
+	}
 }
 
 func renderLegend(b *strings.Builder, width int) {
