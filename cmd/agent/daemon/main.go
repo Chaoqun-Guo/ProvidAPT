@@ -1343,7 +1343,10 @@ func main() {
 	}
 
 	// ── Raw event log writer ────────────────────────────
-	writer, err := storage.NewWriter(cfg.Output.Dir, cfg.Output.Format)
+	writer, err := storage.NewWriterWithOptions(cfg.Output.Dir, cfg.Output.Format, storage.JSONWriterOptions{
+		MaxFileBytes: cfg.Output.MaxFileBytes,
+		RetainFiles:  cfg.Output.RetainFiles,
+	})
 	if err != nil {
 		logx.System().Error("storage writer init failed", "error", err)
 		os.Exit(1)
@@ -3253,7 +3256,7 @@ func main() {
 
 	// ── Real-time alert persistence (NDJSON) ──────────────
 	alertPath := filepath.Join(cfg.Output.Dir, "alerts.ndjson")
-	alertEnc, err := newRotatingJSONEncoder(alertPath, defaultAlertMaxFileBytes, defaultAlertRetainFiles)
+	alertEnc, err := newRotatingJSONEncoder(alertPath, cfg.Output.AlertMaxFileBytes, cfg.Output.AlertRetainFiles)
 	if err != nil {
 		logx.System().Error("alert file open failed", "error", err)
 	}

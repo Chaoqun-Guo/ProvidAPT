@@ -26,8 +26,12 @@ type Config struct {
 	} `json:"kernel" yaml:"kernel"`
 
 	Output struct {
-		Dir    string `json:"dir" yaml:"dir"`
-		Format string `json:"format" yaml:"format"`
+		Dir               string `json:"dir" yaml:"dir"`
+		Format            string `json:"format" yaml:"format"`
+		MaxFileBytes      int64  `json:"max_file_bytes" yaml:"max_file_bytes"`
+		RetainFiles       int    `json:"retain_files" yaml:"retain_files"`
+		AlertMaxFileBytes int64  `json:"alert_max_file_bytes" yaml:"alert_max_file_bytes"`
+		AlertRetainFiles  int    `json:"alert_retain_files" yaml:"alert_retain_files"`
 	} `json:"output" yaml:"output"`
 
 	Log struct {
@@ -281,6 +285,10 @@ func DefaultConfig() *Config {
 		"bprm_check_security", "socket_connect"}
 	c.Output.Dir = "/var/log/providapt"
 	c.Output.Format = "json"
+	c.Output.MaxFileBytes = 16 * 1024 * 1024
+	c.Output.RetainFiles = 1
+	c.Output.AlertMaxFileBytes = 8 * 1024 * 1024
+	c.Output.AlertRetainFiles = 1
 	c.Log.Level = "info"
 	c.Log.Format = "json"
 	c.Capture.EnableNet = true
@@ -453,6 +461,18 @@ func resolveSecretString(field *string, envKey string) {
 func (c *Config) Validate() error {
 	if c.Output.Format != "json" && c.Output.Format != "parquet" {
 		return fmt.Errorf("unsupported output format %q (use json or parquet)", c.Output.Format)
+	}
+	if c.Output.MaxFileBytes < 0 {
+		return fmt.Errorf("output.max_file_bytes must be non-negative")
+	}
+	if c.Output.RetainFiles < 0 {
+		return fmt.Errorf("output.retain_files must be non-negative")
+	}
+	if c.Output.AlertMaxFileBytes < 0 {
+		return fmt.Errorf("output.alert_max_file_bytes must be non-negative")
+	}
+	if c.Output.AlertRetainFiles < 0 {
+		return fmt.Errorf("output.alert_retain_files must be non-negative")
 	}
 	if c.Log.Level != "debug" && c.Log.Level != "info" && c.Log.Level != "warn" && c.Log.Level != "error" {
 		return fmt.Errorf("unsupported log level %q (use debug, info, warn, or error)", c.Log.Level)
@@ -687,6 +707,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.SIEM.Enabled, "PROVIDAPT_SIEM_ENABLED")
 
 	overrideInt(&cfg.Capture.MaxEvents, "PROVIDAPT_CAPTURE_MAX_EVENTS")
+	overrideInt(&cfg.Output.RetainFiles, "PROVIDAPT_OUTPUT_RETAIN_FILES")
+	overrideInt(&cfg.Output.AlertRetainFiles, "PROVIDAPT_OUTPUT_ALERT_RETAIN_FILES")
 	overrideInt(&cfg.API.RateLimitBurst, "PROVIDAPT_API_RATE_LIMIT_BURST")
 	overrideInt(&cfg.Notify.MaxAttempts, "PROVIDAPT_NOTIFY_MAX_ATTEMPTS")
 	overrideInt(&cfg.SupportBundle.RetainArchives, "PROVIDAPT_SUPPORT_RETAIN_ARCHIVES")
@@ -697,6 +719,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt(&cfg.Compliance.MaxAuditEntries, "PROVIDAPT_COMPLIANCE_MAX_AUDIT_ENTRIES")
 	overrideInt(&cfg.Upgrade.CanaryPercent, "PROVIDAPT_UPGRADE_CANARY_PERCENT")
 	overrideInt64(&cfg.Backup.MinFreeBytes, "PROVIDAPT_BACKUP_MIN_FREE_BYTES")
+	overrideInt64(&cfg.Output.MaxFileBytes, "PROVIDAPT_OUTPUT_MAX_FILE_BYTES")
+	overrideInt64(&cfg.Output.AlertMaxFileBytes, "PROVIDAPT_OUTPUT_ALERT_MAX_FILE_BYTES")
 
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
 	overrideUint32Slice(&cfg.Capture.ExcludePIDs, "PROVIDAPT_CAPTURE_EXCLUDE_PIDS")

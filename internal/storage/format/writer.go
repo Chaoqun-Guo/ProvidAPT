@@ -19,10 +19,15 @@ type Writer struct {
 
 // NewWriter creates a storage writer.
 func NewWriter(dir, format string) (*Writer, error) {
+	return NewWriterWithOptions(dir, format, JSONWriterOptions{})
+}
+
+// NewWriterWithOptions creates a storage writer with format-specific options.
+func NewWriterWithOptions(dir, format string, jsonOpts JSONWriterOptions) (*Writer, error) {
 	w := &Writer{dir: dir, format: format}
 	switch format {
 	case "json":
-		jw, err := NewJSONWriter(dir)
+		jw, err := NewJSONWriterWithOptions(dir, jsonOpts)
 		if err != nil {
 			return nil, err
 		}

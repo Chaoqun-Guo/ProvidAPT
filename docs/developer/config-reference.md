@@ -26,8 +26,23 @@ This reference summarizes the major ProvidAPT configuration sections. Use `provi
 | Field | Purpose |
 | --- | --- |
 | `output.dir` | local log and evidence directory |
+| `output.format` | event export format, usually `json` for NDJSON |
+| `output.max_file_bytes` | maximum active event NDJSON file size before rotation; `0` uses the built-in default |
+| `output.retain_files` | number of event NDJSON files to retain, including the active file; use `1` for small disks |
+| `output.alert_max_file_bytes` | maximum `alerts.ndjson` size before rotation; `0` uses the built-in default |
+| `output.alert_retain_files` | number of alert archives to retain; the active `alerts.ndjson` is always kept |
 | `storage.encryption_enabled` | enables local storage encryption where supported |
 | `control_plane.state_backend` | file or PostgreSQL-backed control-plane state |
+
+For constrained VMs, start with:
+
+```yaml
+output:
+  max_file_bytes: 16777216
+  retain_files: 1
+  alert_max_file_bytes: 8388608
+  alert_retain_files: 1
+```
 
 ## Policy
 

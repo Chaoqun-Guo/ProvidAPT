@@ -170,6 +170,35 @@ func TestJSONWriterRotatesAndPrunes(t *testing.T) {
 	}
 }
 
+func TestJSONWriterOptionsDisableArchivedRetention(t *testing.T) {
+	dir := t.TempDir()
+	w, err := NewJSONWriterWithOptions(dir, JSONWriterOptions{
+		MaxFileBytes: 300,
+		RetainFiles:  0,
+	})
+	if err != nil {
+		t.Fatalf("NewJSONWriterWithOptions failed: %v", err)
+	}
+
+	for i := 0; i < 5; i++ {
+		evt := testEvent()
+		evt.PID = uint32(200 + i)
+		evt.Pathname = strings.Repeat("x", 120)
+		if err := w.Write(evt); err != nil {
+			t.Fatalf("Write %d failed: %v", i, err)
+		}
+	}
+	w.Close()
+
+	matches, err := filepath.Glob(filepath.Join(dir, "providapt-*.ndjson"))
+	if err != nil {
+		t.Fatalf("Glob failed: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("retained files = %d, want active file only: %#v", len(matches), matches)
+	}
+}
+
 func TestJSONWriterCloseIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	w, err := NewJSONWriter(dir)

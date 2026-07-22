@@ -17,9 +17,15 @@ import (
 )
 
 const (
-	defaultJSONMaxFileBytes = 64 * 1024 * 1024
-	defaultJSONRetainFiles  = 2
+	defaultJSONMaxFileBytes = 16 * 1024 * 1024
+	defaultJSONRetainFiles  = 1
 )
+
+// JSONWriterOptions controls NDJSON rotation and retention.
+type JSONWriterOptions struct {
+	MaxFileBytes int64
+	RetainFiles  int
+}
 
 // JSONWriter writes provenance events as newline-delimited JSON.
 type JSONWriter struct {
@@ -34,6 +40,11 @@ type JSONWriter struct {
 
 // NewJSONWriter creates a JSON lines writer.
 func NewJSONWriter(dir string) (*JSONWriter, error) {
+	return NewJSONWriterWithOptions(dir, JSONWriterOptions{})
+}
+
+// NewJSONWriterWithOptions creates a JSON lines writer with rotation options.
+func NewJSONWriterWithOptions(dir string, opts JSONWriterOptions) (*JSONWriter, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("create output dir: %w", err)
 	}
@@ -44,13 +55,19 @@ func NewJSONWriter(dir string) (*JSONWriter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create output file: %w", err)
 	}
+	if opts.MaxFileBytes <= 0 {
+		opts.MaxFileBytes = defaultJSONMaxFileBytes
+	}
+	if opts.RetainFiles < 0 {
+		opts.RetainFiles = defaultJSONRetainFiles
+	}
 
 	return &JSONWriter{
 		f:            f,
 		dir:          dir,
 		filename:     filename,
-		maxFileBytes: defaultJSONMaxFileBytes,
-		retainFiles:  defaultJSONRetainFiles,
+		maxFileBytes: opts.MaxFileBytes,
+		retainFiles:  opts.RetainFiles,
 	}, nil
 }
 
@@ -108,6 +125,15 @@ func (w *JSONWriter) rotateIfNeededLocked(nextBytes int64) error {
 
 func (w *JSONWriter) pruneOldFilesLocked() {
 	if w.retainFiles <= 0 {
+		matches, _ := filepath.Glob(filepath.Join(w.dir, "providapt-*.ndjson"))
+		for _, path := range matches {
+			if path == w.filename {
+				continue
+			}
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+				log.Printf("[format/json] prune %s: %v", path, err)
+			}
+		}
 		return
 	}
 	matches, err := filepath.Glob(filepath.Join(w.dir, "providapt-*.ndjson"))

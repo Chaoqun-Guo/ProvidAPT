@@ -308,7 +308,8 @@ func recordMatches(rec EventRecord, pattern string) bool {
 	return strings.Contains(strings.ToLower(rec.Comm), pattern) ||
 		strings.Contains(strings.ToLower(rec.Label), pattern) ||
 		strings.Contains(strings.ToLower(rec.Type), pattern) ||
-		strings.Contains(strings.ToLower(rec.Subtype), pattern)
+		strings.Contains(strings.ToLower(rec.Subtype), pattern) ||
+		strings.Contains(strings.ToLower(fmt.Sprint(rec.Raw)), pattern)
 }
 
 func mapToRecord(raw map[string]interface{}) EventRecord {
@@ -326,6 +327,19 @@ func mapToRecord(raw map[string]interface{}) EventRecord {
 	if comm, ok := raw["comm"].(string); ok {
 		rec.Comm = comm
 	}
+	if process, ok := raw["process"].(map[string]interface{}); ok {
+		if pid, ok := process["pid"].(float64); ok {
+			rec.PID = uint32(pid)
+		}
+		if comm, ok := process["comm"].(string); ok {
+			rec.Comm = comm
+		}
+		if rec.Label == "" {
+			if exe, ok := process["exe_path"].(string); ok {
+				rec.Label = exe
+			}
+		}
+	}
 	if t, ok := raw["type"].(string); ok {
 		rec.Type = t
 	}
@@ -335,8 +349,33 @@ func mapToRecord(raw map[string]interface{}) EventRecord {
 	if lbl, ok := raw["label"].(string); ok {
 		rec.Label = lbl
 	}
+	if payload, ok := raw["payload"].(map[string]interface{}); ok {
+		if payloadLabel := eventPayloadLabel(payload); payloadLabel != "" {
+			rec.Label = payloadLabel
+		}
+		if rec.Subtype == "" {
+			if kind, ok := payload["kind"].(string); ok {
+				rec.Subtype = kind
+			}
+		}
+	}
 
 	return rec
+}
+
+func eventPayloadLabel(payload map[string]interface{}) string {
+	for _, key := range []string{"pathname", "exe_path", "cmdline", "address", "dst_addr", "src_addr"} {
+		if value, ok := payload[key].(string); ok && strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	if dst, ok := payload["dst_port"].(float64); ok {
+		return fmt.Sprintf("network port %.0f", dst)
+	}
+	if child, ok := payload["child_pid"].(float64); ok {
+		return fmt.Sprintf("child pid %.0f", child)
+	}
+	return ""
 }
 
 func resolveOutputDir() string {
