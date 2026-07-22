@@ -34,6 +34,38 @@ Configure each agent with:
 - optional `capture.include_comms` allow-list
 - host tags such as environment, owner, and workload
 
+## Small Disk / High Event Rate Hosts
+
+Use explicit log budgets and command allow-lists on noisy virtual machines:
+
+```yaml
+output:
+  max_file_bytes: 16777216
+  retain_files: 1
+  alert_max_file_bytes: 8388608
+  alert_retain_files: 1
+capture:
+  auto_exclude_noisy: true
+  include_comms: ["curl", "bash", "sh", "ssh", "scp", "python", "python3"]
+```
+
+The dashboard event cards open structured details for `process`, typed `payload`,
+`enrich`, and raw compatibility fields. Alert Workflow also provides `Open
+Events` to search related event records without leaving the console.
+
+## Repeatable VM Deployment
+
+After building `build/bin/providaptd`, deploy without leaving large archives on
+the VMs:
+
+```bash
+PROVIDAPT_VM_HOSTS="ubuntu@192.168.150.129 centos@192.168.150.131 ubuntu@192.168.150.132" \
+  bash scripts/deploy/deploy-vms.sh
+```
+
+The script uploads only the daemon binary, restarts the service, and removes old
+`providapt-*.ndjson` and `alerts*.ndjson` files.
+
 ## Validation
 
 On the server:

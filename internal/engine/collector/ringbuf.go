@@ -220,6 +220,6 @@ func pathUnavailable(pathname string) bool {
 	pathname = strings.TrimSpace(pathname)
 	return pathname == "" ||
 		pathname == "?" ||
-		pathname == "…" ||
-		strings.Contains(pathname, "鈥")
+		pathname == "\u2026" ||
+		strings.ContainsRune(pathname, '\uFFFD')
 }

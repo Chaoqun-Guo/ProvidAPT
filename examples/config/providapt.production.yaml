@@ -5,6 +5,10 @@
 output:
   dir: /var/log/providapt
   format: json
+  max_file_bytes: 16777216
+  retain_files: 1
+  alert_max_file_bytes: 8388608
+  alert_retain_files: 1
 
 capture:
   enable_net: true
@@ -13,6 +17,16 @@ capture:
   sensitive_dir: true
   auto_exclude_noisy: true
   max_events: 0
+  # On small disks or noisy hosts, prefer an explicit allow-list and expand it
+  # as investigations require. Values are Linux task comm names, not full argv.
+  include_comms:
+    - curl
+    - bash
+    - sh
+    - ssh
+    - scp
+    - python
+    - python3
 
 api:
   grpc: ":50051"

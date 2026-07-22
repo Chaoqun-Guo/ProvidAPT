@@ -58,6 +58,31 @@ Common fields:
 | `action` | control-plane or alert workflow action |
 | `trace_id` | investigation or correlation identifier when available |
 
+Normalized event records should be mapped before falling back to `raw`:
+
+| ProvidAPT field | Splunk field | Elastic ECS / generic field |
+| --- | --- | --- |
+| `type` | `event_type` | `event.action` |
+| `timestamp_ns` / `timestamp` | `_time` | `@timestamp` |
+| `process.pid` | `process_id` | `process.pid` |
+| `process.ppid` | `parent_process_id` | `process.parent.pid` |
+| `process.comm` | `process_name` | `process.name` |
+| `process.exe_path` | `process_path` | `process.executable` |
+| `process.cmdline` | `process_command_line` | `process.command_line` |
+| `payload.pathname` | `file_path` | `file.path` |
+| `payload.inode` | `file_inode` | `file.inode` |
+| `payload.dst_addr` | `dest_ip` | `destination.ip` |
+| `payload.dst_port` | `dest_port` | `destination.port` |
+| `payload.src_addr` | `src_ip` | `source.ip` |
+| `payload.src_port` | `src_port` | `source.port` |
+| `enrich.agent_id` | `agent_id` | `agent.id` |
+| `enrich.hostname` | `host` | `host.name` |
+| `raw` | `providapt_raw` | `providapt.raw` |
+
+For alerts, map `rule_id`, `severity`, `message`, `status`, `alert_id`, and
+`workflow_state` alongside the related event fields. Keep alert and event
+indices separate when high-volume capture is enabled.
+
 ## Troubleshooting
 
 - verify token and endpoint reachability

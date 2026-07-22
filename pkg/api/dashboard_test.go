@@ -24,6 +24,8 @@ func TestDashboardAlertWorkflowTraceLinks(t *testing.T) {
 		"/forward?depth=8",
 		"/api/v1/events/search?pattern=",
 		"Trace SVG",
+		"showAlertEvents",
+		"Open Events",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
@@ -85,6 +87,9 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"showInvestigationReport",
 		"downloadInvestigationReport",
 		"/api/v1/investigation/report?",
+		"showEventDetailsJSON",
+		"eventDetailRows",
+		"raw.schema_version",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {

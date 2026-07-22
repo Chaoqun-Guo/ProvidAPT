@@ -801,6 +801,7 @@ function alertTraceActions(a) {
     '<a href="/api/v1/graph/node/' + encodedID + '/backward?depth=8" target="_blank" rel="noreferrer" title="Trace upstream provenance">Backward</a>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/forward?depth=8" target="_blank" rel="noreferrer" title="Trace downstream impact">Forward</a>' +
     '<a href="/api/v1/events/search?pattern=' + eventPattern + '&limit=50" target="_blank" rel="noreferrer" title="Search related raw events">Events</a>' +
+    '<button class="secondary" onclick="showAlertEvents(\'' + jsString(a.headline || a.pattern || id) + '\')">Open Events</button>' +
     '</span>';
 }
 
@@ -2346,11 +2347,46 @@ function renderEventItem(event, label) {
   const target = event.label || payload.pathname || payload.exe_path || payload.cmdline || raw.message || raw.pattern || raw.path || raw.pathname || raw.rule_id || raw.alert_id || event.id || '';
   const message = type + ' · ' + comm + ' pid ' + pid + (target ? ' · ' + target : '');
   const detail = event.subtype || payload.kind || raw.severity || label;
-  return '<div class="alert-item">' +
+  const encoded = jsString(JSON.stringify(event || {}));
+  return '<div class="alert-item clickable" tabindex="0" role="button" onclick="showEventDetailsJSON(\'' + encoded + '\')" onkeydown="handleCardKey(event, function(){ showEventDetailsJSON(\'' + encoded + '\'); })">' +
     '<span class="alert-sev sev-low">' + escapeHTML(detail) + '</span>' +
     '<span class="alert-msg">' + escapeHTML(message) + '</span>' +
     '<span class="alert-time">' + formatTime(when) + '</span>' +
     '</div>';
+}
+
+function eventDetailRows(event) {
+  const raw = event.raw || {};
+  const process = raw.process || {};
+  const payload = raw.payload || {};
+  const enrich = raw.enrich || {};
+  return [
+    renderKVItem('summary', event.type || raw.type || 'event', event.timestamp || raw.timestamp || ''),
+    renderKVItem('process', (event.comm || process.comm || raw.comm || '--') + ' pid ' + (event.pid || process.pid || raw.pid || '--'), process.exe_path || ''),
+    renderKVItem('payload', JSON.stringify(payload || {}).slice(0, 420), payload.kind || event.subtype || ''),
+    renderKVItem('enrich', JSON.stringify(enrich || {}).slice(0, 420), raw.schema_version ? ('schema v' + raw.schema_version) : ''),
+    renderKVItem('raw', JSON.stringify(raw || event || {}).slice(0, 700), 'record'),
+  ];
+}
+
+function showEventDetailsJSON(encoded) {
+  try {
+    const event = JSON.parse(encoded || '{}');
+    setInvestigationItems(eventDetailRows(event), 'No event detail available');
+  } catch (e) {
+    setInvestigationLoading('Event detail parse failed: ' + e.message);
+  }
+}
+
+async function showAlertEvents(pattern) {
+  setInvestigationLoading('Searching related alert events...');
+  try {
+    const data = await fetchJSON('/api/v1/events/search?pattern=' + encodeURIComponent(pattern || '') + '&limit=50');
+    const events = data.results || data.events || data.items || [];
+    setInvestigationItems(events.slice(0, 20).map(event => renderEventItem(event, 'related')), 'No related events found for this alert');
+  } catch (e) {
+    setInvestigationLoading('Related event search failed: ' + e.message);
+  }
 }
 
 async function showRecentEvents() {
