@@ -648,6 +648,7 @@ type GroundTruthRecord struct {
 	Schema           string                 `json:"schema,omitempty"`
 	RunID            string                 `json:"run_id,omitempty"`
 	Timestamp        string                 `json:"timestamp,omitempty"`
+	Category         string                 `json:"category,omitempty"`
 	StepIndex        int                    `json:"step_index,omitempty"`
 	StepID           string                 `json:"step_id,omitempty"`
 	StepName         string                 `json:"step_name,omitempty"`
@@ -3307,6 +3308,7 @@ func groundTruthRecordFromMap(raw map[string]interface{}, sourceFile string) Gro
 		Schema:           stringFromMap(raw, "schema"),
 		RunID:            stringFromMap(raw, "run_id"),
 		Timestamp:        stringFromMap(raw, "timestamp"),
+		Category:         stringFromMap(raw, "category"),
 		StepIndex:        intFromMap(raw, "step_index"),
 		StepID:           stringFromMap(raw, "step_id"),
 		StepName:         stringFromMap(raw, "step_name"),
@@ -3328,7 +3330,7 @@ func groundTruthRecordFromMap(raw map[string]interface{}, sourceFile string) Gro
 		Extra:            map[string]interface{}{},
 	}
 	known := map[string]bool{
-		"schema": true, "run_id": true, "timestamp": true, "step_index": true,
+		"schema": true, "run_id": true, "timestamp": true, "category": true, "step_index": true,
 		"step_id": true, "step_name": true, "phase": true, "tactic": true,
 		"tactic_id": true, "tactic_name": true, "technique": true,
 		"technique_id": true, "technique_name": true, "mitre_url": true, "command": true,
