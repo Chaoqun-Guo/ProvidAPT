@@ -2486,6 +2486,9 @@ func TestSVGGeneration(t *testing.T) {
 	if !strings.Contains(string(svg), `<path d="M`) {
 		t.Error("SVG should render routed paths instead of straight-only lines")
 	}
+	if strings.Contains(string(svg), "cmdline=cat /etc/sh...") {
+		t.Error("SVG should not truncate provenance cmdline details with ellipsis")
+	}
 	if !strings.Contains(string(svg), `edge-label-read`) {
 		t.Error("SVG missing operation-specific edge label class")
 	}

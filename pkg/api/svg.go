@@ -50,8 +50,8 @@ type svgEventGroup struct {
 }
 
 const (
-	nodeW       = 220
-	nodeH       = 70
+	nodeW       = 280
+	nodeH       = 116
 	xPad        = 36
 	yPad        = 34
 	layerGap    = 120
@@ -179,7 +179,7 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 		d := depth[id]
 		lay.nodes = append(lay.nodes, svgNode{
 			id:      n.ID,
-			label:   truncate(n.Label, 30),
+			label:   n.Label,
 			detail1: nodeDetailLine(n),
 			detail2: nodeIdentityLine(n),
 			typ:     n.Subtype,
@@ -375,7 +375,7 @@ func renderSVG(lay *svgLayout) []byte {
   .node-credential rect { fill: #3a2a1a; stroke: #d29922; }
   .node-default rect { fill: #1f232a; stroke: #8b949e; }
   .node .label { fill: #f0f6fc; font: 12px monospace; font-weight: 700; }
-	.node .meta { fill: #8b949e; font: 10px monospace; }
+  .node .meta { fill: #8b949e; font: 10px monospace; }
   .node title { font: 10px monospace; }
   .edge path { fill: none; stroke: #8b949e; stroke-width: 1.7; marker-end: url(#arrow-default); }
   .edge-tree path { stroke-width: 2.1; }
@@ -464,12 +464,9 @@ func renderSVG(lay *svgLayout) []byte {
 		fmt.Fprintf(&b, `<g class="node %s">
   <title>%s</title>
   <rect x="%d" y="%d" width="%d" height="%d"/>
-  <text class="label" x="%d" y="%d">%s</text>
-  <text class="meta" x="%d" y="%d">%s</text>
-  <text class="meta" x="%d" y="%d">%s</text>
+  %s
 </g>
-`, class, escapeXML(nodeTitle(n)), n.x, n.y, nodeW, nodeH, n.x+10, n.y+21, escapeXML(n.label),
-			n.x+10, n.y+41, escapeXML(n.detail1), n.x+10, n.y+57, escapeXML(n.detail2))
+`, class, escapeXML(nodeTitle(n)), n.x, n.y, nodeW, nodeH, renderNodeText(n))
 	}
 
 	renderEventTable(&b, lay)
@@ -494,7 +491,10 @@ func renderEventTable(b *strings.Builder, lay *svgLayout) {
 	y := tableY + 42
 	for _, group := range groups {
 		visibleRows := minInt(len(group.edges), 3)
-		groupH := 34 + visibleRows*22
+		groupH := 34
+		for i := 0; i < visibleRows; i++ {
+			groupH += 18 + len(wrapText(group.edges[i].detail, 132, 4))*12
+		}
 		if len(group.edges) > visibleRows {
 			groupH += 18
 		}
@@ -507,14 +507,20 @@ func renderEventTable(b *strings.Builder, lay *svgLayout) {
 			if i >= visibleRows {
 				break
 			}
-			rowY := y + 40 + i*22
+			rowY := y + 40
+			for j := 0; j < i; j++ {
+				rowY += 18 + len(wrapText(group.edges[j].detail, 132, 4))*12
+			}
 			fmt.Fprintf(b, `  <text x="52" y="%d">#%02d %-14s %s</text>
-  <text class="group-meta" x="52" y="%d">%s</text>
-`, rowY, i+1, escapeXML(e.event), escapeXML(e.summary), rowY+12, escapeXML(e.detail))
+`, rowY, i+1, escapeXML(e.event), escapeXML(e.summary))
+			for lineIndex, line := range wrapText(e.detail, 132, 4) {
+				fmt.Fprintf(b, `  <text class="group-meta" x="52" y="%d">%s</text>
+`, rowY+12+lineIndex*12, escapeXML(line))
+			}
 		}
 		if len(group.edges) > visibleRows {
-			fmt.Fprintf(b, `  <text class="group-meta" x="52" y="%d">... %d more event relation(s) collapsed in this category</text>
-`, y+40+visibleRows*22, len(group.edges)-visibleRows)
+			fmt.Fprintf(b, `  <text class="group-meta" x="52" y="%d">%d more event relation(s) collapsed in this category</text>
+`, y+groupH-12, len(group.edges)-visibleRows)
 		}
 		b.WriteString("</g>\n")
 		y += groupH + 10
@@ -530,7 +536,11 @@ func eventTableHeight(edges []svgEdge) int {
 	height := 58
 	for _, group := range groups {
 		visibleRows := minInt(len(group.edges), 3)
-		height += 34 + visibleRows*22 + 10
+		groupH := 34
+		for i := 0; i < visibleRows; i++ {
+			groupH += 18 + len(wrapText(group.edges[i].detail, 132, 4))*12
+		}
+		height += groupH + 10
 		if len(group.edges) > visibleRows {
 			height += 18
 		}
@@ -635,6 +645,48 @@ func svgMarkers() string {
 	return b.String()
 }
 
+func renderNodeText(n svgNode) string {
+	lines := []struct {
+		class    string
+		text     string
+		maxLines int
+	}{
+		{"label", n.label, 2},
+		{"meta", n.detail1, 3},
+		{"meta", n.detail2, 3},
+	}
+	var b strings.Builder
+	y := n.y + 20
+	for _, group := range lines {
+		for _, line := range wrapText(group.text, 38, group.maxLines) {
+			fmt.Fprintf(&b, `<text class="%s" x="%d" y="%d">%s</text>
+  `, group.class, n.x+10, y, escapeXML(line))
+			y += 13
+		}
+	}
+	return b.String()
+}
+
+func wrapText(text string, width, maxLines int) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	var lines []string
+	for len(text) > width && len(lines) < maxLines-1 {
+		cut := width
+		if idx := strings.LastIndexAny(text[:width], "/ :-_=."); idx > 10 {
+			cut = idx + 1
+		}
+		lines = append(lines, strings.TrimSpace(text[:cut]))
+		text = strings.TrimSpace(text[cut:])
+	}
+	if text != "" {
+		lines = append(lines, text)
+	}
+	return lines
+}
+
 func edgePath(x1, y1, x2, y2 int) string {
 	if x2 > x1 {
 		midX := (x1 + x2) / 2
@@ -715,11 +767,11 @@ func nodeDetailLine(n *provenance.Node) string {
 func nodeIdentityLine(n *provenance.Node) string {
 	switch n.Subtype {
 	case "process":
-		return truncate(firstAttr(n.Attributes, []string{"cmdline", "exe_path"}, n.ID), 38)
+		return firstAttr(n.Attributes, []string{"cmdline", "exe_path"}, n.ID)
 	case "file":
-		return truncate(stringAttr(n.Attributes, "pathname", n.ID), 38)
+		return stringAttr(n.Attributes, "pathname", n.ID)
 	default:
-		return truncate(n.ID, 38)
+		return n.ID
 	}
 }
 
@@ -728,7 +780,7 @@ func nodeTitle(n svgNode) string {
 }
 
 func edgeSummary(e *provenance.Edge) string {
-	return fmt.Sprintf("%s -> %s (%s)", truncate(e.Source, 22), truncate(e.Target, 22), shortRel(e.Relation))
+	return fmt.Sprintf("%s -> %s (%s)", e.Source, e.Target, shortRel(e.Relation))
 }
 
 func edgeDetail(e *provenance.Edge) string {
@@ -754,7 +806,7 @@ func edgeDetail(e *provenance.Edge) string {
 			}
 		}
 	}
-	return truncate(compactJoin(parts), 116)
+	return compactJoin(parts)
 }
 
 func edgeKind(e *provenance.Edge) string {

@@ -76,7 +76,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .sev-medium { background: #1a2a3a; color: #58a6ff; }
 .sev-low { background: #1a1a2a; color: #8b949e; }
 .alert-time { color: #484f58; font-size: 11px; }
-.alert-msg { flex: 1; margin: 0 12px; }
+.alert-msg { flex: 1; margin: 0 12px; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
+.alert-msg code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
 
 .loading { color: #8b949e; text-align: center; padding: 12px; font-size: 12px; }
 .error { color: #f85149; text-align: center; padding: 12px; font-size: 13px; }
@@ -2700,9 +2701,9 @@ function eventDetailRows(event) {
   return [
     renderKVItem('summary', event.type || raw.type || 'event', event.timestamp || raw.timestamp || ''),
     renderKVItem('process', (event.comm || process.comm || raw.comm || '--') + ' pid ' + (event.pid || process.pid || raw.pid || '--'), process.exe_path || ''),
-    renderKVItem('payload', JSON.stringify(payload || {}).slice(0, 420), payload.kind || event.subtype || ''),
-    renderKVItem('enrich', JSON.stringify(enrich || {}).slice(0, 420), raw.schema_version ? ('schema v' + raw.schema_version) : ''),
-    renderKVItem('raw', JSON.stringify(raw || event || {}).slice(0, 700), 'record'),
+    renderKVItem('payload', JSON.stringify(payload || {}), payload.kind || event.subtype || ''),
+    renderKVItem('enrich', JSON.stringify(enrich || {}), raw.schema_version ? ('schema v' + raw.schema_version) : ''),
+    renderKVItem('raw', JSON.stringify(raw || event || {}), 'record'),
   ];
 }
 
