@@ -83,7 +83,9 @@ record_truth() {
         printf ',"technique":%s' "$(json_escape "$technique_id $technique_name")"
         printf ',"technique_id":%s' "$(json_escape "$technique_id")"
         printf ',"technique_name":%s' "$(json_escape "$technique_name")"
-        printf ',"mitre_url":%s' "$(json_escape "https://attack.mitre.org/techniques/${technique_id//./\/}/")"
+        if [ "$technique_id" != "benign" ]; then
+            printf ',"mitre_url":%s' "$(json_escape "https://attack.mitre.org/techniques/${technique_id//./\/}/")"
+        fi
         printf ',"command":%s' "$(json_escape "$command")"
         printf ',"expected_event":%s' "$(json_escape "$expected_event")"
         printf ',"expected_relation":%s' "$(json_escape "$relation")"
