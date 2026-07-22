@@ -37,3 +37,42 @@ func TestAttackSimulationRecordsGroundTruth(t *testing.T) {
 		}
 	}
 }
+
+func TestFullChainSimulationClassifiesAttackSteps(t *testing.T) {
+	data, err := os.ReadFile("attack_full_chain.sh")
+	if err != nil {
+		t.Fatalf("read attack_full_chain.sh: %v", err)
+	}
+	script := string(data)
+	required := []string{
+		"providapt.attack_manifest.v1",
+		"providapt.attack_ground_truth.v1",
+		`"chain":"full_chain"`,
+		`"category"`,
+		`"step_index"`,
+		`"tactic_id"`,
+		`"technique_id"`,
+		`https://attack.mitre.org/matrices/enterprise/`,
+		`https://attack.mitre.org/techniques/`,
+		`"TA0043"`,
+		`"TA0042"`,
+		`"TA0001"`,
+		`"TA0002"`,
+		`"TA0003"`,
+		`"TA0004"`,
+		`"TA0005"`,
+		`"TA0006"`,
+		`"TA0007"`,
+		`"TA0008"`,
+		`"TA0009"`,
+		`"TA0011"`,
+		`"TA0010"`,
+		`"TA0040"`,
+		`"benign"`,
+	}
+	for _, want := range required {
+		if !strings.Contains(script, want) {
+			t.Fatalf("attack_full_chain.sh missing %q", want)
+		}
+	}
+}

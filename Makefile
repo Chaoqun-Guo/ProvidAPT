@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
-.PHONY: attack-sim verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial package-smoke-matrix create-user docker-build docker-run help
@@ -282,6 +282,9 @@ cgroup:
 attack-sim:
 	@bash test/integration/attack-scenarios/attack_sim.sh
 
+attack-full-chain:
+	@bash test/integration/attack-scenarios/attack_full_chain.sh
+
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 
@@ -313,6 +316,7 @@ help:
 	@echo '  make deception-test   Run deception tests'
 	@echo '  make supplychain-test Run supply-chain tests'
 	@echo '  make attack-sim       Simulate an APT attack scenario'
+	@echo '  make attack-full-chain Run ATT&CK full-chain simulation'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''

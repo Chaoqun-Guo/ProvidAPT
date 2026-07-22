@@ -90,6 +90,9 @@ make cluster-test    # cluster/stitcher tests
 # APT attack simulation (5-phase)
 make attack-sim
 
+# ATT&CK-aligned full-chain simulation with categorized ground truth
+make attack-full-chain
+
 # Verify provenance graph capture
 make verify-capture
 
@@ -175,6 +178,8 @@ set -euo pipefail
 SIM_TMPDIR=$(mktemp -d)
 trap 'rm -rf "$SIM_TMPDIR"' EXIT
 ```
+
+`attack_full_chain.sh` models a safe Linux ATT&CK Enterprise chain across reconnaissance, resource development, initial access, execution, persistence, privilege escalation, defense evasion, credential access, discovery, lateral movement, collection, command and control, exfiltration, impact, and benign contrast. It records JSONL ground truth with `chain`, `category`, `step_index`, `step_id`, `step_name`, `tactic_id`, `tactic_name`, `technique_id`, `technique_name`, `mitre_url`, `expected_event`, and `expected_relation`. All writes stay under a temporary simulation directory and all network probes use localhost/documentation-safe targets.
 
 ## CI Integration
 
