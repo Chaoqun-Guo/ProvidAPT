@@ -2577,6 +2577,31 @@ func TestSVGTreeLayoutKeepsCrossLinksReadable(t *testing.T) {
 	}
 }
 
+func TestSVGNodeSizeAdaptsToLongContent(t *testing.T) {
+	longCmd := "bash -lc curl --connect-timeout 2 http://127.0.0.1:1/very/long/path/that/should/wrap/instead/of/overlap"
+	node := &provenance.Node{
+		ID:      "p:4242",
+		Label:   "curl-with-long-command",
+		Subtype: provenance.SubProcess,
+		Attributes: map[string]interface{}{
+			"pid":     4242,
+			"comm":    "bash",
+			"cmdline": longCmd,
+		},
+	}
+	svgNode := makeSVGNode(node, 0)
+	if svgNode.w <= minNodeW {
+		t.Fatalf("node width = %d, want adaptive width above minimum", svgNode.w)
+	}
+	if svgNode.h <= minNodeH {
+		t.Fatalf("node height = %d, want adaptive height above minimum", svgNode.h)
+	}
+	rendered := renderNodeText(svgNode)
+	if strings.Contains(rendered, "...") {
+		t.Fatalf("node text should wrap without ellipsis: %s", rendered)
+	}
+}
+
 func TestLoadAlertsReadsRotatedNDJSON(t *testing.T) {
 	dir := t.TempDir()
 	archive := filepath.Join(dir, "alerts-20260722T010000Z.ndjson")

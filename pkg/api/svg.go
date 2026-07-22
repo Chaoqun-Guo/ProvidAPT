@@ -29,6 +29,8 @@ type svgNode struct {
 	typ     string
 	x       int
 	y       int
+	w       int
+	h       int
 }
 
 type svgEdge struct {
@@ -50,10 +52,11 @@ type svgEventGroup struct {
 }
 
 const (
-	nodeW       = 280
-	nodeH       = 116
+	minNodeW    = 240
+	maxNodeW    = 520
+	minNodeH    = 82
 	xPad        = 36
-	yPad        = 34
+	yPad        = 42
 	layerGap    = 120
 	topY        = 76
 	minGraphH   = 320
@@ -168,27 +171,42 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 	for _, id := range orderedIDs {
 		maxDepth = maxInt(maxDepth, depth[id])
 	}
-	graphW := (maxDepth+1)*nodeW + maxDepth*layerGap
-	lay.width = maxInt(1120, xPad*2+graphW)
-	contentX := maxInt(xPad, (lay.width-graphW)/2)
-	for row, id := range orderedIDs {
+	measured := make([]svgNode, 0, len(orderedIDs))
+	colWidths := make([]int, maxDepth+1)
+	for _, id := range orderedIDs {
 		n := findNodeByID(nodes, id)
 		if n == nil {
 			continue
 		}
-		d := depth[id]
-		lay.nodes = append(lay.nodes, svgNode{
-			id:      n.ID,
-			label:   n.Label,
-			detail1: nodeDetailLine(n),
-			detail2: nodeIdentityLine(n),
-			typ:     n.Subtype,
-			x:       contentX + d*(nodeW+layerGap),
-			y:       topY + row*(nodeH+yPad),
-		})
+		node := makeSVGNode(n, depth[id])
+		measured = append(measured, node)
+		colWidths[depth[id]] = maxInt(colWidths[depth[id]], node.w)
 	}
 
-	graphH := topY + len(lay.nodes)*(nodeH+yPad) + 20
+	graphW := 0
+	for depthIndex, width := range colWidths {
+		graphW += width
+		if depthIndex > 0 {
+			graphW += layerGap
+		}
+	}
+	lay.width = maxInt(1120, xPad*2+graphW)
+	contentX := maxInt(xPad, (lay.width-graphW)/2)
+	colX := make([]int, len(colWidths))
+	x := contentX
+	for i, width := range colWidths {
+		colX[i] = x
+		x += width + layerGap
+	}
+	y := topY
+	for _, node := range measured {
+		node.x = colX[depth[node.id]]
+		node.y = y
+		lay.nodes = append(lay.nodes, node)
+		y += node.h + yPad
+	}
+
+	graphH := y + 20
 	lay.graphH = maxInt(minGraphH, graphH)
 	usedTreeEdges := map[string]bool{}
 	for _, e := range edges {
@@ -425,14 +443,14 @@ func renderSVG(lay *svgLayout) []byte {
 		if !ok {
 			continue
 		}
-		x1 := src.x + nodeW
-		y1 := src.y + nodeH/2
+		x1 := src.x + src.w
+		y1 := src.y + src.h/2
 		x2 := dst.x
-		y2 := dst.y + nodeH/2
+		y2 := dst.y + dst.h/2
 		if dst.x <= src.x {
-			x1 = src.x + nodeW/2
-			y1 = src.y + nodeH
-			x2 = dst.x + nodeW/2
+			x1 = src.x + src.w/2
+			y1 = src.y + src.h
+			x2 = dst.x + dst.w/2
 			y2 = dst.y
 		}
 		midX := (x1 + x2) / 2
@@ -466,7 +484,7 @@ func renderSVG(lay *svgLayout) []byte {
   <rect x="%d" y="%d" width="%d" height="%d"/>
   %s
 </g>
-`, class, escapeXML(nodeTitle(n)), n.x, n.y, nodeW, nodeH, renderNodeText(n))
+`, class, escapeXML(nodeTitle(n)), n.x, n.y, n.w, n.h, renderNodeText(n))
 	}
 
 	renderEventTable(&b, lay)
@@ -493,7 +511,7 @@ func renderEventTable(b *strings.Builder, lay *svgLayout) {
 		visibleRows := minInt(len(group.edges), 3)
 		groupH := 34
 		for i := 0; i < visibleRows; i++ {
-			groupH += 18 + len(wrapText(group.edges[i].detail, 132, 4))*12
+			groupH += eventRowHeight(group.edges[i])
 		}
 		if len(group.edges) > visibleRows {
 			groupH += 18
@@ -509,13 +527,17 @@ func renderEventTable(b *strings.Builder, lay *svgLayout) {
 			}
 			rowY := y + 40
 			for j := 0; j < i; j++ {
-				rowY += 18 + len(wrapText(group.edges[j].detail, 132, 4))*12
+				rowY += eventRowHeight(group.edges[j])
 			}
-			fmt.Fprintf(b, `  <text x="52" y="%d">#%02d %-14s %s</text>
-`, rowY, i+1, escapeXML(e.event), escapeXML(e.summary))
-			for lineIndex, line := range wrapText(e.detail, 132, 4) {
+			summary := fmt.Sprintf("#%02d %-14s %s", i+1, e.event, e.summary)
+			for lineIndex, line := range wrapText(summary, 132, 0) {
+				fmt.Fprintf(b, `  <text x="52" y="%d">%s</text>
+`, rowY+lineIndex*12, escapeXML(line))
+			}
+			detailStartY := rowY + len(wrapText(summary, 132, 0))*12
+			for lineIndex, line := range wrapText(e.detail, 132, 0) {
 				fmt.Fprintf(b, `  <text class="group-meta" x="52" y="%d">%s</text>
-`, rowY+12+lineIndex*12, escapeXML(line))
+`, detailStartY+lineIndex*12, escapeXML(line))
 			}
 		}
 		if len(group.edges) > visibleRows {
@@ -538,7 +560,7 @@ func eventTableHeight(edges []svgEdge) int {
 		visibleRows := minInt(len(group.edges), 3)
 		groupH := 34
 		for i := 0; i < visibleRows; i++ {
-			groupH += 18 + len(wrapText(group.edges[i].detail, 132, 4))*12
+			groupH += eventRowHeight(group.edges[i])
 		}
 		height += groupH + 10
 		if len(group.edges) > visibleRows {
@@ -546,6 +568,11 @@ func eventTableHeight(edges []svgEdge) int {
 		}
 	}
 	return maxInt(150, height)
+}
+
+func eventRowHeight(edge svgEdge) int {
+	summary := fmt.Sprintf("%-14s %s", edge.event, edge.summary)
+	return 10 + len(wrapText(summary, 132, 0))*12 + len(wrapText(edge.detail, 132, 0))*12
 }
 
 func groupedSVGEvents(edges []svgEdge) []svgEventGroup {
@@ -645,24 +672,62 @@ func svgMarkers() string {
 	return b.String()
 }
 
-func renderNodeText(n svgNode) string {
-	lines := []struct {
-		class    string
-		text     string
-		maxLines int
-	}{
-		{"label", n.label, 2},
-		{"meta", n.detail1, 3},
-		{"meta", n.detail2, 3},
+func makeSVGNode(n *provenance.Node, _ int) svgNode {
+	node := svgNode{
+		id:      n.ID,
+		label:   n.Label,
+		detail1: nodeDetailLine(n),
+		detail2: nodeIdentityLine(n),
+		typ:     n.Subtype,
 	}
+	node.w = measureNodeWidth(node)
+	lineCount := len(nodeTextLines(node))
+	node.h = maxInt(minNodeH, 18+lineCount*13+10)
+	return node
+}
+
+func measureNodeWidth(n svgNode) int {
+	longest := maxInt(16, longestDisplayLen(n.label))
+	longest = maxInt(longest, longestDisplayLen(n.detail1))
+	longest = maxInt(longest, longestDisplayLen(n.detail2))
+	return clampInt(longest*7+24, minNodeW, maxNodeW)
+}
+
+func nodeTextLines(n svgNode) []struct {
+	class string
+	text  string
+} {
+	widthChars := maxInt(24, (n.w-20)/7)
+	raw := []struct {
+		class string
+		text  string
+	}{
+		{"label", n.label},
+		{"meta", n.detail1},
+		{"meta", n.detail2},
+	}
+	var out []struct {
+		class string
+		text  string
+	}
+	for _, group := range raw {
+		for _, line := range wrapText(group.text, widthChars, 0) {
+			out = append(out, struct {
+				class string
+				text  string
+			}{class: group.class, text: line})
+		}
+	}
+	return out
+}
+
+func renderNodeText(n svgNode) string {
 	var b strings.Builder
 	y := n.y + 20
-	for _, group := range lines {
-		for _, line := range wrapText(group.text, 38, group.maxLines) {
-			fmt.Fprintf(&b, `<text class="%s" x="%d" y="%d">%s</text>
-  `, group.class, n.x+10, y, escapeXML(line))
-			y += 13
-		}
+	for _, line := range nodeTextLines(n) {
+		fmt.Fprintf(&b, `<text class="%s" x="%d" y="%d">%s</text>
+  `, line.class, n.x+10, y, escapeXML(line.text))
+		y += 13
 	}
 	return b.String()
 }
@@ -673,7 +738,7 @@ func wrapText(text string, width, maxLines int) []string {
 		return nil
 	}
 	var lines []string
-	for len(text) > width && len(lines) < maxLines-1 {
+	for len(text) > width && (maxLines <= 0 || len(lines) < maxLines-1) {
 		cut := width
 		if idx := strings.LastIndexAny(text[:width], "/ :-_=."); idx > 10 {
 			cut = idx + 1
@@ -749,6 +814,20 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func clampInt(v, min, max int) int {
+	return minInt(maxInt(v, min), max)
+}
+
+func longestDisplayLen(text string) int {
+	longest := 0
+	for _, part := range strings.FieldsFunc(text, func(r rune) bool {
+		return r == ' ' || r == '/' || r == ':' || r == '=' || r == ',' || r == ';'
+	}) {
+		longest = maxInt(longest, len(part))
+	}
+	return maxInt(longest, len(text)/2)
 }
 
 func nodeDetailLine(n *provenance.Node) string {
