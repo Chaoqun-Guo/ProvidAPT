@@ -3253,14 +3253,12 @@ func main() {
 
 	// ── Real-time alert persistence (NDJSON) ──────────────
 	alertPath := filepath.Join(cfg.Output.Dir, "alerts.ndjson")
-	alertFile, err := os.OpenFile(alertPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	alertEnc, err := newRotatingJSONEncoder(alertPath, defaultAlertMaxFileBytes, defaultAlertRetainFiles)
 	if err != nil {
 		logx.System().Error("alert file open failed", "error", err)
 	}
-	var alertEnc *json.Encoder
-	if alertFile != nil {
-		alertEnc = json.NewEncoder(alertFile)
-		defer alertFile.Close()
+	if alertEnc != nil {
+		defer alertEnc.Close()
 	}
 
 	// ── Signals: shutdown (SIGINT/SIGTERM) + reload (SIGHUP) ──
