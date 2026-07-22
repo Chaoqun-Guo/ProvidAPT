@@ -250,11 +250,8 @@ func (te *TaintEngine) seedTaints() []string {
 
 		switch n.Subtype {
 		case "process":
-			if te.isForkChild(id) {
-				continue
-			}
 			// Untrusted network-facing daemon
-			if getUntrustedComms()[comm] {
+			if getUntrustedComms()[comm] && !te.isForkChild(id) {
 				add(id, TaintCritical,
 					fmt.Sprintf("network-facing process: %s", comm))
 			}

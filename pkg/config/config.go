@@ -8,6 +8,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -331,18 +333,23 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			applyEnvOverrides(cfg)
+			normalizeConfig(cfg)
 			resolveSecrets(cfg)
 			return cfg, nil
 		}
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	// YAML is a superset of JSON, so this handles both formats
-	if err := yaml.Unmarshal(data, cfg); err != nil {
+	if shouldParseTOML(path, data) {
+		if err := parseSimpleTOML(data, cfg); err != nil {
+			return nil, fmt.Errorf("parse toml config: %w", err)
+		}
+	} else if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	applyEnvOverrides(cfg)
+	normalizeConfig(cfg)
 	resolveSecrets(cfg)
 
 	if err := cfg.Validate(); err != nil {
@@ -365,6 +372,60 @@ func resolveSecrets(cfg *Config) {
 	resolveSecretString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
 	resolveSecretString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
 	resolveSecretString(&cfg.SIEM.Token, "PROVIDAPT_SIEM_TOKEN")
+}
+
+func normalizeConfig(cfg *Config) {
+	cfg.Capture.IncludeComms = NormalizeComms(cfg.Capture.IncludeComms)
+	cfg.Capture.ExcludeComms = NormalizeComms(cfg.Capture.ExcludeComms)
+	cfg.TaintSecrets.UntrustedComms = NormalizeComms(cfg.TaintSecrets.UntrustedComms)
+	cfg.TaintSecrets.NetworkTools = NormalizeComms(cfg.TaintSecrets.NetworkTools)
+}
+
+// NormalizeComm converts a Linux comm or executable path into the comparable
+// task comm form used by eBPF: basename, trimmed, lower-case, max 15 bytes.
+func NormalizeComm(comm string) string {
+	trimmed := strings.TrimSpace(comm)
+	if trimmed == "" {
+		return ""
+	}
+	trimmed = filepath.Base(trimmed)
+	trimmed = strings.ToLower(trimmed)
+	if len(trimmed) > 15 {
+		trimmed = trimmed[:15]
+	}
+	return trimmed
+}
+
+// NormalizeComms normalizes a list of command names and removes duplicates.
+func NormalizeComms(comms []string) []string {
+	out := make([]string, 0, len(comms))
+	seen := make(map[string]struct{}, len(comms))
+	for _, comm := range comms {
+		normalized := NormalizeComm(comm)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out
+}
+
+// CommAllowed returns whether an event comm passes an include list.
+func CommAllowed(comm string, includeComms []string) bool {
+	if len(includeComms) == 0 {
+		return true
+	}
+	normalized := NormalizeComm(comm)
+	for _, allowed := range includeComms {
+		if NormalizeComm(allowed) == normalized {
+			return true
+		}
+	}
+	return false
 }
 
 func resolveSecretString(field *string, envKey string) {
@@ -644,6 +705,232 @@ func applyEnvOverrides(cfg *Config) {
 	overrideStringSlice(&cfg.Capture.HotPaths, "PROVIDAPT_CAPTURE_HOT_PATHS")
 	overrideStringSlice(&cfg.ControlPlane.Peers, "PROVIDAPT_CONTROL_PLANE_PEERS")
 	overrideStringSlice(&cfg.Compliance.ApprovalActions, "PROVIDAPT_COMPLIANCE_APPROVAL_ACTIONS")
+}
+
+func shouldParseTOML(path string, data []byte) bool {
+	if strings.EqualFold(filepath.Ext(path), ".toml") {
+		trimmed := strings.TrimSpace(string(data))
+		return strings.HasPrefix(trimmed, "[")
+	}
+	return false
+}
+
+func parseSimpleTOML(data []byte, cfg *Config) error {
+	section := ""
+	lines := strings.Split(string(data), "\n")
+	for lineNo, raw := range lines {
+		line := stripTOMLComment(strings.TrimSpace(raw))
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			return fmt.Errorf("line %d: expected key = value", lineNo+1)
+		}
+		if section == "" {
+			return fmt.Errorf("line %d: key outside section", lineNo+1)
+		}
+		if err := setTOMLValue(cfg, section, strings.TrimSpace(key), strings.TrimSpace(value)); err != nil {
+			return fmt.Errorf("line %d: %w", lineNo+1, err)
+		}
+	}
+	return nil
+}
+
+func stripTOMLComment(line string) string {
+	inQuote := false
+	escaped := false
+	for i, r := range line {
+		switch {
+		case escaped:
+			escaped = false
+		case r == '\\':
+			escaped = true
+		case r == '"':
+			inQuote = !inQuote
+		case r == '#' && !inQuote:
+			return strings.TrimSpace(line[:i])
+		}
+	}
+	return line
+}
+
+func setTOMLValue(cfg *Config, section, key, raw string) error {
+	root := reflect.ValueOf(cfg).Elem()
+	sectionValue, ok := fieldByYAMLTag(root, section)
+	if !ok {
+		return nil
+	}
+	field, ok := fieldByYAMLTag(sectionValue, key)
+	if !ok || !field.CanSet() {
+		return nil
+	}
+	return assignTOMLValue(field, raw)
+}
+
+func fieldByYAMLTag(value reflect.Value, tag string) (reflect.Value, bool) {
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+	if value.Kind() != reflect.Struct {
+		return reflect.Value{}, false
+	}
+	valueType := value.Type()
+	for i := 0; i < value.NumField(); i++ {
+		field := valueType.Field(i)
+		tagName := strings.Split(field.Tag.Get("yaml"), ",")[0]
+		if tagName == tag {
+			return value.Field(i), true
+		}
+	}
+	return reflect.Value{}, false
+}
+
+func assignTOMLValue(field reflect.Value, raw string) error {
+	if field.Type() == reflect.TypeOf(Duration{}) {
+		var duration Duration
+		if err := duration.parse(parseTOMLString(raw)); err != nil {
+			return err
+		}
+		field.Set(reflect.ValueOf(duration))
+		return nil
+	}
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(parseTOMLString(raw))
+	case reflect.Bool:
+		v, err := strconv.ParseBool(strings.ToLower(raw))
+		if err != nil {
+			return err
+		}
+		field.SetBool(v)
+	case reflect.Int, reflect.Int64:
+		n, err := strconv.ParseInt(raw, 10, field.Type().Bits())
+		if err != nil {
+			return err
+		}
+		field.SetInt(n)
+	case reflect.Float64:
+		n, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return err
+		}
+		field.SetFloat(n)
+	case reflect.Slice:
+		items, err := parseTOMLArray(raw)
+		if err != nil {
+			return err
+		}
+		slice := reflect.MakeSlice(field.Type(), 0, len(items))
+		for _, item := range items {
+			elem := reflect.New(field.Type().Elem()).Elem()
+			switch elem.Kind() {
+			case reflect.String:
+				elem.SetString(parseTOMLString(item))
+			case reflect.Uint32:
+				n, err := strconv.ParseUint(item, 10, 32)
+				if err != nil {
+					return err
+				}
+				elem.SetUint(n)
+			default:
+				continue
+			}
+			slice = reflect.Append(slice, elem)
+		}
+		field.Set(slice)
+	case reflect.Map:
+		if field.Type().Key().Kind() != reflect.String || field.Type().Elem().Kind() != reflect.String {
+			return nil
+		}
+		entries, err := parseTOMLInlineMap(raw)
+		if err != nil {
+			return err
+		}
+		m := reflect.MakeMap(field.Type())
+		for k, v := range entries {
+			m.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
+		}
+		field.Set(m)
+	}
+	return nil
+}
+
+func parseTOMLString(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+		unquoted, err := strconv.Unquote(raw)
+		if err == nil {
+			return unquoted
+		}
+		return raw[1 : len(raw)-1]
+	}
+	return raw
+}
+
+func parseTOMLArray(raw string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if !strings.HasPrefix(raw, "[") || !strings.HasSuffix(raw, "]") {
+		return nil, fmt.Errorf("expected array")
+	}
+	body := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(raw, "["), "]"))
+	if body == "" {
+		return nil, nil
+	}
+	return splitTOMLCSV(body), nil
+}
+
+func parseTOMLInlineMap(raw string) (map[string]string, error) {
+	raw = strings.TrimSpace(raw)
+	if !strings.HasPrefix(raw, "{") || !strings.HasSuffix(raw, "}") {
+		return nil, fmt.Errorf("expected inline map")
+	}
+	body := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(raw, "{"), "}"))
+	out := make(map[string]string)
+	if body == "" {
+		return out, nil
+	}
+	for _, part := range splitTOMLCSV(body) {
+		key, value, ok := strings.Cut(part, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid inline map item %q", part)
+		}
+		out[parseTOMLString(key)] = parseTOMLString(value)
+	}
+	return out, nil
+}
+
+func splitTOMLCSV(body string) []string {
+	var parts []string
+	var current strings.Builder
+	inQuote := false
+	escaped := false
+	for _, r := range body {
+		switch {
+		case escaped:
+			current.WriteRune(r)
+			escaped = false
+		case r == '\\':
+			current.WriteRune(r)
+			escaped = true
+		case r == '"':
+			current.WriteRune(r)
+			inQuote = !inQuote
+		case r == ',' && !inQuote:
+			parts = append(parts, strings.TrimSpace(current.String()))
+			current.Reset()
+		default:
+			current.WriteRune(r)
+		}
+	}
+	if strings.TrimSpace(current.String()) != "" {
+		parts = append(parts, strings.TrimSpace(current.String()))
+	}
+	return parts
 }
 
 func overrideString(field *string, envKey string) {

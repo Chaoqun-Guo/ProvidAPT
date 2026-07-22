@@ -3277,8 +3277,8 @@ func main() {
 	eventCount := 0
 	includeComms := make(map[string]struct{}, len(cfg.Capture.IncludeComms))
 	for _, comm := range cfg.Capture.IncludeComms {
-		if trimmed := strings.TrimSpace(comm); trimmed != "" {
-			includeComms[trimmed] = struct{}{}
+		if normalized := config.NormalizeComm(comm); normalized != "" {
+			includeComms[normalized] = struct{}{}
 		}
 	}
 	metricsTicker := time.NewTicker(15 * time.Second)
@@ -3298,7 +3298,7 @@ loop:
 				continue
 			}
 			if len(includeComms) > 0 {
-				if _, ok := includeComms[evt.Comm]; !ok {
+				if _, ok := includeComms[config.NormalizeComm(evt.Comm)]; !ok {
 					continue
 				}
 			}
@@ -3404,8 +3404,8 @@ loop:
 				apt.ReloadConfig(newAptCfg)
 				includeComms = make(map[string]struct{}, len(newCfg.Capture.IncludeComms))
 				for _, comm := range newCfg.Capture.IncludeComms {
-					if trimmed := strings.TrimSpace(comm); trimmed != "" {
-						includeComms[trimmed] = struct{}{}
+					if normalized := config.NormalizeComm(comm); normalized != "" {
+						includeComms[normalized] = struct{}{}
 					}
 				}
 

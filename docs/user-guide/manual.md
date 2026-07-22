@@ -61,6 +61,17 @@ capture:
     - ssh
 ```
 
+Native TOML syntax is also accepted when using a TOML-style configuration:
+
+```toml
+[capture]
+include_comms = ["curl", "bash"]
+```
+
+Command values are normalized to Linux task `comm` names. You can use either
+the basename (`curl`) or an executable path (`/usr/bin/curl`); matching is
+case-insensitive and uses the kernel `comm` length limit.
+
 The same setting can be supplied through the environment:
 
 ```bash

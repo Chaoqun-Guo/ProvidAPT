@@ -44,7 +44,8 @@ func (w *JSONWriter) Write(evt *collector.Event) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	data, err := json.Marshal(evt)
+	normalized := collector.NormalizeEvent(evt)
+	data, err := json.Marshal(normalized)
 	if err != nil {
 		return fmt.Errorf("json marshal: %w", err)
 	}

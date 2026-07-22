@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 func testEvent() *collector.Event {
@@ -57,12 +58,57 @@ func TestJSONWriterWriteAndRead(t *testing.T) {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 
-	var decoded collector.Event
+	var decoded collector.NormalizedEvent
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("JSON unmarshal failed: %v (content: %s)", err, string(data))
 	}
-	if decoded.PID != evt.PID {
-		t.Errorf("PID = %d, want %d", decoded.PID, evt.PID)
+	if decoded.Process.PID != evt.PID {
+		t.Errorf("PID = %d, want %d", decoded.Process.PID, evt.PID)
+	}
+}
+
+func TestJSONWriterUsesTypedPayload(t *testing.T) {
+	dir := t.TempDir()
+	w, err := NewJSONWriter(dir)
+	if err != nil {
+		t.Fatalf("NewJSONWriter failed: %v", err)
+	}
+
+	evt := &collector.Event{
+		Type:        syscall.EventProcessFork,
+		TimestampNS: 42,
+		PID:         100,
+		TID:         100,
+		PPID:        1,
+		UID:         0,
+		GID:         0,
+		Comm:        "bash",
+		ChildPID:    101,
+		Inode:       101,
+		Saddr:       101,
+	}
+	if err := w.Write(evt); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+	w.Close()
+
+	data, err := os.ReadFile(w.filename)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v", err)
+	}
+	payload := decoded["payload"].(map[string]interface{})
+	if payload["child_pid"].(float64) != 101 {
+		t.Fatalf("child_pid = %v, want 101", payload["child_pid"])
+	}
+	if _, ok := payload["inode"]; ok {
+		t.Fatal("fork payload should not expose inode")
+	}
+	if _, ok := payload["saddr"]; ok {
+		t.Fatal("fork payload should not expose saddr")
 	}
 }
 

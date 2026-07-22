@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // Enrich adds cross-referenced metadata to a raw event.
@@ -26,6 +27,11 @@ func (e *Event) Enrich() {
 		exePath := filepath.Join("/proc", strconv.Itoa(int(e.PID)), "exe")
 		if target, err := os.Readlink(exePath); err == nil && target != "" {
 			e.ExePath = target
+		}
+		cmdlinePath := filepath.Join("/proc", strconv.Itoa(int(e.PID)), "cmdline")
+		if data, err := os.ReadFile(cmdlinePath); err == nil {
+			cmdline := strings.ReplaceAll(strings.TrimRight(string(data), "\x00"), "\x00", " ")
+			e.Cmdline = strings.TrimSpace(cmdline)
 		}
 	}
 }

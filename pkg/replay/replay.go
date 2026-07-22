@@ -7,7 +7,6 @@ package replay
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,15 +92,15 @@ func replayFile(path string, graph *provenance.Graph, max int) (fileCount, error
 			continue
 		}
 
-		var evt collector.Event
-		if err := json.Unmarshal(line, &evt); err != nil {
+		evt, err := collector.ParseStoredEventJSON(line)
+		if err != nil {
 			count.EventsSkip++
 			continue
 		}
 		count.EventsOK++
 		count.EventsTotal++
 
-		graph.AddEvent(&evt)
+		graph.AddEvent(evt)
 
 		if max > 0 && count.EventsTotal >= max {
 			break

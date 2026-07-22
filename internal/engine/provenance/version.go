@@ -112,12 +112,14 @@ func StripVersion(id string) string {
 
 // ── Integration in the Graph ────────────────────────────────
 
-// getOrCreateBaseFileNode returns the INITIAL (version 1) node for a file,
-// creating it if needed.  Used by read operations to always point to
-// the first known version.
+// getOrCreateBaseFileNode returns the latest known versioned node for a file,
+// creating version 1 if the file has not been seen before. Read and exec
+// operations must point at the latest version so downstream provenance
+// correlation can connect writes to later reads.
 func (g *Graph) getOrCreateBaseFileNode(evt *collector.Event, ts time.Time) (*Node, string) {
 	baseID := g.fileID(evt)
-	versionedID := g.versionTracker.InitVersion(baseID)
+	g.versionTracker.InitVersion(baseID)
+	versionedID := g.versionTracker.LatestVersion(baseID)
 
 	n := g.getOrCreateNode(versionedID, ProvEntity, SubFile, evt.Pathname, ts)
 	g.updateFileNodeAttrs(n, evt)

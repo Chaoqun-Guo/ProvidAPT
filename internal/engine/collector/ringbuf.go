@@ -103,6 +103,7 @@ type Event struct {
 	Comm     string
 	Pathname string
 	ExePath  string
+	Cmdline  string
 }
 
 // Start begins reading events from the BPF ring buffer.

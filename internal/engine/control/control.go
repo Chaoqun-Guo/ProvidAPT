@@ -13,9 +13,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 	"github.com/cilium/ebpf"
 )
 
@@ -164,7 +164,7 @@ func (ctl *Controller) ExcludeComms(comms []string) (int, error) {
 	}
 	targets := make(map[string]struct{}, len(comms))
 	for _, comm := range comms {
-		trimmed := strings.TrimSpace(comm)
+		trimmed := config.NormalizeComm(comm)
 		if trimmed == "" {
 			continue
 		}
@@ -193,7 +193,7 @@ func (ctl *Controller) ExcludeComms(comms []string) (int, error) {
 		if err != nil {
 			continue
 		}
-		comm := strings.TrimSpace(string(commData))
+		comm := config.NormalizeComm(string(commData))
 		if _, ok := targets[comm]; !ok {
 			continue
 		}
@@ -216,7 +216,7 @@ func (ctl *Controller) ExcludeCommsExcept(comms []string) (int, error) {
 	}
 	included := make(map[string]struct{}, len(comms))
 	for _, comm := range comms {
-		trimmed := strings.TrimSpace(comm)
+		trimmed := config.NormalizeComm(comm)
 		if trimmed == "" {
 			continue
 		}
@@ -245,7 +245,7 @@ func (ctl *Controller) ExcludeCommsExcept(comms []string) (int, error) {
 		if err != nil {
 			continue
 		}
-		comm := strings.TrimSpace(string(commData))
+		comm := config.NormalizeComm(string(commData))
 		if _, ok := included[comm]; ok {
 			continue
 		}

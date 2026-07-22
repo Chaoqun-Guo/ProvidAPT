@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/policy/sigma"
 )
 
@@ -241,6 +241,30 @@ func TestPattern_ScriptChild(t *testing.T) {
 		t.Error("expected script child alert for apache2 → evil.php → php")
 	} else {
 		t.Logf("script child alert: %s", alerts[0].Headline)
+	}
+}
+
+func TestPattern_ScriptChildFromForkedCurl(t *testing.T) {
+	g := buildGraph([]*collector.Event{
+		testEvent(syscall.EventProcessExec, 10, 1000, "bash", "/usr/bin/bash"),
+		testFork(10, 11, 1000, "bash"),
+		testEvent(syscall.EventProcessExec, 11, 1000, "curl", "/usr/bin/curl"),
+		testWrite(11, 1000, "curl", "/tmp/providapt-curl-alert.sh"),
+		testEvent(syscall.EventProcessExec, 12, 1000, "bash", "/usr/bin/bash"),
+		testEvent(syscall.EventFileOpen, 12, 1000, "bash", "/tmp/providapt-curl-alert.sh"),
+	})
+
+	te := NewTaintEngine(SnapshotFromGraph(g))
+	if te.Tainted("p:11") == nil {
+		t.Fatal("forked curl should be tainted as a network-capable tool")
+	}
+
+	alerts := checkScriptChild(te)
+	if len(alerts) == 0 {
+		t.Fatal("expected SCRIPT_CHILD alert for curl-written /tmp file read by bash")
+	}
+	if alerts[0].Pattern != PatScriptChild {
+		t.Fatalf("pattern = %s, want %s", alerts[0].Pattern, PatScriptChild)
 	}
 }
 

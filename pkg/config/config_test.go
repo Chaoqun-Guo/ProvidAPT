@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -206,6 +207,62 @@ func TestLoadJSONViaYAML(t *testing.T) {
 	}
 	if cfg.API.REST != ":7070" {
 		t.Errorf("rest addr = %q", cfg.API.REST)
+	}
+}
+
+func TestLoadTOMLIncludeComms(t *testing.T) {
+	toml := `
+[output]
+dir = "/tmp/providapt-toml"
+format = "json"
+
+[api]
+rest = ":18080"
+grpc = ":50051"
+
+[capture]
+enable_net = true
+include_comms = ["/usr/bin/Curl", "bash", "curl"]
+exclude_comms = ["SystemD"]
+
+[analyzer]
+scan_interval = "5s"
+`
+	path := writeTempFile(t, "config.*.toml", toml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load TOML: %v", err)
+	}
+	if cfg.Output.Dir != "/tmp/providapt-toml" {
+		t.Fatalf("output dir = %q", cfg.Output.Dir)
+	}
+	if cfg.API.REST != ":18080" {
+		t.Fatalf("api rest = %q", cfg.API.REST)
+	}
+	if got := cfg.Capture.IncludeComms; len(got) != 2 || got[0] != "curl" || got[1] != "bash" {
+		t.Fatalf("include_comms = %#v, want [curl bash]", got)
+	}
+	if got := cfg.Capture.ExcludeComms; len(got) != 1 || got[0] != "systemd" {
+		t.Fatalf("exclude_comms = %#v, want [systemd]", got)
+	}
+	if cfg.Analyzer.ScanInterval.Duration != int64(5*time.Second) {
+		t.Fatalf("scan_interval = %d, want %d", cfg.Analyzer.ScanInterval.Duration, int64(5*time.Second))
+	}
+}
+
+func TestCommAllowedNormalizesCommandNames(t *testing.T) {
+	include := []string{"/usr/bin/Curl", "bash"}
+	if !CommAllowed("curl", include) {
+		t.Fatal("curl should be allowed")
+	}
+	if !CommAllowed("CURL", include) {
+		t.Fatal("CURL should be allowed")
+	}
+	if !CommAllowed("/bin/bash", include) {
+		t.Fatal("/bin/bash should be allowed")
+	}
+	if CommAllowed("wget", include) {
+		t.Fatal("wget should not be allowed")
 	}
 }
 
