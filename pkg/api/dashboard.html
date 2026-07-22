@@ -2337,9 +2337,17 @@ async function showGraphSummary(kind) {
 
 function renderEventItem(event, label) {
   const when = event.timestamp || event.time || event.detected_at || event.last_seen;
-  const message = event.message || event.pattern || event.comm || event.path || event.id || JSON.stringify(event).slice(0, 180);
+  const raw = event.raw || {};
+  const process = raw.process || {};
+  const payload = raw.payload || {};
+  const comm = event.comm || process.comm || raw.comm || '--';
+  const pid = event.pid || process.pid || raw.pid || '--';
+  const type = event.type || raw.type || (raw.rule_id ? 'alert' : 'event');
+  const target = event.label || payload.pathname || payload.exe_path || payload.cmdline || raw.message || raw.pattern || raw.path || raw.pathname || raw.rule_id || raw.alert_id || event.id || '';
+  const message = type + ' · ' + comm + ' pid ' + pid + (target ? ' · ' + target : '');
+  const detail = event.subtype || payload.kind || raw.severity || label;
   return '<div class="alert-item">' +
-    '<span class="alert-sev sev-low">' + escapeHTML(label) + '</span>' +
+    '<span class="alert-sev sev-low">' + escapeHTML(detail) + '</span>' +
     '<span class="alert-msg">' + escapeHTML(message) + '</span>' +
     '<span class="alert-time">' + formatTime(when) + '</span>' +
     '</div>';

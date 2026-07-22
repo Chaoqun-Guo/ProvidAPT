@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-// ── Search types ────────────────────────────────────────────────
-
 // EventRecord is a minimal search result from the event log.
 type EventRecord struct {
 	Timestamp string                 `json:"timestamp,omitempty"`
@@ -46,8 +44,6 @@ type SearchParams struct {
 	Limit    int    // max results (default 100)
 	Offset   int    // pagination offset
 }
-
-// ── Event search endpoint ───────────────────────────────────────
 
 // handleEventSearch searches event logs and alert files.
 
@@ -121,10 +117,8 @@ func (s *Server) handleEventRecent(w http.ResponseWriter, r *http.Request) error
 	})
 }
 
-// ── Search implementation ───────────────────────────────────────
-
 func searchEvents(dir string, p SearchParams) ([]EventRecord, error) {
-	files, err := findEventFiles(dir)
+	files, err := findSearchFiles(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +159,14 @@ func recentEvents(dir string, limit int) ([]EventRecord, error) {
 }
 
 func findEventFiles(dir string) ([]string, error) {
+	return findLogFiles(dir, false)
+}
+
+func findSearchFiles(dir string) ([]string, error) {
+	return findLogFiles(dir, true)
+}
+
+func findLogFiles(dir string, includeAlerts bool) ([]string, error) {
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -177,9 +179,14 @@ func findEventFiles(dir string) ([]string, error) {
 		if e.IsDir() {
 			continue
 		}
-		if strings.HasPrefix(e.Name(), "providapt-") &&
-			(strings.HasSuffix(e.Name(), ".ndjson") || strings.HasSuffix(e.Name(), ".json")) {
-			files = append(files, filepath.Join(dir, e.Name()))
+		name := e.Name()
+		if strings.HasPrefix(name, "providapt-") &&
+			(strings.HasSuffix(name, ".ndjson") || strings.HasSuffix(name, ".json")) {
+			files = append(files, filepath.Join(dir, name))
+			continue
+		}
+		if includeAlerts && (name == "alerts.ndjson" || (strings.HasPrefix(name, "alerts-") && strings.HasSuffix(name, ".ndjson"))) {
+			files = append(files, filepath.Join(dir, name))
 		}
 	}
 	return files, nil
@@ -343,11 +350,24 @@ func mapToRecord(raw map[string]interface{}) EventRecord {
 	if t, ok := raw["type"].(string); ok {
 		rec.Type = t
 	}
+	if rec.Type == "" {
+		if ruleID, ok := raw["rule_id"].(string); ok && strings.TrimSpace(ruleID) != "" {
+			rec.Type = "alert"
+		}
+	}
 	if st, ok := raw["subtype"].(string); ok {
 		rec.Subtype = st
 	}
 	if lbl, ok := raw["label"].(string); ok {
 		rec.Label = lbl
+	}
+	if rec.Label == "" {
+		for _, key := range []string{"message", "pattern", "rule_id", "alert_id", "status"} {
+			if value, ok := raw[key].(string); ok && strings.TrimSpace(value) != "" {
+				rec.Label = value
+				break
+			}
+		}
 	}
 	if payload, ok := raw["payload"].(map[string]interface{}); ok {
 		if payloadLabel := eventPayloadLabel(payload); payloadLabel != "" {
