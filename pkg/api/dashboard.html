@@ -85,6 +85,13 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .api-status-banner.error { border-color:#da3633; background:#2b1618; color:#ffb3ad; text-align:left; }
 .api-status-banner.ok { border-color:#238636; background:#10261c; color:#8ddb8c; }
 .api-status-banner button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px; }
+button.btn-view { background:#30363d !important; color:#c9d1d9 !important; border:1px solid #484f58 !important; }
+button.btn-primary { background:#1f6feb !important; color:white !important; border:1px solid #1f6feb !important; }
+button.btn-download { background:#0f5132 !important; color:#b7f7c2 !important; border:1px solid #238636 !important; }
+button.btn-warning { background:#3a2a1a !important; color:#ffd58a !important; border:1px solid #9e6a03 !important; }
+button.btn-danger { background:#3a1a1a !important; color:#ffb3ad !important; border:1px solid #da3633 !important; }
+button.btn-refresh { background:#1a2a3a !important; color:#b6dcff !important; border:1px solid #58a6ff !important; }
+button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .mini-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .mini-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px; }
 .mini-card.clickable, .policy-item.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
@@ -104,8 +111,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .agent-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .agent-actions button { background: #30363d; color: #c9d1d9; border: 1px solid #484f58; border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 11px; }
 .agent-actions button:hover { border-color: #58a6ff; color: #58a6ff; }
-.fleet-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
-.fleet-toolbar input { flex: 1; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; }
+.fleet-toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items:center; }
+.fleet-toolbar input { flex: 0 1 170px; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; }
 .fleet-toolbar button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
 .tag-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .tag-chip { background: #1a1f27; border: 1px solid #30363d; color: #8b949e; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
@@ -121,7 +128,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .compact-input-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; width:100%; }
 .compact-input-grid input { min-width:0; width:100%; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:6px 8px; font-size:11px; }
 .policy-editor.compact { grid-template-columns: minmax(0, 1fr); }
-.policy-editor.wide { grid-template-columns: minmax(0, 1fr) auto auto; }
+.policy-editor.wide { grid-template-columns: minmax(180px, 320px) auto auto; }
+#investigationNodeInput { width: 100%; max-width: 320px; }
 .action-clicked { box-shadow: 0 0 0 1px #58a6ff inset; }
 .delivery-summary { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
 .action-row button.secondary { background: #30363d; }
@@ -599,6 +607,47 @@ function installInteractionFeedback() {
     interactionFeedback('Clicked: ' + label);
     window.setTimeout(() => target.classList.remove('action-clicked'), 450);
   }, true);
+  classifyDashboardButtons();
+  new MutationObserver(classifyDashboardButtons).observe(document.body, { childList: true, subtree: true });
+}
+
+function classifyDashboardButtons() {
+  document.querySelectorAll('button').forEach(button => {
+    const text = (button.textContent || '').trim().toLowerCase();
+    const action = (button.getAttribute('onclick') || '').toLowerCase();
+    button.classList.remove('btn-view', 'btn-primary', 'btn-download', 'btn-warning', 'btn-danger', 'btn-refresh', 'btn-disabled-context');
+    const haystack = text + ' ' + action;
+    let kind = 'view';
+    if (/(revoke|quarantine|reject|rollback|close|purge|delete|cutover)/.test(haystack)) {
+      kind = 'danger';
+    } else if (/(silence|apply|restore|unsilence)/.test(haystack)) {
+      kind = 'warning';
+    } else if (/(download|export|copy|csv|bundle|markdown|graph json)/.test(haystack)) {
+      kind = 'download';
+    } else if (/(refresh|retry|test|check|validate|preflight|browse|view|details|matrix|search|preview)/.test(haystack)) {
+      kind = 'refresh';
+    } else if (/(create|publish|approve|assign|run|generate|replay|use key|record|save)/.test(haystack)) {
+      kind = 'primary';
+    }
+    button.classList.add('btn-' + kind);
+    if (button.disabled) {
+      button.classList.add('btn-disabled-context');
+    }
+    if (!button.title) {
+      button.title = semanticButtonTitle(kind);
+    }
+  });
+}
+
+function semanticButtonTitle(kind) {
+  switch (kind) {
+  case 'danger': return 'High-impact action: review scope before running';
+  case 'warning': return 'State-changing action';
+  case 'download': return 'Export or download evidence';
+  case 'refresh': return 'Inspect, validate, or refresh data';
+  case 'primary': return 'Primary workflow action';
+  default: return 'Open details';
+  }
 }
 
 function apiErrorHint(err) {
@@ -1140,7 +1189,7 @@ async function updateFleetAgent(payload) {
 }
 
 async function applyFleetInputs(agentID) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Fleet metadata update')) {
     return;
   }
   const group = document.getElementById('fleetGroup').value.trim();
@@ -1157,7 +1206,7 @@ async function applyFleetInputs(agentID) {
 }
 
 async function markAgentReviewed(agentID) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Mark agent reviewed')) {
     return;
   }
   try {
@@ -1169,7 +1218,7 @@ async function markAgentReviewed(agentID) {
 }
 
 async function setAgentEnrollment(agentID, status) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Fleet enrollment update')) {
     return;
   }
   try {
@@ -1186,7 +1235,7 @@ async function setAgentEnrollment(agentID, status) {
 }
 
 async function bulkFleetEnrollment(status) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Bulk fleet enrollment')) {
     return;
   }
   const agents = latestFleet.agents || [];
@@ -1410,7 +1459,7 @@ async function runSupportBundleAction(payload) {
 }
 
 function prepareSupportBundleAction() {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Support bundle export')) {
     return;
   }
   runSupportBundleAction({ reason: 'dashboard', note: supportBundleNote() });
@@ -1502,7 +1551,7 @@ function showBackupDetails(scope) {
 }
 
 async function runBackupAction(action) {
-  if (currentRole !== 'admin') return;
+  if (!requireAdminAction('Backup action')) return;
   const status = document.getElementById('backupStatus');
   if (action === 'prepare_cutover' && !latestBackup.last_restore_path) {
     if (status) {
@@ -1528,7 +1577,7 @@ async function runBackupAction(action) {
 }
 
 async function downloadBackupArchive() {
-  if (currentRole !== 'admin') return;
+  if (!requireAdminAction('Backup download')) return;
   try {
     await downloadWithAuth('/api/v1/control/backup/download', 'providapt-backup.tar.gz');
   } catch (e) {
@@ -1687,7 +1736,7 @@ async function runLicenseAction(payload) {
 }
 
 function prepareLicenseAction() {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('License validation')) {
     return;
   }
   runLicenseAction({ action: 'validate', note: 'dashboard validation' });
@@ -1712,7 +1761,7 @@ async function runUpgradeAction(payload) {
 }
 
 function prepareUpgradeAction(action) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Upgrade action')) {
     return;
   }
   const payload = { action: action, note: 'dashboard ' + action };
@@ -1766,7 +1815,7 @@ async function loadAlertWorkflow() {
 
 function workflowActionButtons(alert) {
   if (currentRole !== 'admin') {
-    return '';
+    return '<span class="delivery-inline-actions"><button class="btn-disabled-context" disabled title="Alert workflow actions require admin role">Admin only</button></span>';
   }
   const id = jsString(alert.id || '');
   const status = String(alert.status || '').toLowerCase();
@@ -1887,7 +1936,7 @@ async function runPolicyAction(payload) {
 }
 
 function preparePolicyAction(action) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Policy action')) {
     return;
   }
   const notesInput = document.getElementById('policyEditNotes');
@@ -1956,7 +2005,7 @@ function loadExamplePolicyRule() {
 }
 
 function preparePolicyMutation(action) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Policy mutation')) {
     return;
   }
   const notes = policyInputValue('policyEditNotes') || 'dashboard ' + action;
@@ -2141,7 +2190,7 @@ async function runApprovalAction(action, approvalID) {
 }
 
 async function runComplianceAction(action, format, approvalID) {
-  if (currentRole !== 'admin') {
+  if (!requireAdminAction('Compliance action')) {
     return;
   }
   const status = document.getElementById('complianceActionStatus');
@@ -2611,6 +2660,7 @@ async function refresh() {
   document.getElementById('refreshInfo').textContent = 'Updated: ' + now.toLocaleTimeString();
   await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadBackups(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadCompliance()]);
   loadOperationsSummary();
+  classifyDashboardButtons();
 }
 
 initializePanelLayout();

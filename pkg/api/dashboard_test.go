@@ -197,6 +197,42 @@ func TestDashboardModuleActions(t *testing.T) {
 	}
 }
 
+func TestDashboardSemanticButtonClasses(t *testing.T) {
+	expected := []string{
+		"function classifyDashboardButtons",
+		"function semanticButtonTitle",
+		"btn-primary",
+		"btn-danger",
+		"btn-download",
+		"btn-warning",
+		"btn-refresh",
+		"btn-disabled-context",
+		"High-impact action: review scope before running",
+		"State-changing action",
+		"Export or download evidence",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing semantic button class content %q", item)
+		}
+	}
+}
+
+func TestDashboardAdminActionsGiveFeedback(t *testing.T) {
+	forbidden := []string{
+		"if (currentRole !== 'admin') {\n    return;\n  }",
+		"if (currentRole !== 'admin') return;",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard has silent admin guard %q", item)
+		}
+	}
+	if !strings.Contains(dashboardHTML, "requires admin role") {
+		t.Fatal("dashboard should explain admin-only actions")
+	}
+}
+
 func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
 	expected := []string{
 		"apiKeyInput",
