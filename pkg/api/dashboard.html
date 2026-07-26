@@ -450,6 +450,7 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <button id="applyRetentionBtn" class="secondary" onclick="runComplianceAction('apply_retention')">Apply Retention</button>
         <button id="generateComplianceReportBtn" class="secondary" onclick="runComplianceAction('generate_report')">Generate Report</button>
         <button class="secondary" onclick="runComplianceAction('generate_report', 'html')">Generate HTML</button>
+        <button class="secondary" onclick="runComplianceAction('generate_report', 'bundle')">Generate Bundle</button>
         <button id="testSIEMBtn" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
         <button class="secondary" onclick="showReleaseReadiness()">Release Readiness</button>
         <button class="secondary" onclick="showAuditSearch()">Audit Search</button>
@@ -2621,13 +2622,19 @@ async function runComplianceAction(action, format, approvalID) {
     const data = await postJSON('/api/v1/control/compliance', { action: action, format: format || 'csv', approval_id: approvalID || '', note: 'dashboard ' + action });
     status.textContent = data.message || 'Compliance action completed';
     if (action === 'test_siem') {
+      const siem = data.siem || {};
       await loadCompliance();
       document.getElementById('complianceDetails').innerHTML = [
-        renderKVItem('siem test', data.status || data.message || 'completed', data.provider || 'provider'),
-        renderKVItem('destination', data.endpoint || data.outbox_path || '--', data.format || format || 'json'),
-        renderKVItem('diagnostic', data.error || data.last_error || 'no error returned', data.delivered ? 'delivered' : 'check connector'),
+        renderKVItem('siem test', data.status || data.message || 'completed', siem.provider || 'provider'),
+        renderKVItem('destination', siem.endpoint || siem.outbox_path || '--', siem.format || format || 'json'),
+        renderKVItem('diagnostic', data.error || siem.last_error || 'no error returned', siem.last_status || 'check connector'),
       ].join('');
       return;
+    }
+    if (data.artifacts) {
+      document.getElementById('complianceDetails').innerHTML = Object.keys(data.artifacts).sort().map((key) => renderKVItem(key, data.artifacts[key], 'report artifact')).join('');
+    } else if (data.path) {
+      document.getElementById('complianceDetails').innerHTML = renderKVItem('path', data.path, format || 'artifact');
     }
     await loadCompliance();
   } catch (e) {

@@ -36,6 +36,16 @@ curl -X POST http://<server>:18080/api/v1/control/compliance \
   -d '{"action":"test_siem"}'
 ```
 
+Operational wrapper:
+
+```bash
+export PROVIDAPT_SERVER_URL=http://<server>:18080
+make ops-siem-verify
+```
+
+Set `PROVIDAPT_REQUIRE_SIEM_FORWARDED=1` when the validation must prove that a
+collector accepted the event instead of only proving that ProvidAPT queued it.
+
 Check status:
 
 ```bash
@@ -90,3 +100,4 @@ indices separate when high-volume capture is enabled.
 - inspect `siem.outbox_dir` for queued events
 - confirm proxy and firewall rules
 - use `file://` delivery first when isolating formatting from network issues
+- run `make ops-siem-verify` after every endpoint, token, firewall, or proxy change

@@ -390,12 +390,13 @@ type ComplianceActionRequest struct {
 }
 
 type ComplianceActionResult struct {
-	Status      string          `json:"status"`
-	Message     string          `json:"message,omitempty"`
-	Path        string          `json:"path,omitempty"`
-	Approval    *ChangeApproval `json:"approval,omitempty"`
-	SIEM        *SIEMStatus     `json:"siem,omitempty"`
-	PerformedAt string          `json:"performed_at"`
+	Status      string            `json:"status"`
+	Message     string            `json:"message,omitempty"`
+	Path        string            `json:"path,omitempty"`
+	Artifacts   map[string]string `json:"artifacts,omitempty"`
+	Approval    *ChangeApproval   `json:"approval,omitempty"`
+	SIEM        *SIEMStatus       `json:"siem,omitempty"`
+	PerformedAt string            `json:"performed_at"`
 }
 
 type ComplianceStatusFunc func() ComplianceStatus

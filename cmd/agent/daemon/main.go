@@ -2307,8 +2307,12 @@ func main() {
 		case "generate_report":
 			reportFormat := strings.ToLower(strings.TrimSpace(req.Format))
 			var reportPath string
+			var artifacts map[string]string
 			var err error
-			if reportFormat == "html" {
+			if reportFormat == "bundle" {
+				artifacts, err = writeComplianceReportBundle(complianceReportDir(), status)
+				reportPath = firstNonEmpty(artifacts["html"], artifacts["json"])
+			} else if reportFormat == "html" {
 				reportPath, err = writeComplianceHTMLReport(complianceReportDir(), status)
 			} else {
 				reportPath, err = writeComplianceReport(complianceReportDir(), status)
@@ -2319,7 +2323,12 @@ func main() {
 			}
 			status.LastReportPath = reportPath
 			result.Path = reportPath
-			result.Message = "compliance report generated"
+			result.Artifacts = artifacts
+			if reportFormat == "bundle" {
+				result.Message = "compliance report bundle generated"
+			} else {
+				result.Message = "compliance report generated"
+			}
 		case "test_siem":
 			siemStatus, err := writeSIEMTestEvent(cfg, siemOutboxPath(), req.Actor, req.Note)
 			status.SIEM = siemStatus
@@ -4094,15 +4103,15 @@ func startComplianceReportScheduler(cfg *config.Config, reportDir func() string,
 			select {
 			case <-ticker.C:
 				status := buildStatus()
-				path, err := writeComplianceHTMLReport(reportDir(), status)
+				artifacts, err := writeComplianceReportBundle(reportDir(), status)
 				if err != nil {
 					log.Printf("[compliance] scheduled report failed: %v", err)
 					continue
 				}
 				if state != nil {
-					status.LastReportPath = path
+					status.LastReportPath = firstNonEmpty(artifacts["html"], artifacts["json"])
 					status.LastActionStatus = "completed"
-					status.LastActionMessage = "scheduled compliance report generated"
+					status.LastActionMessage = "scheduled compliance report bundle generated"
 					state.update(status)
 				}
 			case <-stop:
@@ -4462,6 +4471,21 @@ func writeComplianceReport(dir string, status api.ComplianceStatus) (string, err
 	return path, nil
 }
 
+func writeComplianceReportBundle(dir string, status api.ComplianceStatus) (map[string]string, error) {
+	jsonPath, err := writeComplianceReport(dir, status)
+	if err != nil {
+		return nil, err
+	}
+	htmlPath, err := writeComplianceHTMLReport(dir, status)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{
+		"json": jsonPath,
+		"html": htmlPath,
+	}, nil
+}
+
 func writeComplianceHTMLReport(dir string, status api.ComplianceStatus) (string, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
@@ -4475,12 +4499,12 @@ func writeComplianceHTMLReport(dir string, status api.ComplianceStatus) (string,
 	rows := []string{
 		fmt.Sprintf("<tr><th>Updated</th><td>%s</td></tr>", escape(status.UpdatedAt)),
 		fmt.Sprintf("<tr><th>Tenant</th><td>%s</td></tr>", escape(firstNonEmpty(status.Tenant, "all"))),
-		fmt.Sprintf("<tr><th>Readiness</th><td>%d / 100 · Grade %s</td></tr>", status.ReadinessScore, escape(status.ReadinessGrade)),
+		fmt.Sprintf("<tr><th>Readiness</th><td>%d / 100 - Grade %s</td></tr>", status.ReadinessScore, escape(status.ReadinessGrade)),
 		fmt.Sprintf("<tr><th>Audit entries</th><td>%d</td></tr>", status.AuditEntries),
 		fmt.Sprintf("<tr><th>Retention</th><td>%d days</td></tr>", status.RetentionDays),
 		fmt.Sprintf("<tr><th>Last archive</th><td>%s (%d archived)</td></tr>", escape(status.LastArchivePath), status.LastArchivedCount),
 		fmt.Sprintf("<tr><th>Last export</th><td>%s</td></tr>", escape(status.LastExportPath)),
-		fmt.Sprintf("<tr><th>SIEM</th><td>%s · %s → %s</td></tr>", escape(firstNonEmpty(status.SIEM.Provider, "generic")), escape(status.SIEM.LastStatus), escape(status.SIEM.Endpoint)),
+		fmt.Sprintf("<tr><th>SIEM</th><td>%s - %s -> %s</td></tr>", escape(firstNonEmpty(status.SIEM.Provider, "generic")), escape(status.SIEM.LastStatus), escape(status.SIEM.Endpoint)),
 		fmt.Sprintf("<tr><th>Approvals</th><td>%d pending / %d total</td></tr>", len(status.Approvals.Pending), len(status.Approvals.History)),
 	}
 	recommendations := "None"

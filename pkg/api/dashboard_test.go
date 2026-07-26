@@ -182,6 +182,7 @@ func TestDashboardModuleActions(t *testing.T) {
 		"runComplianceAction('apply_retention')",
 		"runComplianceAction('generate_report')",
 		"runComplianceAction('generate_report', 'html')",
+		"runComplianceAction('generate_report', 'bundle')",
 		"runApprovalAction",
 		"runComplianceAction('test_siem')",
 		"native connector",

@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-tls-check ops-postgres-drill ops-fleet-list
+.PHONY: ops-secret-template ops-tls-check ops-postgres-drill ops-fleet-list ops-siem-verify
 
 SHELL := /bin/bash
 
@@ -261,6 +261,10 @@ ops-fleet-list:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
 	bash scripts/ops/fleet-lifecycle.sh --server "$(PROVIDAPT_SERVER_URL)" list
 
+ops-siem-verify:
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
+	python3 scripts/ops/verify-siem-delivery.py --server "$(PROVIDAPT_SERVER_URL)" $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") $(if $(PROVIDAPT_REQUIRE_SIEM_FORWARDED),--require-forwarded)
+
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
 		echo "Creating providapt system user (UID 950)..."; \
@@ -381,3 +385,4 @@ help:
 	@echo '  make ops-tls-check CERTS="..." Check TLS certificate expiry'
 	@echo '  make ops-postgres-drill Run PostgreSQL backup/restore drill'
 	@echo '  make ops-fleet-list List control-plane fleet state'
+	@echo '  make ops-siem-verify Queue and verify SIEM test delivery'

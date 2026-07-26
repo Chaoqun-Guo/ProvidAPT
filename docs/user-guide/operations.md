@@ -197,3 +197,17 @@ curl -X POST http://<server>:18080/api/v1/control/alerts \
 
 The dashboard exposes the same flows through `Show Diff`, `Preview Report`,
 `Download Markdown`, and bulk alert action buttons.
+
+Compliance report bundle and SIEM verification:
+
+```bash
+curl -X POST http://<server>:18080/api/v1/control/compliance \
+  -H "Content-Type: application/json" \
+  -d '{"action":"generate_report","format":"bundle"}'
+
+export PROVIDAPT_SERVER_URL=http://<server>:18080
+make ops-siem-verify
+```
+
+The report bundle returns both JSON and HTML artifacts. Use JSON for automated
+release evidence checks and HTML for operator review or customer handoff.
