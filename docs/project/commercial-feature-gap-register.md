@@ -24,7 +24,7 @@ Current closure progress:
 
 - Release gate snapshots are available through `make release-gates`, producing Markdown and JSON evidence under `build/`.
 - Secret template generation is available through `make ops-secret-template`.
-- TLS expiry checking is available through `make ops-tls-check CERTS="..."`.
+- TLS bootstrap and expiry checking are available through `make ops-tls-bootstrap` and `make ops-tls-check CERTS="..."`.
 - PostgreSQL logical backup and optional staging restore drills are available through `make ops-postgres-drill`.
 - Fleet list and lifecycle operations are wrapped by `scripts/ops/fleet-lifecycle.sh`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.

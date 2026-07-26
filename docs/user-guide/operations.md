@@ -169,12 +169,22 @@ all placeholders through the customer's secret manager or deployment pipeline.
 Check certificate expiry:
 
 ```bash
+make ops-tls-bootstrap \
+  TLS_OUT=build/tls \
+  TLS_SERVER_CN=cp-0.example.com \
+  TLS_SERVER_SAN="DNS:cp-0.example.com,IP:192.168.150.132" \
+  TLS_AGENT_CNS="ubuntu-129,centos-131"
+
 make ops-tls-check CERTS="/etc/providapt/tls/server.crt /etc/providapt/tls/agent.crt"
 ```
 
-Treat certificates inside the warning window as an operational change request.
-Rotate the certificate, restart or reload the affected service, and verify the
-dashboard plus telemetry endpoints before closing the change.
+`ops-tls-bootstrap` writes a CA, server certificate, one certificate per agent
+CN, and `manifest.json`. Existing leaf cert/key files are backed up with a
+timestamp suffix before replacement. Copy the generated paths into
+`tls.*`, `telemetry.*`, and `policy.*` configuration fields, restart or reload
+the affected service, then verify the dashboard plus telemetry endpoints before
+closing the change. Treat certificates inside the warning window as an
+operational change request.
 
 Investigation reports:
 

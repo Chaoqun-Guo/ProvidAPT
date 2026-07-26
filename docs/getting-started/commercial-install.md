@@ -242,6 +242,21 @@ POST /api/v1/control/security {"action":"rotate_server_cert"}
 
 The rotation action backs up the previous server cert/key with timestamp suffixes. Reload or restart services after rotation so listeners pick up the new certificate.
 
+For offline bootstrap or staged certificate replacement, generate a reviewed
+certificate bundle before rollout:
+
+```bash
+make ops-tls-bootstrap \
+  TLS_OUT=build/tls \
+  TLS_SERVER_CN=cp-0.example.com \
+  TLS_SERVER_SAN="DNS:cp-0.example.com,IP:192.168.150.132" \
+  TLS_AGENT_CNS="ubuntu-129,centos-131"
+```
+
+Copy `ca.crt`, `server.crt`, `server.key`, and each agent certificate/key to the
+target hosts, then update the `tls.*`, `telemetry.*`, and `policy.*` paths in
+the production configuration.
+
 Offline license activation and renewal use the same endpoint:
 
 ```text
