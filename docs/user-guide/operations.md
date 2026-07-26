@@ -87,6 +87,9 @@ make ops-postgres-drill
 The target writes `build/postgres/providapt-control-plane.sql`, restores it to
 the optional staging DSN, and runs a sanity query. Use a staging database, not
 the production DSN, for `PROVIDAPT_RESTORE_DSN`.
+It also writes `build/postgres/postgres-drill.json` and
+`build/postgres/postgres-drill.md` with redacted DSNs, backup size, restore
+status, schema-table verification, and PostgreSQL client tool versions.
 
 ## 5. Integrity Verification
 

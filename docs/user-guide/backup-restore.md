@@ -54,6 +54,10 @@ make ops-postgres-drill
 If `PROVIDAPT_RESTORE_DSN` is unset, the drill still creates the logical backup
 and reports that restore verification was skipped. Production release evidence
 should include both backup creation and restore verification.
+The drill also writes `build/postgres/postgres-drill.json` and
+`build/postgres/postgres-drill.md` so release records can include structured
+backup, restore, schema, and tooling evidence without exposing database
+passwords.
 
 ## Staged Restore
 

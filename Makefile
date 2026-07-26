@@ -265,7 +265,7 @@ ops-tls-check:
 
 ops-postgres-drill:
 	@if [ -z "$(PROVIDAPT_DATABASE_DSN)" ]; then echo 'set PROVIDAPT_DATABASE_DSN before running this target'; exit 2; fi
-	bash scripts/ops/postgres-drill.sh --dsn "$(PROVIDAPT_DATABASE_DSN)" --out build/postgres/providapt-control-plane.sql $(if $(PROVIDAPT_RESTORE_DSN),--restore-dsn "$(PROVIDAPT_RESTORE_DSN)")
+	bash scripts/ops/postgres-drill.sh --dsn "$(PROVIDAPT_DATABASE_DSN)" --out build/postgres/providapt-control-plane.sql --report-json build/postgres/postgres-drill.json --report-md build/postgres/postgres-drill.md $(if $(PROVIDAPT_RESTORE_DSN),--restore-dsn "$(PROVIDAPT_RESTORE_DSN)")
 
 ops-fleet-list:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi

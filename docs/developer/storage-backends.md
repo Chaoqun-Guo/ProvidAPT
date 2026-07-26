@@ -42,3 +42,6 @@ Local paths are still used for:
 - Treat file-backed control-plane state as evaluation-only.
 - Back up PostgreSQL before upgrades.
 - Validate restore in staging before production cutover.
+- Capture `make ops-postgres-drill` output before release or migration windows;
+  the JSON/Markdown reports redact DSNs and record backup, restore, schema, and
+  PostgreSQL client tooling evidence.
