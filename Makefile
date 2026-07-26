@@ -4,7 +4,7 @@
 .PHONY: attack-sim attack-full-chain export-ground-truth verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
 .PHONY: ops-secret-template ops-tls-check ops-postgres-drill ops-fleet-list ops-siem-verify
 
 SHELL := /bin/bash
@@ -243,6 +243,9 @@ dist: dist-all
 release-commercial:
 	bash scripts/release/commercial-release.sh
 
+release-gates:
+	python3 scripts/release/release_gate_status.py
+
 package-smoke-matrix:
 	bash scripts/release/package-smoke-matrix.sh
 
@@ -378,6 +381,7 @@ help:
 	@echo '  make dist-rpm         Build the .rpm package'
 	@echo '  make dist-tar         Build the portable tarball'
 	@echo '  make release-commercial Build commercial release artifacts, SBOMs, checksums, scans, and readiness report'
+	@echo '  make release-gates     Collect CI, scanner, approval, and artifact gate status'
 	@echo '  make package-smoke-matrix Test dist packages in Ubuntu/Rocky containers'
 	@echo ''
 	@echo 'Operations:'
