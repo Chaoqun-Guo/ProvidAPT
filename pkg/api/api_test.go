@@ -6,6 +6,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -2596,6 +2597,30 @@ func TestSVGNodeSizeAdaptsToLongContent(t *testing.T) {
 	rendered := renderNodeText(svgNode)
 	if strings.Contains(rendered, "...") {
 		t.Fatalf("node text should wrap without ellipsis: %s", rendered)
+	}
+}
+
+func TestSVGFoldsDenseSameLayerNodes(t *testing.T) {
+	nodes := []*provenance.Node{{ID: "p:root", Label: "root", Subtype: "process"}}
+	edges := []*provenance.Edge{}
+	for i := 0; i < 8; i++ {
+		id := fmt.Sprintf("f:%d", i)
+		nodes = append(nodes, &provenance.Node{ID: id, Label: fmt.Sprintf("/tmp/file-%d", i), Subtype: "file"})
+		edges = append(edges, &provenance.Edge{
+			ID:         fmt.Sprintf("e:%d", i),
+			Source:     "p:root",
+			Target:     id,
+			Relation:   provenance.ProvUsed,
+			Attributes: map[string]interface{}{"event": "file_open"},
+		})
+	}
+	layout := layoutGraph(nodes, edges)
+	if layout.collapsedNodes == 0 || len(layout.clusters) == 0 {
+		t.Fatalf("expected dense layer folding, collapsed=%d clusters=%d", layout.collapsedNodes, len(layout.clusters))
+	}
+	svg := string(renderSVG(layout))
+	if !strings.Contains(svg, "folded node(s)") || !strings.Contains(svg, "dashed boxes summarize folded same-layer nodes") {
+		t.Fatalf("SVG missing folded cluster explanation: %s", svg)
 	}
 }
 

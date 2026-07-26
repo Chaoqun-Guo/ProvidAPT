@@ -1,182 +1,99 @@
-# Visualization & Analysis Guide
+# Visualization and Analysis Guide
 
-**Graph Interpretation** | Color Coding, Timeline, AI-Generated Reports
+This guide explains how to read ProvidAPT dashboard views, provenance traces,
+and exported investigation evidence.
 
----
+## Node Types
 
-## 1. Graph Visualization
+| Node Type | Color | Meaning |
+| --- | --- | --- |
+| Process | Blue | Executing process or process lineage |
+| File | Green | File, directory, or memory-backed file entity |
+| Network | Red / orange | IP, port, socket, or remote endpoint |
+| Memory | Purple | Memory event such as anonymous executable memory |
+| Pipe | Gray | Inter-process pipe or IPC relation |
+| Package | Teal | Software package or SBOM-bound artifact |
+| Credential | Yellow | Security context, identity, or credential-sensitive object |
 
-### 1.1 Node Types & Colors
+## Edge Semantics
 
-| Node Type | Color | Icon | Description |
-|-----------|-------|------|-------------|
-| Process | Blue | `⚙` | Executing process (activity) |
-| File | Green | `📄` | File on disk or memory-mapped |
-| Network | Orange | `🌐` | IP:port endpoint |
-| Memory | Purple | `🧠` | mprotect RX region |
-| Pipe | Gray | `🔗` | Inter-process pipe |
-| Package | Teal | `📦` | Software package (SBOM) |
-| Credential | Yellow | `🔑` | Security context / identity |
+| Relation | Direction | Meaning |
+| --- | --- | --- |
+| `prov:used` | process -> entity | Process read, opened, connected to, or used an entity |
+| `prov:wasGeneratedBy` | entity -> process | Entity was created or written by a process |
+| `prov:wasInformedBy` | child -> parent | Process fork, exec, IPC, or causal notification |
+| `prov:wasDerivedFrom` | derived -> source | Data was copied, transformed, archived, or staged |
+| `prov:hadSecurityContext` | node -> context | Node is associated with an identity or security context |
 
-### 1.2 Edge Relations & Styles
+Trace SVG exports render causal direction as `source -> target`. Dashed edges are
+retained cross-links that preserve important relationships without forcing every
+edge into the main tree.
 
-| Relation | Line Style | Arrow | Description |
-|----------|-----------|-------|-------------|
-| `prov:used` | Solid | → | Process read/connected to entity |
-| `prov:wasGeneratedBy` | Solid | ← | Entity created by process |
-| `prov:wasInformedBy` | Dashed | → | Causality (fork, IPC) |
-| `prov:wasDerivedFrom` | Dotted | → | Version chain |
-| `prov:wasAttributedTo` | Dashed | ↔ | Package attribution |
+## Large Trace Readability
 
-### 1.3 Taint Indicators
+Trace SVG exports use a left-to-right tree layout. For dense traces, nodes with
+the same layer and type may be folded into a dashed summary box.
 
-Process nodes display a severity badge:
+Folded boxes show:
 
-```
-┌──────────────────┐
-│  [p:1234] bash  │  ← Node ID + label
-│  ⚠ CRITICAL     │  ← Taint severity badge
-│  ─────────────  │
-│  PID: 1234      │  ← Attribute detail
-│  UID: 0         │
-│  fileless: true │
-│  shellcode: true│
-└──────────────────┘
-```
+- node type and layer
+- number of folded nodes
+- short member preview
+- full member list in the SVG `<title>` tooltip
 
-Badge colors:
-- **Gray**: No taint
-- **Yellow**: LOW / MEDIUM
-- **Orange**: HIGH
-- **Red**: CRITICAL
+This keeps process, file, and network structure readable while preserving the
+event table for detailed relation review.
 
-Special badges:
-- `🐚`: Shellcode detected
-- `📂`: Fileless execution
-- `🔌`: Network connection
-- `🔒`: Setuid escalation
-- `🎣`: Honeytoken triggered
-- `📦`: Package manager activity
+## Operation Colors
 
-### 1.4 Timeline Controls
+| Color | Operation |
+| --- | --- |
+| Blue | read / use |
+| Green | write / create |
+| Yellow | exec / fork |
+| Red | network |
+| Purple | derived data |
+| Gray dashed | security context or folded summary |
 
-```
-[← 1h] [← 15m] [← 5m] [NOW] [→ 5m] [→ 15m]
-         ████████████████████░░░░░░░░
-         │   Attack window    │
-    09:00:00              09:15:00
+## Event Structure Table
 
-Timeline features:
-- Drag to pan time window
-- Scroll wheel to zoom
-- Click node to see event timeline
-- Select range to isolate subgraph
-```
+The SVG includes an `Event Structure` table below the graph. Events are grouped
+by analyst category:
 
----
+- execution / process activity
+- discovery or credential access / file reads
+- persistence or collection / file writes
+- command and control / network
+- data derivation
+- security context
+- other provenance relations
 
-## 2. Subgraph Extraction
+Only the first few relations in each category are expanded. Additional relations
+are counted as collapsed rows to avoid very long pages.
 
-When an alert fires, the analyzer extracts a subgraph showing the attack path:
+## Investigation Workflow
 
-```
-                    ┌──────────┐
-           ┌──────▶│ f:evil.php│
-           │       └──────────┘
-     ┌──────────┐       │
-     │ apache2  │       │ wasGeneratedBy
-     │ (MEDIUM) │       ▼
-     └──────────┘   ┌──────────┐
-           │        │python3   │
-           │        │(CRITICAL)│
-           │        │fileless  │
-           │        │shellcode │
-           │        └────┬─────┘
-           │             │
-           │     ┌───────▼───────┐
-           │     │  memfd:anon   │
-           │     │  (fileless)   │
-           │     └───────────────┘
-           │
-           ▼
-     ┌──────────┐
-     │ n:C2:443 │
-     │ (exfil)  │
-     └──────────┘
-```
+1. Open `Trace SVG` from Alert Workflow or a ground-truth record.
+2. Read the title and focused scope at the top of the SVG.
+3. Follow tree edges from left to right.
+4. Use edge colors to distinguish file, process, network, and derived-data operations.
+5. Review dashed cross-links for non-tree causal context.
+6. Use the event table to inspect detailed attributes such as command line, path, PID, UID, and endpoint.
+7. Download the Markdown investigation report for incident handoff.
 
-Visual cues:
-- **Bold borders**: Nodes on the main attack path
-- **Dashed borders**: 1-hop context nodes
-- **Red tinted**: Tainted nodes with CRITICAL severity
-- **Timestamps**: Edge labels show event timing
+## Export Formats
 
----
+| Format | Extension | Use Case |
+| --- | --- | --- |
+| PROV-JSON | `.json` | Machine analysis and custom tooling |
+| GraphML | `.graphml` | yEd, Gephi, or offline graph exploration |
+| SVG | `.svg` | Browser review, tickets, and report evidence |
+| Markdown | `.md` | Analyst handoff and incident review |
 
-## 3. AI-Generated Attack Reports
-
-When a `PatDeepTaint` or `PatMemoryAnomaly` alert fires, the system generates a natural-language report:
-
-```markdown
-## Attack Summary
-**Severity**: CRITICAL | **Pattern**: Supply Chain + Memory Anomaly
-**Detected**: 2026-05-28T14:23:00Z
-
-### Attack Chain
-1. **Initial Access** — pip3 installed `evil-package==1.0.0` from pypi.org
-   - Package not GPG signed (signing_verified: false)
-   - Supply chain risk: CRITICAL
-
-2. **Execution** — python3 executed `evil_package/runner.py`
-   - Created anonymous memfd (fileless execution)
-   - mprotect RW→RX detected (shellcode injection)
-
-3. **Defense Evasion** — PTACE_TRACEME privilege escalation
-   - Process injected into apache2 (uid 1000 → 0)
-
-4. **Lateral Movement** — SSH connection to host-app-01:22
-   - Cross-host stitch matched (flow: web-01 → app-01)
-   - Taint propagated: CRITICAL → HIGH
-
-5. **Exfiltration** — curl HTTPS to 198.51.100.99:443
-   - JA3 fingerprint: Cobalt Strike Beacon (6734f374)
-   - Config file /etc/db_config.ini modified
-
-### Forensic Artifacts
-- **Memory Dump**: 3 YARA matches (CS_BEACON_MUTEX, ELF_MAGIC_ANON)
-- **Network Flows**: 2 hosts affected (host-app-01, host-c2-01)
-- **Process Context**: PID 1337, cmdline: python3 -c evil_runner
-```
-
----
-
-## 4. Export Formats
-
-| Format | Extension | Tool | Use Case |
-|--------|-----------|------|----------|
-| PROV-JSON | `.json` | Any JSON viewer | Machine analysis |
-| GraphML | `.graphml` | yEd, Gephi | Visual graph exploration |
-| Cytoscape JSON | `.cyjs` | Cytoscape | Network analysis |
-| SVG | `.svg` | Browser | Report inclusion |
-| PDF | `.pdf` | Browser print | Compliance documentation |
+Example:
 
 ```bash
-# Export current graph
-curl -s http://localhost:8722/graph/nodes > graph.json
-
-# Export subgraph for a specific alert
-curl -s "http://localhost:8722/graph/backtrack?node_id=p:1234" > subgraph.json
-
-# Convert to SVG (requires graphviz)
-python3 -c "
-import json, sys
-data = json.load(open('graph.json'))
-# Convert to DOT format for Graphviz
-print('digraph ProvidAPT {')
-for node in data['nodes']:
-    print(f'  \"{node[\"id\"]}\" [label=\"{node[\"label\"]}\"]')
-for edge in data.get('edges', []):
-    print(f'  \"{edge[\"source\"]}\" -> \"{edge[\"target\"]}\"')
-print('}')
-" | dot -Tsvg -o graph.svg
+curl -s http://<server>:18080/api/v1/graph/export > graph.json
+curl -s "http://<server>:18080/api/v1/investigation/report?node=p:1234&direction=backward&format=markdown" \
+  > investigation.md
 ```

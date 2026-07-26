@@ -12,13 +12,15 @@ import (
 )
 
 type svgLayout struct {
-	nodes    []svgNode
-	edges    []svgEdge
-	width    int
-	height   int
-	graphH   int
-	scope    string
-	truncate bool
+	nodes          []svgNode
+	edges          []svgEdge
+	clusters       []svgCluster
+	width          int
+	height         int
+	graphH         int
+	scope          string
+	truncate       bool
+	collapsedNodes int
 }
 
 type svgNode struct {
@@ -51,6 +53,19 @@ type svgEventGroup struct {
 	crossLinks int
 }
 
+type svgCluster struct {
+	id      string
+	title   string
+	count   int
+	typ     string
+	depth   int
+	x       int
+	y       int
+	w       int
+	h       int
+	members []string
+}
+
 const (
 	minNodeW    = 240
 	maxNodeW    = 520
@@ -61,6 +76,8 @@ const (
 	topY        = 76
 	minGraphH   = 320
 	edgeLabelDX = 10
+	clusterMin  = 5
+	clusterKeep = 3
 )
 
 func generateAlertSVG(alertID string, graph *provenance.Graph) []byte {
@@ -166,6 +183,12 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 	lay := &svgLayout{}
 	roots := findRoots(nodes, edges)
 	depth, treeParent, orderedIDs := treeLayoutOrder(nodes, edges, roots)
+	clusteredIDs, clusters := clusterSVGNodes(nodes, orderedIDs, depth)
+	lay.clusters = clusters
+	lay.collapsedNodes = len(orderedIDs) - len(clusteredIDs)
+	if len(clusteredIDs) > 0 {
+		orderedIDs = clusteredIDs
+	}
 
 	maxDepth := 0
 	for _, id := range orderedIDs {
@@ -205,11 +228,26 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 		lay.nodes = append(lay.nodes, node)
 		y += node.h + yPad
 	}
+	for i := range lay.clusters {
+		cluster := &lay.clusters[i]
+		cluster.x = colX[cluster.depth]
+		cluster.y = y
+		cluster.w = maxInt(minNodeW, colWidths[cluster.depth])
+		cluster.h = 74
+		y += cluster.h + yPad
+	}
 
 	graphH := y + 20
 	lay.graphH = maxInt(minGraphH, graphH)
 	usedTreeEdges := map[string]bool{}
+	visibleNode := make(map[string]bool, len(lay.nodes))
+	for _, node := range lay.nodes {
+		visibleNode[node.id] = true
+	}
 	for _, e := range edges {
+		if !visibleNode[e.Source] || !visibleNode[e.Target] {
+			continue
+		}
 		tree := treeParent[e.Target] == e.Source && !usedTreeEdges[e.Source+"\x00"+e.Target]
 		if tree {
 			usedTreeEdges[e.Source+"\x00"+e.Target] = true
@@ -227,6 +265,59 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 	}
 	lay.height = lay.graphH + eventTableHeight(lay.edges) + 50
 	return lay
+}
+
+func clusterSVGNodes(nodes []*provenance.Node, orderedIDs []string, depth map[string]int) ([]string, []svgCluster) {
+	byID := make(map[string]*provenance.Node, len(nodes))
+	for _, node := range nodes {
+		byID[node.ID] = node
+	}
+	type groupKey struct {
+		depth int
+		typ   string
+	}
+	groups := map[groupKey][]string{}
+	for _, id := range orderedIDs {
+		node := byID[id]
+		if node == nil {
+			continue
+		}
+		key := groupKey{depth: depth[id], typ: node.Subtype}
+		groups[key] = append(groups[key], id)
+	}
+	collapsed := map[string]bool{}
+	var clusters []svgCluster
+	for key, ids := range groups {
+		if len(ids) < clusterMin {
+			continue
+		}
+		sort.Strings(ids)
+		members := ids[clusterKeep:]
+		for _, id := range members {
+			collapsed[id] = true
+		}
+		clusters = append(clusters, svgCluster{
+			id:      fmt.Sprintf("cluster:%d:%s", key.depth, key.typ),
+			title:   fmt.Sprintf("%s cluster", displayType(key.typ)),
+			count:   len(members),
+			typ:     key.typ,
+			depth:   key.depth,
+			members: members,
+		})
+	}
+	sort.Slice(clusters, func(i, j int) bool {
+		if clusters[i].depth == clusters[j].depth {
+			return clusters[i].typ < clusters[j].typ
+		}
+		return clusters[i].depth < clusters[j].depth
+	})
+	out := make([]string, 0, len(orderedIDs))
+	for _, id := range orderedIDs {
+		if !collapsed[id] {
+			out = append(out, id)
+		}
+	}
+	return out, clusters
 }
 
 func findRoots(nodes []*provenance.Node, edges []*provenance.Edge) []string {
@@ -387,6 +478,9 @@ func renderSVG(lay *svgLayout) []byte {
 <style>
   .bg { fill: #0d1117; }
   .node rect { stroke-width: 1.2; rx: 8; }
+  .cluster rect { fill: #161b22; stroke: #6e7681; stroke-width: 1.2; rx: 10; stroke-dasharray: 6 4; }
+  .cluster .label { fill: #f0f6fc; font: 12px monospace; font-weight: 700; }
+  .cluster .meta { fill: #8b949e; font: 10px monospace; }
   .node-process rect { fill: #0f2747; stroke: #58a6ff; }
   .node-file rect { fill: #12351f; stroke: #3fb950; }
   .node-network rect { fill: #3a1a1a; stroke: #f85149; }
@@ -427,12 +521,22 @@ func renderSVG(lay *svgLayout) []byte {
 <rect class="bg" x="0" y="0" width="%d" height="%d"/>
 <text x="18" y="22" class="title">ProvidAPT Provenance Trace</text>
 <text x="18" y="40" class="subtitle">%s</text>
-<text x="18" y="54" class="subtitle">Tree layout is left-to-right; Causal direction is rendered as source -&gt; target; dashed edges are retained cross-links.</text>
+<text x="18" y="54" class="subtitle">Tree layout is left-to-right; Causal direction is rendered as source -&gt; target; dashed edges are retained cross-links; dashed boxes summarize folded same-layer nodes.</text>
 `, lay.width, lay.height, lay.width, lay.height, svgMarkers(), lay.width, lay.height, escapeXML(scope))
 
 	nodeMap := make(map[string]svgNode)
 	for _, n := range lay.nodes {
 		nodeMap[n.id] = n
+	}
+	for _, cluster := range lay.clusters {
+		fmt.Fprintf(&b, `<g class="cluster cluster-%s">
+  <title>%s</title>
+  <rect x="%d" y="%d" width="%d" height="%d"/>
+  <text class="label" x="%d" y="%d">%s</text>
+  <text class="meta" x="%d" y="%d">%d folded node(s), depth=%d</text>
+  <text class="meta" x="%d" y="%d">%s</text>
+</g>
+`, escapeXML(cluster.typ), escapeXML(clusterTitle(cluster)), cluster.x, cluster.y, cluster.w, cluster.h, cluster.x+10, cluster.y+22, escapeXML(cluster.title), cluster.x+10, cluster.y+40, cluster.count, cluster.depth, cluster.x+10, cluster.y+58, escapeXML(clusterMemberPreview(cluster)))
 	}
 	for _, e := range lay.edges {
 		src, ok := nodeMap[e.src]
@@ -498,8 +602,8 @@ func renderEventTable(b *strings.Builder, lay *svgLayout) {
 	tableH := eventTableHeight(lay.edges)
 	fmt.Fprintf(b, `<g class="event-table">
   <rect x="18" y="%d" width="%d" height="%d"/>
-  <text class="header" x="34" y="%d">Event Structure (%d categories, %d edges)</text>
-`, tableY, lay.width-36, tableH, tableY+24, len(groups), len(lay.edges))
+  <text class="header" x="34" y="%d">Event Structure (%d categories, %d visible edges, %d folded nodes)</text>
+`, tableY, lay.width-36, tableH, tableY+24, len(groups), len(lay.edges), lay.collapsedNodes)
 	if len(lay.edges) == 0 {
 		fmt.Fprintf(b, `  <text x="34" y="%d">No edges are available for this trace.</text>
 </g>
@@ -638,8 +742,9 @@ func renderLegend(b *strings.Builder, width int) {
 		{"exec/fork", "#d29922"},
 		{"network", "#f85149"},
 		{"derived", "#a371f7"},
+		{"folded", "#6e7681"},
 	}
-	x := maxInt(360, width-430)
+	x := maxInt(360, width-510)
 	fmt.Fprintf(b, `<g class="legend" transform="translate(%d,16)">`, x)
 	for i, item := range items {
 		offset := i * 78
@@ -684,6 +789,39 @@ func makeSVGNode(n *provenance.Node, _ int) svgNode {
 	lineCount := len(nodeTextLines(node))
 	node.h = maxInt(minNodeH, 18+lineCount*13+10)
 	return node
+}
+
+func displayType(typ string) string {
+	switch strings.TrimSpace(typ) {
+	case "process":
+		return "Process"
+	case "file":
+		return "File"
+	case "network":
+		return "Network"
+	case "credential":
+		return "Credential"
+	case "":
+		return "Node"
+	default:
+		return strings.Title(typ)
+	}
+}
+
+func clusterTitle(cluster svgCluster) string {
+	return fmt.Sprintf("%s: %s", cluster.title, strings.Join(cluster.members, ", "))
+}
+
+func clusterMemberPreview(cluster svgCluster) string {
+	if len(cluster.members) == 0 {
+		return "No folded members"
+	}
+	limit := minInt(3, len(cluster.members))
+	preview := strings.Join(cluster.members[:limit], ", ")
+	if len(cluster.members) > limit {
+		preview += fmt.Sprintf(", +%d more", len(cluster.members)-limit)
+	}
+	return preview
 }
 
 func measureNodeWidth(n svgNode) int {
