@@ -106,6 +106,11 @@ extraEnv: []
 # - name: MY_VAR
 #   value: "value"
 
+# -- Additional envFrom sources, for example production runtime Secrets
+extraEnvFrom: []
+# - secretRef:
+#     name: providapt-runtime-secrets
+
 # -- Annotations for the DaemonSet pod template
 podAnnotations: {}
 

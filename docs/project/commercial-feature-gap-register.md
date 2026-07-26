@@ -23,7 +23,7 @@ This register tracks remaining product capabilities that improve commercial read
 Current closure progress:
 
 - Release gate snapshots are available through `make release-gates`, producing Markdown and JSON evidence under `build/`.
-- Secret template generation is available through `make ops-secret-template`.
+- Secret template generation and validation are available through `make ops-secret-template` and `make ops-secret-validate SECRET_ENV=...`.
 - TLS bootstrap and expiry checking are available through `make ops-tls-bootstrap` and `make ops-tls-check CERTS="..."`.
 - PostgreSQL logical backup and optional staging restore drills are available through `make ops-postgres-drill`.
 - Fleet list and lifecycle operations are wrapped by `scripts/ops/fleet-lifecycle.sh`.

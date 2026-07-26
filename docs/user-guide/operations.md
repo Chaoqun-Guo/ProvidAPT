@@ -161,10 +161,14 @@ Generate a customer-fillable secret template:
 
 ```bash
 make ops-secret-template
+make ops-secret-validate SECRET_ENV=/secure/path/providapt.secrets.env
 ```
 
 The generated `build/providapt.secrets.env.example` is a template only. Replace
-all placeholders through the customer's secret manager or deployment pipeline.
+all placeholders through the customer's secret manager or deployment pipeline,
+then validate the filled file before wiring it into systemd, Docker Compose, or
+Kubernetes. See `docs/getting-started/secret-management.md` for deployment
+patterns.
 
 Check certificate expiry:
 

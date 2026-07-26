@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-siem-verify
+.PHONY: ops-secret-template ops-secret-validate ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-siem-verify
 
 SHELL := /bin/bash
 
@@ -252,6 +252,10 @@ package-smoke-matrix:
 ops-secret-template:
 	bash scripts/ops/render-secret-env.sh -o build/providapt.secrets.env.example
 
+ops-secret-validate:
+	@if [ -z "$(SECRET_ENV)" ]; then echo 'usage: make ops-secret-validate SECRET_ENV=/path/providapt.secrets.env'; exit 2; fi
+	bash scripts/ops/validate-secret-env.sh "$(SECRET_ENV)"
+
 ops-tls-bootstrap:
 	bash scripts/ops/bootstrap-tls.sh --out-dir "$(or $(TLS_OUT),build/tls)" --server-cn "$(or $(TLS_SERVER_CN),providapt-control-plane)" $(if $(TLS_SERVER_SAN),--server-san "$(TLS_SERVER_SAN)") --agent-cn "$(or $(TLS_AGENT_CNS),providapt-agent)"
 
@@ -389,6 +393,7 @@ help:
 	@echo ''
 	@echo 'Operations:'
 	@echo '  make ops-secret-template Generate production secret env template'
+	@echo '  make ops-secret-validate SECRET_ENV=... Validate production secret env file'
 	@echo '  make ops-tls-bootstrap TLS CA, server, and agent certificate bootstrap'
 	@echo '  make ops-tls-check CERTS="..." Check TLS certificate expiry'
 	@echo '  make ops-postgres-drill Run PostgreSQL backup/restore drill'

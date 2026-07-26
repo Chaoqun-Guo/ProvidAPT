@@ -35,10 +35,13 @@ Generate a placeholder secret template before wiring the deployment pipeline:
 
 ```bash
 make ops-secret-template
+make ops-secret-validate SECRET_ENV=/secure/path/providapt.secrets.env
 ```
 
 Do not mount `build/providapt.secrets.env.example` directly into production. It
 contains placeholders and exists only to document required secret names.
+Mount a reviewed env-file with `env_file` only in controlled environments; use
+Docker secrets or an external secret manager when available.
 
 ## Health Checks
 
