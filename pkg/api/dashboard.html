@@ -140,7 +140,7 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .delivery-inline-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .delivery-inline-actions button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
 .delivery-inline-actions button.secondary { background: #30363d; }
-.ground-truth-toolbar { display:grid; grid-template-columns: minmax(160px, 1fr) auto auto auto; gap: 6px; margin: 8px 0; align-items:center; }
+.ground-truth-toolbar { display:grid; grid-template-columns: minmax(160px, 1fr) repeat(7, auto); gap: 6px; margin: 8px 0; align-items:center; }
 .ground-truth-toolbar input[type="file"] { min-width:0; color:#8b949e; font-size:11px; }
 .truth-phase-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; margin: 8px 0; }
 .truth-record { align-items:flex-start; }
@@ -395,6 +395,10 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <button class="secondary" onclick="loadGroundTruthFromFile()">Load Local JSONL</button>
         <button class="secondary" onclick="loadGroundTruth()">Load Server</button>
         <button class="secondary" onclick="showGroundTruthCorrelation()">Correlate</button>
+        <button class="secondary" onclick="showGroundTruthCoverage()">Coverage</button>
+        <button class="secondary" onclick="downloadGroundTruthDataset('labels')">Export Labels</button>
+        <button class="secondary" onclick="downloadGroundTruthDataset('coverage')">Export Coverage</button>
+        <button class="secondary" onclick="downloadGroundTruthDataset('manifest')">Export Manifest</button>
       </div>
       <div class="truth-phase-grid" id="groundTruthPhaseGrid"></div>
       <div class="loading" id="groundTruthStatus">Load a ground truth JSONL file or server records.</div>
@@ -1871,10 +1875,13 @@ function workflowActionButtons(alert) {
   const unsilence = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('unsilence', 'REPLACE_ID')\">Unsilence</button>";
   const close = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('close', 'REPLACE_ID')\">Close</button>";
   const reopen = "<button onclick=\"runAlertWorkflowAction('reopen', 'REPLACE_ID')\">Reopen</button>";
+  const tp = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('annotate_tp', 'REPLACE_ID')\">TP</button>";
+  const fp = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('annotate_fp', 'REPLACE_ID')\">FP</button>";
   const actions = [];
   if (status !== 'assigned') actions.push(assign);
   if (status === 'suppressed') actions.push(unsilence); else actions.push(silence);
   if (status === 'closed') actions.push(reopen); else actions.push(close);
+  actions.push(tp, fp);
   return '<span class="delivery-inline-actions">' + actions.join('').replace(/REPLACE_ID/g, id) + '</span>';
 }
 
@@ -1913,6 +1920,11 @@ async function runAlertWorkflowAction(action, alertID) {
     alert_id: alertID,
     note: 'dashboard ' + action,
   };
+  if (action === 'annotate_tp' || action === 'annotate_fp') {
+    payload.action = 'annotate';
+    payload.classification = action === 'annotate_tp' ? 'true_positive' : 'false_positive';
+    payload.note = 'dashboard analyst feedback: ' + payload.classification;
+  }
   if (action === 'assign') {
     payload.assignee = currentRole + '-operator';
   }
@@ -2025,6 +2037,144 @@ function summarizeGroundTruthRecords(records, files) {
   };
 }
 
+function normalizedGroundTruthLabel(record, split) {
+  const malicious = !!record.malicious;
+  return {
+    schema: 'providapt.evaluation_dataset.v1',
+    dataset_split: split || 'unsplit',
+    label: malicious ? 'malicious' : 'benign',
+    malicious: malicious,
+    run_id: record.run_id || '',
+    source_file: record.source_file || '',
+    category: record.category || record.phase || '',
+    phase: record.phase || '',
+    step_index: record.step_index || 0,
+    step_id: record.step_id || '',
+    step_name: record.step_name || '',
+    tactic_id: record.tactic_id || record.tactic || 'benign',
+    tactic_name: record.tactic_name || '',
+    technique_id: record.technique_id || 'benign',
+    technique_name: record.technique_name || '',
+    mitre_url: record.mitre_url || '',
+    expected_event: record.expected_event || '',
+    expected_relation: record.expected_relation || '',
+    actor: record.actor || '',
+    object: record.object || '',
+    command: record.command || '',
+  };
+}
+
+function stableGroundTruthBucket(record) {
+  const key = [record.run_id || '', record.step_id || '', record.step_index || '', record.command || ''].join('|');
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash % 100);
+}
+
+function groundTruthDatasetRecords() {
+  const records = (latestGroundTruth.records || []).slice().sort((a, b) =>
+    String(a.run_id || '').localeCompare(String(b.run_id || '')) ||
+    Number(a.step_index || 0) - Number(b.step_index || 0) ||
+    String(a.step_id || '').localeCompare(String(b.step_id || ''))
+  );
+  return records.map(record => normalizedGroundTruthLabel(record, stableGroundTruthBucket(record) < 80 ? 'train' : 'test'));
+}
+
+function buildGroundTruthCoverage() {
+  const records = latestGroundTruth.records || [];
+  const correlationRows = (latestGroundTruthCorrelation.records || []);
+  const byTactic = {};
+  const byCategory = {};
+  const byRun = {};
+  const correlation = {};
+  const hasCorrelation = correlationRows.length > 0;
+  correlationRows.forEach(row => {
+    const truth = row.ground_truth || {};
+    const key = [truth.run_id || '', truth.step_id || '', truth.step_index || '', truth.command || ''].join('|');
+    correlation[key] = row.status || 'unknown';
+  });
+  let detected = 0;
+  records.forEach(record => {
+    const key = [record.run_id || '', record.step_id || '', record.step_index || '', record.command || ''].join('|');
+    const status = correlation[key] || 'simulated';
+    const bucket = status === 'matched' ? 'detected' : (hasCorrelation ? 'missed' : 'simulated');
+    if (status === 'matched') detected += 1;
+    [
+      [byTactic, record.tactic_id || record.tactic || 'benign'],
+      [byCategory, record.category || record.phase || 'unknown'],
+      [byRun, record.run_id || 'unknown'],
+    ].forEach(pair => {
+      const group = pair[0];
+      const name = pair[1];
+      group[name] = group[name] || { total: 0, malicious: 0, benign: 0, detected: 0, missed: 0, simulated: 0 };
+      group[name].total += 1;
+      if (record.malicious) group[name].malicious += 1; else group[name].benign += 1;
+      group[name][bucket] += 1;
+    });
+  });
+  const malicious = records.filter(record => record.malicious).length;
+  return {
+    schema: 'providapt.attack_coverage.v1',
+    generated_at: new Date().toISOString(),
+    total: records.length,
+    malicious: malicious,
+    benign: records.length - malicious,
+    detected: detected,
+    coverage_percent: malicious ? Number((detected / malicious * 100).toFixed(2)) : 0,
+    correlation_status: hasCorrelation ? 'merged' : 'not_provided',
+    by_tactic: byTactic,
+    by_category: byCategory,
+    by_run: byRun,
+  };
+}
+
+function downloadTextFile(fileName, text, type) {
+  const blob = new Blob([text], { type: type || 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function downloadGroundTruthDataset(kind) {
+  const labels = groundTruthDatasetRecords();
+  if (labels.length === 0) {
+    setInvestigationLoading('No ground truth records loaded for dataset export.');
+    return;
+  }
+  const coverage = buildGroundTruthCoverage();
+  const manifest = {
+    schema: 'providapt.evaluation_dataset.v1',
+    generated_at: new Date().toISOString(),
+    record_count: labels.length,
+    train_count: labels.filter(item => item.dataset_split === 'train').length,
+    test_count: labels.filter(item => item.dataset_split === 'test').length,
+    files: {
+      labels: 'providapt-labels.jsonl',
+      coverage: 'providapt-coverage.json',
+      manifest: 'providapt-dataset-manifest.json',
+    },
+    source_files: latestGroundTruth.files || [],
+  };
+  if (kind === 'manifest') {
+    downloadTextFile('providapt-dataset-manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+  } else if (kind === 'coverage') {
+    downloadTextFile('providapt-coverage.json', JSON.stringify(coverage, null, 2) + '\n');
+  } else {
+    downloadTextFile('providapt-labels.jsonl', labels.map(item => JSON.stringify(item)).join('\n') + '\n', 'application/x-ndjson');
+  }
+  setInvestigationItems([
+    renderKVItem('dataset export', labels.length + ' labels', manifest.train_count + ' train · ' + manifest.test_count + ' test'),
+    renderKVItem('coverage', coverage.coverage_percent + '%', coverage.correlation_status),
+  ], 'Dataset export prepared');
+}
+
 function renderGroundTruth(message) {
   const data = latestGroundTruth || {};
   const records = data.records || [];
@@ -2053,6 +2203,22 @@ function renderGroundTruth(message) {
     return;
   }
   list.innerHTML = filtered.slice(0, 80).map(renderGroundTruthRecord).join('');
+}
+
+function showGroundTruthCoverage() {
+  const coverage = buildGroundTruthCoverage();
+  const rows = [
+    renderKVItem('records', coverage.total, coverage.malicious + ' malicious · ' + coverage.benign + ' benign'),
+    renderKVItem('coverage', coverage.coverage_percent + '%', coverage.detected + ' detected · ' + coverage.correlation_status),
+  ];
+  Object.entries(coverage.by_tactic || {}).sort((a, b) => b[1].total - a[1].total).slice(0, 12).forEach(([tactic, row]) => {
+    rows.push(renderKVItem(tactic, row.total + ' records', (row.detected || 0) + ' detected · ' + (row.missed || 0) + ' missed · ' + (row.simulated || 0) + ' simulated'));
+  });
+  setInvestigationItems(rows, 'Load ground truth records before viewing coverage.');
+  const status = document.getElementById('groundTruthStatus');
+  if (status) {
+    status.textContent = 'ATT&CK coverage summary · ' + coverage.total + ' records · ' + coverage.coverage_percent + '% detected';
+  }
 }
 
 function renderGroundTruthPhases(phases) {

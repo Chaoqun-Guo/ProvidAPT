@@ -225,6 +225,12 @@ func TestDashboardGroundTruthPanel(t *testing.T) {
 		"loadGroundTruthFromFile",
 		"loadGroundTruth",
 		"showGroundTruthCorrelation",
+		"showGroundTruthCoverage",
+		"downloadGroundTruthDataset('labels')",
+		"downloadGroundTruthDataset('coverage')",
+		"downloadGroundTruthDataset('manifest')",
+		"providapt.evaluation_dataset.v1",
+		"providapt.attack_coverage.v1",
 		"/api/v1/evaluation/ground-truth?limit=500",
 		"/api/v1/evaluation/correlation?limit=200",
 		"parseGroundTruthJSONL",
@@ -238,6 +244,21 @@ func TestDashboardGroundTruthPanel(t *testing.T) {
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
 			t.Fatalf("dashboard missing ground truth content %q", item)
+		}
+	}
+}
+
+func TestDashboardAlertAnnotationButtons(t *testing.T) {
+	expected := []string{
+		"runAlertWorkflowAction('annotate_tp'",
+		"runAlertWorkflowAction('annotate_fp'",
+		"payload.classification",
+		"true_positive",
+		"false_positive",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing alert annotation content %q", item)
 		}
 	}
 }
