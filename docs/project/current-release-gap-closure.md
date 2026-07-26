@@ -1,10 +1,15 @@
 ﻿# Current Release Gap Closure Plan
 
-Date: 2026-07-22
+Date: 2026-07-26
 Branch: master
+Verification commit: `9cdf515e88d7ed28eeaa429a3cd7d7e0354673ad`
 
 ## Completed in this pass
 
+- Release-scoped Go validation passed on the current workspace for `pkg/api`, `pkg/config`, `internal/storage/format`, `pkg/releasecheck`, `pkg/controlplaneha`, `cmd/cli/providaptctl`, and `cmd/cli/providapt-sign`.
+- GitHub Actions status was checked locally, but `gh` is not authenticated in this environment.
+- Local scanner availability was checked. `govulncheck`, `grype`, and `trivy` are not installed on the workstation.
+- Docker daemon access was confirmed, but running third-party scanner containers requires explicit approval because it mounts the repository into external container images and may pull images from the network.
 - Event detail drill-down is available from dashboard event cards.
 - Alert Workflow includes an inline related-event search action.
 - Production and packaged sample configs include bounded NDJSON retention values.
@@ -16,7 +21,7 @@ Branch: master
 ## External release gates still required
 
 - GitHub Actions status confirmation requires authenticated `gh` or GitHub UI access.
-- Grype/Trivy scan closure requires a networked or pre-approved scanner environment.
+- Grype/Trivy scan closure requires locally installed scanners or explicit approval to run approved container images against the repository.
 - Security, Legal, and Support approvals must be signed by named owners.
 - Final versioned artifacts, checksums, SBOM, signatures, and handoff bundle must be regenerated for the final release tag.
 

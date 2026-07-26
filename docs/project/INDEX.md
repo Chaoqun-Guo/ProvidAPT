@@ -27,6 +27,8 @@ This section collects engineering documentation for repository governance, layou
 | [support-sla.md](support-sla.md) | Support severity, SLA, and escalation model |
 | [customer-handoff.md](customer-handoff.md) | POC, onboarding, and production handoff checklist |
 | [commercial-approval-record.md](commercial-approval-record.md) | Final commercial release approval record |
+| [release-validation-status-2026-07-26.md](release-validation-status-2026-07-26.md) | Current validation status and blocked release gates |
+| [commercial-feature-gap-register.md](commercial-feature-gap-register.md) | Prioritized commercial feature and release gap register |
 
 ## Usage Guidance
 
