@@ -26,6 +26,14 @@ curl -s http://<server>:18080/api/v1/control/fleet
 curl -s "http://<server>:18080/api/v1/control/fleet?group=prod&tag=linux"
 ```
 
+Wrapper:
+
+```bash
+export PROVIDAPT_SERVER_URL=http://<server>:18080
+make ops-fleet-list
+bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" list --group prod --tag linux
+```
+
 ## Update Enrollment
 
 ```bash
@@ -33,6 +41,16 @@ curl -X POST http://<server>:18080/api/v1/control/fleet \
   -H "Content-Type: application/json" \
   -d '{"agent_ids":["agent-a"],"action":"quarantined","note":"incident containment"}'
 ```
+
+Wrapper:
+
+```bash
+bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" \
+  action --agent agent-a --state quarantined --note "incident containment"
+```
+
+Use `approved` after enrollment review, `quarantined` during active
+investigation, and `revoked` when an agent identity is retired or distrusted.
 
 ## Metadata
 

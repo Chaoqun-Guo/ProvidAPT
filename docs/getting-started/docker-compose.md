@@ -31,6 +31,15 @@ export PROVIDAPT_TLS_ENABLED=false
 
 For production, use Docker secrets or the customer's secret manager instead of shell environment variables.
 
+Generate a placeholder secret template before wiring the deployment pipeline:
+
+```bash
+make ops-secret-template
+```
+
+Do not mount `build/providapt.secrets.env.example` directly into production. It
+contains placeholders and exists only to document required secret names.
+
 ## Health Checks
 
 ```bash
@@ -69,6 +78,8 @@ docker compose down -v
 ## Production Notes
 
 - Enable TLS and authentication before exposing the dashboard outside a private network.
+- Check TLS expiry with `make ops-tls-check CERTS="/path/server.crt /path/agent.crt"` during rollout.
 - Persist PostgreSQL data on durable storage.
+- Run `make ops-postgres-drill` against a staging restore database before customer handoff.
 - Configure backups and retention before collecting customer data.
 - Avoid privileged containers unless the deployment explicitly requires host eBPF capture.

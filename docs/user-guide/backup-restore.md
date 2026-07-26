@@ -43,6 +43,18 @@ createdb providapt_restore_check
 psql providapt_restore_check < providapt-control-plane.sql
 ```
 
+Repeatable drill:
+
+```bash
+export PROVIDAPT_DATABASE_DSN='postgres://providapt:<password>@postgres.example.com:5432/providapt?sslmode=require'
+export PROVIDAPT_RESTORE_DSN='postgres://providapt:<password>@restore.example.com:5432/providapt_restore?sslmode=require'
+make ops-postgres-drill
+```
+
+If `PROVIDAPT_RESTORE_DSN` is unset, the drill still creates the logical backup
+and reports that restore verification was skipped. Production release evidence
+should include both backup creation and restore verification.
+
 ## Staged Restore
 
 Use the staged restore API when available:

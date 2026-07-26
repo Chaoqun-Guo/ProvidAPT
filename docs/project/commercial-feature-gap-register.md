@@ -20,6 +20,13 @@ This register tracks remaining product capabilities that improve commercial read
 | PostgreSQL operations | Production storage exists, but backup, restore, migration, and retention drills need recurring evidence | Restore drill and schema migration evidence are included in release validation |
 | Fleet lifecycle | Agent health is visible, but bulk enrollment, decommission, and certificate rotation workflows need deeper automation | Operators can enroll, rotate, quarantine, and retire agents from one workflow |
 
+Current closure progress:
+
+- Secret template generation is available through `make ops-secret-template`.
+- TLS expiry checking is available through `make ops-tls-check CERTS="..."`.
+- PostgreSQL logical backup and optional staging restore drills are available through `make ops-postgres-drill`.
+- Fleet list and lifecycle operations are wrapped by `scripts/ops/fleet-lifecycle.sh`.
+
 ## P2 - Detection and Investigation
 
 | Area | Gap | Expected Outcome |

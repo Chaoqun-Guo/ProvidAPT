@@ -5,6 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial package-smoke-matrix create-user docker-build docker-run help
+.PHONY: ops-secret-template ops-tls-check ops-postgres-drill ops-fleet-list
 
 SHELL := /bin/bash
 
@@ -245,6 +246,21 @@ release-commercial:
 package-smoke-matrix:
 	bash scripts/release/package-smoke-matrix.sh
 
+ops-secret-template:
+	bash scripts/ops/render-secret-env.sh -o build/providapt.secrets.env.example
+
+ops-tls-check:
+	@if [ -z "$(CERTS)" ]; then echo 'usage: make ops-tls-check CERTS="/path/server.crt /path/agent.crt"'; exit 2; fi
+	bash scripts/ops/check-tls-expiry.sh $(CERTS)
+
+ops-postgres-drill:
+	@if [ -z "$(PROVIDAPT_DATABASE_DSN)" ]; then echo 'set PROVIDAPT_DATABASE_DSN before running this target'; exit 2; fi
+	bash scripts/ops/postgres-drill.sh --dsn "$(PROVIDAPT_DATABASE_DSN)" --out build/postgres/providapt-control-plane.sql $(if $(PROVIDAPT_RESTORE_DSN),--restore-dsn "$(PROVIDAPT_RESTORE_DSN)")
+
+ops-fleet-list:
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
+	bash scripts/ops/fleet-lifecycle.sh --server "$(PROVIDAPT_SERVER_URL)" list
+
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
 		echo "Creating providapt system user (UID 950)..."; \
@@ -354,3 +370,9 @@ help:
 	@echo '  make dist-tar         Build the portable tarball'
 	@echo '  make release-commercial Build commercial release artifacts, SBOMs, checksums, scans, and readiness report'
 	@echo '  make package-smoke-matrix Test dist packages in Ubuntu/Rocky containers'
+	@echo ''
+	@echo 'Operations:'
+	@echo '  make ops-secret-template Generate production secret env template'
+	@echo '  make ops-tls-check CERTS="..." Check TLS certificate expiry'
+	@echo '  make ops-postgres-drill Run PostgreSQL backup/restore drill'
+	@echo '  make ops-fleet-list List control-plane fleet state'

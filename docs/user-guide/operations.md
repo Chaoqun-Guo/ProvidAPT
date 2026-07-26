@@ -76,6 +76,18 @@ tar xzf providapt-backup.tar.gz -C /
 sudo systemctl start providapt
 ```
 
+PostgreSQL production drill:
+
+```bash
+export PROVIDAPT_DATABASE_DSN='postgres://providapt:<password>@postgres.example.com:5432/providapt?sslmode=require'
+export PROVIDAPT_RESTORE_DSN='postgres://providapt:<password>@restore.example.com:5432/providapt_restore?sslmode=require'
+make ops-postgres-drill
+```
+
+The target writes `build/postgres/providapt-control-plane.sql`, restores it to
+the optional staging DSN, and runs a sanity query. Use a staging database, not
+the production DSN, for `PROVIDAPT_RESTORE_DSN`.
+
 ## 5. Integrity Verification
 
 ```bash
@@ -125,6 +137,44 @@ curl -X POST http://<server>:18080/api/v1/control/fleet \
 
 The response reports per-agent success or failure, which makes bulk quarantine,
 approval, revocation, and metadata updates safe to automate.
+
+CLI wrapper:
+
+```bash
+export PROVIDAPT_SERVER_URL=http://<server>:18080
+make ops-fleet-list
+bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" \
+  action --agent agent-a,agent-b --state quarantined --note "incident containment"
+```
+
+Common lifecycle transitions:
+
+| Transition | Use Case |
+| --- | --- |
+| `approved` | host identity reviewed and allowed to receive policy |
+| `quarantined` | host is under investigation; telemetry remains visible |
+| `revoked` | host is decommissioned, stolen, or should no longer participate |
+
+## 7. Secret and TLS Operations
+
+Generate a customer-fillable secret template:
+
+```bash
+make ops-secret-template
+```
+
+The generated `build/providapt.secrets.env.example` is a template only. Replace
+all placeholders through the customer's secret manager or deployment pipeline.
+
+Check certificate expiry:
+
+```bash
+make ops-tls-check CERTS="/etc/providapt/tls/server.crt /etc/providapt/tls/agent.crt"
+```
+
+Treat certificates inside the warning window as an operational change request.
+Rotate the certificate, restart or reload the affected service, and verify the
+dashboard plus telemetry endpoints before closing the change.
 
 Investigation reports:
 
