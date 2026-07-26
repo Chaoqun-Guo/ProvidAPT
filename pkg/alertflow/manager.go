@@ -67,11 +67,12 @@ type Snapshot struct {
 
 // UpdateRequest describes a workflow action applied to a single alert.
 type UpdateRequest struct {
-	Action   string `json:"action"`
-	AlertID  string `json:"alert_id,omitempty"`
-	Assignee string `json:"assignee,omitempty"`
-	Duration string `json:"duration,omitempty"`
-	Note     string `json:"note,omitempty"`
+	Action         string `json:"action"`
+	AlertID        string `json:"alert_id,omitempty"`
+	Assignee       string `json:"assignee,omitempty"`
+	Duration       string `json:"duration,omitempty"`
+	Note           string `json:"note,omitempty"`
+	Classification string `json:"classification,omitempty"`
 }
 
 // Manager stores deduplicated alerts and applies workflow transitions.
@@ -243,10 +244,41 @@ func (m *Manager) Update(req UpdateRequest) (Alert, error) {
 	case "reopen":
 		item.Note = strings.TrimSpace(req.Note)
 		item.Status = statusFor(item.Assignee, item.SilenceUntil, now)
+	case "annotate":
+		classification := normalizeClassification(req.Classification)
+		if classification == "" {
+			return Alert{}, fmt.Errorf("classification must be true_positive, false_positive, benign, duplicate, or needs_review")
+		}
+		if item.Details == nil {
+			item.Details = map[string]string{}
+		}
+		item.Details["classification"] = classification
+		item.Details["classification_updated_at"] = now.Format(time.RFC3339)
+		item.Note = strings.TrimSpace(req.Note)
 	default:
 		return Alert{}, fmt.Errorf("unsupported action %q", req.Action)
 	}
 	return cloneAlert(*item), nil
+}
+
+func normalizeClassification(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+	switch normalized {
+	case "tp", "true_positive":
+		return "true_positive"
+	case "fp", "false_positive":
+		return "false_positive"
+	case "benign":
+		return "benign"
+	case "duplicate":
+		return "duplicate"
+	case "needs_review", "review":
+		return "needs_review"
+	default:
+		return ""
+	}
 }
 
 func (m *Manager) shouldNotify(item *Alert, now time.Time) bool {

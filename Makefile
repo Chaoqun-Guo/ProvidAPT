@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
-.PHONY: attack-sim attack-full-chain verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial package-smoke-matrix create-user docker-build docker-run help
@@ -301,6 +301,10 @@ attack-sim:
 attack-full-chain:
 	@bash test/integration/attack-scenarios/attack_full_chain.sh
 
+export-ground-truth:
+	@if [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make export-ground-truth GROUND_TRUTH=/var/log/providapt/ground-truth [OUT_DIR=build/evaluation-dataset]'; exit 2; fi
+	python3 scripts/evaluation/export_ground_truth_dataset.py "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/evaluation-dataset)" $(if $(CORRELATION_JSON),--correlation-json "$(CORRELATION_JSON)")
+
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 
@@ -333,6 +337,7 @@ help:
 	@echo '  make supplychain-test Run supply-chain tests'
 	@echo '  make attack-sim       Simulate an APT attack scenario'
 	@echo '  make attack-full-chain Run ATT&CK full-chain simulation'
+	@echo '  make export-ground-truth Export train/test labels and ATT&CK coverage'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''

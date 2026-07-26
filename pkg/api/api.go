@@ -623,14 +623,15 @@ type AlertWorkflow struct {
 type AlertWorkflowFunc func(status, assignee string) AlertWorkflow
 
 type AlertWorkflowActionRequest struct {
-	Action   string   `json:"action"`
-	AlertID  string   `json:"alert_id,omitempty"`
-	AlertIDs []string `json:"alert_ids,omitempty"`
-	Assignee string   `json:"assignee,omitempty"`
-	Duration string   `json:"duration,omitempty"`
-	Note     string   `json:"note,omitempty"`
-	Actor    string   `json:"actor,omitempty"`
-	Role     string   `json:"role,omitempty"`
+	Action         string   `json:"action"`
+	AlertID        string   `json:"alert_id,omitempty"`
+	AlertIDs       []string `json:"alert_ids,omitempty"`
+	Assignee       string   `json:"assignee,omitempty"`
+	Duration       string   `json:"duration,omitempty"`
+	Note           string   `json:"note,omitempty"`
+	Classification string   `json:"classification,omitempty"`
+	Actor          string   `json:"actor,omitempty"`
+	Role           string   `json:"role,omitempty"`
 }
 
 type AlertWorkflowActionFunc func(req AlertWorkflowActionRequest) (AlertWorkflowItem, error)

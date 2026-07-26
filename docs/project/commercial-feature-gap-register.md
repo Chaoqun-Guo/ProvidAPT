@@ -26,6 +26,7 @@ Current closure progress:
 - TLS expiry checking is available through `make ops-tls-check CERTS="..."`.
 - PostgreSQL logical backup and optional staging restore drills are available through `make ops-postgres-drill`.
 - Fleet list and lifecycle operations are wrapped by `scripts/ops/fleet-lifecycle.sh`.
+- Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
 
 ## P2 - Detection and Investigation
 

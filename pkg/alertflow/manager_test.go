@@ -108,3 +108,32 @@ func TestAssignAndClose(t *testing.T) {
 		t.Fatalf("status = %s, want closed", updated.Status)
 	}
 }
+
+func TestAnnotateClassification(t *testing.T) {
+	mgr := NewManager()
+	record, _ := mgr.Ingest(notify.Alert{
+		ID:        "a-3",
+		Pattern:   "P3",
+		Severity:  notify.SeverityHigh,
+		Headline:  "review me",
+		Timestamp: time.Now().UTC(),
+	})
+	updated, err := mgr.Update(UpdateRequest{
+		Action:         "annotate",
+		AlertID:        record.ID,
+		Classification: "fp",
+		Note:           "safe admin drill",
+	})
+	if err != nil {
+		t.Fatalf("annotate failed: %v", err)
+	}
+	if updated.Details["classification"] != "false_positive" {
+		t.Fatalf("classification = %#v", updated.Details)
+	}
+	if updated.Details["classification_updated_at"] == "" {
+		t.Fatalf("missing classification timestamp: %#v", updated.Details)
+	}
+	if updated.Note != "safe admin drill" {
+		t.Fatalf("note = %q", updated.Note)
+	}
+}

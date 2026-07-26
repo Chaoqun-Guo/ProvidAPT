@@ -1837,7 +1837,7 @@ func TestAlertWorkflowActionEndpoint(t *testing.T) {
 		}, nil
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"assign","alert_id":"a-1","assignee":"alice"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"annotate","alert_id":"a-1","classification":"true_positive","note":"confirmed simulation"}`))
 	w := httptest.NewRecorder()
 	ts.mux.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -1847,10 +1847,7 @@ func TestAlertWorkflowActionEndpoint(t *testing.T) {
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if resp["assignee"] != "alice" {
-		t.Fatalf("assignee = %v", resp["assignee"])
-	}
-	if gotReq.Action != "assign" || gotReq.AlertID != "a-1" {
+	if gotReq.Action != "annotate" || gotReq.AlertID != "a-1" || gotReq.Classification != "true_positive" || gotReq.Note != "confirmed simulation" {
 		t.Fatalf("request = %#v", gotReq)
 	}
 }

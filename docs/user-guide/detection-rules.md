@@ -18,7 +18,7 @@
 | `DestinationIp` | Network destination | `n.dst_ip` |
 | `DestinationPort` | Network port | `n.dst_port` |
 | `User` | UID | `p.uid` |
-| `ParentImage` | Parent comm | `p.ppid → parent.comm` |
+| `ParentImage` | Parent comm | `p.ppid -> parent.comm` |
 
 ### 1.2 Conversion Examples
 
@@ -138,10 +138,10 @@ rules:
 | Pattern ID | Name | Severity | Description |
 |-----------|------|----------|-------------|
 | `SENSITIVE_EXFIL` | Sensitive Exfiltration | HIGH | Sensitive file read + network connection |
-| `SCRIPT_CHILD` | Script Child Execution | CRITICAL | Tainted process write → exec chain |
-| `DEEP_TAINT_CHAIN` | Deep Taint Chain | MEDIUM | Propagation depth ≥ 3 hops |
+| `SCRIPT_CHILD` | Script Child Execution | CRITICAL | Tainted process write -> exec chain |
+| `DEEP_TAINT_CHAIN` | Deep Taint Chain | MEDIUM | Propagation depth >= 3 hops |
 | `PRIVILEGE_ESCALATION` | Privilege Escalation | HIGH | Tainted process with setuid |
-| `MEMORY_ANOMALY` | Memory Anomaly | CRITICAL | mprotect RW→RX or fileless execution |
+| `MEMORY_ANOMALY` | Memory Anomaly | CRITICAL | mprotect RW->RX or fileless execution |
 | `SUPPLY_CHAIN_CRITICAL` | Supply Chain Critical | CRITICAL | Untrusted writer to system dir |
 | `SUPPLY_CHAIN_HIGH` | Supply Chain High | HIGH | Unsigned package in system dir |
 | `ENTROPY_ANOMALY` | Behavior Entropy Spike | HIGH | KL divergence > threshold |
@@ -166,3 +166,27 @@ providaptctl -dry-run -pattern "SENSITIVE_EXFIL" -since "1h"
 # Export matched events
 providaptctl -export -rule "SC-001" -output /tmp/matches.json
 ```
+## 5. Alert Feedback and Detection Tuning
+
+Analysts can attach feedback to alert workflow records. This feedback is useful
+for detector tuning and supervised evaluation.
+
+```bash
+curl -X POST http://<server>:18080/api/v1/control/alerts \
+  -H "Content-Type: application/json" \
+  -d '{"action":"annotate","alert_id":"alert-a","classification":"false_positive","note":"approved maintenance command"}'
+```
+
+Supported classifications:
+
+| Classification | Meaning |
+| --- | --- |
+| `true_positive` | confirmed malicious or policy-violating activity |
+| `false_positive` | alert fired on accepted benign activity |
+| `benign` | normal activity, not useful for detection |
+| `duplicate` | already represented by another alert |
+| `needs_review` | analyst has not completed triage |
+
+The annotation is stored in alert `details.classification` and
+`details.classification_updated_at`, so exports can join analyst feedback with
+ground-truth and ATT&CK coverage reports.

@@ -116,3 +116,59 @@ Findings:
 
 Recommended next step:
 ```
+## Detector Training Dataset Export
+
+ProvidAPT can export safe attack-simulation ground truth into deterministic
+training and test datasets. Use this flow after running `attack-full-chain` on
+one or more validation hosts.
+
+## Export Dataset
+
+```bash
+make export-ground-truth \
+  GROUND_TRUTH=/var/log/providapt/ground-truth \
+  OUT_DIR=build/evaluation-dataset
+```
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `labels.jsonl` | normalized labels for all ground-truth records |
+| `train.jsonl` | deterministic training split |
+| `test.jsonl` | deterministic test split |
+| `coverage.json` | machine-readable ATT&CK coverage summary |
+| `coverage.md` | analyst-readable coverage report |
+| `manifest.json` | input files, split seed, ratio, and output inventory |
+
+## Merge Detection Correlation
+
+Export correlation from the control plane:
+
+```bash
+curl -s http://<server>:18080/api/v1/evaluation/correlation?limit=1000 \
+  -o build/evaluation-correlation.json
+```
+
+Then merge it into the coverage report:
+
+```bash
+make export-ground-truth \
+  GROUND_TRUTH=/var/log/providapt/ground-truth \
+  OUT_DIR=build/evaluation-dataset \
+  CORRELATION_JSON=build/evaluation-correlation.json
+```
+
+When correlation is supplied, `coverage.json` reports detected and missed
+records by run, tactic, and technique. Without correlation, it reports simulated
+coverage only.
+
+## Dataset Rules
+
+- Keep ground-truth JSONL and manifests with the captured NDJSON logs.
+- Do not mix clean-room simulation data with ad-hoc manual testing in the same
+  dataset export.
+- Preserve `run_id`, `step_id`, `tactic_id`, `technique_id`, `expected_event`,
+  `actor`, and `object`; these fields are the minimum viable training label.
+- Use a fixed `--seed` and `--train-ratio` for repeatable model comparisons.
+- Record model training inputs by commit, host, kernel mode, and simulation run.

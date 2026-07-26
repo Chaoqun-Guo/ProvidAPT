@@ -3055,11 +3055,12 @@ func main() {
 	})
 	apiServer.SetAlertWorkflowActionFunc(func(req api.AlertWorkflowActionRequest) (api.AlertWorkflowItem, error) {
 		updated, err := alertWorkflow.Update(alertflow.UpdateRequest{
-			Action:   req.Action,
-			AlertID:  req.AlertID,
-			Assignee: req.Assignee,
-			Duration: req.Duration,
-			Note:     req.Note,
+			Action:         req.Action,
+			AlertID:        req.AlertID,
+			Assignee:       req.Assignee,
+			Duration:       req.Duration,
+			Note:           req.Note,
+			Classification: req.Classification,
 		})
 		if err != nil {
 			workflowAudit.record(req.Action, req.Actor, req.Role, req.AlertID, req.Note, "failed", err.Error())
