@@ -322,7 +322,7 @@ attack-full-chain:
 
 export-ground-truth:
 	@if [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make export-ground-truth GROUND_TRUTH=/var/log/providapt/ground-truth [OUT_DIR=build/evaluation-dataset]'; exit 2; fi
-	python3 scripts/evaluation/export_ground_truth_dataset.py "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/evaluation-dataset)" $(if $(CORRELATION_JSON),--correlation-json "$(CORRELATION_JSON)")
+	python3 scripts/evaluation/export_ground_truth_dataset.py "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/evaluation-dataset)" $(if $(CORRELATION_JSON),--correlation-json "$(CORRELATION_JSON)") $(if $(DATASET_VERSION),--dataset-version "$(DATASET_VERSION)")
 
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh

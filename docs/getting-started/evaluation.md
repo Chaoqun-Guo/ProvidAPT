@@ -139,7 +139,12 @@ Outputs:
 | `test.jsonl` | deterministic test split |
 | `coverage.json` | machine-readable ATT&CK coverage summary |
 | `coverage.md` | analyst-readable coverage report |
-| `manifest.json` | input files, split seed, ratio, and output inventory |
+| `manifest.json` | dataset ID, optional version label, split seed, ratio, split summary, and hashed output inventory |
+
+`manifest.json` includes a deterministic `dataset_id` derived from normalized
+labels plus split settings. Use it as the immutable training input identifier
+when comparing detector versions. Each output file also includes byte size and
+SHA-256 so training jobs can verify that labels were not modified after export.
 
 ## Merge Detection Correlation
 

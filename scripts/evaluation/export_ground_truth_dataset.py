@@ -159,6 +159,66 @@ def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def dataset_id(labels: list[dict[str, Any]], seed: str, train_ratio: float) -> str:
+    digest = hashlib.sha256()
+    digest.update(SCHEMA.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(seed.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(str(train_ratio).encode("utf-8"))
+    digest.update(b"\0")
+    for record in labels:
+        digest.update(json.dumps(record, sort_keys=True, ensure_ascii=False).encode("utf-8"))
+        digest.update(b"\n")
+    return "ds-" + digest.hexdigest()[:16]
+
+
+def split_summary(labels: list[dict[str, Any]]) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "splits": defaultdict(Counter),
+        "by_tactic": defaultdict(Counter),
+        "by_technique": defaultdict(Counter),
+        "runs": defaultdict(Counter),
+    }
+    for record in labels:
+        split = str(record.get("dataset_split") or "unknown")
+        label = str(record.get("label") or "unknown")
+        tactic = str(record.get("tactic_id") or "unknown")
+        technique = str(record.get("technique_id") or "unknown")
+        run_id = str(record.get("run_id") or "unknown")
+        summary["splits"][split]["total"] += 1
+        summary["splits"][split][label] += 1
+        summary["by_tactic"][tactic]["total"] += 1
+        summary["by_tactic"][tactic][split] += 1
+        summary["by_technique"][technique]["total"] += 1
+        summary["by_technique"][technique][split] += 1
+        summary["runs"][run_id]["total"] += 1
+        summary["runs"][run_id][split] += 1
+    return {
+        key: {inner_key: dict(counter) for inner_key, counter in sorted(value.items())}
+        for key, value in summary.items()
+    }
+
+
+def output_inventory(out_dir: Path, files: dict[str, str]) -> dict[str, dict[str, Any]]:
+    inventory: dict[str, dict[str, Any]] = {}
+    for key, relative in files.items():
+        path = out_dir / relative
+        inventory[key] = {
+            "path": relative,
+            "bytes": path.stat().st_size if path.exists() else 0,
+            "sha256": file_sha256(path) if path.exists() else "",
+        }
+    return inventory
+
 def write_markdown(path: Path, report: dict[str, Any]) -> None:
     lines = [
         "# ProvidAPT ATT&CK Coverage Report",
@@ -204,6 +264,7 @@ def main() -> int:
     parser.add_argument("--train-ratio", type=float, default=0.8, help="Deterministic train split ratio")
     parser.add_argument("--seed", default="providapt", help="Deterministic split seed")
     parser.add_argument("--correlation-json", help="Optional /api/v1/evaluation/correlation JSON export")
+    parser.add_argument("--dataset-version", default="", help="Optional external dataset version label")
     args = parser.parse_args()
 
     if not 0.0 < args.train_ratio < 1.0:
@@ -231,16 +292,26 @@ def main() -> int:
         else:
             test.append(normalized)
 
-    write_jsonl(out_dir / "labels.jsonl", labels)
-    write_jsonl(out_dir / "train.jsonl", train)
-    write_jsonl(out_dir / "test.jsonl", test)
+    output_files = {
+        "labels": "labels.jsonl",
+        "train": "train.jsonl",
+        "test": "test.jsonl",
+        "coverage_json": "coverage.json",
+        "coverage_markdown": "coverage.md",
+    }
+
+    write_jsonl(out_dir / output_files["labels"], labels)
+    write_jsonl(out_dir / output_files["train"], train)
+    write_jsonl(out_dir / output_files["test"], test)
 
     report = coverage(records, correlation)
-    (out_dir / "coverage.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    write_markdown(out_dir / "coverage.md", report)
+    (out_dir / output_files["coverage_json"]).write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_markdown(out_dir / output_files["coverage_markdown"], report)
 
     manifest = {
         "schema": SCHEMA,
+        "dataset_id": dataset_id(labels, args.seed, args.train_ratio),
+        "dataset_version": args.dataset_version,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "inputs": [str(path) for path in input_paths],
         "record_count": len(labels),
@@ -248,13 +319,8 @@ def main() -> int:
         "test_count": len(test),
         "train_ratio": args.train_ratio,
         "seed": args.seed,
-        "files": {
-            "labels": "labels.jsonl",
-            "train": "train.jsonl",
-            "test": "test.jsonl",
-            "coverage_json": "coverage.json",
-            "coverage_markdown": "coverage.md",
-        },
+        "split_summary": split_summary(labels),
+        "files": output_inventory(out_dir, output_files),
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"records={len(labels)} train={len(train)} test={len(test)} out_dir={out_dir}")

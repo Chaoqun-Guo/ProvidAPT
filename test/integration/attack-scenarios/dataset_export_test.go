@@ -65,4 +65,33 @@ func TestGroundTruthDatasetExport(t *testing.T) {
 	if _, ok := coverage.ByTactic["TA0002"]; !ok {
 		t.Fatalf("missing TA0002 coverage: %#v", coverage.ByTactic)
 	}
+
+	var manifest struct {
+		DatasetID    string `json:"dataset_id"`
+		RecordCount  int    `json:"record_count"`
+		SplitSummary struct {
+			Splits map[string]map[string]int `json:"splits"`
+		} `json:"split_summary"`
+		Files map[string]struct {
+			Path   string `json:"path"`
+			Bytes  int64  `json:"bytes"`
+			SHA256 string `json:"sha256"`
+		} `json:"files"`
+	}
+	raw, err = os.ReadFile(filepath.Join(outDir, "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("decode manifest: %v", err)
+	}
+	if !strings.HasPrefix(manifest.DatasetID, "ds-") || manifest.RecordCount != 2 {
+		t.Fatalf("manifest identity = %#v", manifest)
+	}
+	if manifest.Files["labels"].SHA256 == "" || manifest.Files["labels"].Bytes == 0 {
+		t.Fatalf("labels inventory missing hash/size: %#v", manifest.Files["labels"])
+	}
+	if len(manifest.SplitSummary.Splits) == 0 {
+		t.Fatalf("split summary missing: %#v", manifest.SplitSummary)
+	}
 }
