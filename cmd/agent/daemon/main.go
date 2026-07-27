@@ -3243,10 +3243,14 @@ func main() {
 	}()
 
 	// ── gRPC management + telemetry server ──────────────
+	mgmtStateBackend := filepath.Join(cfg.Output.Dir, "control-plane-state.json")
+	if isPostgresDSN(haStateBackend) {
+		mgmtStateBackend = haStateBackend
+	}
 	mgmtCfg := &mgmt.ServerConfig{
 		ListenAddr:      cfg.API.GRPC,
 		EnableTLS:       cfg.TLS.Enable,
-		StateFile:       filepath.Join(cfg.Output.Dir, "control-plane-state.json"),
+		StateFile:       mgmtStateBackend,
 		PolicyBundleDir: filepath.Join(cfg.Output.Dir, "policy-bundles"),
 	}
 	if cfg.TLS.Enable {
@@ -3553,6 +3557,11 @@ func pathWithin(root, candidate string) bool {
 		return true
 	}
 	return strings.HasPrefix(candidateAbs, rootAbs+string(os.PathSeparator))
+}
+
+func isPostgresDSN(value string) bool {
+	trimmed := strings.ToLower(strings.TrimSpace(value))
+	return strings.HasPrefix(trimmed, "postgres://") || strings.HasPrefix(trimmed, "postgresql://")
 }
 
 func startBackupScheduler(cfg *config.Config, run func(api.BackupActionRequest) (api.BackupActionResult, error)) func() {
