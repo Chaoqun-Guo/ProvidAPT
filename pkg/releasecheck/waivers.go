@@ -42,6 +42,10 @@ func applyWaivers(report *Report, path string) {
 	waivers := make(map[string]Waiver, len(file.Waivers))
 	for _, waiver := range file.Waivers {
 		checkName := strings.TrimSpace(waiver.Check)
+		gateName := strings.TrimSpace(waiver.Gate)
+		if checkName == "" && gateName != "" {
+			continue
+		}
 		if checkName == "" || strings.TrimSpace(waiver.Reason) == "" || strings.TrimSpace(waiver.ApprovedBy) == "" {
 			add(report, Check{
 				Name:          "release_waivers",

@@ -259,6 +259,49 @@ func TestRunFailsExpiredWaiver(t *testing.T) {
 	}
 }
 
+func TestRunIgnoresExternalGateWaivers(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "providapt.toml")
+	waiverPath := filepath.Join(dir, "release-waivers.json")
+
+	cfg := []byte(`
+output:
+  dir: /tmp/providapt
+api:
+  auth_enabled: true
+  cors_origins: ["https://soc.example.com"]
+storage:
+  encrypt: true
+  key_file: /etc/providapt/key
+support_bundle:
+  redact_archives: true
+  retain_archives: 5
+license:
+  path: /etc/providapt/license.json
+`)
+	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(waiverPath, []byte(`{"waivers":[{"gate":"grype","status":"approved_with_risk","reason":"local scanner unavailable","approved_by":"security","expires":"2099-12-31"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(Options{
+		ConfigPath: cfgPath,
+		WaiverPath: waiverPath,
+		Version:    "1.2.2",
+		Commit:     "abcdef0",
+		BuildDate:  "2026-07-08T00:00:00Z",
+	})
+
+	if report.HasFailures() || !report.CommercialReady {
+		t.Fatalf("expected external gate waiver to be ignored by releasecheck: %+v", report)
+	}
+	if report.Warnings != 0 || report.Waived != 0 {
+		t.Fatalf("unexpected waiver accounting: warnings=%d waived=%d checks=%+v", report.Warnings, report.Waived, report.Checks)
+	}
+}
+
 func TestRunValidatesChecksums(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "providapt.toml")

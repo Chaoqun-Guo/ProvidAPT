@@ -43,6 +43,8 @@ type Options struct {
 // Waiver records a reviewed release readiness exception.
 type Waiver struct {
 	Check      string `json:"check"`
+	Gate       string `json:"gate,omitempty"`
+	Status     string `json:"status,omitempty"`
 	Reason     string `json:"reason"`
 	ApprovedBy string `json:"approved_by"`
 	Expires    string `json:"expires,omitempty"`

@@ -66,6 +66,7 @@ def text_mentions_gate(text: str, names: Iterable[str]) -> bool:
 
 
 def waiver_gate(name: str, waiver_paths: Iterable[Path], aliases: Iterable[str], blocked: Gate) -> Gate:
+    alias_set = {alias.lower() for alias in aliases}
     for path in waiver_paths:
         if not path.exists() or path.stat().st_size == 0:
             continue
@@ -82,9 +83,11 @@ def waiver_gate(name: str, waiver_paths: Iterable[Path], aliases: Iterable[str],
         for entry in entries:
             if not isinstance(entry, dict):
                 continue
-            gate = str(entry.get("gate") or entry.get("name") or entry.get("id") or "")
+            gate = str(entry.get("gate") or entry.get("check") or entry.get("name") or entry.get("id") or "")
             status = str(entry.get("status") or entry.get("decision") or "").lower()
-            if gate.lower() in {alias.lower() for alias in aliases} and status in {"approved", "approved_with_risk", "accepted", "waived"}:
+            reason = str(entry.get("reason") or "").strip()
+            approved_by = str(entry.get("approved_by") or entry.get("approvedBy") or "").strip()
+            if gate.lower() in alias_set and status in {"approved", "approved_with_risk", "accepted", "waived"} and reason and approved_by:
                 return Gate(name, "waived", f"{name} is covered by structured waiver", evidence=str(path))
     return blocked
 
@@ -162,12 +165,12 @@ def collect(repo: Path, dist: Path, security_dir: Path, ci_evidence: Iterable[Pa
     gates = [
         Gate("github_actions", "skipped", "GitHub Actions evidence intentionally skipped for this local P0 closure", evidence="--skip-ci")
         if skip_ci else ci_gate(repo, full_commit, ci_evidence),
-        command_gate("govulncheck", "golang.org/x/vuln/cmd/govulncheck"),
-        command_gate("grype", "anchore/grype"),
-        command_gate("trivy", "aquasec/trivy"),
-        waiver_gate("govulncheck_evidence", waiver_paths, ["govulncheck_evidence", "govulncheck"], govuln),
-        waiver_gate("grype_evidence", waiver_paths, ["grype_evidence", "grype"], grype),
-        waiver_gate("trivy_evidence", waiver_paths, ["trivy_evidence", "trivy"], trivy),
+        waiver_gate("govulncheck", waiver_paths, ["govulncheck", "govulncheck_command"], command_gate("govulncheck", "golang.org/x/vuln/cmd/govulncheck")),
+        waiver_gate("grype", waiver_paths, ["grype", "grype_command"], command_gate("grype", "anchore/grype")),
+        waiver_gate("trivy", waiver_paths, ["trivy", "trivy_command"], command_gate("trivy", "aquasec/trivy")),
+        waiver_gate("govulncheck_evidence", waiver_paths, ["govulncheck_evidence"], govuln),
+        waiver_gate("grype_evidence", waiver_paths, ["grype_evidence"], grype),
+        waiver_gate("trivy_evidence", waiver_paths, ["trivy_evidence"], trivy),
         approval_gate(repo / "docs/project/commercial-approval-record.md"),
         artifact_gate(dist, commit, version),
     ]

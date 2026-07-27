@@ -60,10 +60,20 @@ class ReleaseGateStatusTest(unittest.TestCase):
 
     def test_waiver_gate_accepts_structured_waiver(self):
         waiver = self.tmp_root / "waivers.json"
-        waiver.write_text('{"waivers":[{"gate":"grype_evidence","status":"approved_with_risk"}]}\n', encoding="utf-8")
+        waiver.write_text(
+            '{"waivers":[{"gate":"grype_evidence","status":"approved_with_risk","reason":"local scanner unavailable","approved_by":"security"}]}\n',
+            encoding="utf-8",
+        )
         blocked = gates.Gate("grype_evidence", "blocked", "missing")
         result = gates.waiver_gate("grype_evidence", [waiver], ["grype_evidence", "grype"], blocked)
         self.assertEqual(result.status, "waived")
+
+    def test_waiver_gate_requires_reason_and_approval(self):
+        waiver = self.tmp_root / "waivers.json"
+        waiver.write_text('{"waivers":[{"gate":"grype_evidence","status":"approved_with_risk"}]}\n', encoding="utf-8")
+        blocked = gates.Gate("grype_evidence", "blocked", "missing")
+        result = gates.waiver_gate("grype_evidence", [waiver], ["grype_evidence", "grype"], blocked)
+        self.assertEqual(result.status, "blocked")
 
     def test_ci_gate_accepts_external_commit_evidence(self):
         evidence = self.tmp_root / "ci.md"
