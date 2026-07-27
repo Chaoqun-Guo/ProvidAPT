@@ -50,6 +50,7 @@ Current closure progress:
 Current closure progress:
 
 - Detection quality reporting merges ATT&CK coverage and analyst alert quality into precision, recall, F1, missed technique, and recommendation evidence through `make detection-quality`.
+- ATT&CK coverage planning converts missed techniques into safe simulation, ground-truth, rule assertion, and cleanup tasks through `make attack-coverage-plan`.
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 
@@ -65,6 +66,7 @@ Current closure progress:
 Current closure progress:
 
 - Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, and detection quality through `make enterprise-readiness`.
+- Upgrade rollout planning produces canary, wave, pause/resume, and rollback evidence through `make upgrade-rollout-plan`.
 - SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.
 
 ## P4 - Scale and Ecosystem
@@ -80,3 +82,4 @@ Current closure progress:
 
 - Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
 - Model registry, dataset drift, and feature-schema compatibility gates are available for training provenance.
+- First-run onboarding bundles generate a starter config, checklist, and manifest through `make onboarding-wizard`.

@@ -1,11 +1,11 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality detection-quality verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality detection-quality attack-coverage-plan verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify enterprise-readiness soak-readiness
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify enterprise-readiness soak-readiness upgrade-rollout-plan onboarding-wizard
 
 SHELL := /bin/bash
 
@@ -291,6 +291,13 @@ soak-readiness:
 	@if [ -z "$(SOAK_SAMPLES)" ]; then echo 'usage: make soak-readiness SOAK_SAMPLES=build/performance/soak-samples.json [OUT_DIR=build/performance]'; exit 2; fi
 	python3 scripts/ops/soak-readiness-report.py --samples "$(SOAK_SAMPLES)" --min-hours "$(or $(SOAK_MIN_HOURS),24)" --max-cpu-percent "$(or $(SOAK_MAX_CPU_PERCENT),25)" --max-memory-mb "$(or $(SOAK_MAX_MEMORY_MB),512)" --max-disk-mb "$(or $(SOAK_MAX_DISK_MB),4096)" --max-dropped-events "$(or $(SOAK_MAX_DROPPED_EVENTS),0)" --out-json "$(or $(OUT_DIR),build/performance)/soak-readiness.json" --out-md "$(or $(OUT_DIR),build/performance)/soak-readiness.md"
 
+upgrade-rollout-plan:
+	@if [ -z "$(FLEET_JSON)" ] || [ -z "$(TARGET_VERSION)" ]; then echo 'usage: make upgrade-rollout-plan FLEET_JSON=build/fleet/fleet.json TARGET_VERSION=v1.2.3 [OUT_DIR=build/upgrade]'; exit 2; fi
+	python3 scripts/upgrade/rollout-plan.py --fleet "$(FLEET_JSON)" --target-version "$(TARGET_VERSION)" $(if $(PACKAGE_PATH),--package-path "$(PACKAGE_PATH)") $(if $(EXPECTED_SHA256),--expected-sha256 "$(EXPECTED_SHA256)") $(if $(SIGNATURE_PATH),--signature-path "$(SIGNATURE_PATH)") --canary-percent "$(or $(CANARY_PERCENT),10)" --max-batch-size "$(or $(MAX_BATCH_SIZE),25)" --out-json "$(or $(OUT_DIR),build/upgrade)/rollout-plan.json" --out-md "$(or $(OUT_DIR),build/upgrade)/rollout-plan.md"
+
+onboarding-wizard:
+	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode "$(or $(ONBOARDING_MODE),standalone)" --rest-port "$(or $(REST_PORT),18080)" --grpc-port "$(or $(GRPC_PORT),50051)" $(if $(POSTGRES_DSN),--postgres-dsn "$(POSTGRES_DSN)")
+
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
 		echo "Creating providapt system user (UID 950)..."; \
@@ -343,6 +350,10 @@ detection-quality:
 	@if [ -z "$(COVERAGE_JSON)" ] || [ -z "$(ALERT_QUALITY_JSON)" ]; then echo 'usage: make detection-quality COVERAGE_JSON=build/evaluation-dataset/coverage.json ALERT_QUALITY_JSON=build/evaluation/alert-quality.json [OUT_DIR=build/evaluation]'; exit 2; fi
 	python3 scripts/evaluation/detection_quality_report.py --coverage "$(COVERAGE_JSON)" --alert-quality "$(ALERT_QUALITY_JSON)" --out-json "$(or $(OUT_DIR),build/evaluation)/detection-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/detection-quality.md"
 
+attack-coverage-plan:
+	@if [ -z "$(DETECTION_QUALITY_JSON)" ]; then echo 'usage: make attack-coverage-plan DETECTION_QUALITY_JSON=build/evaluation/detection-quality.json [OUT_DIR=build/evaluation]'; exit 2; fi
+	python3 scripts/evaluation/attack_coverage_plan.py --detection-quality "$(DETECTION_QUALITY_JSON)" --out-json "$(or $(OUT_DIR),build/evaluation)/attack-coverage-plan.json" --out-md "$(or $(OUT_DIR),build/evaluation)/attack-coverage-plan.md"
+
 model-register:
 	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_NAME)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make model-register DATASET_MANIFEST=build/evaluation-dataset/manifest.json MODEL_NAME=detector MODEL_VERSION=1.0.0 [MODEL_METRICS=metrics.json] [MODEL_REGISTRY=build/model-registry.json]'; exit 2; fi
 	python3 scripts/evaluation/model_registry.py register --manifest "$(DATASET_MANIFEST)" --registry "$(or $(MODEL_REGISTRY),build/model-registry.json)" --model-name "$(MODEL_NAME)" --model-version "$(MODEL_VERSION)" $(if $(MODEL_METRICS),--metrics "$(MODEL_METRICS)") $(if $(FEATURE_SCHEMA),--feature-schema "$(FEATURE_SCHEMA)") $(if $(COMMIT),--commit "$(COMMIT)") $(if $(NOTES),--notes "$(NOTES)")
@@ -393,6 +404,7 @@ help:
 	@echo '  make export-ground-truth Export train/test labels and ATT&CK coverage'
 	@echo '  make alert-quality    Export annotated alert precision and review metrics'
 	@echo '  make detection-quality Merge coverage and alert quality into precision/recall/F1'
+	@echo '  make attack-coverage-plan Plan safe simulations for missed ATT&CK techniques'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''
@@ -443,3 +455,5 @@ help:
 	@echo '  make ops-siem-verify Queue and verify SIEM test delivery'
 	@echo '  make enterprise-readiness Aggregate release, secret, PostgreSQL, and detection evidence'
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
+	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... Plan staged upgrades'
+	@echo '  make onboarding-wizard Generate first-run config and checklist'

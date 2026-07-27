@@ -256,3 +256,24 @@ make soak-readiness \
 
 Both commands write Markdown and JSON artifacts under `build/` for release
 review, support handoff, and customer readiness meetings.
+
+Plan staged upgrades with canary, pause/resume gates, waves, and rollback order:
+
+```bash
+make upgrade-rollout-plan \
+  FLEET_JSON=build/fleet/fleet.json \
+  TARGET_VERSION=v1.2.3 \
+  CANARY_PERCENT=10 \
+  MAX_BATCH_SIZE=25
+```
+
+Generate a first-run onboarding bundle for a new customer or lab deployment:
+
+```bash
+make onboarding-wizard \
+  OUT_DIR=build/onboarding \
+  POSTGRES_DSN='postgres://providapt:<password>@postgres:5432/providapt?sslmode=require'
+```
+
+The onboarding bundle includes a production-oriented starter config, checklist,
+and manifest that can be attached to customer handoff evidence.

@@ -257,3 +257,14 @@ make detection-quality \
 `detection-quality.json` is the P2 release evidence artifact for recall,
 precision, F1, missed tactics, missed techniques, and rule-tuning
 recommendations.
+
+Generate a concrete backlog for missed ATT&CK techniques:
+
+```bash
+make attack-coverage-plan \
+  DETECTION_QUALITY_JSON=build/evaluation/detection-quality.json \
+  OUT_DIR=build/evaluation
+```
+
+The plan translates missed techniques into safe simulation guidance, expected
+ground-truth fields, rule assertions, and cleanup requirements.
