@@ -153,6 +153,10 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .trace-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-left: 0; max-width:100%; }
 .trace-actions a { color: #58a6ff; border: 1px solid #30363d; border-radius: 999px; padding: 2px 7px; font-size: 11px; text-decoration: none; white-space: nowrap; }
 .trace-actions a:hover { background: #1a1f27; border-color: #58a6ff; text-decoration: none; }
+.graph-cluster-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.graph-cluster-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:999px; padding:3px 8px; cursor:pointer; font-size:11px; }
+.graph-cluster-actions button:hover { border-color:#58a6ff; color:#58a6ff; }
+.graph-subset-summary { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:6px; margin-bottom:8px; }
 .auth-strip { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; min-width:0; }
 .auth-strip input { background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:5px 8px; min-width:160px; max-width:100%; flex:1 1 220px; }
 .auth-strip button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:5px 8px; cursor:pointer; }
@@ -1358,6 +1362,14 @@ function renderKVItem(label, value, timeLabel) {
     '<span class="alert-sev sev-low">' + escapeHTML(label) + '</span>' +
     '<span class="alert-msg">' + escapeHTML(value == null || value === '' ? '--' : value) + '</span>' +
     '<span class="alert-time">' + escapeHTML(timeLabel || '') + '</span>' +
+    '</div>';
+}
+
+function renderMiniMetric(label, value, detail) {
+  return '<div class="mini-card">' +
+    '<div class="value">' + escapeHTML(value == null || value === '' ? '--' : value) + '</div>' +
+    '<div class="label">' + escapeHTML(label || '') + '</div>' +
+    '<div class="sub">' + escapeHTML(detail || '') + '</div>' +
     '</div>';
 }
 
@@ -2984,10 +2996,14 @@ function graphClusterRows(nodes, edges) {
 }
 
 function renderGraphClusterRows(nodes, edges) {
-  return graphClusterRows(nodes, edges).slice(0, 12).map(cluster => '<div class="alert-item clickable" tabindex="0" role="button" onclick="collapseGraphCluster(\'' + jsString(cluster.key) + '\')">' +
+  return graphClusterRows(nodes, edges).slice(0, 12).map(cluster => '<div class="alert-item">' +
     '<span class="alert-sev sev-medium">cluster</span>' +
-    '<span class="alert-msg">' + escapeHTML(cluster.key) + ' · ' + cluster.nodes + ' nodes · ' + cluster.edges + ' linked edges · max degree ' + cluster.max_degree + '</span>' +
-    '<span class="alert-time">click to filter</span>' +
+    '<span class="alert-msg">' + escapeHTML(cluster.key) + ' · ' + cluster.nodes + ' nodes · ' + cluster.edges + ' linked edges · max degree ' + cluster.max_degree +
+    '<span class="graph-cluster-actions">' +
+    '<button onclick="collapseGraphCluster(\'' + jsString(cluster.key) + '\')">Inspect</button>' +
+    '<button onclick="exportClusterSubset(\'' + jsString(cluster.key) + '\')">Export Cluster</button>' +
+    '</span></span>' +
+    '<span class="alert-time">cluster view</span>' +
     '</div>');
 }
 
@@ -3009,19 +3025,75 @@ async function collapseGraphCluster(clusterKey) {
   setInvestigationLoading('Filtering provenance cluster ' + clusterKey + '...');
   try {
     const data = await fetchJSON('/api/v1/graph/export');
-    const elements = data.elements || [];
-    const nodes = elements.filter(item => !item.data || !item.data.source);
-    const edges = elements.filter(item => item.data && item.data.source);
-    const selectedNodes = nodes.filter(node => graphClusterKey(node) === clusterKey);
-    const selectedIDs = {};
-    selectedNodes.forEach(node => { selectedIDs[graphElementID(node)] = true; });
-    const selectedEdges = edges.filter(edge => selectedIDs[String((edge.data || {}).source)] || selectedIDs[String((edge.data || {}).target)]);
-    const items = selectedNodes.slice(0, 20).map(node => renderKVItem(graphElementType(node), graphElementID(node), 'cluster ' + clusterKey));
-    items.push(renderKVItem('cluster links', String(selectedEdges.length), 'export full graph JSON for offline layout'));
+    const subset = graphSubsetForCluster(data, clusterKey);
+    const items = [
+      '<div class="graph-subset-summary">' +
+      renderMiniMetric('nodes', subset.nodes.length, 'in cluster') +
+      renderMiniMetric('edges', subset.edges.length, 'linked') +
+      renderMiniMetric('boundary', subset.boundary_edges.length, 'outside links') +
+      '</div>',
+      '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg"><span class="graph-cluster-actions">' +
+      '<button onclick="exportClusterSubset(\'' + jsString(clusterKey) + '\')">Download Filtered JSON</button>' +
+      '<button onclick="showGraphSummary(\'nodes\')">Back To Summary</button>' +
+      '</span></span><span class="alert-time">cluster</span></div>',
+    ];
+    subset.nodes.slice(0, 24).forEach(node => {
+      const id = graphElementID(node);
+      const type = graphElementType(node);
+      const label = ((node.data || {}).label || (node.data || {}).comm || id || '').slice(0, 180);
+      items.push('<div class="alert-item">' +
+        '<span class="alert-sev sev-low">' + escapeHTML(type) + '</span>' +
+        '<span class="alert-msg">' + escapeHTML(label || id || '--') + '<span class="graph-cluster-actions">' +
+        '<button onclick="openGraphTrace(\'' + jsString(id) + '\', \'backward\')">Backward</button>' +
+        '<button onclick="openGraphTrace(\'' + jsString(id) + '\', \'forward\')">Forward</button>' +
+        '</span></span>' +
+        '<span class="alert-time">' + escapeHTML(id) + '</span>' +
+        '</div>');
+    });
     setInvestigationItems(items, 'No nodes in cluster ' + clusterKey);
   } catch (e) {
     setInvestigationLoading('Cluster filter unavailable: ' + e.message);
   }
+}
+
+function graphSubsetForCluster(data, clusterKey) {
+  const elements = data.elements || [];
+  const nodes = elements.filter(item => !item.data || !item.data.source);
+  const edges = elements.filter(item => item.data && item.data.source);
+  const selectedNodes = nodes.filter(node => graphClusterKey(node) === clusterKey);
+  const selectedIDs = {};
+  selectedNodes.forEach(node => { selectedIDs[graphElementID(node)] = true; });
+  const selectedEdges = edges.filter(edge => selectedIDs[String((edge.data || {}).source)] && selectedIDs[String((edge.data || {}).target)]);
+  const boundaryEdges = edges.filter(edge => selectedIDs[String((edge.data || {}).source)] !== selectedIDs[String((edge.data || {}).target)]);
+  return { nodes: selectedNodes, edges: selectedEdges, boundary_edges: boundaryEdges };
+}
+
+async function exportClusterSubset(clusterKey) {
+  try {
+    const data = await fetchJSON('/api/v1/graph/export');
+    const subset = graphSubsetForCluster(data, clusterKey);
+    const payload = {
+      schema: 'providapt.dashboard_graph_subset.v1',
+      generated_at: new Date().toISOString(),
+      cluster: clusterKey,
+      summary: {
+        nodes: subset.nodes.length,
+        edges: subset.edges.length,
+        boundary_edges: subset.boundary_edges.length,
+      },
+      elements: subset.nodes.concat(subset.edges),
+      boundary_edges: subset.boundary_edges,
+    };
+    downloadTextFile('providapt-graph-' + clusterKey.replace(/[^A-Za-z0-9_.-]+/g, '_') + '.json', JSON.stringify(payload, null, 2) + '\n');
+    setInvestigationItems([renderKVItem('graph export', clusterKey, subset.nodes.length + ' nodes · ' + subset.edges.length + ' edges')], 'Graph export prepared');
+  } catch (e) {
+    setInvestigationLoading('Graph export failed: ' + e.message);
+  }
+}
+
+function openGraphTrace(nodeID, direction) {
+  if (!nodeID) return;
+  window.open('/api/v1/graph/node/' + encodeURIComponent(nodeID) + '/' + direction + '?depth=8', '_blank', 'noreferrer');
 }
 
 async function showGraphSummary(kind) {

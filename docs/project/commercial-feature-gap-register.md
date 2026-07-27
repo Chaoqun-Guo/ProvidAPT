@@ -54,6 +54,7 @@ Current closure progress:
 - ATT&CK coverage planning converts missed techniques into safe simulation, ground-truth, rule assertion, and cleanup tasks through `make attack-coverage-plan`.
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
+- Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
 
 ## P3 - Enterprise Integration
 
@@ -84,6 +85,7 @@ Current closure progress:
 Current closure progress:
 
 - Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
+- Long-duration soak samples can be appended from a status endpoint or captured JSON through `make soak-sample`.
 - Model registry, dataset drift, and feature-schema compatibility gates are available for training provenance.
 - First-run onboarding bundles generate a starter config, checklist, and manifest through `make onboarding-wizard`.
 - Plugin release gating validates plugin manifests, semantic versions, supported plugin types, signature evidence, and rollback instructions through `make plugin-release-gate`.

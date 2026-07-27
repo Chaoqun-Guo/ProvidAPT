@@ -265,6 +265,12 @@ Evaluate long-duration P4 soak evidence against CPU, memory, disk, duration,
 and dropped-event budgets:
 
 ```bash
+export SOAK_STARTED_AT_EPOCH="$(date +%s)"
+make soak-sample \
+  STATUS_URL=http://<server>:18080/api/v1/status \
+  SOAK_STARTED_AT_EPOCH="$SOAK_STARTED_AT_EPOCH" \
+  OUT=build/performance/soak-samples.json
+
 make soak-readiness \
   SOAK_SAMPLES=build/performance/soak-samples.json \
   SOAK_MIN_HOURS=24 \
@@ -274,6 +280,15 @@ make soak-readiness \
 
 Both commands write Markdown and JSON artifacts under `build/` for release
 review, support handoff, and customer readiness meetings.
+
+Run `make soak-sample` on a schedule during 24-72 hour validation windows. Keep
+the generated `soak-samples.json` with the final `soak-readiness.json` and
+`soak-readiness.md` evidence.
+
+For large investigations, the dashboard graph summary groups nodes into
+clusters and high-degree hubs. Use `Inspect` to view a collapsed cluster,
+`Backward` or `Forward` to open a focused trace for a node, and `Export Cluster`
+to download a filtered graph JSON for offline layout or model-training review.
 
 Plan staged upgrades with canary, pause/resume gates, waves, and rollback order:
 

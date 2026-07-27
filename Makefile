@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -294,6 +294,10 @@ scheduled-report-plan:
 enterprise-readiness:
 	python3 scripts/ops/enterprise-readiness-report.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --postgres-drill "$(or $(POSTGRES_DRILL_JSON),build/postgres/postgres-drill.json)" --detection-quality "$(or $(DETECTION_QUALITY_JSON),build/evaluation/detection-quality.json)" --rbac-audit "$(or $(RBAC_AUDIT_JSON),build/rbac/rbac-audit.json)" --report-plan "$(or $(REPORT_PLAN_JSON),build/reports/scheduled-report-plan.json)" --out-json "$(or $(OUT_DIR),build)/enterprise-readiness.json" --out-md "$(or $(OUT_DIR),build)/enterprise-readiness.md"
 
+soak-sample:
+	@if [ -z "$(STATUS_URL)" ] && [ -z "$(STATUS_JSON)" ]; then echo 'usage: make soak-sample STATUS_URL=http://localhost:18080/api/v1/status [SOAK_STARTED_AT_EPOCH=...] [OUT=build/performance/soak-samples.json]'; exit 2; fi
+	python3 scripts/ops/collect-soak-sample.py $(if $(STATUS_URL),--status-url "$(STATUS_URL)") $(if $(STATUS_JSON),--status-json "$(STATUS_JSON)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") $(if $(SOAK_HOST),--host "$(SOAK_HOST)") $(if $(SOAK_STARTED_AT_EPOCH),--started-at-epoch "$(SOAK_STARTED_AT_EPOCH)") --out "$(or $(OUT),build/performance/soak-samples.json)"
+
 soak-readiness:
 	@if [ -z "$(SOAK_SAMPLES)" ]; then echo 'usage: make soak-readiness SOAK_SAMPLES=build/performance/soak-samples.json [OUT_DIR=build/performance]'; exit 2; fi
 	python3 scripts/ops/soak-readiness-report.py --samples "$(SOAK_SAMPLES)" --min-hours "$(or $(SOAK_MIN_HOURS),24)" --max-cpu-percent "$(or $(SOAK_MAX_CPU_PERCENT),25)" --max-memory-mb "$(or $(SOAK_MAX_MEMORY_MB),512)" --max-disk-mb "$(or $(SOAK_MAX_DISK_MB),4096)" --max-dropped-events "$(or $(SOAK_MAX_DROPPED_EVENTS),0)" --out-json "$(or $(OUT_DIR),build/performance)/soak-readiness.json" --out-md "$(or $(OUT_DIR),build/performance)/soak-readiness.md"
@@ -472,6 +476,7 @@ help:
 	@echo '  make ops-rbac-audit PROVIDAPT_CONFIG=... Audit RBAC and tenant scoping'
 	@echo '  make scheduled-report-plan Generate executive/compliance report schedule'
 	@echo '  make enterprise-readiness Aggregate release, secret, PostgreSQL, and detection evidence'
+	@echo '  make soak-sample STATUS_URL=... Append one long-duration soak sample'
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... Plan staged upgrades'
 	@echo '  make onboarding-wizard Generate first-run config and checklist'
