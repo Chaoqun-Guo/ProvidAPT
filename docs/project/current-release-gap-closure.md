@@ -17,6 +17,8 @@ Verification commit: `9cdf515e88d7ed28eeaa429a3cd7d7e0354673ad`
 - Repeatable VM deployment helper removes old NDJSON files during rollout.
 - Storage-budget helper reports NDJSON, store, support bundle, backup, compliance, and SIEM outbox usage.
 - SIEM documentation maps normalized event fields to Splunk and Elastic/ECS-style fields.
+- Alert Workflow dashboard exposes analyst quality counters and browser-side quality export.
+- Model registry and dataset drift helpers record training provenance and compare candidate datasets by split, tactic, and technique.
 
 ## External release gates still required
 

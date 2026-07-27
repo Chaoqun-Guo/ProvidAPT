@@ -328,6 +328,14 @@ alert-quality:
 	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [OUT_DIR=build/evaluation]'; exit 2; fi
 	python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md"
 
+model-register:
+	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_NAME)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make model-register DATASET_MANIFEST=build/evaluation-dataset/manifest.json MODEL_NAME=detector MODEL_VERSION=1.0.0 [MODEL_METRICS=metrics.json] [MODEL_REGISTRY=build/model-registry.json]'; exit 2; fi
+	python3 scripts/evaluation/model_registry.py register --manifest "$(DATASET_MANIFEST)" --registry "$(or $(MODEL_REGISTRY),build/model-registry.json)" --model-name "$(MODEL_NAME)" --model-version "$(MODEL_VERSION)" $(if $(MODEL_METRICS),--metrics "$(MODEL_METRICS)") $(if $(COMMIT),--commit "$(COMMIT)") $(if $(NOTES),--notes "$(NOTES)")
+
+model-drift:
+	@if [ -z "$(BASELINE_MANIFEST)" ] || [ -z "$(CANDIDATE_MANIFEST)" ]; then echo 'usage: make model-drift BASELINE_MANIFEST=old/manifest.json CANDIDATE_MANIFEST=new/manifest.json [OUT_DIR=build/evaluation]'; exit 2; fi
+	python3 scripts/evaluation/model_registry.py drift --baseline "$(BASELINE_MANIFEST)" --candidate "$(CANDIDATE_MANIFEST)" --threshold-percent "$(or $(DRIFT_THRESHOLD_PERCENT),20)" --out-json "$(or $(OUT_DIR),build/evaluation)/model-drift.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-drift.md"
+
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 

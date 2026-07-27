@@ -368,12 +368,20 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('suppressed')"><div class="value" id="awSuppressed">--</div><div class="label">Suppressed</div></div>
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('closed')"><div class="value" id="awClosed">--</div><div class="label">Closed</div></div>
       </div>
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showAlertQuality()"><div class="value" id="awReviewed">--</div><div class="label">Reviewed</div></div>
+        <div class="policy-item clickable" onclick="showAlertQuality()"><div class="value" id="awPrecision">--</div><div class="label">Precision</div></div>
+        <div class="policy-item clickable" onclick="filterAlertQuality('duplicate')"><div class="value" id="awDuplicates">--</div><div class="label">Duplicates</div></div>
+        <div class="policy-item clickable" onclick="filterAlertQuality('needs_review')"><div class="value" id="awNeedsReview">--</div><div class="label">Needs Review</div></div>
+      </div>
       <div class="alerts-list" id="workflowAlertsList">
         <div class="loading">Loading workflow alerts...</div>
       </div>
       <div class="action-row">
         <button class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Open Batch</button>
         <button class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Open Batch</button>
+        <button class="secondary" onclick="showAlertQuality()">Quality</button>
+        <button class="secondary" onclick="downloadAlertQuality()">Export Quality</button>
       </div>
       <div class="loading" style="margin-top:12px;">Recent Workflow Actions</div>
       <div class="alerts-list" id="workflowHistoryList">
@@ -1835,6 +1843,7 @@ async function loadAlertWorkflow() {
     const historyList = document.getElementById('workflowHistoryList');
     const alerts = data.alerts || [];
     const history = data.history || [];
+    updateAlertQualityMetrics(alerts);
     if (alerts.length === 0) {
       list.innerHTML = '<div class="loading">No workflow alerts. Generate a test event, review active rules, or lower the alert filter severity.</div>';
     } else {
@@ -1863,6 +1872,113 @@ async function loadAlertWorkflow() {
       historyList.innerHTML = '<div class="error">Workflow action history unavailable. Check alert workflow storage and server logs.</div>';
     }
   }
+}
+
+function normalizeAlertClassification(value) {
+  const normalized = String(value || '').toLowerCase().trim();
+  if (normalized === 'tp') return 'true_positive';
+  if (normalized === 'fp') return 'false_positive';
+  if (normalized === 'true_positive' || normalized === 'false_positive' || normalized === 'benign' || normalized === 'duplicate') {
+    return normalized;
+  }
+  return 'needs_review';
+}
+
+function alertClassification(alert) {
+  const details = alert.details || {};
+  return normalizeAlertClassification(details.classification || alert.classification || alert.analyst_label);
+}
+
+function computeAlertQuality(alerts) {
+  const records = alerts || [];
+  const metrics = {
+    schema: 'providapt.alert_quality.dashboard.v1',
+    generated_at: new Date().toISOString(),
+    total_alerts: records.length,
+    reviewed_alerts: 0,
+    unreviewed_alerts: 0,
+    true_positive: 0,
+    false_positive: 0,
+    benign: 0,
+    duplicate: 0,
+    by_pattern: {},
+    by_classification: {},
+    recommendations: [],
+  };
+  records.forEach(alert => {
+    const classification = alertClassification(alert);
+    metrics.by_classification[classification] = (metrics.by_classification[classification] || 0) + 1;
+    const pattern = String(alert.pattern || alert.headline || 'unknown');
+    metrics.by_pattern[pattern] = metrics.by_pattern[pattern] || { total: 0, true_positive: 0, false_positive: 0, benign: 0, duplicate: 0, needs_review: 0 };
+    metrics.by_pattern[pattern].total += 1;
+    metrics.by_pattern[pattern][classification] = (metrics.by_pattern[pattern][classification] || 0) + 1;
+    if (classification === 'needs_review') {
+      metrics.unreviewed_alerts += 1;
+    } else {
+      metrics.reviewed_alerts += 1;
+    }
+    if (classification === 'true_positive') metrics.true_positive += 1;
+    if (classification === 'false_positive') metrics.false_positive += 1;
+    if (classification === 'benign') metrics.benign += 1;
+    if (classification === 'duplicate') metrics.duplicate += 1;
+  });
+  const actionable = metrics.true_positive + metrics.false_positive + metrics.benign;
+  metrics.review_coverage_percent = metrics.total_alerts ? Number((metrics.reviewed_alerts * 100 / metrics.total_alerts).toFixed(1)) : 0;
+  metrics.actionable_precision_percent = actionable ? Number((metrics.true_positive * 100 / actionable).toFixed(1)) : 0;
+  metrics.duplicate_percent = metrics.total_alerts ? Number((metrics.duplicate * 100 / metrics.total_alerts).toFixed(1)) : 0;
+  if (metrics.unreviewed_alerts > 0) metrics.recommendations.push('Review unclassified alerts before using the dataset for detector training.');
+  if (metrics.duplicate_percent >= 15) metrics.recommendations.push('Tune suppression or grouping because duplicate alerts are high.');
+  if (metrics.reviewed_alerts > 0 && metrics.actionable_precision_percent < 70) metrics.recommendations.push('Prioritize noisy rules with low analyst-confirmed precision.');
+  if (metrics.recommendations.length === 0) metrics.recommendations.push('Alert quality is ready for release evidence review.');
+  return metrics;
+}
+
+function updateAlertQualityMetrics(alerts) {
+  const metrics = computeAlertQuality(alerts);
+  setText('awReviewed', metrics.review_coverage_percent + '%');
+  setText('awPrecision', metrics.actionable_precision_percent + '%');
+  setText('awDuplicates', metrics.duplicate);
+  setText('awNeedsReview', metrics.unreviewed_alerts);
+  return metrics;
+}
+
+function showAlertQuality() {
+  const alerts = latestWorkflow.alerts || [];
+  const metrics = updateAlertQualityMetrics(alerts);
+  const noisyPatterns = Object.keys(metrics.by_pattern).sort((a, b) => {
+    const left = metrics.by_pattern[a];
+    const right = metrics.by_pattern[b];
+    return (right.false_positive + right.benign + right.duplicate) - (left.false_positive + left.benign + left.duplicate);
+  }).slice(0, 5);
+  const items = [
+    renderKVItem('review coverage', metrics.review_coverage_percent + '%', metrics.reviewed_alerts + ' reviewed · ' + metrics.unreviewed_alerts + ' needs review'),
+    renderKVItem('precision', metrics.actionable_precision_percent + '%', metrics.true_positive + ' TP · ' + metrics.false_positive + ' FP · ' + metrics.benign + ' benign'),
+    renderKVItem('duplicates', metrics.duplicate_percent + '%', metrics.duplicate + ' duplicate alerts'),
+  ];
+  noisyPatterns.forEach(pattern => {
+    const row = metrics.by_pattern[pattern];
+    items.push(renderKVItem('pattern quality', pattern, row.total + ' total · ' + row.true_positive + ' TP · ' + (row.false_positive + row.benign + row.duplicate) + ' noisy'));
+  });
+  metrics.recommendations.forEach(message => items.push(renderKVItem('recommendation', message, 'alert quality')));
+  setInvestigationItems(items, 'No alert quality metrics available');
+}
+
+function filterAlertQuality(classification) {
+  const normalized = normalizeAlertClassification(classification);
+  const alerts = (latestWorkflow.alerts || []).filter(alert => alertClassification(alert) === normalized);
+  document.getElementById('workflowAlertsList').innerHTML = alerts.length === 0
+    ? '<div class="loading">No ' + escapeHTML(normalized) + ' workflow alerts</div>'
+    : alerts.slice(0, 12).map(a => renderWorkflowAlert(a)).join('');
+  setInvestigationItems(alerts.slice(0, 20).map(a => renderWorkflowAlert(a)), 'No ' + normalized + ' workflow alerts');
+}
+
+function downloadAlertQuality() {
+  const metrics = updateAlertQualityMetrics(latestWorkflow.alerts || []);
+  downloadTextFile('providapt-alert-quality-dashboard.json', JSON.stringify(metrics, null, 2) + '\n');
+  setInvestigationItems([
+    renderKVItem('alert quality export', metrics.total_alerts + ' alerts', metrics.review_coverage_percent + '% reviewed'),
+    renderKVItem('precision', metrics.actionable_precision_percent + '%', metrics.true_positive + ' true positive alerts'),
+  ], 'Alert quality export prepared');
 }
 
 function workflowActionButtons(alert) {

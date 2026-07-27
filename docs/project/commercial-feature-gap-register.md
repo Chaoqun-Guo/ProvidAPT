@@ -54,5 +54,5 @@ Current closure progress:
 | --- | --- | --- |
 | Performance certification | Benchmarks exist, but long-duration noisy-host soak evidence should be expanded | 24-72 hour soak results define throughput, loss, CPU, memory, and disk budgets |
 | Plugin ecosystem | Plugin development docs exist, but signed plugin distribution and compatibility policy need productization | Plugins have signing, version compatibility, and safe rollback rules |
-| Model training | Simulation logs can train detectors, but model registry and drift monitoring are not yet formalized | Model versions, feature schemas, training provenance, and drift reports are tracked |
+| Model training | Simulation logs can train detectors and basic registry/drift tooling now exists, but feature schema compatibility still needs runtime enforcement | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
 | Customer onboarding | Handoff docs exist, but guided first-run setup can be smoother | A guided setup wizard validates prerequisites and generates a ready-to-run config |

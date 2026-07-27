@@ -189,3 +189,39 @@ make alert-quality ALERTS=/var/log/providapt OUT_DIR=build/evaluation
 
 Use `alert-quality.json` as machine-readable detector quality evidence and
 `alert-quality.md` for rule review meetings.
+
+The dashboard Alert Workflow panel also computes the same release-facing review
+coverage, precision, duplicate, and needs-review counters from currently loaded
+alerts. Use the `Quality` action for analyst triage and `Export Quality` to
+download a JSON snapshot from the browser.
+
+## Model Registry and Drift
+
+Register a trained detector against the exact dataset manifest used for
+training:
+
+```bash
+make model-register \
+  DATASET_MANIFEST=build/evaluation-dataset/manifest.json \
+  MODEL_NAME=providapt-detector \
+  MODEL_VERSION=1.0.0 \
+  MODEL_METRICS=build/evaluation/alert-quality.json \
+  COMMIT="$(git rev-parse --short HEAD)"
+```
+
+The registry stores the dataset ID, optional dataset version, manifest SHA-256,
+metrics SHA-256, model name, model version, commit, and registration time.
+
+Compare a candidate dataset with the previous training manifest before training
+or release:
+
+```bash
+make model-drift \
+  BASELINE_MANIFEST=release-baseline/manifest.json \
+  CANDIDATE_MANIFEST=build/evaluation-dataset/manifest.json \
+  OUT_DIR=build/evaluation
+```
+
+`model-drift.json` is machine-readable release evidence. `model-drift.md`
+summarizes changes by split, tactic, and technique and marks fields that exceed
+the configured drift threshold.
