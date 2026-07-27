@@ -233,3 +233,26 @@ make ops-siem-verify
 
 The report bundle returns both JSON and HTML artifacts. Use JSON for automated
 release evidence checks and HTML for operator review or customer handoff.
+
+## 8. Enterprise and Soak Readiness
+
+Aggregate P3 enterprise delivery evidence after release gates, secret backend
+handoff, PostgreSQL drills, and detection quality reports are generated:
+
+```bash
+make enterprise-readiness
+```
+
+Evaluate long-duration P4 soak evidence against CPU, memory, disk, duration,
+and dropped-event budgets:
+
+```bash
+make soak-readiness \
+  SOAK_SAMPLES=build/performance/soak-samples.json \
+  SOAK_MIN_HOURS=24 \
+  SOAK_MAX_MEMORY_MB=512 \
+  SOAK_MAX_DISK_MB=4096
+```
+
+Both commands write Markdown and JSON artifacts under `build/` for release
+review, support handoff, and customer readiness meetings.

@@ -98,6 +98,11 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"installInteractionFeedback",
 		"interactionFeedback",
 		"action-clicked",
+		"overflow-x: hidden",
+		"min-width:0",
+		"repeat(auto-fit, minmax(120px, 1fr))",
+		"flex: 1 1 160px",
+		"text-overflow:ellipsis",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {

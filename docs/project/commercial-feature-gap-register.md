@@ -47,6 +47,12 @@ Current closure progress:
 | Provenance UX | Graphs support tree and horizontal layouts, and dashboard summaries now group clusters and hubs; full in-canvas expand/collapse still needs richer layout controls | Analysts can collapse, expand, filter, and export large traces without visual clutter |
 | Alert quality | Alerts are visible, but precision/recall tracking needs closed-loop analyst feedback | Alerts can be marked true positive, false positive, duplicate, or benign with audit trail |
 
+Current closure progress:
+
+- Detection quality reporting merges ATT&CK coverage and analyst alert quality into precision, recall, F1, missed technique, and recommendation evidence through `make detection-quality`.
+- Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
+- Provenance summaries expose cluster and high-degree hub views for large investigations.
+
 ## P3 - Enterprise Integration
 
 | Area | Gap | Expected Outcome |
@@ -56,6 +62,11 @@ Current closure progress:
 | Reporting | Support bundles exist, but executive and compliance reports need scheduled generation | Scheduled PDF/Markdown/JSON reports summarize fleet risk, alerts, and coverage |
 | Upgrade orchestration | Upgrade preflight exists, but fleet-wide staged rollout and rollback need richer automation | Operators can canary, pause, resume, and rollback upgrades across agent groups |
 
+Current closure progress:
+
+- Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, and detection quality through `make enterprise-readiness`.
+- SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.
+
 ## P4 - Scale and Ecosystem
 
 | Area | Gap | Expected Outcome |
@@ -64,3 +75,8 @@ Current closure progress:
 | Plugin ecosystem | Plugin development docs exist, but signed plugin distribution and compatibility policy need productization | Plugins have signing, version compatibility, and safe rollback rules |
 | Model training | Simulation logs can train detectors, and registry, drift, and feature-schema compatibility checks now exist; runtime model deployment gating still needs integration | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
 | Customer onboarding | Handoff docs exist, but guided first-run setup can be smoother | A guided setup wizard validates prerequisites and generates a ready-to-run config |
+
+Current closure progress:
+
+- Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
+- Model registry, dataset drift, and feature-schema compatibility gates are available for training provenance.

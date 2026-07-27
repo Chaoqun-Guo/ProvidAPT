@@ -1,11 +1,11 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality detection-quality verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify enterprise-readiness soak-readiness
 
 SHELL := /bin/bash
 
@@ -284,6 +284,13 @@ ops-siem-verify:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
 	python3 scripts/ops/verify-siem-delivery.py --server "$(PROVIDAPT_SERVER_URL)" $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") $(if $(PROVIDAPT_REQUIRE_SIEM_FORWARDED),--require-forwarded)
 
+enterprise-readiness:
+	python3 scripts/ops/enterprise-readiness-report.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --postgres-drill "$(or $(POSTGRES_DRILL_JSON),build/postgres/postgres-drill.json)" --detection-quality "$(or $(DETECTION_QUALITY_JSON),build/evaluation/detection-quality.json)" --out-json "$(or $(OUT_DIR),build)/enterprise-readiness.json" --out-md "$(or $(OUT_DIR),build)/enterprise-readiness.md"
+
+soak-readiness:
+	@if [ -z "$(SOAK_SAMPLES)" ]; then echo 'usage: make soak-readiness SOAK_SAMPLES=build/performance/soak-samples.json [OUT_DIR=build/performance]'; exit 2; fi
+	python3 scripts/ops/soak-readiness-report.py --samples "$(SOAK_SAMPLES)" --min-hours "$(or $(SOAK_MIN_HOURS),24)" --max-cpu-percent "$(or $(SOAK_MAX_CPU_PERCENT),25)" --max-memory-mb "$(or $(SOAK_MAX_MEMORY_MB),512)" --max-disk-mb "$(or $(SOAK_MAX_DISK_MB),4096)" --max-dropped-events "$(or $(SOAK_MAX_DROPPED_EVENTS),0)" --out-json "$(or $(OUT_DIR),build/performance)/soak-readiness.json" --out-md "$(or $(OUT_DIR),build/performance)/soak-readiness.md"
+
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
 		echo "Creating providapt system user (UID 950)..."; \
@@ -331,6 +338,10 @@ export-ground-truth:
 alert-quality:
 	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [OUT_DIR=build/evaluation]'; exit 2; fi
 	python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md"
+
+detection-quality:
+	@if [ -z "$(COVERAGE_JSON)" ] || [ -z "$(ALERT_QUALITY_JSON)" ]; then echo 'usage: make detection-quality COVERAGE_JSON=build/evaluation-dataset/coverage.json ALERT_QUALITY_JSON=build/evaluation/alert-quality.json [OUT_DIR=build/evaluation]'; exit 2; fi
+	python3 scripts/evaluation/detection_quality_report.py --coverage "$(COVERAGE_JSON)" --alert-quality "$(ALERT_QUALITY_JSON)" --out-json "$(or $(OUT_DIR),build/evaluation)/detection-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/detection-quality.md"
 
 model-register:
 	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_NAME)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make model-register DATASET_MANIFEST=build/evaluation-dataset/manifest.json MODEL_NAME=detector MODEL_VERSION=1.0.0 [MODEL_METRICS=metrics.json] [MODEL_REGISTRY=build/model-registry.json]'; exit 2; fi
@@ -381,6 +392,7 @@ help:
 	@echo '  make attack-full-chain Run ATT&CK full-chain simulation'
 	@echo '  make export-ground-truth Export train/test labels and ATT&CK coverage'
 	@echo '  make alert-quality    Export annotated alert precision and review metrics'
+	@echo '  make detection-quality Merge coverage and alert quality into precision/recall/F1'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''
@@ -429,3 +441,5 @@ help:
 	@echo '  make ops-fleet-list List control-plane fleet state'
 	@echo '  make ops-fleet-plan FLEET_OPERATION=... Generate fleet lifecycle plan'
 	@echo '  make ops-siem-verify Queue and verify SIEM test delivery'
+	@echo '  make enterprise-readiness Aggregate release, secret, PostgreSQL, and detection evidence'
+	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'

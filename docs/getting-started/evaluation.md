@@ -241,3 +241,19 @@ make model-drift \
 `model-drift.json` is machine-readable release evidence. `model-drift.md`
 summarizes changes by split, tactic, and technique and marks fields that exceed
 the configured drift threshold.
+
+## Detection Quality Gate
+
+Merge ATT&CK coverage and analyst alert quality into one precision/recall/F1
+gate:
+
+```bash
+make detection-quality \
+  COVERAGE_JSON=build/evaluation-dataset/coverage.json \
+  ALERT_QUALITY_JSON=build/evaluation/alert-quality.json \
+  OUT_DIR=build/evaluation
+```
+
+`detection-quality.json` is the P2 release evidence artifact for recall,
+precision, F1, missed tactics, missed techniques, and rule-tuning
+recommendations.
