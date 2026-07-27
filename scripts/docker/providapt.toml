@@ -7,6 +7,23 @@ level = "info"
 
 [api]
 rest = ":8080"
+grpc = ":50051"
+
+[control_plane]
+mode = "active-passive"
+node_id = "docker-control-plane"
+role = "leader"
+state_backend = "postgresql://providapt:providapt-change-me@127.0.0.1:5432/providapt?sslmode=disable"
+
+[secrets]
+provider = "file"
+base_dir = "/run/secrets"
+
+[tls]
+enable = false
+rotation_check = "24h"
+rotation_renew_before = "720h"
+rotation_auto = false
 
 [capture]
 enable_net = true

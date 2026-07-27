@@ -2097,6 +2097,8 @@ func main() {
 	apiServer.SetBackupActionFunc(runBackupAction)
 	backupSchedulerStop := startBackupScheduler(cfg, runBackupAction)
 	defer backupSchedulerStop()
+	tlsRenewBefore := parsePositiveDurationOrDefault(cfg.TLS.RotationRenewBefore, 30*24*time.Hour)
+	tlsRotationCheck := parsePositiveDurationOrDefault(cfg.TLS.RotationCheck, 24*time.Hour)
 	apiServer.SetSecurityStatusFunc(func() api.SecurityStatus {
 		summary := securitySummaryState.snapshot()
 		summary.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
@@ -2104,7 +2106,7 @@ func main() {
 		summary.KeyFile = cfg.TLS.KeyFile
 		summary.CAFile = cfg.TLS.CAFile
 		if strings.TrimSpace(cfg.TLS.CertFile) != "" {
-			needed, err := certauth.NeedsRotation(cfg.TLS.CertFile, 30*24*time.Hour)
+			needed, err := certauth.NeedsRotation(cfg.TLS.CertFile, tlsRenewBefore)
 			summary.RotationNeeded = needed
 			if err != nil && summary.LastMessage == "" {
 				summary.LastStatus = "check_failed"
@@ -2127,7 +2129,7 @@ func main() {
 			status.CertFile = cfg.TLS.CertFile
 			status.KeyFile = cfg.TLS.KeyFile
 			status.CAFile = cfg.TLS.CAFile
-			needed, err := certauth.NeedsRotation(cfg.TLS.CertFile, 30*24*time.Hour)
+			needed, err := certauth.NeedsRotation(cfg.TLS.CertFile, tlsRenewBefore)
 			status.RotationNeeded = needed
 			status.LastStatus = "checked"
 			status.LastMessage = "certificate rotation checked"
@@ -2182,6 +2184,8 @@ func main() {
 			return api.SecurityActionResult{Status: "failed", Message: err.Error(), Action: action, PerformedAt: performedAt}, err
 		}
 	})
+	tlsRotationStop := startTLSRotationScheduler(cfg, tlsRotationCheck, tlsRenewBefore, securityAudit, auditStore, securitySummaryState)
+	defer tlsRotationStop()
 	apiServer.SetAuditQueryFunc(func(category, source string, limit int) api.AuditFeed {
 		feed := api.AuditFeed{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -3594,6 +3598,83 @@ func startBackupScheduler(cfg *config.Config, run func(api.BackupActionRequest) 
 				logx.System().Info("automatic backup completed", "path", result.BackupPath, "size_bytes", result.SizeBytes)
 			case <-stopCh:
 				logx.System().Info("automatic backup scheduler stopped")
+				return
+			}
+		}
+	}()
+	return func() {
+		close(stopCh)
+	}
+}
+
+func startTLSRotationScheduler(cfg *config.Config, checkInterval, renewBefore time.Duration, securityAudit *controlActionAuditStore, auditStore *audit.Store, securitySummaryState *securityState) func() {
+	if cfg == nil || !cfg.TLS.Enable || !cfg.TLS.RotationAuto {
+		return func() {}
+	}
+	if strings.TrimSpace(cfg.TLS.CertFile) == "" || strings.TrimSpace(cfg.TLS.KeyFile) == "" || strings.TrimSpace(cfg.TLS.CAFile) == "" {
+		logx.System().Warn("automatic TLS rotation disabled: tls cert_file, key_file, and ca_file are required")
+		return func() {}
+	}
+	if checkInterval <= 0 {
+		checkInterval = 24 * time.Hour
+	}
+	if renewBefore <= 0 {
+		renewBefore = 30 * 24 * time.Hour
+	}
+	stopCh := make(chan struct{})
+	rotateIfNeeded := func() {
+		needed, err := certauth.NeedsRotation(cfg.TLS.CertFile, renewBefore)
+		if err != nil {
+			message := err.Error()
+			securityAudit.record("security_auto_tls_rotation", "system:tls-rotation", api.RoleAdmin, cfg.TLS.CertFile, "scheduled certificate check", "check_failed", message)
+			logControlAudit(auditStore, "security", "security_auto_tls_rotation", "system:tls-rotation", api.RoleAdmin, cfg.TLS.CertFile, "scheduled certificate check", "check_failed", message)
+			logx.System().Warn("automatic TLS rotation check failed", "error", err)
+			return
+		}
+		if !needed {
+			return
+		}
+		certCfg := &certauth.Config{
+			CADir:     filepath.Dir(cfg.TLS.CAFile),
+			ServerDir: filepath.Dir(cfg.TLS.CertFile),
+		}
+		performedAt := time.Now().UTC().Format(time.RFC3339)
+		if err := certauth.RotateServerCert(certCfg, cfg.TLS.CertFile, cfg.TLS.KeyFile); err != nil {
+			message := err.Error()
+			securityAudit.record("security_auto_tls_rotation", "system:tls-rotation", api.RoleAdmin, cfg.TLS.CertFile, "scheduled certificate rotation", "failed", message)
+			logControlAudit(auditStore, "security", "security_auto_tls_rotation", "system:tls-rotation", api.RoleAdmin, cfg.TLS.CertFile, "scheduled certificate rotation", "failed", message)
+			logx.System().Warn("automatic TLS rotation failed", "error", err)
+			return
+		}
+		message := "server certificate rotated automatically; reload or restart services to use it"
+		status := api.SecurityStatus{
+			UpdatedAt:      performedAt,
+			CertFile:       cfg.TLS.CertFile,
+			KeyFile:        cfg.TLS.KeyFile,
+			CAFile:         cfg.TLS.CAFile,
+			RotationNeeded: false,
+			LastStatus:     "rotated",
+			LastMessage:    message,
+			LastRotatedAt:  performedAt,
+			History:        securityAudit.snapshot(),
+		}
+		securityAudit.record("security_auto_tls_rotation", "system:tls-rotation", api.RoleAdmin, cfg.TLS.CertFile, "scheduled certificate rotation", "rotated", message)
+		status.History = securityAudit.snapshot()
+		securitySummaryState.update(status)
+		logControlAudit(auditStore, "security", "security_auto_tls_rotation", "system:tls-rotation", api.RoleAdmin, cfg.TLS.CertFile, "scheduled certificate rotation", "rotated", message)
+		logx.System().Info("automatic TLS rotation completed", "cert_file", cfg.TLS.CertFile, "restart_after_rotation", cfg.TLS.RotationRestartAfter)
+	}
+	go func() {
+		ticker := time.NewTicker(checkInterval)
+		defer ticker.Stop()
+		logx.System().Info("automatic TLS rotation scheduler started", "interval", checkInterval.String(), "renew_before", renewBefore.String())
+		rotateIfNeeded()
+		for {
+			select {
+			case <-ticker.C:
+				rotateIfNeeded()
+			case <-stopCh:
+				logx.System().Info("automatic TLS rotation scheduler stopped")
 				return
 			}
 		}

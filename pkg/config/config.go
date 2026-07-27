@@ -88,11 +88,21 @@ type Config struct {
 	} `json:"sso" yaml:"sso"`
 
 	TLS struct {
-		Enable   bool   `json:"enable" yaml:"enable"`
-		CertFile string `json:"cert_file" yaml:"cert_file"`
-		KeyFile  string `json:"key_file" yaml:"key_file"`
-		CAFile   string `json:"ca_file" yaml:"ca_file"`
+		Enable               bool   `json:"enable" yaml:"enable"`
+		CertFile             string `json:"cert_file" yaml:"cert_file"`
+		KeyFile              string `json:"key_file" yaml:"key_file"`
+		CAFile               string `json:"ca_file" yaml:"ca_file"`
+		RotationCheck        string `json:"rotation_check" yaml:"rotation_check"`
+		RotationRenewBefore  string `json:"rotation_renew_before" yaml:"rotation_renew_before"`
+		RotationAuto         bool   `json:"rotation_auto" yaml:"rotation_auto"`
+		RotationRestartAfter bool   `json:"rotation_restart_after" yaml:"rotation_restart_after"`
 	} `json:"tls" yaml:"tls"`
+
+	Secrets struct {
+		Provider string            `json:"provider" yaml:"provider"`
+		BaseDir  string            `json:"base_dir" yaml:"base_dir"`
+		Vault    map[string]string `json:"vault" yaml:"vault"`
+	} `json:"secrets" yaml:"secrets"`
 
 	Storage struct {
 		Encrypt bool   `json:"encrypt" yaml:"encrypt"`
@@ -311,6 +321,9 @@ func DefaultConfig() *Config {
 	c.SSO.UserHeader = "X-Forwarded-User"
 	c.SSO.RoleHeader = "X-Forwarded-Role"
 	c.SSO.TenantHeader = "X-Forwarded-Tenant"
+	c.TLS.RotationCheck = "24h"
+	c.TLS.RotationRenewBefore = "720h"
+	c.Secrets.Provider = "env"
 	c.Notify.MaxAttempts = 3
 	c.Notify.RetryBackoff = "250ms"
 	c.Telemetry.Interval = "30s"
@@ -371,19 +384,21 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
-// resolveSecrets replaces "env:SOME_VAR" values with the actual environment
-// variable content. This allows sensitive config fields (passwords, keys)
-// to reference environment variables instead of plaintext in the config file.
+// resolveSecrets replaces secret references such as env:, file:, and vault:
+// with resolved values. vault: references are resolved from the configured
+// secrets.vault map, which lets production deployments inject Vault material
+// through configuration management without hard-coding credentials in source.
 func resolveSecrets(cfg *Config) {
-	resolveSecretString(&cfg.Notify.SMTPPass, "PROVIDAPT_NOTIFY_SMTP_PASS")
-	resolveSecretString(&cfg.Notify.WebhookSecret, "PROVIDAPT_NOTIFY_WEBHOOK_SECRET")
-	resolveSecretString(&cfg.Notify.TicketWebhookAuth, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_AUTH")
-	resolveSecretString(&cfg.Notify.JiraAPIToken, "PROVIDAPT_NOTIFY_JIRA_API_TOKEN")
-	resolveSecretString(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
-	resolveSecretString(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
-	resolveSecretString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
-	resolveSecretString(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
-	resolveSecretString(&cfg.SIEM.Token, "PROVIDAPT_SIEM_TOKEN")
+	resolver := secretResolver{baseDir: cfg.Secrets.BaseDir, vault: cfg.Secrets.Vault}
+	resolver.resolve(&cfg.Notify.SMTPPass, "PROVIDAPT_NOTIFY_SMTP_PASS")
+	resolver.resolve(&cfg.Notify.WebhookSecret, "PROVIDAPT_NOTIFY_WEBHOOK_SECRET")
+	resolver.resolve(&cfg.Notify.TicketWebhookAuth, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_AUTH")
+	resolver.resolve(&cfg.Notify.JiraAPIToken, "PROVIDAPT_NOTIFY_JIRA_API_TOKEN")
+	resolver.resolve(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
+	resolver.resolve(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
+	resolver.resolve(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
+	resolver.resolve(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
+	resolver.resolve(&cfg.SIEM.Token, "PROVIDAPT_SIEM_TOKEN")
 }
 
 func normalizeConfig(cfg *Config) {
@@ -440,20 +455,40 @@ func CommAllowed(comm string, includeComms []string) bool {
 	return false
 }
 
-func resolveSecretString(field *string, envKey string) {
+type secretResolver struct {
+	baseDir string
+	vault   map[string]string
+}
+
+func (r secretResolver) resolve(field *string, envKey string) {
 	if field == nil {
 		return
 	}
 	resolved := false
-	// Check for env: prefix
-	if len(*field) > 4 && (*field)[:4] == "env:" {
-		envVar := (*field)[4:]
+	if strings.HasPrefix(*field, "env:") {
+		envVar := strings.TrimPrefix(*field, "env:")
 		if val, ok := os.LookupEnv(envVar); ok {
 			*field = val
 			resolved = true
 		}
 	}
-	// Also check PROVIDAPT_ fallback for backward compat
+	if !resolved && strings.HasPrefix(*field, "file:") {
+		secretPath := strings.TrimPrefix(*field, "file:")
+		if r.baseDir != "" && !filepath.IsAbs(secretPath) {
+			secretPath = filepath.Join(r.baseDir, secretPath)
+		}
+		if data, err := os.ReadFile(secretPath); err == nil {
+			*field = strings.TrimRight(string(data), "\r\n")
+			resolved = true
+		}
+	}
+	if !resolved && strings.HasPrefix(*field, "vault:") {
+		key := strings.TrimPrefix(*field, "vault:")
+		if val, ok := r.vault[key]; ok {
+			*field = val
+			resolved = true
+		}
+	}
 	if !resolved {
 		if val, ok := os.LookupEnv(envKey); ok && val != "" {
 			*field = val
@@ -568,6 +603,21 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("compliance.report_interval: %w", err)
 		}
 	}
+	if strings.TrimSpace(c.TLS.RotationCheck) != "" {
+		if err := validateDurationString(c.TLS.RotationCheck); err != nil {
+			return fmt.Errorf("tls.rotation_check: %w", err)
+		}
+	}
+	if strings.TrimSpace(c.TLS.RotationRenewBefore) != "" {
+		if err := validateDurationString(c.TLS.RotationRenewBefore); err != nil {
+			return fmt.Errorf("tls.rotation_renew_before: %w", err)
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Secrets.Provider)) {
+	case "", "env", "file", "vault":
+	default:
+		return fmt.Errorf("unsupported secrets.provider %q", c.Secrets.Provider)
+	}
 	switch strings.ToLower(strings.TrimSpace(c.SIEM.Format)) {
 	case "", "json", "cef":
 	default:
@@ -637,9 +687,16 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.ControlPlane.StateBackend, "PROVIDAPT_CONTROL_PLANE_STATE_BACKEND")
 	overrideString(&cfg.ControlPlane.Heartbeat, "PROVIDAPT_CONTROL_PLANE_HEARTBEAT")
 	overrideString(&cfg.ControlPlane.ElectionTimeout, "PROVIDAPT_CONTROL_PLANE_ELECTION_TIMEOUT")
+	overrideString(&cfg.Secrets.Provider, "PROVIDAPT_SECRETS_PROVIDER")
+	overrideString(&cfg.Secrets.BaseDir, "PROVIDAPT_SECRETS_BASE_DIR")
 	overrideString(&cfg.SSO.UserHeader, "PROVIDAPT_SSO_USER_HEADER")
 	overrideString(&cfg.SSO.RoleHeader, "PROVIDAPT_SSO_ROLE_HEADER")
 	overrideString(&cfg.SSO.TenantHeader, "PROVIDAPT_SSO_TENANT_HEADER")
+	overrideString(&cfg.TLS.CertFile, "PROVIDAPT_TLS_CERT_FILE")
+	overrideString(&cfg.TLS.KeyFile, "PROVIDAPT_TLS_KEY_FILE")
+	overrideString(&cfg.TLS.CAFile, "PROVIDAPT_TLS_CA_FILE")
+	overrideString(&cfg.TLS.RotationCheck, "PROVIDAPT_TLS_ROTATION_CHECK")
+	overrideString(&cfg.TLS.RotationRenewBefore, "PROVIDAPT_TLS_ROTATION_RENEW_BEFORE")
 	overrideString(&cfg.Storage.KeyFile, "PROVIDAPT_STORAGE_KEY_FILE")
 	overrideString(&cfg.Telemetry.Endpoint, "PROVIDAPT_TELEMETRY_ENDPOINT")
 	overrideString(&cfg.Telemetry.Interval, "PROVIDAPT_TELEMETRY_INTERVAL")
@@ -704,6 +761,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Capture.AutoExcludeNoisy, "PROVIDAPT_CAPTURE_AUTO_EXCLUDE_NOISY")
 	overrideBool(&cfg.Storage.Encrypt, "PROVIDAPT_STORAGE_ENCRYPT")
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
+	overrideBool(&cfg.TLS.RotationAuto, "PROVIDAPT_TLS_ROTATION_AUTO")
+	overrideBool(&cfg.TLS.RotationRestartAfter, "PROVIDAPT_TLS_ROTATION_RESTART_AFTER")
 	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
 	overrideBool(&cfg.ControlPlane.FailoverReady, "PROVIDAPT_CONTROL_PLANE_FAILOVER_READY")
 	overrideBool(&cfg.SSO.TrustedHeaderAuth, "PROVIDAPT_SSO_TRUSTED_HEADER_AUTH")

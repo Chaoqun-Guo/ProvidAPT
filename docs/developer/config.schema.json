@@ -44,8 +44,40 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "state_backend": { "type": "string", "enum": ["file", "postgres"] },
-        "postgres_dsn": { "type": "string" }
+        "mode": { "type": "string", "enum": ["standalone", "active-passive", "external"] },
+        "node_id": { "type": "string" },
+        "role": { "type": "string", "enum": ["leader", "follower", "observer"] },
+        "leader_id": { "type": "string" },
+        "peers": { "type": "array", "items": { "type": "string" } },
+        "state_backend": {
+          "type": "string",
+          "description": "local state file path, local, postgres://..., or postgresql://..."
+        },
+        "heartbeat": { "type": "string" },
+        "election_timeout": { "type": "string" }
+      }
+    },
+    "tls": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enable": { "type": "boolean" },
+        "cert_file": { "type": "string" },
+        "key_file": { "type": "string" },
+        "ca_file": { "type": "string" },
+        "rotation_check": { "type": "string", "examples": ["24h"] },
+        "rotation_renew_before": { "type": "string", "examples": ["720h"] },
+        "rotation_auto": { "type": "boolean" },
+        "rotation_restart_after": { "type": "boolean" }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "provider": { "type": "string", "enum": ["env", "file", "vault"] },
+        "base_dir": { "type": "string" },
+        "vault": { "type": "object", "additionalProperties": { "type": "string" } }
       }
     },
     "policy": {

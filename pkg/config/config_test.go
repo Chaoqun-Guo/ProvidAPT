@@ -964,6 +964,50 @@ func TestValidateCommercialP2Config(t *testing.T) {
 	}
 }
 
+func TestSecretResolverSupportsFileAndVaultReferences(t *testing.T) {
+	dir := t.TempDir()
+	secretPath := filepath.Join(dir, "siem-token")
+	if err := os.WriteFile(secretPath, []byte("file-secret\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := DefaultConfig()
+	cfg.Secrets.Provider = "vault"
+	cfg.Secrets.BaseDir = dir
+	cfg.Secrets.Vault = map[string]string{
+		"policy/api-key": "vault-policy-key",
+	}
+	cfg.SIEM.Token = "file:siem-token"
+	cfg.Policy.APIKey = "vault:policy/api-key"
+
+	resolveSecrets(cfg)
+
+	if cfg.SIEM.Token != "file-secret" {
+		t.Fatalf("siem token = %q", cfg.SIEM.Token)
+	}
+	if cfg.Policy.APIKey != "vault-policy-key" {
+		t.Fatalf("policy api key = %q", cfg.Policy.APIKey)
+	}
+}
+
+func TestValidateTLSRotationAndSecretProvider(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.TLS.RotationCheck = "12h"
+	cfg.TLS.RotationRenewBefore = "720h"
+	cfg.Secrets.Provider = "vault"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid P1 settings rejected: %v", err)
+	}
+	cfg.TLS.RotationCheck = "0s"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid TLS rotation check")
+	}
+	cfg = DefaultConfig()
+	cfg.Secrets.Provider = "unknown"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid secrets provider")
+	}
+}
+
 func writeTempFile(t *testing.T, pattern, content string) string {
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {

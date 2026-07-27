@@ -34,7 +34,18 @@ This reference summarizes the major ProvidAPT configuration sections. Use `provi
 | `output.alert_retain_files` | number of alert archives to retain when byte retention is disabled; use `0` with `alert_retain_max_bytes` |
 | `output.alert_retain_max_bytes` | total alert NDJSON retention budget; keeps rotated alert files readable by the dashboard |
 | `storage.encryption_enabled` | enables local storage encryption where supported |
-| `control_plane.state_backend` | file or PostgreSQL-backed control-plane state |
+| `control_plane.state_backend` | local state file path, `local`, or `postgresql://...` DSN for HA/fleet/policy state |
+
+For a production-style local control plane, run PostgreSQL with Docker and use
+the DSN directly in `control_plane.state_backend`:
+
+```yaml
+control_plane:
+  mode: active-passive
+  node_id: control-plane-1
+  role: leader
+  state_backend: postgresql://providapt:change-me@127.0.0.1:5432/providapt?sslmode=disable
+```
 
 For constrained VMs, start with:
 
@@ -68,6 +79,42 @@ output:
 | `policy.endpoint` | control-plane endpoint for policy bundle pulls |
 | `policy.api_key` | API key for policy operations |
 | `policy.bundle_dir` | applied policy bundle cache |
+
+## Secrets
+
+| Field | Purpose |
+| --- | --- |
+| `secrets.provider` | `env`, `file`, or `vault` reference resolver |
+| `secrets.base_dir` | base directory for relative `file:<name>` secret references |
+| `secrets.vault` | config-managed Vault material map used by `vault:<key>` references |
+
+Sensitive fields such as `policy.api_key`, `siem.token`,
+`license.signing_key`, and notification credentials can use:
+
+```yaml
+secrets:
+  provider: vault
+  base_dir: /run/secrets/providapt
+  vault:
+    policy/api-key: "injected-by-config-management"
+policy:
+  api_key: vault:policy/api-key
+siem:
+  token: file:siem-token
+```
+
+## TLS Rotation
+
+| Field | Purpose |
+| --- | --- |
+| `tls.rotation_check` | automatic rotation check interval, for example `24h` |
+| `tls.rotation_renew_before` | rotate when the certificate expires within this window |
+| `tls.rotation_auto` | enables scheduled server certificate rotation |
+| `tls.rotation_restart_after` | records whether operators should restart services after rotation |
+
+Manual rotation is available from the security control action
+`rotate_server_cert`; automatic rotation uses the same CA and writes audit
+history when enabled.
 
 ## Backup and Compliance
 

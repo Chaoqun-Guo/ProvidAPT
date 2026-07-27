@@ -67,6 +67,7 @@ type telemetryStatus struct {
 
 type persistedControlPlaneState struct {
 	Agents        map[string]persistedAgentMetadata `json:"agents,omitempty"`
+	Fleet         map[string]AgentTelemetrySnapshot `json:"fleet,omitempty"`
 	Policy        persistedPolicyState              `json:"policy,omitempty"`
 	SavedAt       time.Time                         `json:"saved_at"`
 	SchemaVersion int                               `json:"schema_version"`
@@ -945,7 +946,7 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 			}
 			s.telemetry.mu.Unlock()
 			deploymentChanged := s.refreshPolicyDeploymentFromAgents()
-			if metadataChanged || deploymentChanged {
+			if lastSummary.AgentID != "" || metadataChanged || deploymentChanged {
 				if err := s.saveState(); err != nil {
 					log.Printf("[mgmt] save control-plane state: %v", err)
 				}
@@ -1245,19 +1246,23 @@ func (s *Server) loadState() error {
 	if strings.TrimSpace(s.config.StateFile) == "" {
 		return nil
 	}
-	data, err := os.ReadFile(s.config.StateFile)
+	state, ok, err := loadPersistedControlPlaneState(s.config.StateFile)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("read control-plane state: %w", err)
+		return err
 	}
-	var state persistedControlPlaneState
-	if err := json.Unmarshal(data, &state); err != nil {
-		return fmt.Errorf("decode control-plane state: %w", err)
+	if !ok {
+		return nil
 	}
 
 	s.telemetry.mu.Lock()
+	for agentID, snapshot := range state.Fleet {
+		if snapshot.AgentID == "" {
+			snapshot.AgentID = agentID
+		}
+		snapshot.Tags = dedupeTags(snapshot.Tags)
+		snapshot.CertFingerprint = normalizeCertFingerprint(snapshot.CertFingerprint)
+		s.telemetry.Agents[agentID] = snapshot
+	}
 	for agentID, metadata := range state.Agents {
 		snapshot := s.telemetry.Agents[agentID]
 		snapshot.AgentID = agentID
@@ -1306,12 +1311,17 @@ func (s *Server) saveState() error {
 	}
 	state := persistedControlPlaneState{
 		Agents:        map[string]persistedAgentMetadata{},
+		Fleet:         map[string]AgentTelemetrySnapshot{},
 		SavedAt:       time.Now().UTC(),
 		SchemaVersion: 1,
 	}
 
 	s.telemetry.mu.Lock()
 	for agentID, snapshot := range s.telemetry.Agents {
+		snapshot.AgentID = firstNonEmpty(snapshot.AgentID, agentID)
+		snapshot.Tags = append([]string(nil), snapshot.Tags...)
+		snapshot.CertFingerprint = normalizeCertFingerprint(snapshot.CertFingerprint)
+		state.Fleet[agentID] = snapshot
 		if snapshot.Group == "" && len(snapshot.Tags) == 0 && snapshot.EnrollmentStatus == "" && snapshot.EnrollmentNote == "" && snapshot.CertFingerprint == "" {
 			continue
 		}
@@ -1339,22 +1349,7 @@ func (s *Server) saveState() error {
 	}
 	s.policy.mu.Unlock()
 
-	if err := os.MkdirAll(filepath.Dir(s.config.StateFile), 0750); err != nil {
-		return fmt.Errorf("create control-plane state dir: %w", err)
-	}
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode control-plane state: %w", err)
-	}
-	tmp := s.config.StateFile + ".tmp"
-	if err := os.WriteFile(tmp, data, 0600); err != nil {
-		return fmt.Errorf("write control-plane state: %w", err)
-	}
-	if err := os.Rename(tmp, s.config.StateFile); err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("replace control-plane state: %w", err)
-	}
-	return nil
+	return savePersistedControlPlaneState(s.config.StateFile, state)
 }
 
 func (s *Server) recordSigmaRule(ruleID, ruleYAML string, present bool) {
