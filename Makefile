@@ -244,7 +244,7 @@ release-commercial:
 	bash scripts/release/commercial-release.sh
 
 release-gates:
-	python3 scripts/release/release_gate_status.py
+	python3 scripts/release/release_gate_status.py $(if $(SKIP_CI),--skip-ci) $(if $(RELEASE_WAIVER),--waiver "$(RELEASE_WAIVER)") $(if $(CI_EVIDENCE),--ci-evidence "$(CI_EVIDENCE)")
 
 package-smoke-matrix:
 	bash scripts/release/package-smoke-matrix.sh

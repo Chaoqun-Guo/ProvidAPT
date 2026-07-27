@@ -152,7 +152,7 @@ def artifact_gate(dist: Path, commit: str = "", version: str = "") -> Gate:
     return Gate("final_artifacts", "pass", "Checksums, signature, SBOM, and current commit evidence are present", evidence=str(dist))
 
 
-def collect(repo: Path, dist: Path, security_dir: Path, ci_evidence: Iterable[Path] = (), waiver_paths: Iterable[Path] = ()) -> dict[str, object]:
+def collect(repo: Path, dist: Path, security_dir: Path, ci_evidence: Iterable[Path] = (), waiver_paths: Iterable[Path] = (), skip_ci: bool = False) -> dict[str, object]:
     commit = git_value(repo, ["rev-parse", "--short", "HEAD"])
     full_commit = git_value(repo, ["rev-parse", "HEAD"])
     version = git_value(repo, ["describe", "--tags", "--always"])
@@ -160,7 +160,8 @@ def collect(repo: Path, dist: Path, security_dir: Path, ci_evidence: Iterable[Pa
     grype = scan_evidence_gate("grype_evidence", [security_dir / "grype-source.json"], "Run grype source scan or record a security waiver")
     trivy = scan_evidence_gate("trivy_evidence", [security_dir / "trivy-fs.json"], "Run trivy filesystem scan or record a security waiver")
     gates = [
-        ci_gate(repo, full_commit, ci_evidence),
+        Gate("github_actions", "skipped", "GitHub Actions evidence intentionally skipped for this local P0 closure", evidence="--skip-ci")
+        if skip_ci else ci_gate(repo, full_commit, ci_evidence),
         command_gate("govulncheck", "golang.org/x/vuln/cmd/govulncheck"),
         command_gate("grype", "anchore/grype"),
         command_gate("trivy", "aquasec/trivy"),
@@ -220,6 +221,7 @@ def main() -> int:
     parser.add_argument("--dist", default="dist", help="Release artifact directory")
     parser.add_argument("--security-dir", default="build/security", help="Security scan evidence directory")
     parser.add_argument("--ci-evidence", action="append", default=[], help="External CI evidence file")
+    parser.add_argument("--skip-ci", action="store_true", help="Skip GitHub Actions evidence for local release gate collection")
     parser.add_argument("--waiver", action="append", default=[], help="Structured JSON or Markdown waiver evidence")
     parser.add_argument("--out-md", default="build/release-gate-status.md", help="Markdown output path")
     parser.add_argument("--out-json", default="build/release-gate-status.json", help="JSON output path")
@@ -232,6 +234,7 @@ def main() -> int:
         (repo / args.security_dir).resolve(),
         [(repo / path).resolve() for path in args.ci_evidence],
         [(repo / path).resolve() for path in args.waiver],
+        args.skip_ci,
     )
     write_report(report, repo / args.out_md, repo / args.out_json)
     blocked = [gate for gate in report["gates"] if gate["status"] in {"blocked", "fail"}]

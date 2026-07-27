@@ -72,6 +72,15 @@ class ReleaseGateStatusTest(unittest.TestCase):
         result = gates.ci_gate(self.tmp_root, commit, [evidence])
         self.assertEqual(result.status, "pass")
 
+    def test_collect_can_skip_ci_gate(self):
+        dist = self.tmp_root / "dist"
+        security = self.tmp_root / "security"
+        dist.mkdir()
+        security.mkdir()
+        report = gates.collect(self.tmp_root, dist, security, skip_ci=True)
+        github = next(gate for gate in report["gates"] if gate["name"] == "github_actions")
+        self.assertEqual(github["status"], "skipped")
+
     def test_approval_gate_blocks_pending_markers(self):
         approval = self.tmp_root / "approval.md"
         approval.write_text("Product requires approval from external owner required\n", encoding="utf-8")
