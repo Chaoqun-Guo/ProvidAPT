@@ -1,11 +1,11 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality detection-quality attack-coverage-plan verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify enterprise-readiness soak-readiness upgrade-rollout-plan onboarding-wizard
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify enterprise-readiness soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -298,6 +298,10 @@ upgrade-rollout-plan:
 onboarding-wizard:
 	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode "$(or $(ONBOARDING_MODE),standalone)" --rest-port "$(or $(REST_PORT),18080)" --grpc-port "$(or $(GRPC_PORT),50051)" $(if $(POSTGRES_DSN),--postgres-dsn "$(POSTGRES_DSN)")
 
+plugin-release-gate:
+	@if [ -z "$(PLUGIN_MANIFEST)" ]; then echo 'usage: make plugin-release-gate PLUGIN_MANIFEST=path/plugin.json [PLUGIN_SIGNATURE=path/plugin.json.sig]'; exit 2; fi
+	python3 scripts/ops/plugin-release-gate.py --manifest "$(PLUGIN_MANIFEST)" $(if $(PLUGIN_SIGNATURE),--signature "$(PLUGIN_SIGNATURE)") $(if $(ALLOW_UNSIGNED_PLUGIN),--allow-unsigned) --out-json "$(or $(OUT_DIR),build/plugins)/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-release-gate.md"
+
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
 		echo "Creating providapt system user (UID 950)..."; \
@@ -369,6 +373,10 @@ model-feature-schema-check:
 	@if [ -z "$(FEATURE_SCHEMA)" ]; then echo 'usage: make model-feature-schema-check FEATURE_SCHEMA=build/evaluation/model-feature-schema.json [OUT_DIR=build/evaluation]'; exit 2; fi
 	python3 scripts/evaluation/model_registry.py validate-schema --schema-file "$(FEATURE_SCHEMA)" --out "$(or $(OUT_DIR),build/evaluation)/model-feature-schema-check.json" --strict
 
+model-deploy-gate:
+	@if [ -z "$(MODEL_REGISTRY)" ] || [ -z "$(MODEL_NAME)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make model-deploy-gate MODEL_REGISTRY=build/model-registry.json MODEL_NAME=detector MODEL_VERSION=1.0.0'; exit 2; fi
+	python3 scripts/evaluation/model_deploy_gate.py --registry "$(MODEL_REGISTRY)" --model-name "$(MODEL_NAME)" --model-version "$(MODEL_VERSION)" $(if $(DETECTION_QUALITY_JSON),--detection-quality "$(DETECTION_QUALITY_JSON)") $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(FEATURE_SCHEMA_CHECK_JSON),--feature-schema-check "$(FEATURE_SCHEMA_CHECK_JSON)") --min-precision "$(or $(MIN_PRECISION),70)" --min-recall "$(or $(MIN_RECALL),80)" --out-json "$(or $(OUT_DIR),build/evaluation)/model-deploy-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-deploy-gate.md"
+
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 
@@ -405,6 +413,7 @@ help:
 	@echo '  make alert-quality    Export annotated alert precision and review metrics'
 	@echo '  make detection-quality Merge coverage and alert quality into precision/recall/F1'
 	@echo '  make attack-coverage-plan Plan safe simulations for missed ATT&CK techniques'
+	@echo '  make model-deploy-gate MODEL_REGISTRY=... MODEL_NAME=... MODEL_VERSION=... Gate model deployment'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''
@@ -457,3 +466,4 @@ help:
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... Plan staged upgrades'
 	@echo '  make onboarding-wizard Generate first-run config and checklist'
+	@echo '  make plugin-release-gate PLUGIN_MANIFEST=... Validate plugin signing and compatibility'

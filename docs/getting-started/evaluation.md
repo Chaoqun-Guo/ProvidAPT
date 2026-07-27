@@ -258,6 +258,51 @@ make detection-quality \
 precision, F1, missed tactics, missed techniques, and rule-tuning
 recommendations.
 
+## Model Deployment Gate
+
+Before enabling a trained detector in production, gate the model against the
+registry, feature schema, quality metrics, and dataset drift evidence:
+
+```bash
+make model-deploy-gate \
+  MODEL_REGISTRY=build/model-registry.json \
+  MODEL_NAME=providapt-detector \
+  MODEL_VERSION=1.0.0 \
+  DETECTION_QUALITY_JSON=build/evaluation/detection-quality.json \
+  MODEL_DRIFT_JSON=build/evaluation/model-drift.json \
+  FEATURE_SCHEMA_CHECK_JSON=build/evaluation/model-feature-schema-check.json \
+  OUT_DIR=build/evaluation
+```
+
+The gate blocks deployment when:
+
+- The model is missing from the registry.
+- The registered feature schema hash or vector length is absent.
+- Precision or recall is below the configured threshold.
+- Drift status is `review_required`.
+- Feature schema validation did not pass.
+
+Tune thresholds when needed:
+
+```bash
+make model-deploy-gate \
+  MODEL_REGISTRY=build/model-registry.json \
+  MODEL_NAME=providapt-detector \
+  MODEL_VERSION=1.0.0 \
+  MIN_PRECISION=75 \
+  MIN_RECALL=85
+```
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `model-deploy-gate.json` | Machine-readable deployment decision and evidence summary |
+| `model-deploy-gate.md` | Operator-readable approval checklist |
+
+Keep the gate output with the model artifact, dataset manifest, drift report,
+feature schema report, and release evidence bundle.
+
 Generate a concrete backlog for missed ATT&CK techniques:
 
 ```bash

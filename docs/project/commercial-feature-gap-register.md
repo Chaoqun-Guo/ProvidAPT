@@ -83,3 +83,5 @@ Current closure progress:
 - Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
 - Model registry, dataset drift, and feature-schema compatibility gates are available for training provenance.
 - First-run onboarding bundles generate a starter config, checklist, and manifest through `make onboarding-wizard`.
+- Plugin release gating validates plugin manifests, semantic versions, supported plugin types, signature evidence, and rollback instructions through `make plugin-release-gate`.
+- Model deployment gating blocks unregistered, schema-incompatible, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
