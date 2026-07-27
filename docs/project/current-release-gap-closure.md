@@ -19,6 +19,8 @@ Verification commit: `9cdf515e88d7ed28eeaa429a3cd7d7e0354673ad`
 - SIEM documentation maps normalized event fields to Splunk and Elastic/ECS-style fields.
 - Alert Workflow dashboard exposes analyst quality counters and browser-side quality export.
 - Model registry and dataset drift helpers record training provenance and compare candidate datasets by split, tactic, and technique.
+- Investigation Console graph summaries now surface provenance clusters and high-degree hubs for large traces.
+- Model registry records and validates the production feature schema hash before model registration.
 
 ## External release gates still required
 

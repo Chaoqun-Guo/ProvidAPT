@@ -14,10 +14,7 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 )
 
-// ═══════════════════════════════════════════════════════════════
-// Feature vector
-// ═══════════════════════════════════════════════════════════════
-
+// Feature vector.
 // FeatureIndex names the position of each feature in the vector.
 type FeatureIndex int
 
@@ -64,8 +61,6 @@ func FeatureNames() [NumFeatures]string {
 // FeatureVector is a fixed-length vector of numerical features
 // extracted from a provenance subgraph.
 type FeatureVector [NumFeatures]float64
-
-// ── Extraction ──────────────────────────────────────────────
 
 // ExtractFeatures computes a feature vector from a set of nodes and
 // edges (typically a subgraph around a suspicious root).
@@ -149,7 +144,7 @@ func ExtractFeatures(nodes []*provenance.Node, edges []*provenance.Edge) Feature
 	return fv
 }
 
-// ── Path computation ────────────────────────────────────────
+// Path computation.
 
 func computePathStats(nodes []*provenance.Node, edges []*provenance.Edge) (avg, max float64) {
 	if len(nodes) <= 1 {
@@ -216,7 +211,7 @@ func computePathStats(nodes []*provenance.Node, edges []*provenance.Edge) (avg, 
 	return
 }
 
-// ── Entropy ─────────────────────────────────────────────────
+// Entropy.
 
 func computeEntropy(values []float64) float64 {
 	if len(values) == 0 {
@@ -236,7 +231,7 @@ func computeEntropy(values []float64) float64 {
 	return ent / math.Log2(float64(len(values))) // normalised [0,1]
 }
 
-// ── Stats helpers ───────────────────────────────────────────
+// Stats helpers.
 
 func avg(v []float64) float64 {
 	if len(v) == 0 {
@@ -279,7 +274,7 @@ func stddev(v []float64) float64 {
 	return math.Sqrt(sumSq / float64(len(v)-1))
 }
 
-// ── Vector operations ───────────────────────────────────────
+// Vector operations.
 
 // Distance computes Euclidean distance between two feature vectors.
 func (fv FeatureVector) Distance(other FeatureVector) float64 {

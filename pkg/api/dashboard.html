@@ -2939,6 +2939,90 @@ function countBy(items, pick) {
   return Object.keys(counts).sort().map(key => ({ key: key, count: counts[key] }));
 }
 
+function graphElementID(item) {
+  const data = item && item.data ? item.data : {};
+  return String(data.id || data.node_id || data.label || item.id || '');
+}
+
+function graphElementType(item) {
+  const data = item && item.data ? item.data : {};
+  return String(data.type || data.subtype || data.label || item.group || 'unknown');
+}
+
+function graphClusterKey(item) {
+  const data = item && item.data ? item.data : {};
+  const type = graphElementType(item);
+  const label = String(data.label || data.name || data.id || '');
+  if (type === 'process') return 'process:' + String(data.comm || label.split('[')[0] || 'unknown');
+  if (type === 'file') return 'file:' + (label.indexOf('/') >= 0 ? label.split('/').slice(0, -1).join('/') || '/' : 'inode');
+  if (type === 'network') return 'network:' + String(data.protocol || data.address_family || 'socket');
+  return type;
+}
+
+function graphClusterRows(nodes, edges) {
+  const degree = {};
+  edges.forEach(edge => {
+    const data = edge.data || {};
+    if (data.source) degree[String(data.source)] = (degree[String(data.source)] || 0) + 1;
+    if (data.target) degree[String(data.target)] = (degree[String(data.target)] || 0) + 1;
+  });
+  const clusters = {};
+  nodes.forEach(node => {
+    const key = graphClusterKey(node);
+    clusters[key] = clusters[key] || { key: key, nodes: 0, edges: 0, max_degree: 0, sample: graphElementID(node) };
+    clusters[key].nodes += 1;
+    clusters[key].max_degree = Math.max(clusters[key].max_degree, degree[graphElementID(node)] || 0);
+  });
+  edges.forEach(edge => {
+    const sourceCluster = clusters[graphClusterKey(nodes.find(node => graphElementID(node) === String((edge.data || {}).source)) || {})];
+    const targetCluster = clusters[graphClusterKey(nodes.find(node => graphElementID(node) === String((edge.data || {}).target)) || {})];
+    if (sourceCluster) sourceCluster.edges += 1;
+    if (targetCluster && targetCluster !== sourceCluster) targetCluster.edges += 1;
+  });
+  return Object.values(clusters).sort((a, b) => (b.nodes + b.edges + b.max_degree) - (a.nodes + a.edges + a.max_degree));
+}
+
+function renderGraphClusterRows(nodes, edges) {
+  return graphClusterRows(nodes, edges).slice(0, 12).map(cluster => '<div class="alert-item clickable" tabindex="0" role="button" onclick="collapseGraphCluster(\'' + jsString(cluster.key) + '\')">' +
+    '<span class="alert-sev sev-medium">cluster</span>' +
+    '<span class="alert-msg">' + escapeHTML(cluster.key) + ' · ' + cluster.nodes + ' nodes · ' + cluster.edges + ' linked edges · max degree ' + cluster.max_degree + '</span>' +
+    '<span class="alert-time">click to filter</span>' +
+    '</div>');
+}
+
+function graphTopHubs(nodes, edges) {
+  const degree = {};
+  edges.forEach(edge => {
+    const data = edge.data || {};
+    if (data.source) degree[String(data.source)] = (degree[String(data.source)] || 0) + 1;
+    if (data.target) degree[String(data.target)] = (degree[String(data.target)] || 0) + 1;
+  });
+  return nodes.map(node => ({
+    id: graphElementID(node),
+    type: graphElementType(node),
+    degree: degree[graphElementID(node)] || 0,
+  })).sort((a, b) => b.degree - a.degree).slice(0, 8);
+}
+
+async function collapseGraphCluster(clusterKey) {
+  setInvestigationLoading('Filtering provenance cluster ' + clusterKey + '...');
+  try {
+    const data = await fetchJSON('/api/v1/graph/export');
+    const elements = data.elements || [];
+    const nodes = elements.filter(item => !item.data || !item.data.source);
+    const edges = elements.filter(item => item.data && item.data.source);
+    const selectedNodes = nodes.filter(node => graphClusterKey(node) === clusterKey);
+    const selectedIDs = {};
+    selectedNodes.forEach(node => { selectedIDs[graphElementID(node)] = true; });
+    const selectedEdges = edges.filter(edge => selectedIDs[String((edge.data || {}).source)] || selectedIDs[String((edge.data || {}).target)]);
+    const items = selectedNodes.slice(0, 20).map(node => renderKVItem(graphElementType(node), graphElementID(node), 'cluster ' + clusterKey));
+    items.push(renderKVItem('cluster links', String(selectedEdges.length), 'export full graph JSON for offline layout'));
+    setInvestigationItems(items, 'No nodes in cluster ' + clusterKey);
+  } catch (e) {
+    setInvestigationLoading('Cluster filter unavailable: ' + e.message);
+  }
+}
+
 async function showGraphSummary(kind) {
   if (currentRole === 'auditor') {
     setInvestigationLoading('Graph export is hidden for auditor role');
@@ -2958,6 +3042,12 @@ async function showGraphSummary(kind) {
       ' · <a class="console-link" href="/api/v1/graph/export" target="_blank" rel="noreferrer">export JSON</a></span>' +
       '<span class="alert-time">' + nodes.length + ' nodes / ' + edges.length + ' edges</span>' +
       '</div>');
+    if (kind === 'nodes') {
+      items.push(...renderGraphClusterRows(nodes, edges));
+      graphTopHubs(nodes, edges).forEach(hub => {
+        items.push(renderKVItem('high-degree hub', hub.id || 'unknown', hub.type + ' · degree ' + hub.degree));
+      });
+    }
     setInvestigationItems(items, 'No graph ' + kind + ' available');
   } catch (e) {
     setInvestigationLoading('Graph summary unavailable: ' + e.message);

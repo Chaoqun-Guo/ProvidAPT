@@ -36,7 +36,7 @@ Current closure progress:
 | --- | --- | --- |
 | ATT&CK coverage | Full-chain simulation exists, but technique coverage is still limited to a curated safe subset | Coverage report maps simulated and detected techniques by tactic and host |
 | Ground truth lifecycle | Ground truth is captured, but dataset versioning and training/test splits need formal tooling | Reproducible datasets can be exported with labels, manifests, and split metadata |
-| Provenance UX | Graphs support tree and horizontal layouts, but large investigations need stronger clustering and summarization | Analysts can collapse, expand, filter, and export large traces without visual clutter |
+| Provenance UX | Graphs support tree and horizontal layouts, and dashboard summaries now group clusters and hubs; full in-canvas expand/collapse still needs richer layout controls | Analysts can collapse, expand, filter, and export large traces without visual clutter |
 | Alert quality | Alerts are visible, but precision/recall tracking needs closed-loop analyst feedback | Alerts can be marked true positive, false positive, duplicate, or benign with audit trail |
 
 ## P3 - Enterprise Integration
@@ -54,5 +54,5 @@ Current closure progress:
 | --- | --- | --- |
 | Performance certification | Benchmarks exist, but long-duration noisy-host soak evidence should be expanded | 24-72 hour soak results define throughput, loss, CPU, memory, and disk budgets |
 | Plugin ecosystem | Plugin development docs exist, but signed plugin distribution and compatibility policy need productization | Plugins have signing, version compatibility, and safe rollback rules |
-| Model training | Simulation logs can train detectors and basic registry/drift tooling now exists, but feature schema compatibility still needs runtime enforcement | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
+| Model training | Simulation logs can train detectors, and registry, drift, and feature-schema compatibility checks now exist; runtime model deployment gating still needs integration | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
 | Customer onboarding | Handoff docs exist, but guided first-run setup can be smoother | A guided setup wizard validates prerequisites and generates a ready-to-run config |

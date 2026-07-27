@@ -201,16 +201,32 @@ Register a trained detector against the exact dataset manifest used for
 training:
 
 ```bash
+make model-feature-schema OUT_DIR=build/evaluation
+
 make model-register \
   DATASET_MANIFEST=build/evaluation-dataset/manifest.json \
   MODEL_NAME=providapt-detector \
   MODEL_VERSION=1.0.0 \
   MODEL_METRICS=build/evaluation/alert-quality.json \
+  FEATURE_SCHEMA=build/evaluation/model-feature-schema.json \
   COMMIT="$(git rev-parse --short HEAD)"
 ```
 
 The registry stores the dataset ID, optional dataset version, manifest SHA-256,
-metrics SHA-256, model name, model version, commit, and registration time.
+metrics SHA-256, model feature schema hash, model name, model version, commit,
+and registration time.
+
+Validate a candidate feature schema before registering or deploying a model:
+
+```bash
+make model-feature-schema-check \
+  FEATURE_SCHEMA=build/evaluation/model-feature-schema.json \
+  OUT_DIR=build/evaluation
+```
+
+The check enforces the production feature vector order and length. This prevents
+a model trained on one vector layout from being used against another runtime
+layout.
 
 Compare a candidate dataset with the previous training manifest before training
 or release:
