@@ -90,12 +90,24 @@ def load_feature_schema(path: str | None) -> dict[str, Any]:
     if not path:
         return default_feature_schema()
     schema = load_json(Path(path))
-    validate_feature_schema(schema, default_feature_schema(), strict=True)
+    if schema.get("schema") == FEATURE_SCHEMA:
+        validate_feature_schema(schema, default_feature_schema(), strict=True)
     return schema
 
 
 def schema_feature_names(schema: dict[str, Any]) -> list[str]:
     features = schema.get("features")
+    if not isinstance(features, list) and isinstance(schema.get("node_features"), list):
+        names: list[str] = []
+        for group in ("node_features", "edge_features"):
+            for expected_index, feature in enumerate(schema.get(group, [])):
+                if not isinstance(feature, dict):
+                    raise SystemExit(f"{group} {expected_index}: expected object")
+                name = str(feature.get("name", "")).strip()
+                if not name:
+                    raise SystemExit(f"{group} {expected_index}: missing name")
+                names.append(f"{group}.{name}")
+        return names
     if not isinstance(features, list):
         raise SystemExit("feature schema must contain a features list")
     names: list[str] = []
@@ -148,6 +160,7 @@ def register_model(args: argparse.Namespace) -> dict[str, Any]:
     metrics_path = Path(args.metrics) if args.metrics else None
     metrics = load_json(metrics_path) if metrics_path else {}
     feature_schema = load_feature_schema(args.feature_schema)
+    artifact_path = Path(args.artifact) if getattr(args, "artifact", None) else None
     record = {
         "model_name": args.model_name,
         "model_version": args.model_version,
@@ -164,6 +177,11 @@ def register_model(args: argparse.Namespace) -> dict[str, Any]:
             "path": str(metrics_path) if metrics_path else "",
             "sha256": sha256_file(metrics_path) if metrics_path else "",
             "summary": metrics,
+        },
+        "artifact": {
+            "path": str(artifact_path) if artifact_path else "",
+            "sha256": sha256_file(artifact_path) if artifact_path and artifact_path.exists() else "",
+            "size_bytes": artifact_path.stat().st_size if artifact_path and artifact_path.exists() else 0,
         },
         "feature_schema": {
             "path": args.feature_schema or "builtin:providapt-model-features",
@@ -327,6 +345,7 @@ def main() -> int:
     reg.add_argument("--model-name", required=True)
     reg.add_argument("--model-version", required=True)
     reg.add_argument("--metrics")
+    reg.add_argument("--artifact")
     reg.add_argument("--feature-schema")
     reg.add_argument("--commit")
     reg.add_argument("--notes")

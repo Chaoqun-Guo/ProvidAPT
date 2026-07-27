@@ -59,6 +59,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     detection = load_json(Path(args.detection_quality))
     rbac = load_json(Path(args.rbac_audit))
     report_plan = load_json(Path(args.report_plan))
+    siem = load_json(Path(args.siem_verify))
+    upgrade = load_json(Path(args.upgrade_rollout))
     release_status, blocked_gates = status_from_release_gates(release)
     sections = {
         "release_gates": {"status": release_status, "blocked": blocked_gates},
@@ -67,6 +69,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "detection_quality": {"status": detection_status(detection), "precision": detection.get("precision_percent", 0), "recall": detection.get("recall_percent", 0)},
         "rbac_audit": {"status": optional_status(rbac), "keys": rbac.get("key_count", 0), "tenant_scoped_keys": rbac.get("tenant_scoped_keys", 0)},
         "scheduled_reports": {"status": optional_status(report_plan), "cadence": report_plan.get("cadence", "missing"), "formats": ",".join(report_plan.get("formats", [])) if isinstance(report_plan.get("formats"), list) else "missing"},
+        "siem_soar_delivery": {"status": optional_status(siem), "endpoint": siem.get("endpoint", "missing"), "delivered": siem.get("delivered", 0), "dead_letter": siem.get("dead_letter", 0)},
+        "upgrade_rollout": {"status": "pass" if upgrade.get("status") == "planned" else optional_status(upgrade), "target_version": upgrade.get("target_version", "missing"), "batches": len(upgrade.get("batches", [])) if isinstance(upgrade.get("batches"), list) else 0},
     }
     status = "pass"
     if any(value["status"] == "blocked" for value in sections.values()):
@@ -106,6 +110,8 @@ def main() -> int:
     parser.add_argument("--detection-quality", default="build/evaluation/detection-quality.json")
     parser.add_argument("--rbac-audit", default="build/rbac/rbac-audit.json")
     parser.add_argument("--report-plan", default="build/reports/scheduled-report-plan.json")
+    parser.add_argument("--siem-verify", default="build/siem/siem-verification.json")
+    parser.add_argument("--upgrade-rollout", default="build/upgrade/rollout-plan.json")
     parser.add_argument("--out-json", default="build/enterprise-readiness.json")
     parser.add_argument("--out-md", default="build/enterprise-readiness.md")
     args = parser.parse_args()

@@ -53,6 +53,9 @@ Current closure progress:
 
 - Detection quality reporting merges ATT&CK coverage and analyst alert quality into precision, recall, F1, missed technique, and recommendation evidence through `make detection-quality`.
 - ATT&CK coverage planning converts missed techniques into safe simulation, ground-truth, rule assertion, and cleanup tasks through `make attack-coverage-plan`.
+- Graph training datasets are generated from normal/attack NDJSON plus ATT&CK ground truth through `make graph-dataset`, producing graph labels, split metadata, and feature schema evidence.
+- GCN, GAT, GraphSAGE, and MLP detector baselines can be trained in the `torch_py39` conda environment through `make graph-train`.
+- The end-to-end P2 training path is wrapped by `make p2-ml-pipeline`, which builds graph data, trains a detector, and registers model provenance.
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
@@ -68,7 +71,7 @@ Current closure progress:
 
 Current closure progress:
 
-- Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, and detection quality through `make enterprise-readiness`.
+- Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, SIEM/SOAR delivery checks, upgrade rollout evidence, and detection quality through `make enterprise-readiness`.
 - Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
 - VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
@@ -88,7 +91,7 @@ Current closure progress:
 
 - Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
 - Long-duration soak samples can be appended from a status endpoint or captured JSON through `make soak-sample`.
-- Model registry, dataset drift, and feature-schema compatibility gates are available for training provenance.
+- Model registry, dataset drift, feature-schema compatibility, and deployable model artifact SHA-256 checks are available for training provenance.
 - First-run onboarding bundles generate a starter config, checklist, and manifest through `make onboarding-wizard`.
 - Plugin release gating validates plugin manifests, semantic versions, supported plugin types, signature evidence, and rollback instructions through `make plugin-release-gate`.
-- Model deployment gating blocks unregistered, schema-incompatible, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
+- Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.

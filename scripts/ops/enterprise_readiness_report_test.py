@@ -36,6 +36,8 @@ class EnterpriseReadinessReportTest(unittest.TestCase):
         detection = self.write_json("detection.json", {"status": "pass", "precision_percent": 80, "recall_percent": 90})
         rbac = self.write_json("rbac.json", {"status": "pass", "key_count": 2, "tenant_scoped_keys": 1})
         report_plan = self.write_json("report-plan.json", {"status": "pass", "cadence": "1w", "formats": ["markdown", "json"]})
+        siem = self.write_json("siem.json", {"status": "pass", "endpoint": "file:///tmp/siem.ndjson", "delivered": 3, "dead_letter": 0})
+        upgrade = self.write_json("upgrade.json", {"status": "planned", "target_version": "v1.2.4", "batches": [{"name": "canary"}]})
         report = enterprise.build_report(Namespace(
             release_gates=str(release),
             secret_manifest=str(secrets),
@@ -43,11 +45,15 @@ class EnterpriseReadinessReportTest(unittest.TestCase):
             detection_quality=str(detection),
             rbac_audit=str(rbac),
             report_plan=str(report_plan),
+            siem_verify=str(siem),
+            upgrade_rollout=str(upgrade),
         ))
         self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["sections"]["secret_backends"]["status"], "pass")
         self.assertEqual(report["sections"]["rbac_audit"]["status"], "pass")
         self.assertEqual(report["sections"]["scheduled_reports"]["status"], "pass")
+        self.assertEqual(report["sections"]["siem_soar_delivery"]["status"], "pass")
+        self.assertEqual(report["sections"]["upgrade_rollout"]["status"], "pass")
         self.assertIn("Enterprise Readiness", enterprise.render_markdown(report))
 
 

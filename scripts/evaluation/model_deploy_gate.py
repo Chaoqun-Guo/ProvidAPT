@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +31,14 @@ def find_model(registry: dict[str, Any], name: str, version: str) -> dict[str, A
     return None
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def build_gate(args: argparse.Namespace) -> dict[str, Any]:
     registry = load_json(Path(args.registry))
     model = find_model(registry, args.model_name, args.model_version)
@@ -46,6 +55,18 @@ def build_gate(args: argparse.Namespace) -> dict[str, Any]:
             failures.append("registered model does not record feature schema vector length")
         if not feature_schema.get("sha256"):
             failures.append("registered model does not record feature schema hash")
+        artifact = model.get("artifact") or {}
+        artifact_path = str(artifact.get("path") or "").strip()
+        if artifact_path:
+            path = Path(artifact_path)
+            if not path.exists():
+                failures.append(f"registered model artifact is missing: {artifact_path}")
+            elif path.stat().st_size <= 0:
+                failures.append(f"registered model artifact is empty: {artifact_path}")
+            elif artifact.get("sha256") and artifact.get("sha256") != sha256_file(path):
+                failures.append(f"registered model artifact sha256 mismatch: {artifact_path}")
+        else:
+            warnings.append("registered model does not record a deployable artifact path")
     precision = float(detection.get("precision_percent", 0) or 0)
     recall = float(detection.get("recall_percent", 0) or 0)
     if detection:
@@ -72,6 +93,7 @@ def build_gate(args: argparse.Namespace) -> dict[str, Any]:
         },
         "model_registered": model is not None,
         "feature_schema": (model or {}).get("feature_schema", {}),
+        "artifact": (model or {}).get("artifact", {}),
         "precision_percent": precision,
         "recall_percent": recall,
         "drift_status": drift.get("status", "not_supplied"),

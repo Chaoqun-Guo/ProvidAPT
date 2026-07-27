@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-train p2-ml-pipeline alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
@@ -292,7 +292,7 @@ scheduled-report-plan:
 	python3 scripts/ops/scheduled-report-plan.py --name "$(or $(REPORT_NAME),compliance)" --cadence "$(or $(REPORT_CADENCE),1w)" --formats "$(or $(REPORT_FORMATS),markdown,json)" --recipients "$(or $(REPORT_RECIPIENTS),)" --out-dir "$(or $(REPORT_OUT_DIR),/var/lib/providapt/reports)" --retention-days "$(or $(REPORT_RETENTION_DAYS),90)" --max-report-mb "$(or $(REPORT_MAX_MB),128)" --out-json "$(or $(OUT_DIR),build/reports)/scheduled-report-plan.json" --out-md "$(or $(OUT_DIR),build/reports)/scheduled-report-plan.md"
 
 enterprise-readiness:
-	python3 scripts/ops/enterprise-readiness-report.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --postgres-drill "$(or $(POSTGRES_DRILL_JSON),build/postgres/postgres-drill.json)" --detection-quality "$(or $(DETECTION_QUALITY_JSON),build/evaluation/detection-quality.json)" --rbac-audit "$(or $(RBAC_AUDIT_JSON),build/rbac/rbac-audit.json)" --report-plan "$(or $(REPORT_PLAN_JSON),build/reports/scheduled-report-plan.json)" --out-json "$(or $(OUT_DIR),build)/enterprise-readiness.json" --out-md "$(or $(OUT_DIR),build)/enterprise-readiness.md"
+	python3 scripts/ops/enterprise-readiness-report.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --postgres-drill "$(or $(POSTGRES_DRILL_JSON),build/postgres/postgres-drill.json)" --detection-quality "$(or $(DETECTION_QUALITY_JSON),build/evaluation/detection-quality.json)" --rbac-audit "$(or $(RBAC_AUDIT_JSON),build/rbac/rbac-audit.json)" --report-plan "$(or $(REPORT_PLAN_JSON),build/reports/scheduled-report-plan.json)" --siem-verify "$(or $(SIEM_VERIFY_JSON),build/siem/siem-verification.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT_JSON),build/upgrade/rollout-plan.json)" --out-json "$(or $(OUT_DIR),build)/enterprise-readiness.json" --out-md "$(or $(OUT_DIR),build)/enterprise-readiness.md"
 
 soak-sample:
 	@if [ -z "$(STATUS_URL)" ] && [ -z "$(STATUS_JSON)" ]; then echo 'usage: make soak-sample STATUS_URL=http://localhost:18080/api/v1/status [SOAK_STARTED_AT_EPOCH=...] [OUT=build/performance/soak-samples.json]'; exit 2; fi
@@ -365,6 +365,19 @@ export-ground-truth:
 	@if [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make export-ground-truth GROUND_TRUTH=/var/log/providapt/ground-truth [OUT_DIR=build/evaluation-dataset]'; exit 2; fi
 	python3 scripts/evaluation/export_ground_truth_dataset.py "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/evaluation-dataset)" $(if $(CORRELATION_JSON),--correlation-json "$(CORRELATION_JSON)") $(if $(DATASET_VERSION),--dataset-version "$(DATASET_VERSION)")
 
+graph-dataset:
+	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make graph-dataset EVENTS=/var/log/providapt GROUND_TRUTH=/var/log/providapt/ground-truth [OUT_DIR=build/ml-dataset]'; exit 2; fi
+	python3 scripts/evaluation/build_graph_training_dataset.py --events "$(EVENTS)" --ground-truth "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/ml-dataset)" --dataset-version "$(or $(DATASET_VERSION),dev)" --window-seconds "$(or $(WINDOW_SECONDS),300)" --negative-ratio "$(or $(NEGATIVE_RATIO),1)"
+
+graph-train:
+	$(or $(CONDA_RUN),conda run -n $(or $(CONDA_ENV),torch_py39)) python scripts/evaluation/train_graph_detector.py --dataset "$(or $(GRAPH_DATASET),build/ml-dataset/graphs.jsonl)" --out-dir "$(or $(OUT_DIR),build/ml-model)" --architecture "$(or $(ARCH),gcn)" --epochs "$(or $(EPOCHS),20)" --hidden-dim "$(or $(HIDDEN_DIM),32)"
+
+p2-ml-pipeline:
+	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make p2-ml-pipeline EVENTS=... GROUND_TRUTH=... MODEL_VERSION=... [MODEL_NAME=graph-detector]'; exit 2; fi
+	$(MAKE) graph-dataset EVENTS="$(EVENTS)" GROUND_TRUTH="$(GROUND_TRUTH)" OUT_DIR="$(or $(DATASET_OUT_DIR),build/ml-dataset)" DATASET_VERSION="$(or $(DATASET_VERSION),$(MODEL_VERSION))"
+	$(MAKE) graph-train GRAPH_DATASET="$(or $(DATASET_OUT_DIR),build/ml-dataset)/graphs.jsonl" OUT_DIR="$(or $(MODEL_OUT_DIR),build/ml-model)" ARCH="$(or $(ARCH),gcn)" EPOCHS="$(or $(EPOCHS),20)"
+	$(MAKE) model-register DATASET_MANIFEST="$(or $(DATASET_OUT_DIR),build/ml-dataset)/manifest.json" MODEL_NAME="$(or $(MODEL_NAME),graph-detector)" MODEL_VERSION="$(MODEL_VERSION)" MODEL_METRICS="$(or $(MODEL_OUT_DIR),build/ml-model)/metrics.json" MODEL_ARTIFACT="$(or $(MODEL_OUT_DIR),build/ml-model)/model.pt" FEATURE_SCHEMA="$(or $(DATASET_OUT_DIR),build/ml-dataset)/feature_schema.json" MODEL_REGISTRY="$(or $(MODEL_REGISTRY),build/model-registry.json)" NOTES="P2 graph detector training pipeline"
+
 alert-quality:
 	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [OUT_DIR=build/evaluation]'; exit 2; fi
 	python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md"
@@ -379,7 +392,7 @@ attack-coverage-plan:
 
 model-register:
 	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_NAME)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make model-register DATASET_MANIFEST=build/evaluation-dataset/manifest.json MODEL_NAME=detector MODEL_VERSION=1.0.0 [MODEL_METRICS=metrics.json] [MODEL_REGISTRY=build/model-registry.json]'; exit 2; fi
-	python3 scripts/evaluation/model_registry.py register --manifest "$(DATASET_MANIFEST)" --registry "$(or $(MODEL_REGISTRY),build/model-registry.json)" --model-name "$(MODEL_NAME)" --model-version "$(MODEL_VERSION)" $(if $(MODEL_METRICS),--metrics "$(MODEL_METRICS)") $(if $(FEATURE_SCHEMA),--feature-schema "$(FEATURE_SCHEMA)") $(if $(COMMIT),--commit "$(COMMIT)") $(if $(NOTES),--notes "$(NOTES)")
+	python3 scripts/evaluation/model_registry.py register --manifest "$(DATASET_MANIFEST)" --registry "$(or $(MODEL_REGISTRY),build/model-registry.json)" --model-name "$(MODEL_NAME)" --model-version "$(MODEL_VERSION)" $(if $(MODEL_METRICS),--metrics "$(MODEL_METRICS)") $(if $(MODEL_ARTIFACT),--artifact "$(MODEL_ARTIFACT)") $(if $(FEATURE_SCHEMA),--feature-schema "$(FEATURE_SCHEMA)") $(if $(COMMIT),--commit "$(COMMIT)") $(if $(NOTES),--notes "$(NOTES)")
 
 model-drift:
 	@if [ -z "$(BASELINE_MANIFEST)" ] || [ -z "$(CANDIDATE_MANIFEST)" ]; then echo 'usage: make model-drift BASELINE_MANIFEST=old/manifest.json CANDIDATE_MANIFEST=new/manifest.json [OUT_DIR=build/evaluation]'; exit 2; fi
@@ -429,6 +442,8 @@ help:
 	@echo '  make attack-sim       Simulate an APT attack scenario'
 	@echo '  make attack-full-chain Run ATT&CK full-chain simulation'
 	@echo '  make export-ground-truth Export train/test labels and ATT&CK coverage'
+	@echo '  make graph-dataset    Build graph ML dataset from events and labels'
+	@echo '  make graph-train      Train GCN/GAT/GraphSAGE with conda torch_py39'
 	@echo '  make alert-quality    Export annotated alert precision and review metrics'
 	@echo '  make detection-quality Merge coverage and alert quality into precision/recall/F1'
 	@echo '  make attack-coverage-plan Plan safe simulations for missed ATT&CK techniques'
