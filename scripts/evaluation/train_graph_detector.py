@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -141,17 +140,60 @@ def split_graphs(graphs: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]
     return groups
 
 
-def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]]) -> dict[str, Any]:
+def roc_auc(labels: list[int], scores: list[float]) -> float:
+    positives = sum(labels)
+    negatives = len(labels) - positives
+    if positives == 0 or negatives == 0:
+        return 0.0
+    ranked = sorted(zip(scores, labels), key=lambda item: item[0])
+    rank_sum = 0.0
+    index = 0
+    while index < len(ranked):
+        end = index + 1
+        while end < len(ranked) and ranked[end][0] == ranked[index][0]:
+            end += 1
+        average_rank = (index + 1 + end) / 2.0
+        rank_sum += sum(label for _score, label in ranked[index:end]) * average_rank
+        index = end
+    return (rank_sum - positives * (positives + 1) / 2.0) / (positives * negatives)
+
+
+def pr_auc(labels: list[int], scores: list[float]) -> float:
+    positives = sum(labels)
+    if positives == 0:
+        return 0.0
+    pairs = sorted(zip(scores, labels), key=lambda item: item[0], reverse=True)
+    tp = fp = 0
+    previous_recall = 0.0
+    area = 0.0
+    for _score, label in pairs:
+        if label:
+            tp += 1
+        else:
+            fp += 1
+        recall = tp / positives
+        precision = tp / max(1, tp + fp)
+        area += precision * max(0.0, recall - previous_recall)
+        previous_recall = recall
+    return area
+
+
+def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], score_limit: int = 5000) -> dict[str, Any]:
     model.eval()
     tp = fp = tn = fn = 0
     scores = []
+    all_scores: list[float] = []
+    labels: list[int] = []
     with torch.no_grad():
         for graph in rows:
             x, adjacency, label = graph_to_tensors(torch, graph)
             probability = torch.sigmoid(model(x, adjacency)).item()
             prediction = 1 if probability >= 0.5 else 0
             expected = int(label.item())
-            scores.append({"graph_id": graph.get("graph_id", ""), "label": expected, "score": round(probability, 6), "prediction": prediction})
+            all_scores.append(probability)
+            labels.append(expected)
+            if len(scores) < score_limit:
+                scores.append({"graph_id": graph.get("graph_id", ""), "label": expected, "score": round(probability, 6), "prediction": prediction})
             if prediction == 1 and expected == 1:
                 tp += 1
             elif prediction == 1:
@@ -162,15 +204,29 @@ def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]]) ->
                 tn += 1
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
+    specificity = tn / (tn + fp) if tn + fp else 0.0
+    npv = tn / (tn + fn) if tn + fn else 0.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     accuracy = (tp + tn) / max(1, tp + tn + fp + fn)
+    denominator = ((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)) ** 0.5
+    mcc = ((tp * tn - fp * fn) / denominator) if denominator else 0.0
     return {
+        "support": len(rows),
         "accuracy_percent": round(accuracy * 100.0, 2),
         "precision_percent": round(precision * 100.0, 2),
         "recall_percent": round(recall * 100.0, 2),
+        "specificity_percent": round(specificity * 100.0, 2),
+        "negative_predictive_value_percent": round(npv * 100.0, 2),
         "f1_percent": round(f1 * 100.0, 2),
+        "balanced_accuracy_percent": round(((recall + specificity) / 2.0) * 100.0, 2),
+        "mcc": round(mcc, 6),
+        "false_positive_rate_percent": round((1.0 - specificity) * 100.0, 2),
+        "false_negative_rate_percent": round((1.0 - recall) * 100.0, 2),
+        "roc_auc_percent": round(roc_auc(labels, all_scores) * 100.0, 2),
+        "pr_auc_percent": round(pr_auc(labels, all_scores) * 100.0, 2),
         "confusion": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
-        "scores": scores,
+        "score_count": len(all_scores),
+        "score_sample": scores,
     }
 
 
@@ -196,13 +252,18 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
             loss.backward()
             optimizer.step()
             total_loss += float(loss.item())
-        val_metrics = evaluate(torch, model, groups["val"])
+        val_metrics = evaluate(torch, model, groups["val"], args.score_limit)
         history.append({
             "epoch": epoch,
             "loss": round(total_loss / max(1, len(groups["train"])), 6),
             "val_f1_percent": val_metrics["f1_percent"],
+            "val_accuracy_percent": val_metrics["accuracy_percent"],
+            "val_precision_percent": val_metrics["precision_percent"],
+            "val_recall_percent": val_metrics["recall_percent"],
         })
-    test_metrics = evaluate(torch, model, groups["test"])
+    train_metrics = evaluate(torch, model, groups["train"], args.score_limit)
+    val_metrics = evaluate(torch, model, groups["val"], args.score_limit)
+    test_metrics = evaluate(torch, model, groups["test"], args.score_limit)
     label_counts = Counter(str(graph.get("label_name") or graph.get("label")) for graph in graphs)
     report = {
         "schema": "providapt.graph_detector_training.v1",
@@ -215,6 +276,9 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
         "label_summary": dict(label_counts),
         "split_summary": {key: len(value) for key, value in groups.items()},
         "history": history,
+        "train_metrics": train_metrics,
+        "val_metrics": val_metrics,
+        "test_metrics": test_metrics,
         **test_metrics,
     }
     out_dir = Path(args.out_dir)
@@ -238,7 +302,13 @@ def render_metrics(report: dict[str, Any]) -> str:
         f"- Accuracy: `{report['accuracy_percent']}%`",
         f"- Precision: `{report['precision_percent']}%`",
         f"- Recall: `{report['recall_percent']}%`",
+        f"- Specificity: `{report['specificity_percent']}%`",
         f"- F1: `{report['f1_percent']}%`",
+        f"- Balanced accuracy: `{report['balanced_accuracy_percent']}%`",
+        f"- ROC AUC: `{report['roc_auc_percent']}%`",
+        f"- PR AUC: `{report['pr_auc_percent']}%`",
+        f"- MCC: `{report['mcc']}`",
+        f"- Confusion: `tp={report['confusion']['tp']} fp={report['confusion']['fp']} tn={report['confusion']['tn']} fn={report['confusion']['fn']}`",
         "",
     ])
 
@@ -259,9 +329,12 @@ def render_model_card(report: dict[str, Any]) -> str:
         "",
         "## Validation",
         "",
+        f"- Accuracy: `{report['accuracy_percent']}%`",
         f"- Precision: `{report['precision_percent']}%`",
         f"- Recall: `{report['recall_percent']}%`",
         f"- F1: `{report['f1_percent']}%`",
+        f"- ROC AUC: `{report['roc_auc_percent']}%`",
+        f"- PR AUC: `{report['pr_auc_percent']}%`",
         "",
         "## Operational Notes",
         "",
@@ -282,6 +355,7 @@ def main() -> int:
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--weight-decay", type=float, default=0.0005)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--score-limit", type=int, default=5000)
     args = parser.parse_args()
     report = train(args)
     print(f"architecture={report['architecture']} f1={report['f1_percent']} out={args.out_dir}")

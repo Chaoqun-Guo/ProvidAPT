@@ -26,6 +26,13 @@ class TrainGraphDetectorTest(unittest.TestCase):
         self.assertEqual(len(groups["test"]), 1)
         self.assertEqual(len(groups["val"]), 1)
 
+    def test_auc_helpers_handle_separable_scores(self) -> None:
+        labels = [0, 0, 1, 1]
+        scores = [0.1, 0.2, 0.8, 0.9]
+
+        self.assertEqual(subject.roc_auc(labels, scores), 1.0)
+        self.assertEqual(subject.pr_auc(labels, scores), 1.0)
+
     @unittest.skipIf(subject.torch is None, "PyTorch is not installed")
     def test_graph_to_tensors_preserves_shape(self) -> None:
         graph = {

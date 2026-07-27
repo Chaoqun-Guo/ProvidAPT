@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-train p2-ml-pipeline alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train p2-ml-pipeline alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
@@ -369,6 +369,10 @@ graph-dataset:
 	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make graph-dataset EVENTS=/var/log/providapt GROUND_TRUTH=/var/log/providapt/ground-truth [OUT_DIR=build/ml-dataset]'; exit 2; fi
 	python3 scripts/evaluation/build_graph_training_dataset.py --events "$(EVENTS)" --ground-truth "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/ml-dataset)" --dataset-version "$(or $(DATASET_VERSION),dev)" --window-seconds "$(or $(WINDOW_SECONDS),300)" --negative-ratio "$(or $(NEGATIVE_RATIO),1)"
 
+graph-augment:
+	@if [ -z "$(GRAPH_DATASET)" ]; then echo 'usage: make graph-augment GRAPH_DATASET=build/ml-dataset/graphs.jsonl [OUT_DIR=build/ml-dataset-large] [RECORDS=200000]'; exit 2; fi
+	python3 scripts/evaluation/augment_graph_dataset.py --input "$(GRAPH_DATASET)" --out-dir "$(or $(OUT_DIR),build/ml-dataset-large)" --records "$(or $(RECORDS),200000)" --dataset-version "$(or $(DATASET_VERSION),synthetic-large)" $(if $(SOURCE_MANIFEST),--source-manifest "$(SOURCE_MANIFEST)") $(if $(FEATURE_SCHEMA),--feature-schema "$(FEATURE_SCHEMA)")
+
 graph-train:
 	$(or $(CONDA_RUN),conda run -n $(or $(CONDA_ENV),torch_py39)) python scripts/evaluation/train_graph_detector.py --dataset "$(or $(GRAPH_DATASET),build/ml-dataset/graphs.jsonl)" --out-dir "$(or $(OUT_DIR),build/ml-model)" --architecture "$(or $(ARCH),gcn)" --epochs "$(or $(EPOCHS),20)" --hidden-dim "$(or $(HIDDEN_DIM),32)"
 
@@ -443,6 +447,7 @@ help:
 	@echo '  make attack-full-chain Run ATT&CK full-chain simulation'
 	@echo '  make export-ground-truth Export train/test labels and ATT&CK coverage'
 	@echo '  make graph-dataset    Build graph ML dataset from events and labels'
+	@echo '  make graph-augment    Expand captured graphs into a large synthetic dataset'
 	@echo '  make graph-train      Train GCN/GAT/GraphSAGE with conda torch_py39'
 	@echo '  make alert-quality    Export annotated alert precision and review metrics'
 	@echo '  make detection-quality Merge coverage and alert quality into precision/recall/F1'
