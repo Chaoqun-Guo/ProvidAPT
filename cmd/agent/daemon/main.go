@@ -1714,6 +1714,9 @@ func main() {
 		}
 		if mgmtServer != nil {
 			for _, agent := range mgmtServer.FleetSnapshot(mgmt.FleetFilter{Group: group, Tag: tag}) {
+				if includeLocal && strings.EqualFold(strings.TrimSpace(agent.AgentID), strings.TrimSpace(localAgent.AgentID)) {
+					continue
+				}
 				fleet.Agents = append(fleet.Agents, api.ClusterAgent{
 					AgentID:              agent.AgentID,
 					Hostname:             agent.Hostname,

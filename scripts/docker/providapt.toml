@@ -33,5 +33,10 @@ enable_proc = true
 [analyzer]
 scan_interval = "10s"
 
+[telemetry]
+endpoint = "127.0.0.1:50051"
+interval = "5s"
+enable_tls = false
+
 [license]
 path = "/etc/providapt/license.lic"
