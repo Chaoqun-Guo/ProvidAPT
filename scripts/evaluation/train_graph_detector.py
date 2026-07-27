@@ -76,6 +76,50 @@ def graph_to_tensors(torch: Any, graph: dict[str, Any], device: str | None = Non
     return x, adjacency, label
 
 
+def graph_batch_to_tensors(torch: Any, graphs: list[dict[str, Any]], device: str | None = None, feature_transform: str = "none") -> tuple[Any, Any, Any, Any, int]:
+    feature_rows: list[list[float]] = []
+    edge_pairs: list[tuple[int, int]] = []
+    graph_indexes: list[int] = []
+    labels: list[float] = []
+    offset = 0
+    for graph_index, graph in enumerate(graphs):
+        nodes = graph.get("nodes", [])
+        edges = graph.get("edges", [])
+        if not isinstance(nodes, list) or not nodes:
+            nodes = [{"id": "empty:0", "type": "unknown", "features": [0.0] * 8}]
+        node_ids = [str(node.get("id", index)) for index, node in enumerate(nodes)]
+        node_index = {node_id: offset + index for index, node_id in enumerate(node_ids)}
+        for node in nodes:
+            row = node.get("features") if isinstance(node, dict) else None
+            if not isinstance(row, list) or not row:
+                row = [0.0] * 8
+            feature_rows.append([scale_feature(index, float(value or 0.0), feature_transform) for index, value in enumerate(row)])
+            graph_indexes.append(graph_index)
+        for index in range(len(nodes)):
+            edge_pairs.append((offset + index, offset + index))
+        if isinstance(edges, list):
+            for edge in edges:
+                if not isinstance(edge, dict):
+                    continue
+                src = node_index.get(str(edge.get("source", "")))
+                dst = node_index.get(str(edge.get("target", "")))
+                if src is None or dst is None:
+                    continue
+                edge_pairs.append((src, dst))
+                edge_pairs.append((dst, src))
+        labels.append(float(graph.get("label", 0)))
+        offset += len(nodes)
+    x = torch.tensor(feature_rows, dtype=torch.float32, device=device)
+    adjacency = torch.zeros((len(feature_rows), len(feature_rows)), dtype=torch.float32, device=device)
+    if edge_pairs:
+        src = torch.tensor([pair[0] for pair in edge_pairs], dtype=torch.long, device=device)
+        dst = torch.tensor([pair[1] for pair in edge_pairs], dtype=torch.long, device=device)
+        adjacency[src, dst] = 1.0
+    label = torch.tensor(labels, dtype=torch.float32, device=device)
+    graph_index_tensor = torch.tensor(graph_indexes, dtype=torch.long, device=device)
+    return x, adjacency, label, graph_index_tensor, len(graphs)
+
+
 class _GraphClassifier(nn.Module if nn is not None else object):
     def __init__(self, input_dim: int, hidden_dim: int, architecture: str, heads: int) -> None:
         if nn is None:
@@ -117,7 +161,7 @@ class _GraphClassifier(nn.Module if nn is not None else object):
         weights = torch.softmax(scores, dim=1)
         return weights.matmul(h)
 
-    def forward(self, x: Any, adjacency: Any) -> Any:
+    def forward(self, x: Any, adjacency: Any, graph_index: Any | None = None, graph_count: int | None = None) -> Any:
         if self.architecture == "mlp":
             h = self.relu(self.layer1(x))
             h = self.dropout(self.relu(self.layer2(h)))
@@ -131,8 +175,16 @@ class _GraphClassifier(nn.Module if nn is not None else object):
             norm = self.normalized_adjacency(adjacency)
             h = self.relu(self.layer1(norm.matmul(x)))
             h = self.dropout(self.relu(self.layer2(norm.matmul(h))))
-        pooled = h.mean(dim=0)
-        return self.out(pooled).view(1)
+        if graph_index is None:
+            pooled = h.mean(dim=0)
+            return self.out(pooled).view(1)
+        if graph_count is None:
+            graph_count = int(graph_index.max().item()) + 1 if graph_index.numel() else 1
+        pooled = torch.zeros((graph_count, h.shape[1]), dtype=h.dtype, device=h.device)
+        pooled.index_add_(0, graph_index, h)
+        counts = torch.bincount(graph_index, minlength=graph_count).clamp(min=1).to(dtype=h.dtype).unsqueeze(1)
+        pooled = pooled / counts
+        return self.out(pooled).view(graph_count)
 
 
 def split_graphs(graphs: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -161,6 +213,15 @@ def limit_graphs(rows: list[dict[str, Any]], limit: int, seed: int) -> list[dict
         rng = random.Random(seed)
         selected = positives + rng.sample(negatives, keep_negative)
     return sorted(selected, key=lambda graph: str(graph.get("graph_id") or ""))
+
+
+def chunks(rows: list[dict[str, Any]], size: int) -> Any:
+    if size <= 1:
+        for row in rows:
+            yield [row]
+        return
+    for index in range(0, len(rows), size):
+        yield rows[index:index + size]
 
 
 def roc_auc(labels: list[int], scores: list[float]) -> float:
@@ -201,30 +262,77 @@ def pr_auc(labels: list[int], scores: list[float]) -> float:
     return area
 
 
-def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], score_limit: int = 5000, device: str | None = None, feature_transform: str = "none") -> dict[str, Any]:
+def predict_probabilities(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], device: str | None, feature_transform: str, batch_size: int) -> tuple[list[int], list[float]]:
+    labels: list[int] = []
+    probabilities: list[float] = []
+    model.eval()
+    with torch.no_grad():
+        for batch in chunks(rows, batch_size):
+            if batch_size <= 1:
+                x, adjacency, label = graph_to_tensors(torch, batch[0], device, feature_transform)
+                logits = model(x, adjacency)
+            else:
+                x, adjacency, label, graph_index, graph_count = graph_batch_to_tensors(torch, batch, device, feature_transform)
+                logits = model(x, adjacency, graph_index, graph_count)
+            probabilities.extend(float(value) for value in torch.sigmoid(logits).detach().cpu().tolist())
+            labels.extend(int(value) for value in label.detach().cpu().tolist())
+    return labels, probabilities
+
+
+def best_f1_threshold(labels: list[int], probabilities: list[float]) -> tuple[float, float]:
+    best_threshold = 0.5
+    best_f1 = -1.0
+    for step in range(1, 1000):
+        threshold = step / 1000.0
+        tp = fp = fn = 0
+        for label, probability in zip(labels, probabilities):
+            prediction = 1 if probability >= threshold else 0
+            if prediction == 1 and label == 1:
+                tp += 1
+            elif prediction == 1:
+                fp += 1
+            elif label == 1:
+                fn += 1
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = threshold
+    return best_threshold, best_f1
+
+
+def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], score_limit: int = 5000, device: str | None = None, feature_transform: str = "none", batch_size: int = 1, threshold: float = 0.5) -> dict[str, Any]:
     model.eval()
     tp = fp = tn = fn = 0
     scores = []
     all_scores: list[float] = []
     labels: list[int] = []
     with torch.no_grad():
-        for graph in rows:
-            x, adjacency, label = graph_to_tensors(torch, graph, device, feature_transform)
-            probability = torch.sigmoid(model(x, adjacency)).item()
-            prediction = 1 if probability >= 0.5 else 0
-            expected = int(label.item())
-            all_scores.append(probability)
-            labels.append(expected)
-            if len(scores) < score_limit:
-                scores.append({"graph_id": graph.get("graph_id", ""), "label": expected, "score": round(probability, 6), "prediction": prediction})
-            if prediction == 1 and expected == 1:
-                tp += 1
-            elif prediction == 1:
-                fp += 1
-            elif expected == 1:
-                fn += 1
+        for batch in chunks(rows, batch_size):
+            if batch_size <= 1:
+                x, adjacency, label = graph_to_tensors(torch, batch[0], device, feature_transform)
+                logits = model(x, adjacency)
             else:
-                tn += 1
+                x, adjacency, label, graph_index, graph_count = graph_batch_to_tensors(torch, batch, device, feature_transform)
+                logits = model(x, adjacency, graph_index, graph_count)
+            probabilities = torch.sigmoid(logits).detach().cpu().tolist()
+            expected_values = label.detach().cpu().tolist()
+            for graph, probability, expected_value in zip(batch, probabilities, expected_values):
+                prediction = 1 if probability >= threshold else 0
+                expected = int(expected_value)
+                all_scores.append(float(probability))
+                labels.append(expected)
+                if len(scores) < score_limit:
+                    scores.append({"graph_id": graph.get("graph_id", ""), "label": expected, "score": round(float(probability), 6), "prediction": prediction})
+                if prediction == 1 and expected == 1:
+                    tp += 1
+                elif prediction == 1:
+                    fp += 1
+                elif expected == 1:
+                    fn += 1
+                else:
+                    tn += 1
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
     specificity = tn / (tn + fp) if tn + fp else 0.0
@@ -235,6 +343,7 @@ def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], sc
     mcc = ((tp * tn - fp * fn) / denominator) if denominator else 0.0
     return {
         "support": len(rows),
+        "threshold": threshold,
         "accuracy_percent": round(accuracy * 100.0, 2),
         "precision_percent": round(precision * 100.0, 2),
         "recall_percent": round(recall * 100.0, 2),
@@ -288,25 +397,36 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
         total_loss = 0.0
         train_rows = list(groups["train"])
         random.Random(args.seed + epoch).shuffle(train_rows)
-        for graph in train_rows:
-            x, adjacency, label = graph_to_tensors(torch, graph, device, args.feature_transform)
+        for batch in chunks(train_rows, args.batch_size):
+            if args.batch_size <= 1:
+                x, adjacency, label = graph_to_tensors(torch, batch[0], device, args.feature_transform)
+                logits = model(x, adjacency)
+            else:
+                x, adjacency, label, graph_index, graph_count = graph_batch_to_tensors(torch, batch, device, args.feature_transform)
+                logits = model(x, adjacency, graph_index, graph_count)
             optimizer.zero_grad()
-            loss = loss_fn(model(x, adjacency), label)
+            loss = loss_fn(logits, label)
             loss.backward()
             optimizer.step()
-            total_loss += float(loss.item())
-        val_metrics = evaluate(torch, model, groups["val"], args.score_limit, device, args.feature_transform)
+            total_loss += float(loss.item()) * len(batch)
+        val_metrics = evaluate(torch, model, groups["val"], args.score_limit, device, args.feature_transform, args.batch_size)
         history.append({
             "epoch": epoch,
-            "loss": round(total_loss / max(1, len(groups["train"])), 6),
+            "loss": round(total_loss / max(1, len(train_rows)), 6),
             "val_f1_percent": val_metrics["f1_percent"],
             "val_accuracy_percent": val_metrics["accuracy_percent"],
             "val_precision_percent": val_metrics["precision_percent"],
             "val_recall_percent": val_metrics["recall_percent"],
         })
-    train_metrics = evaluate(torch, model, groups["train"], args.score_limit, device, args.feature_transform)
-    val_metrics = evaluate(torch, model, groups["val"], args.score_limit, device, args.feature_transform)
-    test_metrics = evaluate(torch, model, groups["test"], args.score_limit, device, args.feature_transform)
+    if args.threshold == "auto":
+        val_labels, val_probabilities = predict_probabilities(torch, model, groups["val"], device, args.feature_transform, args.batch_size)
+        threshold, val_best_f1 = best_f1_threshold(val_labels, val_probabilities)
+    else:
+        threshold = float(args.threshold)
+        val_best_f1 = 0.0
+    train_metrics = evaluate(torch, model, groups["train"], args.score_limit, device, args.feature_transform, args.batch_size, threshold)
+    val_metrics = evaluate(torch, model, groups["val"], args.score_limit, device, args.feature_transform, args.batch_size, threshold)
+    test_metrics = evaluate(torch, model, groups["test"], args.score_limit, device, args.feature_transform, args.batch_size, threshold)
     label_counts = Counter(str(graph.get("label_name") or graph.get("label")) for graph in graphs)
     report = {
         "schema": "providapt.graph_detector_training.v1",
@@ -317,6 +437,9 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
         "epochs": args.epochs,
         "hidden_dim": args.hidden_dim,
         "positive_weight": round(float(positive_weight), 6),
+        "batch_size": args.batch_size,
+        "threshold": round(float(threshold), 6),
+        "val_best_f1_percent": round(val_best_f1 * 100.0, 2),
         "dataset": str(args.dataset),
         "dataset_records": len(graphs),
         "label_summary": dict(label_counts),
@@ -411,6 +534,8 @@ def main() -> int:
     parser.add_argument("--max-val-graphs", type=int, default=0, help="Optional stratified cap for validation graphs; all positive graphs are retained")
     parser.add_argument("--max-test-graphs", type=int, default=0, help="Optional stratified cap for test graphs; all positive graphs are retained")
     parser.add_argument("--feature-transform", choices=["none", "log1p"], default="none")
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--threshold", default="0.5", help="Decision threshold, or auto to maximize validation F1")
     args = parser.parse_args()
     report = train(args)
     print(f"architecture={report['architecture']} f1={report['f1_percent']} out={args.out_dir}")
