@@ -28,6 +28,7 @@ Current closure progress:
 - PostgreSQL logical backup, optional staging restore, and structured drill reports are available through `make ops-postgres-drill`.
 - Fleet list, lifecycle operations, and dry-run lifecycle plans are wrapped by `scripts/ops/fleet-lifecycle.sh`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
+- Alert quality reporting is available through `make alert-quality ALERTS=...`.
 
 ## P2 - Detection and Investigation
 

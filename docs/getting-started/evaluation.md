@@ -177,3 +177,15 @@ coverage only.
   `actor`, and `object`; these fields are the minimum viable training label.
 - Use a fixed `--seed` and `--train-ratio` for repeatable model comparisons.
 - Record model training inputs by commit, host, kernel mode, and simulation run.
+
+## Alert Quality Feedback
+
+After analysts mark alerts as `true_positive`, `false_positive`, `benign`, or
+`duplicate`, export review metrics:
+
+```bash
+make alert-quality ALERTS=/var/log/providapt OUT_DIR=build/evaluation
+```
+
+Use `alert-quality.json` as machine-readable detector quality evidence and
+`alert-quality.md` for rule review meetings.

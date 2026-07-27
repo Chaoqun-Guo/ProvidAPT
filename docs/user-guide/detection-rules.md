@@ -190,3 +190,14 @@ Supported classifications:
 The annotation is stored in alert `details.classification` and
 `details.classification_updated_at`, so exports can join analyst feedback with
 ground-truth and ATT&CK coverage reports.
+
+Generate an offline quality report from active or archived alert workflow files:
+
+```bash
+make alert-quality ALERTS=/var/log/providapt OUT_DIR=build/evaluation
+```
+
+The report writes `alert-quality.json` and `alert-quality.md` with review
+coverage, actionable precision, duplicate rate, per-pattern classification
+counts, and high false-positive pattern candidates. Use it during rule tuning
+and before publishing new policy bundles.

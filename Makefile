@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth alert-quality verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
@@ -324,6 +324,10 @@ export-ground-truth:
 	@if [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make export-ground-truth GROUND_TRUTH=/var/log/providapt/ground-truth [OUT_DIR=build/evaluation-dataset]'; exit 2; fi
 	python3 scripts/evaluation/export_ground_truth_dataset.py "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/evaluation-dataset)" $(if $(CORRELATION_JSON),--correlation-json "$(CORRELATION_JSON)") $(if $(DATASET_VERSION),--dataset-version "$(DATASET_VERSION)")
 
+alert-quality:
+	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [OUT_DIR=build/evaluation]'; exit 2; fi
+	python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md"
+
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 
@@ -357,6 +361,7 @@ help:
 	@echo '  make attack-sim       Simulate an APT attack scenario'
 	@echo '  make attack-full-chain Run ATT&CK full-chain simulation'
 	@echo '  make export-ground-truth Export train/test labels and ATT&CK coverage'
+	@echo '  make alert-quality    Export annotated alert precision and review metrics'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''
