@@ -45,17 +45,28 @@ def detection_status(report: dict[str, Any]) -> str:
     return "pass" if report.get("status") == "pass" else ("warn" if report else "blocked")
 
 
+def optional_status(report: dict[str, Any]) -> str:
+    if not report:
+        return "blocked"
+    status = str(report.get("status", "")).lower()
+    return status if status in {"pass", "warn", "blocked"} else "blocked"
+
+
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
     release = load_json(Path(args.release_gates))
     secrets = load_json(Path(args.secret_manifest))
     postgres = load_json(Path(args.postgres_drill))
     detection = load_json(Path(args.detection_quality))
+    rbac = load_json(Path(args.rbac_audit))
+    report_plan = load_json(Path(args.report_plan))
     release_status, blocked_gates = status_from_release_gates(release)
     sections = {
         "release_gates": {"status": release_status, "blocked": blocked_gates},
         "secret_backends": {"status": backend_status(secrets), "variables": secrets.get("variable_count", 0)},
         "postgres_drill": {"status": postgres_status(postgres), "backup": (postgres.get("backup") or {}).get("status", "missing"), "restore": (postgres.get("restore") or {}).get("status", "missing")},
         "detection_quality": {"status": detection_status(detection), "precision": detection.get("precision_percent", 0), "recall": detection.get("recall_percent", 0)},
+        "rbac_audit": {"status": optional_status(rbac), "keys": rbac.get("key_count", 0), "tenant_scoped_keys": rbac.get("tenant_scoped_keys", 0)},
+        "scheduled_reports": {"status": optional_status(report_plan), "cadence": report_plan.get("cadence", "missing"), "formats": ",".join(report_plan.get("formats", [])) if isinstance(report_plan.get("formats"), list) else "missing"},
     }
     status = "pass"
     if any(value["status"] == "blocked" for value in sections.values()):
@@ -93,6 +104,8 @@ def main() -> int:
     parser.add_argument("--secret-manifest", default="build/secrets/secret-backend-manifest.json")
     parser.add_argument("--postgres-drill", default="build/postgres/postgres-drill.json")
     parser.add_argument("--detection-quality", default="build/evaluation/detection-quality.json")
+    parser.add_argument("--rbac-audit", default="build/rbac/rbac-audit.json")
+    parser.add_argument("--report-plan", default="build/reports/scheduled-report-plan.json")
     parser.add_argument("--out-json", default="build/enterprise-readiness.json")
     parser.add_argument("--out-md", default="build/enterprise-readiness.md")
     args = parser.parse_args()

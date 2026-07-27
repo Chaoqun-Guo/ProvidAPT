@@ -234,13 +234,31 @@ make ops-siem-verify
 The report bundle returns both JSON and HTML artifacts. Use JSON for automated
 release evidence checks and HTML for operator review or customer handoff.
 
+Plan scheduled executive or compliance report generation:
+
+```bash
+make scheduled-report-plan \
+  REPORT_NAME=compliance \
+  REPORT_CADENCE=1w \
+  REPORT_FORMATS=markdown,json,bundle \
+  REPORT_RECIPIENTS=secops@example.com,compliance@example.com \
+  OUT_DIR=build/reports
+```
+
+The generated plan records the report command, retention budget, systemd timer
+metadata, and Kubernetes CronJob schedule. Treat it as the approval artifact
+before wiring the schedule into customer automation.
+
 ## 8. Enterprise and Soak Readiness
 
 Aggregate P3 enterprise delivery evidence after release gates, secret backend
-handoff, PostgreSQL drills, and detection quality reports are generated:
+handoff, PostgreSQL drills, detection quality, RBAC audit, and scheduled report
+plan artifacts are generated:
 
 ```bash
-make enterprise-readiness
+make enterprise-readiness \
+  RBAC_AUDIT_JSON=build/rbac/rbac-audit.json \
+  REPORT_PLAN_JSON=build/reports/scheduled-report-plan.json
 ```
 
 Evaluate long-duration P4 soak evidence against CPU, memory, disk, duration,

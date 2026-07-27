@@ -34,9 +34,20 @@ class EnterpriseReadinessReportTest(unittest.TestCase):
         secrets = self.write_json("secrets.json", {"outputs": {"systemd_dropin": "a", "docker_compose": "b", "kubernetes_secret": "c"}, "variable_count": 3})
         postgres = self.write_json("postgres.json", {"backup": {"status": "pass"}, "restore": {"status": "pass"}})
         detection = self.write_json("detection.json", {"status": "pass", "precision_percent": 80, "recall_percent": 90})
-        report = enterprise.build_report(Namespace(release_gates=str(release), secret_manifest=str(secrets), postgres_drill=str(postgres), detection_quality=str(detection)))
+        rbac = self.write_json("rbac.json", {"status": "pass", "key_count": 2, "tenant_scoped_keys": 1})
+        report_plan = self.write_json("report-plan.json", {"status": "pass", "cadence": "1w", "formats": ["markdown", "json"]})
+        report = enterprise.build_report(Namespace(
+            release_gates=str(release),
+            secret_manifest=str(secrets),
+            postgres_drill=str(postgres),
+            detection_quality=str(detection),
+            rbac_audit=str(rbac),
+            report_plan=str(report_plan),
+        ))
         self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["sections"]["secret_backends"]["status"], "pass")
+        self.assertEqual(report["sections"]["rbac_audit"]["status"], "pass")
+        self.assertEqual(report["sections"]["scheduled_reports"]["status"], "pass")
         self.assertIn("Enterprise Readiness", enterprise.render_markdown(report))
 
 

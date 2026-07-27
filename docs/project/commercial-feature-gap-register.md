@@ -37,6 +37,7 @@ Current closure progress:
 - Fleet list, lifecycle operations, and dry-run lifecycle plans are wrapped by `scripts/ops/fleet-lifecycle.sh`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
 - Alert quality reporting is available through `make alert-quality ALERTS=...`.
+- RBAC and tenant-scope configuration audits are available through `make ops-rbac-audit PROVIDAPT_CONFIG=...`.
 
 ## P2 - Detection and Investigation
 
@@ -66,6 +67,8 @@ Current closure progress:
 Current closure progress:
 
 - Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, and detection quality through `make enterprise-readiness`.
+- Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
+- Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
 - Upgrade rollout planning produces canary, wave, pause/resume, and rollback evidence through `make upgrade-rollout-plan`.
 - SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.
 

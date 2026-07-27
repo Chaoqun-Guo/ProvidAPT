@@ -81,3 +81,30 @@ tenant_header = "X-Forwarded-Tenant"
 - Keep admin keys out of scripts used by analysts.
 - Prefer tenant-scoped keys for customer-facing or managed-service use.
 - Review custom wildcard permissions before production approval.
+
+## Production RBAC Audit
+
+Run the RBAC audit before customer handoff, release readiness review, and after
+every identity-provider or reverse-proxy change:
+
+```bash
+make ops-rbac-audit \
+  PROVIDAPT_CONFIG=/etc/providapt/providapt.toml \
+  OUT_DIR=build/rbac
+```
+
+The audit blocks production readiness when API authentication is disabled,
+configured keys have no roles, custom permissions are malformed, or custom roles
+use unrestricted wildcard access. It warns when non-admin keys are not
+tenant-scoped or when keys are missing operator identities.
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `rbac-audit.json` | Machine-readable status, role counts, tenant-scoped key count, failures, and warnings |
+| `rbac-audit.md` | Reviewer-facing checklist for security and customer handoff |
+
+Attach the JSON output to `make enterprise-readiness` with
+`RBAC_AUDIT_JSON=build/rbac/rbac-audit.json` when the file is not in the default
+location.
