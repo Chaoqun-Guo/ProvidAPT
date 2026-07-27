@@ -85,6 +85,9 @@ def event_value(record: dict[str, Any], *names: str, default: Any = "") -> Any:
     value = first(record, *names, default=None)
     if value not in (None, ""):
         return value
+    value = nested(record, "process", *names, default=None)
+    if value not in (None, ""):
+        return value
     value = nested(record, "payload", *names, default=None)
     if value not in (None, ""):
         return value
@@ -199,7 +202,7 @@ def matches_truth(event: dict[str, Any], truth: dict[str, Any], window_ns: int) 
     return any(term and term in haystack for term in truth_terms(truth))
 
 
-def build_graph(events: list[dict[str, Any]], truths: list[dict[str, Any]], graph_id: str, split_seed: str) -> dict[str, Any]:
+def build_graph(events: list[dict[str, Any]], truths: list[dict[str, Any]], graph_id: str, split_seed: str, include_truth_nodes: bool = False) -> dict[str, Any]:
     node_kinds: dict[str, str] = {}
     node_events: Counter[str] = Counter()
     edges: Counter[tuple[str, str, str]] = Counter()
@@ -236,15 +239,16 @@ def build_graph(events: list[dict[str, Any]], truths: list[dict[str, Any]], grap
             node_events[target] += 1
 
     for truth in truths:
-        truth_node = add_node("truth", truth.get("step_id") or truth.get("step_name") or "unknown")
         matched_truth.append(truth)
-        actor = truth.get("actor")
-        obj = truth.get("object")
-        if actor:
-            edges[(add_node("process", actor), truth_node, "truth_actor")] += 1
-        if obj:
-            target_kind = "network" if ":" in str(obj) and "/" not in str(obj) else "file"
-            edges[(truth_node, add_node(target_kind, obj), "truth_object")] += 1
+        if include_truth_nodes:
+            truth_node = add_node("truth", truth.get("step_id") or truth.get("step_name") or "unknown")
+            actor = truth.get("actor")
+            obj = truth.get("object")
+            if actor:
+                edges[(add_node("process", actor), truth_node, "truth_actor")] += 1
+            if obj:
+                target_kind = "network" if ":" in str(obj) and "/" not in str(obj) else "file"
+                edges[(truth_node, add_node(target_kind, obj), "truth_object")] += 1
 
     indegree: Counter[str] = Counter()
     outdegree: Counter[str] = Counter()
@@ -325,8 +329,9 @@ def make_feature_schema() -> dict[str, Any]:
     return payload
 
 
-def build_dataset(event_files: list[Path], truth_files: list[Path], args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def build_dataset(event_files: list[Path], truth_files: list[Path], args: argparse.Namespace, normal_event_files: list[Path] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     events = [event for path in event_files for event in load_jsonl(path)]
+    normal_events = [event for path in (normal_event_files or []) for event in load_jsonl(path)]
     truths = [truth for path in truth_files for truth in load_jsonl(path)]
     window_ns = int(args.window_seconds * 1_000_000_000)
     graphs: list[dict[str, Any]] = []
@@ -347,9 +352,9 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
                 "command": truth.get("command", ""),
             }]
         graph_id = f"truth-{truth.get('run_id', 'run')}-{truth.get('step_id', truth_index)}"
-        graphs.append(build_graph(matched, [truth], graph_id, args.split_seed))
+        graphs.append(build_graph(matched, [truth], graph_id, args.split_seed, getattr(args, "include_truth_nodes", False)))
 
-    negative_events = [event for index, event in enumerate(events) if index not in matched_event_indexes]
+    negative_events = normal_events + [event for index, event in enumerate(events) if index not in matched_event_indexes]
     max_negative = max(1, int(len(graphs) * args.negative_ratio)) if graphs else len(negative_events)
     if negative_events:
         chunks: list[list[dict[str, Any]]] = []
@@ -357,7 +362,7 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
         for offset in range(0, min(len(negative_events), max_negative * chunk_size), chunk_size):
             chunks.append(negative_events[offset:offset + chunk_size])
         for index, chunk in enumerate(chunks[:max_negative]):
-            graphs.append(build_graph(chunk, [], f"benign-{index:04d}", args.split_seed))
+            graphs.append(build_graph(chunk, [], f"benign-{index:04d}", args.split_seed, getattr(args, "include_truth_nodes", False)))
 
     counts = Counter(graph["label_name"] for graph in graphs)
     split_counts: dict[str, Counter[str]] = defaultdict(Counter)
@@ -371,12 +376,14 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
         "dataset_version": args.dataset_version,
         "dataset_id": "graphds-" + hashlib.sha256(json.dumps(graphs, sort_keys=True).encode("utf-8")).hexdigest()[:16],
         "record_count": len(graphs),
-        "event_source_count": len(events),
+        "event_source_count": len(events) + len(normal_events),
+        "attack_event_source_count": len(events),
+        "normal_event_source_count": len(normal_events),
         "ground_truth_count": len(truths),
         "label_summary": dict(counts),
         "split_summary": {key: dict(value) for key, value in sorted(split_counts.items())},
         "feature_schema_sha256": feature_schema["sha256"],
-        "source_files": [str(path) for path in event_files + truth_files],
+        "source_files": [str(path) for path in event_files + (normal_event_files or []) + truth_files],
     }
     return graphs, {"manifest": manifest, "feature_schema": feature_schema}
 
@@ -390,6 +397,7 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build graph-level ML training data from ProvidAPT events and ATT&CK ground truth.")
     parser.add_argument("--events", nargs="+", required=True, help="NDJSON event files or directories")
+    parser.add_argument("--normal-events", nargs="*", default=[], help="Benign NDJSON event files or directories used only as negative training windows")
     parser.add_argument("--ground-truth", nargs="+", required=True, help="Ground-truth JSONL files or directories")
     parser.add_argument("--out-dir", default="build/ml-dataset")
     parser.add_argument("--dataset-version", default="dev")
@@ -397,15 +405,17 @@ def main() -> int:
     parser.add_argument("--negative-ratio", type=float, default=1.0)
     parser.add_argument("--normal-window-events", type=int, default=64)
     parser.add_argument("--split-seed", default="providapt")
+    parser.add_argument("--include-truth-nodes", action="store_true", help="Include ground-truth helper nodes for visualization datasets; keep disabled for model training")
     args = parser.parse_args()
 
     event_files = iter_files(args.events, (".ndjson", ".jsonl"))
+    normal_event_files = iter_files(args.normal_events, (".ndjson", ".jsonl")) if args.normal_events else []
     truth_files = iter_files(args.ground_truth, (".jsonl", ".ndjson"))
     if not event_files:
         raise SystemExit("no event files found")
     if not truth_files:
         raise SystemExit("no ground-truth files found")
-    graphs, metadata = build_dataset(event_files, truth_files, args)
+    graphs, metadata = build_dataset(event_files, truth_files, args, normal_event_files)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     write_jsonl(out_dir / "graphs.jsonl", graphs)

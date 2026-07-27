@@ -33,6 +33,15 @@ class TrainGraphDetectorTest(unittest.TestCase):
         self.assertEqual(subject.roc_auc(labels, scores), 1.0)
         self.assertEqual(subject.pr_auc(labels, scores), 1.0)
 
+    def test_limit_graphs_keeps_all_positive_rows(self) -> None:
+        rows = [{"graph_id": f"n-{index}", "label": 0} for index in range(20)]
+        rows.extend({"graph_id": f"p-{index}", "label": 1} for index in range(3))
+
+        limited = subject.limit_graphs(rows, 8, seed=3)
+
+        self.assertEqual(len(limited), 8)
+        self.assertEqual(sum(1 for graph in limited if graph["label"] == 1), 3)
+
     @unittest.skipIf(subject.torch is None, "PyTorch is not installed")
     def test_graph_to_tensors_preserves_shape(self) -> None:
         graph = {

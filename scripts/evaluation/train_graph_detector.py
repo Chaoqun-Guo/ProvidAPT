@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,7 +39,15 @@ def load_graphs(path: Path) -> list[dict[str, Any]]:
     return graphs
 
 
-def graph_to_tensors(torch: Any, graph: dict[str, Any]) -> tuple[Any, Any, Any]:
+def scale_feature(index: int, value: float, transform: str) -> float:
+    if transform == "log1p" and index >= 5:
+        import math
+
+        return math.log1p(max(0.0, value))
+    return value
+
+
+def graph_to_tensors(torch: Any, graph: dict[str, Any], device: str | None = None, feature_transform: str = "none") -> tuple[Any, Any, Any]:
     nodes = graph.get("nodes", [])
     edges = graph.get("edges", [])
     if not isinstance(nodes, list) or not nodes:
@@ -50,9 +59,9 @@ def graph_to_tensors(torch: Any, graph: dict[str, Any]) -> tuple[Any, Any, Any]:
         row = node.get("features") if isinstance(node, dict) else None
         if not isinstance(row, list) or not row:
             row = [0.0] * 8
-        features.append([float(value or 0.0) for value in row])
-    x = torch.tensor(features, dtype=torch.float32)
-    adjacency = torch.eye(len(nodes), dtype=torch.float32)
+        features.append([scale_feature(index, float(value or 0.0), feature_transform) for index, value in enumerate(row)])
+    x = torch.tensor(features, dtype=torch.float32, device=device)
+    adjacency = torch.eye(len(nodes), dtype=torch.float32, device=device)
     if isinstance(edges, list):
         for edge in edges:
             if not isinstance(edge, dict):
@@ -63,7 +72,7 @@ def graph_to_tensors(torch: Any, graph: dict[str, Any]) -> tuple[Any, Any, Any]:
                 continue
             adjacency[src, dst] = 1.0
             adjacency[dst, src] = 1.0
-    label = torch.tensor([float(graph.get("label", 0))], dtype=torch.float32)
+    label = torch.tensor([float(graph.get("label", 0))], dtype=torch.float32, device=device)
     return x, adjacency, label
 
 
@@ -140,6 +149,20 @@ def split_graphs(graphs: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]
     return groups
 
 
+def limit_graphs(rows: list[dict[str, Any]], limit: int, seed: int) -> list[dict[str, Any]]:
+    if limit <= 0 or len(rows) <= limit:
+        return rows
+    positives = [graph for graph in rows if int(graph.get("label") or 0) == 1]
+    negatives = [graph for graph in rows if int(graph.get("label") or 0) != 1]
+    keep_negative = max(0, limit - len(positives))
+    if keep_negative >= len(negatives):
+        selected = positives + negatives
+    else:
+        rng = random.Random(seed)
+        selected = positives + rng.sample(negatives, keep_negative)
+    return sorted(selected, key=lambda graph: str(graph.get("graph_id") or ""))
+
+
 def roc_auc(labels: list[int], scores: list[float]) -> float:
     positives = sum(labels)
     negatives = len(labels) - positives
@@ -178,7 +201,7 @@ def pr_auc(labels: list[int], scores: list[float]) -> float:
     return area
 
 
-def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], score_limit: int = 5000) -> dict[str, Any]:
+def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], score_limit: int = 5000, device: str | None = None, feature_transform: str = "none") -> dict[str, Any]:
     model.eval()
     tp = fp = tn = fn = 0
     scores = []
@@ -186,7 +209,7 @@ def evaluate(torch: Any, model: _GraphClassifier, rows: list[dict[str, Any]], sc
     labels: list[int] = []
     with torch.no_grad():
         for graph in rows:
-            x, adjacency, label = graph_to_tensors(torch, graph)
+            x, adjacency, label = graph_to_tensors(torch, graph, device, feature_transform)
             probability = torch.sigmoid(model(x, adjacency)).item()
             prediction = 1 if probability >= 0.5 else 0
             expected = int(label.item())
@@ -235,24 +258,44 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
         raise SystemExit("PyTorch is required. Run with: conda run -n torch_py39 python scripts/evaluation/train_graph_detector.py ...")
 
     torch.manual_seed(args.seed)
+    if args.device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        device = args.device
+    if device == "cuda" and not torch.cuda.is_available():
+        raise SystemExit("CUDA was requested but is not available in the torch_py39 environment")
     graphs = load_graphs(Path(args.dataset))
     groups = split_graphs(graphs)
-    first_x, _, _ = graph_to_tensors(torch, graphs[0])
-    model = _GraphClassifier(first_x.shape[1], args.hidden_dim, args.architecture, args.heads)
+    original_split_summary = {key: len(value) for key, value in groups.items()}
+    groups["train"] = limit_graphs(groups["train"], args.max_train_graphs, args.seed)
+    groups["val"] = limit_graphs(groups["val"], args.max_val_graphs, args.seed + 1)
+    groups["test"] = limit_graphs(groups["test"], args.max_test_graphs, args.seed + 2)
+    first_x, _, _ = graph_to_tensors(torch, graphs[0], device, args.feature_transform)
+    model = _GraphClassifier(first_x.shape[1], args.hidden_dim, args.architecture, args.heads).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    loss_fn = nn.BCEWithLogitsLoss()
+    train_positive = sum(1 for graph in groups["train"] if int(graph.get("label") or 0) == 1)
+    train_negative = max(0, len(groups["train"]) - train_positive)
+    if args.pos_weight == "auto":
+        positive_weight = train_negative / max(1, train_positive)
+    elif args.pos_weight == "none":
+        positive_weight = 1.0
+    else:
+        positive_weight = float(args.pos_weight)
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([positive_weight], dtype=torch.float32, device=device))
     history = []
     for epoch in range(1, args.epochs + 1):
         model.train()
         total_loss = 0.0
-        for graph in groups["train"]:
-            x, adjacency, label = graph_to_tensors(torch, graph)
+        train_rows = list(groups["train"])
+        random.Random(args.seed + epoch).shuffle(train_rows)
+        for graph in train_rows:
+            x, adjacency, label = graph_to_tensors(torch, graph, device, args.feature_transform)
             optimizer.zero_grad()
             loss = loss_fn(model(x, adjacency), label)
             loss.backward()
             optimizer.step()
             total_loss += float(loss.item())
-        val_metrics = evaluate(torch, model, groups["val"], args.score_limit)
+        val_metrics = evaluate(torch, model, groups["val"], args.score_limit, device, args.feature_transform)
         history.append({
             "epoch": epoch,
             "loss": round(total_loss / max(1, len(groups["train"])), 6),
@@ -261,19 +304,23 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
             "val_precision_percent": val_metrics["precision_percent"],
             "val_recall_percent": val_metrics["recall_percent"],
         })
-    train_metrics = evaluate(torch, model, groups["train"], args.score_limit)
-    val_metrics = evaluate(torch, model, groups["val"], args.score_limit)
-    test_metrics = evaluate(torch, model, groups["test"], args.score_limit)
+    train_metrics = evaluate(torch, model, groups["train"], args.score_limit, device, args.feature_transform)
+    val_metrics = evaluate(torch, model, groups["val"], args.score_limit, device, args.feature_transform)
+    test_metrics = evaluate(torch, model, groups["test"], args.score_limit, device, args.feature_transform)
     label_counts = Counter(str(graph.get("label_name") or graph.get("label")) for graph in graphs)
     report = {
         "schema": "providapt.graph_detector_training.v1",
         "generated_at": utc_now(),
         "architecture": args.architecture,
+        "device": device,
+        "feature_transform": args.feature_transform,
         "epochs": args.epochs,
         "hidden_dim": args.hidden_dim,
+        "positive_weight": round(float(positive_weight), 6),
         "dataset": str(args.dataset),
         "dataset_records": len(graphs),
         "label_summary": dict(label_counts),
+        "original_split_summary": original_split_summary,
         "split_summary": {key: len(value) for key, value in groups.items()},
         "history": history,
         "train_metrics": train_metrics,
@@ -298,6 +345,7 @@ def render_metrics(report: dict[str, Any]) -> str:
         "# ProvidAPT Graph Detector Metrics",
         "",
         f"- Architecture: `{report['architecture']}`",
+        f"- Device: `{report['device']}`",
         f"- Dataset records: `{report['dataset_records']}`",
         f"- Accuracy: `{report['accuracy_percent']}%`",
         f"- Precision: `{report['precision_percent']}%`",
@@ -324,6 +372,7 @@ def render_model_card(report: dict[str, Any]) -> str:
         "## Architecture",
         "",
         f"- Family: `{report['architecture']}`",
+        f"- Device: `{report['device']}`",
         f"- Hidden dimension: `{report['hidden_dim']}`",
         f"- Training epochs: `{report['epochs']}`",
         "",
@@ -356,6 +405,12 @@ def main() -> int:
     parser.add_argument("--weight-decay", type=float, default=0.0005)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--score-limit", type=int, default=5000)
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
+    parser.add_argument("--pos-weight", default="auto", help="BCE positive class weight: auto, none, or numeric value")
+    parser.add_argument("--max-train-graphs", type=int, default=0, help="Optional stratified cap for train graphs; all positive graphs are retained")
+    parser.add_argument("--max-val-graphs", type=int, default=0, help="Optional stratified cap for validation graphs; all positive graphs are retained")
+    parser.add_argument("--max-test-graphs", type=int, default=0, help="Optional stratified cap for test graphs; all positive graphs are retained")
+    parser.add_argument("--feature-transform", choices=["none", "log1p"], default="none")
     args = parser.parse_args()
     report = train(args)
     print(f"architecture={report['architecture']} f1={report['f1_percent']} out={args.out_dir}")
