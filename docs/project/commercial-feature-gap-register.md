@@ -26,7 +26,7 @@ Current closure progress:
 - Secret template generation and validation are available through `make ops-secret-template` and `make ops-secret-validate SECRET_ENV=...`.
 - TLS bootstrap and expiry checking are available through `make ops-tls-bootstrap` and `make ops-tls-check CERTS="..."`.
 - PostgreSQL logical backup, optional staging restore, and structured drill reports are available through `make ops-postgres-drill`.
-- Fleet list and lifecycle operations are wrapped by `scripts/ops/fleet-lifecycle.sh`.
+- Fleet list, lifecycle operations, and dry-run lifecycle plans are wrapped by `scripts/ops/fleet-lifecycle.sh`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
 
 ## P2 - Detection and Investigation

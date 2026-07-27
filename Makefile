@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-siem-verify
+.PHONY: ops-secret-template ops-secret-validate ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify
 
 SHELL := /bin/bash
 
@@ -271,6 +271,11 @@ ops-fleet-list:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
 	bash scripts/ops/fleet-lifecycle.sh --server "$(PROVIDAPT_SERVER_URL)" list
 
+ops-fleet-plan:
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
+	@if [ -z "$(FLEET_OPERATION)" ]; then echo 'set FLEET_OPERATION=cert-rotation|decommission|quarantine'; exit 2; fi
+	bash scripts/ops/fleet-lifecycle.sh --server "$(PROVIDAPT_SERVER_URL)" plan --operation "$(FLEET_OPERATION)" $(if $(FLEET_AGENTS),--agent "$(FLEET_AGENTS)") $(if $(FLEET_GROUP),--group "$(FLEET_GROUP)") $(if $(FLEET_TAG),--tag "$(FLEET_TAG)") --out-json build/fleet/fleet-$(FLEET_OPERATION)-plan.json --out-md build/fleet/fleet-$(FLEET_OPERATION)-plan.md
+
 ops-siem-verify:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
 	python3 scripts/ops/verify-siem-delivery.py --server "$(PROVIDAPT_SERVER_URL)" $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") $(if $(PROVIDAPT_REQUIRE_SIEM_FORWARDED),--require-forwarded)
@@ -398,4 +403,5 @@ help:
 	@echo '  make ops-tls-check CERTS="..." Check TLS certificate expiry'
 	@echo '  make ops-postgres-drill Run PostgreSQL backup/restore drill'
 	@echo '  make ops-fleet-list List control-plane fleet state'
+	@echo '  make ops-fleet-plan FLEET_OPERATION=... Generate fleet lifecycle plan'
 	@echo '  make ops-siem-verify Queue and verify SIEM test delivery'

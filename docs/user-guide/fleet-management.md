@@ -52,6 +52,24 @@ bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" \
 Use `approved` after enrollment review, `quarantined` during active
 investigation, and `revoked` when an agent identity is retired or distrusted.
 
+## Lifecycle Plans
+
+Generate an auditable dry-run plan before certificate rotation, quarantine, or
+decommissioning:
+
+```bash
+export PROVIDAPT_SERVER_URL=http://<server>:18080
+make ops-fleet-plan FLEET_OPERATION=cert-rotation FLEET_GROUP=prod FLEET_TAG=linux
+bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" \
+  plan --operation decommission --agent agent-a,agent-b \
+  --out-json build/fleet/decommission.json \
+  --out-md build/fleet/decommission.md
+```
+
+Plans include target agents, current enrollment state, health, certificate
+fingerprint, and runbook steps. They do not mutate the fleet; use `action` only
+after the plan is reviewed and approved.
+
 ## Metadata
 
 Use group and tags to model ownership and rollout scope:

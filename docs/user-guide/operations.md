@@ -148,6 +148,7 @@ export PROVIDAPT_SERVER_URL=http://<server>:18080
 make ops-fleet-list
 bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" \
   action --agent agent-a,agent-b --state quarantined --note "incident containment"
+make ops-fleet-plan FLEET_OPERATION=cert-rotation FLEET_GROUP=prod FLEET_TAG=linux
 ```
 
 Common lifecycle transitions:
@@ -157,6 +158,10 @@ Common lifecycle transitions:
 | `approved` | host identity reviewed and allowed to receive policy |
 | `quarantined` | host is under investigation; telemetry remains visible |
 | `revoked` | host is decommissioned, stolen, or should no longer participate |
+
+Use `make ops-fleet-plan` before high-impact lifecycle work. It writes JSON and
+Markdown dry-run evidence under `build/fleet/` for certificate rotation,
+quarantine, and decommissioning.
 
 ## 7. Secret and TLS Operations
 
