@@ -68,6 +68,18 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 ## 6. Supply Chain & Artifact Integrity
 
 - Run `make release-gates` before final review. It writes `build/release-gate-status.md` and `build/release-gate-status.json` with CI, scanner availability, scanner evidence, approval, and artifact status.
+- When GitHub Actions or scanner evidence is collected outside the local
+  workstation, pass it explicitly:
+
+  ```bash
+  python3 scripts/release/release_gate_status.py \
+    --ci-evidence docs/project/github-actions-final.md \
+    --waiver build/release-waivers.json
+  ```
+
+  Structured waivers use `{"waivers":[{"gate":"grype_evidence","status":"approved_with_risk"}]}`.
+  Markdown waiver files are accepted only when they mention the gate and an
+  approval/accepted-risk decision.
 - Confirm `checksums.txt` is generated and signed
 - Confirm release binaries embed version, commit, and build date
 - Run `providaptctl -release-check -config <release-config> -release-evidence docs/project/release-evidence-v1.2.3-rc.1.md -release-waivers build/release-waivers.json -release-checksums dist/checksums.txt -release-checksums-signature dist/checksums.txt.sig -release-artifacts-dir dist -release-handoff build/handoff/providapt-v1.2.3-rc.1-handoff.zip -release-required-artifacts archive,deb,rpm,helm,monitoring -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json -release-check-out build/release-readiness.md`

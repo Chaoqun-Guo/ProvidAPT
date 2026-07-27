@@ -46,14 +46,36 @@ class ReleaseGateStatusTest(unittest.TestCase):
         (dist / "checksums.txt.sig").write_text("sig\n", encoding="utf-8")
         (dist / "providapt.spdx.json").write_text("{}\n", encoding="utf-8")
         (dist / "providapt.cdx.json").write_text("{}\n", encoding="utf-8")
+        (dist / "release-readiness.md").write_text("Commit `abc123`\nVersion `v1`\n", encoding="utf-8")
         passed = gates.artifact_gate(dist)
         self.assertEqual(passed.status, "pass")
+        stale = gates.artifact_gate(dist, "def456", "v1")
+        self.assertEqual(stale.status, "blocked")
 
     def test_scan_evidence_accepts_any_nonempty_file(self):
         path = self.tmp_root / "scan.json"
         self.assertEqual(gates.scan_evidence_gate("scan", [path], "run").status, "blocked")
         path.write_text("{}\n", encoding="utf-8")
         self.assertEqual(gates.scan_evidence_gate("scan", [path], "run").status, "pass")
+
+    def test_waiver_gate_accepts_structured_waiver(self):
+        waiver = self.tmp_root / "waivers.json"
+        waiver.write_text('{"waivers":[{"gate":"grype_evidence","status":"approved_with_risk"}]}\n', encoding="utf-8")
+        blocked = gates.Gate("grype_evidence", "blocked", "missing")
+        result = gates.waiver_gate("grype_evidence", [waiver], ["grype_evidence", "grype"], blocked)
+        self.assertEqual(result.status, "waived")
+
+    def test_ci_gate_accepts_external_commit_evidence(self):
+        evidence = self.tmp_root / "ci.md"
+        commit = "abcdef123456"
+        evidence.write_text(f"GitHub Actions approved for CI commit {commit}\n", encoding="utf-8")
+        result = gates.ci_gate(self.tmp_root, commit, [evidence])
+        self.assertEqual(result.status, "pass")
+
+    def test_approval_gate_blocks_pending_markers(self):
+        approval = self.tmp_root / "approval.md"
+        approval.write_text("Product requires approval from external owner required\n", encoding="utf-8")
+        self.assertEqual(gates.approval_gate(approval).status, "blocked")
 
 
 if __name__ == "__main__":

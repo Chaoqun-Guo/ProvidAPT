@@ -11,6 +11,13 @@ This register tracks remaining product capabilities that improve commercial read
 | External approval | Product, Security, Legal, Support, and Sales Engineering approvals are not signed | `commercial-approval-record.md` contains named decisions |
 | Final artifacts | Current `dist/` artifacts were generated before the latest commit | Final artifacts, checksums, SBOMs, signatures, and handoff bundle are rebuilt from the release tag |
 
+Current closure progress:
+
+- Release gate collection accepts external GitHub Actions evidence via `--ci-evidence`.
+- Grype/Trivy/govulncheck gates accept structured or Markdown waiver evidence via `--waiver`.
+- Final artifact generation remains tied to `make release-commercial` from the final release tag.
+- Named Product, Security, Legal, Support, and Sales Engineering decisions still require real owner signoff.
+
 ## P1 - Production Operations
 
 | Area | Gap | Expected Outcome |
@@ -24,6 +31,7 @@ Current closure progress:
 
 - Release gate snapshots are available through `make release-gates`, producing Markdown and JSON evidence under `build/`.
 - Secret template generation and validation are available through `make ops-secret-template` and `make ops-secret-validate SECRET_ENV=...`.
+- Secret backend handoff artifacts for systemd, Docker Compose, and Kubernetes are generated through `make ops-secret-backends SECRET_ENV=...`.
 - TLS bootstrap and expiry checking are available through `make ops-tls-bootstrap` and `make ops-tls-check CERTS="..."`.
 - PostgreSQL logical backup, optional staging restore, and structured drill reports are available through `make ops-postgres-drill`.
 - Fleet list, lifecycle operations, and dry-run lifecycle plans are wrapped by `scripts/ops/fleet-lifecycle.sh`.
