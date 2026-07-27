@@ -123,9 +123,62 @@ WantedBy=multi-user.target
 
 ---
 
-## 3. Distributed Configuration
+## 3. Constrained VM Deployment
 
-### 3.1 Central Server Setup
+For small lab or customer-validation VMs, deploy only the checked Linux daemon
+binary instead of copying the full repository. This keeps `/tmp`, `/var/log`,
+and package caches small.
+
+Build a Linux eBPF-enabled daemon:
+
+```bash
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go build -tags bpf \
+  -o build/bin/providaptd ./cmd/agent/daemon
+```
+
+Deploy to the VM fleet:
+
+```bash
+export PROVIDAPT_VM_HOSTS="ubuntu@192.168.150.129 centos@192.168.150.131 ubuntu@192.168.150.132"
+make deploy-vms
+```
+
+`make deploy-vms` refuses non-ELF binaries and binaries that contain the eBPF
+stub error string unless `PROVIDAPT_ALLOW_BPF_STUB=1` is set for an explicit
+test-only deployment. It verifies the remote SHA-256, removes transient
+`providapt-*.ndjson` and `alerts*.ndjson` files before restart, waits for
+`providapt.service` to become active, and reports log-directory size.
+
+Verify the control plane and reporting agents:
+
+```bash
+make verify-vm-fleet \
+  PROVIDAPT_SERVER_URL=http://192.168.150.132:18080 \
+  EXPECTED_COMMIT="$(git rev-parse --short HEAD)" \
+  OUT_DIR=build/deploy
+```
+
+The verifier checks:
+
+- control-plane `/api/v1/status`
+- fleet health and last-report age
+- dashboard provenance cluster markers
+- graph export availability
+- alert workflow API availability
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `vm-fleet-verification.json` | Machine-readable fleet deployment evidence |
+| `vm-fleet-verification.md` | Operator-readable deployment verification summary |
+
+---
+
+## 4. Distributed Configuration
+
+### 4.1 Central Server Setup
 
 ```bash
 # Install the central server components
@@ -143,7 +196,7 @@ address = "10.0.0.2:8443"
 cert = "/etc/providapt/certs/collector-2.pem"
 ```
 
-### 3.2 mTLS Certificate Generation
+### 4.2 mTLS Certificate Generation
 
 ```bash
 # CA key
@@ -161,7 +214,7 @@ openssl req -new -key agent.key -out agent.csr
 openssl x509 -req -days 365 -in agent.csr -CA ca.crt -CAkey ca.key -out agent.crt
 ```
 
-### 3.3 Transport Configuration
+### 4.3 Transport Configuration
 
 ```toml
 # /etc/providapt/transport.toml
@@ -176,9 +229,9 @@ flush_interval = "60s"
 
 ---
 
-## 4. Kubernetes Deployment
+## 5. Kubernetes Deployment
 
-### 4.1 DaemonSet Configuration
+### 5.1 DaemonSet Configuration
 
 ```yaml
 # providapt-daemonset.yaml
@@ -235,7 +288,7 @@ spec:
           path: /var/lib/providapt
 ```
 
-### 4.2 Helm Chart Values
+### 5.2 Helm Chart Values
 
 ```yaml
 # values.yaml

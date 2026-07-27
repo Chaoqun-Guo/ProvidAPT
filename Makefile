@@ -1,6 +1,6 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
-.PHONY: verify-env install-deps deps run stop restart deploy-prod probe cgroup
+.PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
 .PHONY: attack-sim attack-full-chain export-ground-truth alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
@@ -341,6 +341,14 @@ restart: stop run
 deploy-prod:
 	@sudo bash build/deploy_prod.sh
 
+deploy-vms:
+	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ]; then echo 'usage: make deploy-vms PROVIDAPT_VM_HOSTS="ubuntu@192.168.150.129 centos@192.168.150.131 ubuntu@192.168.150.132" [PROVIDAPT_BIN=build/bin/providaptd]'; exit 2; fi
+	bash scripts/deploy/deploy-vms.sh
+
+verify-vm-fleet:
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make verify-vm-fleet PROVIDAPT_SERVER_URL=http://192.168.150.132:18080 [EXPECTED_COMMIT=...]'; exit 2; fi
+	python3 scripts/deploy/verify-vm-fleet.py --server "$(PROVIDAPT_SERVER_URL)" $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),30)" $(if $(EXPECTED_COMMIT),--expected-commit "$(EXPECTED_COMMIT)") --out-json "$(or $(OUT_DIR),build/deploy)/vm-fleet-verification.json" --out-md "$(or $(OUT_DIR),build/deploy)/vm-fleet-verification.md"
+
 probe:
 	@bash build/kernel_probe.sh
 
@@ -454,6 +462,8 @@ help:
 	@echo '  make verify-env       Check kernel config and dependencies'
 	@echo '  make install-deps     Install build dependencies'
 	@echo '  make deploy-prod      Run the production deployment helper'
+	@echo '  make deploy-vms       Deploy one checked Linux binary to constrained VMs'
+	@echo '  make verify-vm-fleet  Verify control-plane dashboard, fleet, graph, and alerts'
 	@echo ''
 	@echo 'Distribution:'
 	@echo '  make dist             Build all package formats (.deb/.rpm/.tar.gz)'

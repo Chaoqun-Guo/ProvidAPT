@@ -35,6 +35,7 @@ Current closure progress:
 - TLS bootstrap and expiry checking are available through `make ops-tls-bootstrap` and `make ops-tls-check CERTS="..."`.
 - PostgreSQL logical backup, optional staging restore, and structured drill reports are available through `make ops-postgres-drill`.
 - Fleet list, lifecycle operations, and dry-run lifecycle plans are wrapped by `scripts/ops/fleet-lifecycle.sh`.
+- Constrained VM deployment is guarded by ELF, bpf-tag, SHA-256, service-active, and log-budget checks through `make deploy-vms`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
 - Alert quality reporting is available through `make alert-quality ALERTS=...`.
 - RBAC and tenant-scope configuration audits are available through `make ops-rbac-audit PROVIDAPT_CONFIG=...`.
@@ -69,6 +70,7 @@ Current closure progress:
 
 - Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, and detection quality through `make enterprise-readiness`.
 - Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
+- VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
 - Upgrade rollout planning produces canary, wave, pause/resume, and rollback evidence through `make upgrade-rollout-plan`.
 - SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.

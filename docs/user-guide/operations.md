@@ -251,6 +251,19 @@ before wiring the schedule into customer automation.
 
 ## 8. Enterprise and Soak Readiness
 
+After constrained VM deployment, capture deployment evidence from the control
+plane:
+
+```bash
+make verify-vm-fleet \
+  PROVIDAPT_SERVER_URL=http://<server>:18080 \
+  EXPECTED_COMMIT="$(git rev-parse --short HEAD)"
+```
+
+The report verifies dashboard cluster actions, graph export, alert workflow
+access, agent health, and telemetry freshness. Store the JSON/Markdown outputs
+with the deployment handoff record.
+
 Aggregate P3 enterprise delivery evidence after release gates, secret backend
 handoff, PostgreSQL drills, detection quality, RBAC audit, and scheduled report
 plan artifacts are generated:
