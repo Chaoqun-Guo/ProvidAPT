@@ -40,18 +40,27 @@ class RenderSecretBackendsTest(unittest.TestCase):
             systemd_credential_dir="/etc/providapt/credentials",
             k8s_secret_name="providapt-runtime-secrets",
             k8s_namespace="providapt",
+            vault_mount="secret",
+            vault_path_prefix="providapt/runtime",
             include_values=False,
         ))
         self.assertEqual(manifest["schema"], secrets.SCHEMA)
         self.assertTrue((out_dir / "providapt-secrets.systemd.conf").exists())
         self.assertTrue((out_dir / "docker-compose.secrets.override.yml").exists())
+        self.assertTrue((out_dir / "providapt-vault-policy.hcl").exists())
+        self.assertTrue((out_dir / "providapt-vault-load.sh").exists())
+        self.assertTrue((out_dir / "providapt-vault.config.yaml").exists())
         k8s = (out_dir / "providapt-runtime-secrets.yaml").read_text(encoding="utf-8")
         self.assertIn("kind: Secret", k8s)
         self.assertNotIn("supersecretpassword", k8s)
+        vault_loader = (out_dir / "providapt-vault-load.sh").read_text(encoding="utf-8")
+        self.assertIn("vault kv put secret/providapt/runtime/PROVIDAPT_API_AUTH_KEYS", vault_loader)
+        self.assertNotIn("supersecretpassword", vault_loader)
         redacted = base64.b64encode("abcd<redacted>7890".encode()).decode()
         self.assertIn(redacted, k8s)
         loaded = json.loads((out_dir / "secret-backend-manifest.json").read_text(encoding="utf-8"))
         self.assertTrue(loaded["redacted"])
+        self.assertIn("vault", loaded["secret_backends"])
 
 
 if __name__ == "__main__":

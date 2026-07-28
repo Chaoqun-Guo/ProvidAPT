@@ -101,6 +101,54 @@ def render_kubernetes(name: str, namespace: str, values: dict[str, str], redacte
     return "\n".join(lines)
 
 
+def render_vault_policy(mount: str, path_prefix: str) -> str:
+    secret_path = f"{mount.rstrip('/')}/data/{path_prefix.strip('/')}"
+    metadata_path = f"{mount.rstrip('/')}/metadata/{path_prefix.strip('/')}"
+    return "\n".join([
+        "# providapt-vault-policy.hcl",
+        "# Apply with: vault policy write providapt-runtime providapt-vault-policy.hcl",
+        f'path "{secret_path}/*" {{',
+        '  capabilities = ["read"]',
+        "}",
+        f'path "{metadata_path}/*" {{',
+        '  capabilities = ["list", "read"]',
+        "}",
+        "",
+    ])
+
+
+def render_vault_loader(mount: str, path_prefix: str, values: dict[str, str], redacted: bool) -> str:
+    lines = [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        "# Review values before running. Requires VAULT_ADDR and authentication.",
+    ]
+    for key in sorted(values):
+        value = redact(values[key], redacted)
+        lines.append(
+            "vault kv put "
+            f"{mount.rstrip('/')}/{path_prefix.strip('/')}/{key} "
+            f"value={json.dumps(value)}"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_vault_config(mount: str, path_prefix: str, values: dict[str, str]) -> str:
+    lines = [
+        "# providapt-vault.config.yaml",
+        "# Merge into providapt.toml/yaml after a secure config-management system",
+        "# has materialized the values or the runtime resolver is wired to Vault.",
+        "secrets:",
+        "  provider: vault",
+        "  vault:",
+    ]
+    for key in sorted(values):
+        lines.append(f"    {path_prefix.strip('/')}/{key}: vault:{mount.rstrip('/')}/{path_prefix.strip('/')}/{key}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def write_bundle(args: argparse.Namespace) -> dict[str, object]:
     env_path = Path(args.env_file)
     values = load_env(env_path)
@@ -111,20 +159,33 @@ def write_bundle(args: argparse.Namespace) -> dict[str, object]:
         "systemd_dropin": out_dir / "providapt-secrets.systemd.conf",
         "docker_compose": out_dir / "docker-compose.secrets.override.yml",
         "kubernetes_secret": out_dir / "providapt-runtime-secrets.yaml",
+        "vault_policy": out_dir / "providapt-vault-policy.hcl",
+        "vault_loader": out_dir / "providapt-vault-load.sh",
+        "vault_config": out_dir / "providapt-vault.config.yaml",
         "manifest": out_dir / "secret-backend-manifest.json",
     }
     files["systemd_dropin"].write_text(render_systemd(args.install_env_path, args.systemd_credential_dir, sorted(values)), encoding="utf-8")
     files["docker_compose"].write_text(render_docker(args.install_env_path), encoding="utf-8")
     files["kubernetes_secret"].write_text(render_kubernetes(args.k8s_secret_name, args.k8s_namespace, values, redacted), encoding="utf-8")
+    files["vault_policy"].write_text(render_vault_policy(args.vault_mount, args.vault_path_prefix), encoding="utf-8")
+    files["vault_loader"].write_text(render_vault_loader(args.vault_mount, args.vault_path_prefix, values, redacted), encoding="utf-8")
+    files["vault_loader"].chmod(0o700)
+    files["vault_config"].write_text(render_vault_config(args.vault_mount, args.vault_path_prefix, values), encoding="utf-8")
     manifest = {
         "schema": SCHEMA,
         "source_env_file": str(env_path),
         "redacted": redacted,
         "variable_count": len(values),
         "variables": sorted(values),
+        "secret_backends": ["systemd", "docker_compose", "kubernetes", "vault"],
+        "vault": {
+            "mount": args.vault_mount,
+            "path_prefix": args.vault_path_prefix,
+        },
         "outputs": {key: str(path) for key, path in files.items() if key != "manifest"},
         "warnings": [
             "Generated Kubernetes Secret data is redacted by default; rerun with --include-values only in a secure pipeline.",
+            "Generated Vault loader values are redacted by default; rerun with --include-values only in a secure pipeline.",
             "Do not commit filled secret backend artifacts.",
         ],
     }
@@ -140,6 +201,8 @@ def main() -> int:
     parser.add_argument("--systemd-credential-dir", default="/etc/providapt/credentials")
     parser.add_argument("--k8s-secret-name", default="providapt-runtime-secrets")
     parser.add_argument("--k8s-namespace", default="providapt")
+    parser.add_argument("--vault-mount", default="secret")
+    parser.add_argument("--vault-path-prefix", default="providapt/runtime")
     parser.add_argument("--include-values", action="store_true", help="Write actual secret values into Kubernetes Secret data")
     args = parser.parse_args()
     manifest = write_bundle(args)

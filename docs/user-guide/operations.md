@@ -178,6 +178,21 @@ then validate the filled file before wiring it into systemd, Docker Compose, or
 Kubernetes. See `docs/getting-started/secret-management.md` for deployment
 patterns.
 
+Generate P1 production-readiness evidence after secrets, TLS, PostgreSQL, and
+fleet checks are available:
+
+```bash
+make p1-readiness \
+  SECRET_MANIFEST=build/secrets/secret-backend-manifest.json \
+  TLS_MANIFEST=build/tls/manifest.json \
+  POSTGRES_REPORT=build/postgres/postgres-drill.json \
+  PROVIDAPT_SERVER_URL=http://<server>:18080
+```
+
+The report blocks when any required secret backend artifact is missing,
+including Vault policy/loader/config outputs, TLS rotation material is
+incomplete, PostgreSQL backup evidence is missing, or fleet reports are stale.
+
 Check certificate expiry:
 
 ```bash

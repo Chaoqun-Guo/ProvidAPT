@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness p1-readiness soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -293,6 +293,9 @@ scheduled-report-plan:
 
 enterprise-readiness:
 	python3 scripts/ops/enterprise-readiness-report.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --postgres-drill "$(or $(POSTGRES_DRILL_JSON),build/postgres/postgres-drill.json)" --detection-quality "$(or $(DETECTION_QUALITY_JSON),build/evaluation/detection-quality.json)" --rbac-audit "$(or $(RBAC_AUDIT_JSON),build/rbac/rbac-audit.json)" --report-plan "$(or $(REPORT_PLAN_JSON),build/reports/scheduled-report-plan.json)" --siem-verify "$(or $(SIEM_VERIFY_JSON),build/siem/siem-verification.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT_JSON),build/upgrade/rollout-plan.json)" --out-json "$(or $(OUT_DIR),build)/enterprise-readiness.json" --out-md "$(or $(OUT_DIR),build)/enterprise-readiness.md"
+
+p1-readiness:
+	python3 scripts/ops/p1-readiness-report.py --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --tls-manifest "$(or $(TLS_MANIFEST),build/tls/manifest.json)" $(if $(POSTGRES_REPORT),--postgres-report "$(POSTGRES_REPORT)") $(if $(PROVIDAPT_SERVER_URL),--server "$(PROVIDAPT_SERVER_URL)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),60)" --out-json "$(or $(OUT_DIR),build/p1)/p1-readiness.json" --out-md "$(or $(OUT_DIR),build/p1)/p1-readiness.md"
 
 soak-sample:
 	@if [ -z "$(STATUS_URL)" ] && [ -z "$(STATUS_JSON)" ]; then echo 'usage: make soak-sample STATUS_URL=http://localhost:18080/api/v1/status [SOAK_STARTED_AT_EPOCH=...] [OUT=build/performance/soak-samples.json]'; exit 2; fi

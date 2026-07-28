@@ -30,7 +30,7 @@ STRICT_PERMISSIONS=1 make ops-secret-validate SECRET_ENV=/secure/path/providapt.
 ## Render Backend Handoff Artifacts
 
 After validation, generate concrete handoff artifacts for systemd, Docker
-Compose, and Kubernetes:
+Compose, Kubernetes, and Vault:
 
 ```bash
 make ops-secret-backends \
@@ -45,11 +45,14 @@ This writes:
 | `providapt-secrets.systemd.conf` | systemd drop-in using the reviewed env-file path |
 | `docker-compose.secrets.override.yml` | Compose override with `env_file` and secret reference |
 | `providapt-runtime-secrets.yaml` | Kubernetes Secret and Deployment `envFrom` snippet |
+| `providapt-vault-policy.hcl` | least-privilege Vault policy for ProvidAPT runtime reads |
+| `providapt-vault-load.sh` | optional KV loader script, redacted unless explicitly enabled |
+| `providapt-vault.config.yaml` | config-management snippet for `secrets.provider: vault` references |
 | `secret-backend-manifest.json` | machine-readable evidence with variable inventory |
 
-Kubernetes Secret values are redacted by default so generated artifacts can be
-reviewed safely. Use `INCLUDE_SECRET_VALUES=1` only inside a secure deployment
-pipeline and never commit filled outputs.
+Kubernetes Secret and Vault loader values are redacted by default so generated
+artifacts can be reviewed safely. Use `INCLUDE_SECRET_VALUES=1` only inside a
+secure deployment pipeline and never commit filled outputs.
 
 ## systemd
 
@@ -107,3 +110,25 @@ extraEnvFrom:
 ```
 
 Keep TLS private keys in a separate Secret with restricted RBAC.
+
+## Vault
+
+Review and apply the generated policy:
+
+```bash
+vault policy write providapt-runtime build/secrets/providapt-vault-policy.hcl
+```
+
+Load real values only from a secure workstation or deployment pipeline:
+
+```bash
+INCLUDE_SECRET_VALUES=1 make ops-secret-backends \
+  SECRET_ENV=/secure/path/providapt.secrets.env \
+  OUT_DIR=/secure/path/providapt-secret-backends
+/secure/path/providapt-secret-backends/providapt-vault-load.sh
+```
+
+Then merge `providapt-vault.config.yaml` into the runtime configuration or use
+the customer's config-management system to materialize the same
+`secrets.vault` keys. Runtime fields can reference those values with
+`vault:<key>`.
