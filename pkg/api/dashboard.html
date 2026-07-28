@@ -192,6 +192,22 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .trace-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-left: 0; max-width:100%; }
 .trace-actions a { color: #58a6ff; border: 1px solid #30363d; border-radius: 999px; padding: 2px 7px; font-size: 11px; text-decoration: none; white-space: nowrap; }
 .trace-actions a:hover { background: #1a1f27; border-color: #58a6ff; text-decoration: none; }
+.workflow-filter-bar { display:grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap:6px; margin:8px 0; align-items:center; }
+.workflow-filter-bar input, .workflow-filter-bar select { min-width:0; width:100%; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:6px 8px; font-size:11px; }
+.workflow-filter-bar button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:6px 8px; cursor:pointer; font-size:11px; }
+.workflow-filter-summary { color:#8b949e; font-size:11px; margin:3px 0 7px; overflow-wrap:anywhere; }
+.empty-diagnostic { color:#8b949e; font-size:12px; line-height:1.45; background:#0d1117; border:1px dashed #30363d; border-radius:8px; padding:10px; }
+.empty-diagnostic strong { color:#c9d1d9; }
+.detail-drawer-backdrop { display:none; position:fixed; inset:0; background:rgba(1,4,9,0.58); z-index:20; }
+.detail-drawer-backdrop.visible { display:block; }
+.detail-drawer { position:fixed; top:0; right:0; width:min(520px, 92vw); height:100vh; background:#161b22; border-left:1px solid #30363d; box-shadow:-18px 0 35px rgba(0,0,0,0.35); z-index:21; transform:translateX(105%); transition:transform 0.18s ease; display:flex; flex-direction:column; min-width:0; }
+.detail-drawer.visible { transform:translateX(0); }
+.detail-drawer header { border-bottom:1px solid #30363d; padding:12px 14px; background:#161b22; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.detail-drawer h3 { color:#58a6ff; font-size:15px; margin:0; }
+.detail-drawer .drawer-subtitle { color:#8b949e; font-size:11px; margin-top:3px; overflow-wrap:anywhere; }
+.detail-drawer button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:5px 8px; cursor:pointer; }
+.detail-drawer-body { padding:12px; overflow:auto; display:grid; gap:8px; }
+.detail-drawer pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:10px; color:#c9d1d9; font-size:11px; }
 .graph-cluster-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
 .graph-cluster-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:999px; padding:3px 8px; cursor:pointer; font-size:11px; }
 .graph-cluster-actions button:hover { border-color:#58a6ff; color:#58a6ff; }
@@ -463,12 +479,34 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <div class="policy-item clickable" onclick="filterAlertQuality('duplicate')"><div class="value" id="awDuplicates">--</div><div class="label">Duplicates</div></div>
         <div class="policy-item clickable" onclick="filterAlertQuality('needs_review')"><div class="value" id="awNeedsReview">--</div><div class="label">Needs Review</div></div>
       </div>
+      <div class="workflow-filter-bar" aria-label="Alert workflow filters">
+        <select id="workflowFilterStatus" onchange="applyAlertWorkflowFilters()">
+          <option value="">Any Status</option>
+          <option value="open">Open</option>
+          <option value="assigned">Assigned</option>
+          <option value="suppressed">Suppressed</option>
+          <option value="closed">Closed</option>
+        </select>
+        <select id="workflowFilterSeverity" onchange="applyAlertWorkflowFilters()">
+          <option value="">Any Severity</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+          <option value="info">Info</option>
+        </select>
+        <input id="workflowFilterHost" placeholder="Host / agent" oninput="applyAlertWorkflowFilters()">
+        <input id="workflowFilterRule" placeholder="Rule / pattern" oninput="applyAlertWorkflowFilters()">
+        <input id="workflowFilterTime" placeholder="Time contains, e.g. 10:3" oninput="applyAlertWorkflowFilters()">
+        <button onclick="resetAlertWorkflowFilters()">Reset</button>
+      </div>
+      <div class="workflow-filter-summary" id="workflowFilterSummary">Showing latest workflow alerts.</div>
       <div class="alerts-list" id="workflowAlertsList">
         <div class="loading">Loading workflow alerts...</div>
       </div>
       <div class="action-row">
-        <button class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Open Batch</button>
-        <button class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Open Batch</button>
+        <button class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Filtered Batch</button>
+        <button class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Filtered Batch</button>
         <button class="secondary" onclick="showAlertQuality()">Quality</button>
         <button class="secondary" onclick="downloadAlertQuality()">Export Quality Summary</button>
         <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback Ledger</button>
@@ -570,6 +608,8 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <button onclick="showDroppedEvents()">Dropped Events</button>
         <button onclick="showRuntimeDetails('runtime')">Runtime</button>
         <button onclick="window.open('/api/v1/graph/export', '_blank', 'noreferrer')">Export Graph JSON</button>
+        <button class="secondary" onclick="openGraphFullscreen()">Open Graph Fullscreen</button>
+        <button class="secondary" onclick="showAttackRouteMap()">Attack Route Map</button>
       </div>
       <div class="policy-editor wide" style="margin-bottom:8px;">
         <input id="investigationNodeInput" placeholder="PID or node ID for investigation report">
@@ -599,6 +639,20 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 </main>
 </div>
 
+<div id="detailDrawerBackdrop" class="detail-drawer-backdrop" onclick="closeDetailDrawer()"></div>
+<section id="detailDrawer" class="detail-drawer" aria-label="Details drawer" aria-hidden="true">
+  <header>
+    <div>
+      <h3 id="detailDrawerTitle">Details</h3>
+      <div class="drawer-subtitle" id="detailDrawerSubtitle">Select an item to inspect evidence.</div>
+    </div>
+    <button onclick="closeDetailDrawer()" aria-label="Close details drawer">Close</button>
+  </header>
+  <div class="detail-drawer-body" id="detailDrawerBody">
+    <div class="empty-diagnostic">No item selected.</div>
+  </div>
+</section>
+
 <script>
 let lastStatus = 'unknown';
 let currentRole = 'admin';
@@ -618,6 +672,7 @@ let latestGroundTruthCorrelation = { records: [] };
 let groundTruthFilter = 'all';
 let apiKey = localStorage.getItem('providapt_api_key') || '';
 let lastAPIRequest = null;
+let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
 
 async function fetchJSON(url) {
   rememberLastRequest('GET', url);
@@ -936,6 +991,39 @@ function setText(id, value) {
   }
 }
 
+function openDetailDrawer(title, subtitle, bodyHTML) {
+  setText('detailDrawerTitle', title || 'Details');
+  setText('detailDrawerSubtitle', subtitle || 'Evidence details');
+  const body = document.getElementById('detailDrawerBody');
+  const drawer = document.getElementById('detailDrawer');
+  const backdrop = document.getElementById('detailDrawerBackdrop');
+  if (body) body.innerHTML = bodyHTML || '<div class="empty-diagnostic">No details available.</div>';
+  if (drawer) {
+    drawer.classList.add('visible');
+    drawer.setAttribute('aria-hidden', 'false');
+  }
+  if (backdrop) backdrop.classList.add('visible');
+}
+
+function closeDetailDrawer() {
+  const drawer = document.getElementById('detailDrawer');
+  const backdrop = document.getElementById('detailDrawerBackdrop');
+  if (drawer) {
+    drawer.classList.remove('visible');
+    drawer.setAttribute('aria-hidden', 'true');
+  }
+  if (backdrop) backdrop.classList.remove('visible');
+}
+
+function renderJSONBlock(value) {
+  return '<pre>' + escapeHTML(JSON.stringify(value || {}, null, 2)) + '</pre>';
+}
+
+function renderEmptyDiagnostic(title, checks) {
+  const rows = (checks || []).map(item => '<div>• ' + escapeHTML(item) + '</div>').join('');
+  return '<div class="empty-diagnostic"><strong>' + escapeHTML(title || 'No data available') + '</strong>' + (rows ? '<div style="margin-top:6px;">' + rows + '</div>' : '') + '</div>';
+}
+
 function jsString(value) {
   return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
@@ -1031,7 +1119,9 @@ function alertTraceActions(a) {
   }
   const encodedID = encodeURIComponent(id);
   const eventPattern = encodeURIComponent(a.headline || a.pattern || id);
+  const alertEncoded = jsString(JSON.stringify(a || {}));
   return '<span class="trace-actions">' +
+    '<button class="secondary" onclick="showAlertDetailsJSON(\'' + alertEncoded + '\')">Details</button>' +
     '<a href="/api/v1/alerts/' + encodedID + '/svg" target="_blank" rel="noreferrer" title="Open SVG attack path">Trace SVG</a>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/backward?depth=8" target="_blank" rel="noreferrer" title="Trace upstream provenance">Backward</a>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/forward?depth=8" target="_blank" rel="noreferrer" title="Trace downstream impact">Forward</a>' +
@@ -1332,6 +1422,13 @@ function showAgentDetails(agentID) {
     renderAgentInvestigation(agent, 'agent'),
     '<div class="alert-item"><span class="alert-sev sev-medium">runtime</span><span class="alert-msg">mode ' + escapeHTML(agent.attachment_mode || '--') + ' · memory ' + formatBytes(agent.memory_bytes || 0) + ' · report age ' + escapeHTML(formatAgeSeconds(agent.last_report_age_seconds)) + '</span><span class="alert-time">details</span></div>',
   ], 'Agent details unavailable');
+  openDetailDrawer('Agent Details', agent.agent_id || agentID, [
+    renderAgentInvestigation(agent, 'agent'),
+    renderKVItem('environment', [agent.os_version || agent.os, agent.kernel, agent.architecture].filter(Boolean).join(' · ') || '--', (agent.cpu_count || '--') + ' CPU'),
+    renderKVItem('runtime', 'mode ' + (agent.attachment_mode || '--') + ' · memory ' + formatBytes(agent.memory_bytes || 0), 'report age ' + formatAgeSeconds(agent.last_report_age_seconds)),
+    renderKVItem('telemetry', (agent.events_ingested || 0) + ' events · ' + (agent.events_dropped || 0) + ' dropped', (agent.graph_nodes || 0) + '/' + (agent.graph_edges || 0) + ' graph'),
+    renderJSONBlock(agent),
+  ].join(''));
 }
 
 async function updateFleetAgent(payload) {
@@ -1431,7 +1528,8 @@ async function loadPolicies() {
           const actor = item.actor ? ' · ' + item.actor : '';
           const note = item.note ? ' · note: ' + item.note : '';
           const target = item.target_id ? ' · ' + item.target_id : '';
-          return '<div class="alert-item">' +
+          const encoded = jsString(JSON.stringify(item || {}));
+          return '<div class="alert-item clickable" tabindex="0" role="button" onclick="showPolicyActionDetails(\'' + encoded + '\')">' +
             '<span class="alert-sev ' + (String(item.status || '').indexOf('fail') >= 0 ? 'sev-critical' : 'sev-low') + '">' + (item.action || 'action') + '</span>' +
             '<span class="alert-msg">' + (item.message || item.status || 'done') + actor + target + note + '</span>' +
             '<span class="alert-time">' + formatTime(item.performed_at) + '</span>' +
@@ -1500,6 +1598,23 @@ function showPolicyDetails(scope) {
     items = items.concat(actions.slice(0, 5).map(item => renderKVItem(item.action || 'action', (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : ''), formatTime(item.performed_at))));
   }
   setInvestigationItems(items, 'No policy details available');
+  openDetailDrawer('Policy Center · ' + (scope || 'history'), 'Current policy, draft, rollout, rules, and audit evidence', items.join('') + renderJSONBlock({ current: current, draft: draft, history_count: history.length, action_count: actions.length }));
+}
+
+function showPolicyActionDetails(encoded) {
+  try {
+    const item = JSON.parse(encoded || '{}');
+    const rows = [
+      renderKVItem('action', item.action || '--', item.status || '--'),
+      renderKVItem('actor', item.actor || '--', item.role || 'role'),
+      renderKVItem('target', item.target_id || item.target || '--', item.source || 'policy'),
+      renderKVItem('performed', formatTime(item.performed_at || item.timestamp), item.message || item.note || ''),
+      renderJSONBlock(item),
+    ];
+    openDetailDrawer('Policy Audit Action', item.action || 'policy action', rows.join(''));
+  } catch (e) {
+    setInvestigationLoading('Policy action detail parse failed: ' + e.message);
+  }
 }
 
 function renderPolicyDiffItem(item) {
@@ -1944,11 +2059,7 @@ async function loadAlertWorkflow() {
     const alerts = data.alerts || [];
     const history = data.history || [];
     updateAlertQualityMetrics(alerts);
-    if (alerts.length === 0) {
-      list.innerHTML = '<div class="loading">No workflow alerts. Generate a test event, review active rules, or lower the alert filter severity.</div>';
-    } else {
-      list.innerHTML = alerts.slice(0, 8).map(a => renderWorkflowAlert(a)).join('');
-    }
+    renderAlertWorkflowList(alerts);
     if (historyList) {
       if (history.length === 0) {
         historyList.innerHTML = '<div class="loading">No workflow actions recorded yet</div>';
@@ -1966,12 +2077,81 @@ async function loadAlertWorkflow() {
       }
     }
   } catch (e) {
-    document.getElementById('workflowAlertsList').innerHTML = '<div class="error">Workflow alerts unavailable. ' + escapeHTML(apiErrorHint(e)) + '</div>';
+    document.getElementById('workflowAlertsList').innerHTML = renderEmptyDiagnostic('Workflow alerts unavailable.', [
+      apiErrorHint(e),
+      'Check /api/v1/control/alerts, alert storage retention, and control-plane logs.',
+      'Generate a test event after confirming rules are enabled.',
+    ]);
     const historyList = document.getElementById('workflowHistoryList');
     if (historyList) {
       historyList.innerHTML = '<div class="error">Workflow action history unavailable. Check alert workflow storage and server logs.</div>';
     }
   }
+}
+
+function collectAlertWorkflowFilters() {
+  alertWorkflowFilters = {
+    status: String((document.getElementById('workflowFilterStatus') || {}).value || '').toLowerCase(),
+    severity: String((document.getElementById('workflowFilterSeverity') || {}).value || '').toLowerCase(),
+    host: String((document.getElementById('workflowFilterHost') || {}).value || '').toLowerCase().trim(),
+    rule: String((document.getElementById('workflowFilterRule') || {}).value || '').toLowerCase().trim(),
+    time: String((document.getElementById('workflowFilterTime') || {}).value || '').toLowerCase().trim(),
+  };
+  return alertWorkflowFilters;
+}
+
+function alertMatchesWorkflowFilters(alert, filters) {
+  const f = filters || alertWorkflowFilters || {};
+  const status = String(alert.status || 'open').toLowerCase();
+  const severity = String(alert.severity || 'info').toLowerCase();
+  const hostText = [alert.hostname, alert.host, alert.agent_id, alert.node, alert.source].join(' ').toLowerCase();
+  const ruleText = [alert.id, alert.rule_id, alert.pattern, alert.headline, alert.reason, alert.assignee].join(' ').toLowerCase();
+  const timeText = [alert.first_seen, alert.last_seen, alert.last_notified_at, alert.sla_deadline].map(formatTime).join(' ').toLowerCase();
+  if (f.status && status !== f.status) return false;
+  if (f.severity && severity !== f.severity) return false;
+  if (f.host && hostText.indexOf(f.host) < 0) return false;
+  if (f.rule && ruleText.indexOf(f.rule) < 0) return false;
+  if (f.time && timeText.indexOf(f.time) < 0) return false;
+  return true;
+}
+
+function filteredAlertWorkflowAlerts() {
+  const filters = collectAlertWorkflowFilters();
+  return (latestWorkflow.alerts || []).filter(alert => alertMatchesWorkflowFilters(alert, filters));
+}
+
+function renderAlertWorkflowList(alerts) {
+  const list = document.getElementById('workflowAlertsList');
+  const summary = document.getElementById('workflowFilterSummary');
+  if (!list) return;
+  const all = alerts || latestWorkflow.alerts || [];
+  const filters = collectAlertWorkflowFilters();
+  const filtered = all.filter(alert => alertMatchesWorkflowFilters(alert, filters));
+  if (summary) {
+    const active = Object.keys(filters).filter(key => filters[key]).map(key => key + '=' + filters[key]);
+    summary.textContent = 'Showing ' + filtered.length + ' of ' + all.length + ' alerts' + (active.length ? ' · filters: ' + active.join(', ') : ' · no filters');
+  }
+  if (filtered.length === 0) {
+    list.innerHTML = renderEmptyDiagnostic('No workflow alerts. Generate a test event, review active rules, or lower the alert filter severity.', [
+      'Reset filters or broaden severity/status/time criteria.',
+      'Confirm active rules are deployed and agents are reporting.',
+      'Use Recent Events to verify raw telemetry before expecting alerts.',
+    ]);
+    return;
+  }
+  list.innerHTML = filtered.slice(0, 25).map(a => renderWorkflowAlert(a)).join('');
+}
+
+function applyAlertWorkflowFilters() {
+  renderAlertWorkflowList(latestWorkflow.alerts || []);
+}
+
+function resetAlertWorkflowFilters() {
+  ['workflowFilterStatus', 'workflowFilterSeverity', 'workflowFilterHost', 'workflowFilterRule', 'workflowFilterTime'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) element.value = '';
+  });
+  applyAlertWorkflowFilters();
 }
 
 function normalizeAlertClassification(value) {
@@ -2114,7 +2294,8 @@ function renderWorkflowAlert(a) {
   const sev = a.severity || 'info';
   const actions = alertTraceActions(a);
   const sla = a.sla_status ? (' · SLA ' + escapeHTML(a.sla_status)) : '';
-  return '<div class="alert-item">' +
+  const encoded = jsString(JSON.stringify(a || {}));
+  return '<div class="alert-item clickable" tabindex="0" role="button" onclick="if(event.target.closest(\'button,a\')) return; showAlertDetailsJSON(\'' + encoded + '\')" onkeydown="handleCardKey(event, function(){ showAlertDetailsJSON(\'' + encoded + '\'); })">' +
     '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
     '<span class="alert-msg">' + escapeHTML(a.headline || a.pattern || 'Alert') + ' · ' + escapeHTML(a.status || 'open') + (a.assignee ? (' · ' + escapeHTML(a.assignee)) : '') + ' · x' + (a.count || 1) + sla + workflowActionButtons(a) + '</span>' +
     '<span class="alert-time">' + formatTime(a.sla_deadline || a.last_seen || a.last_notified_at) + '</span>' +
@@ -2127,9 +2308,9 @@ async function loadAlertWorkflowFiltered(status) {
     const data = await fetchJSON('/api/v1/control/alerts?status=' + encodeURIComponent(status));
     latestWorkflow = data;
     const alerts = data.alerts || [];
-    document.getElementById('workflowAlertsList').innerHTML = alerts.length === 0
-      ? '<div class="loading">No ' + escapeHTML(status) + ' workflow alerts</div>'
-      : alerts.slice(0, 12).map(a => renderWorkflowAlert(a)).join('');
+    const statusInput = document.getElementById('workflowFilterStatus');
+    if (statusInput) statusInput.value = status;
+    renderAlertWorkflowList(alerts);
     setInvestigationItems(alerts.slice(0, 20).map(a => renderWorkflowAlert(a)), 'No ' + status + ' workflow alerts');
   } catch (e) {
     setInvestigationLoading('Workflow filter failed: ' + e.message);
@@ -2171,14 +2352,14 @@ async function runAlertWorkflowBulkAction(action) {
   if (!requireAdminAction('Bulk alert workflow action')) {
     return;
   }
-  const alerts = (latestWorkflow.alerts || []).filter(item => String(item.status || '').toLowerCase() === 'open');
+  const alerts = filteredAlertWorkflowAlerts().filter(item => String(item.status || '').toLowerCase() !== 'closed');
   const ids = alerts.slice(0, 20).map(item => item.id).filter(Boolean);
   if (ids.length === 0) {
-    setInvestigationLoading('No open alerts available for bulk action');
+    setInvestigationLoading('No filtered active alerts available for bulk action');
     return;
   }
   setInvestigationItems([
-    renderKVItem('bulk precheck', ids.length + ' open alerts selected, capped at 20 per operation', action),
+    renderKVItem('bulk precheck', ids.length + ' filtered active alerts selected, capped at 20 per operation', action),
     renderKVItem('scope', ids.join(', '), 'selected alert ids'),
   ], 'Bulk alert precheck unavailable');
   const payload = {
@@ -2817,6 +2998,7 @@ async function showAuditSearch() {
   }
   items.push(renderKVItem('download', '/api/v1/control/audit?' + params.toString(), 'CSV/JSON endpoint'));
   document.getElementById('complianceDetails').innerHTML = items.join('');
+  openDetailDrawer('Audit Search', 'Administrative audit sources and export endpoint', items.join(''));
 }
 
 function renderApprovalItem(item) {
@@ -3191,6 +3373,43 @@ function openGraphTrace(nodeID, direction) {
   window.open('/api/v1/graph/node/' + encodeURIComponent(nodeID) + '/' + direction + '?depth=8', '_blank', 'noreferrer');
 }
 
+function openGraphFullscreen() {
+  window.open('/api/v1/graph/export', '_blank', 'noreferrer');
+  openDetailDrawer('Graph Fullscreen', 'Opened graph JSON in a new tab', [
+    renderKVItem('primary view', '/api/v1/graph/export', 'new tab'),
+    renderKVItem('next step', 'Use Graph Nodes or Attack Route Map to reduce clutter before opening node traces.', 'workflow'),
+  ].join(''));
+}
+
+async function showAttackRouteMap() {
+  setInvestigationLoading('Building attack route map from graph topology...');
+  try {
+    const data = await fetchJSON('/api/v1/graph/export');
+    const elements = data.elements || [];
+    const nodes = elements.filter(item => !item.data || !item.data.source);
+    const edges = elements.filter(item => item.data && item.data.source);
+    const hubs = graphTopHubs(nodes, edges);
+    const clusters = graphClusterRows(nodes, edges).slice(0, 8);
+    const items = [
+      renderKVItem('route map', nodes.length + ' nodes · ' + edges.length + ' directed edges', 'topology summary'),
+      renderKVItem('directionality', 'source -> target', 'use Backward for cause, Forward for impact'),
+    ];
+    hubs.forEach(hub => {
+      items.push('<div class="alert-item"><span class="alert-sev sev-high">hub</span><span class="alert-msg">' +
+        escapeHTML(hub.id || 'unknown') + ' · ' + escapeHTML(hub.type || 'unknown') + ' · degree ' + hub.degree +
+        '<span class="graph-cluster-actions">' +
+        '<button onclick="openGraphTrace(\'' + jsString(hub.id) + '\', \'backward\')">Cause</button>' +
+        '<button onclick="openGraphTrace(\'' + jsString(hub.id) + '\', \'forward\')">Impact</button>' +
+        '</span></span><span class="alert-time">route</span></div>');
+    });
+    clusters.forEach(cluster => items.push('<div class="alert-item"><span class="alert-sev sev-medium">cluster</span><span class="alert-msg">' + escapeHTML(cluster.key) + ' · ' + cluster.nodes + ' nodes · ' + cluster.edges + ' edges<span class="graph-cluster-actions"><button onclick="collapseGraphCluster(\'' + jsString(cluster.key) + '\')">Inspect</button></span></span><span class="alert-time">group</span></div>'));
+    setInvestigationItems(items, 'No attack route topology available');
+    openDetailDrawer('Attack Route Map', 'Topology summary with directed cause/impact actions', items.join(''));
+  } catch (e) {
+    setInvestigationLoading('Attack route map unavailable: ' + e.message);
+  }
+}
+
 async function showGraphSummary(kind) {
   if (currentRole === 'auditor') {
     setInvestigationLoading('Graph export is hidden for auditor role');
@@ -3258,9 +3477,43 @@ function eventDetailRows(event) {
 function showEventDetailsJSON(encoded) {
   try {
     const event = JSON.parse(encoded || '{}');
-    setInvestigationItems(eventDetailRows(event), 'No event detail available');
+    const title = event.type || (event.raw || {}).type || 'Event Details';
+    const subtitle = [event.comm || (event.raw || {}).comm, event.pid || (event.raw || {}).pid, event.timestamp || event.time].filter(Boolean).join(' · ');
+    openDetailDrawer(title, subtitle || 'Raw event evidence', eventDetailRows(event).join('') + renderJSONBlock(event));
   } catch (e) {
     setInvestigationLoading('Event detail parse failed: ' + e.message);
+  }
+}
+
+function alertDetailRows(alert) {
+  const traceID = alert.id || alert.node_id || alert.alert_id || '';
+  const pattern = alert.pattern || alert.rule_id || alert.headline || '';
+  const rows = [
+    renderKVItem('status', alert.status || 'open', 'severity ' + formatSeverity(alert.severity || 'info')),
+    renderKVItem('rule', pattern || '--', alert.reason || alert.headline || ''),
+    renderKVItem('scope', [alert.hostname || alert.host, alert.agent_id, alert.assignee].filter(Boolean).join(' · ') || '--', 'count ' + (alert.count || 1)),
+    renderKVItem('time', formatTime(alert.first_seen || alert.created_at) + ' -> ' + formatTime(alert.last_seen || alert.last_notified_at), alert.sla_status || ''),
+  ];
+  if (traceID) {
+    rows.push('<div class="alert-item"><span class="alert-sev sev-medium">trace</span><span class="alert-msg"><span class="graph-cluster-actions">' +
+      '<button onclick="openGraphTrace(\'' + jsString(traceID) + '\', \'backward\')">Backward Path</button>' +
+      '<button onclick="openGraphTrace(\'' + jsString(traceID) + '\', \'forward\')">Forward Impact</button>' +
+      '<button onclick="window.open(\'/api/v1/alerts/' + encodeURIComponent(traceID) + '/svg\', \'_blank\', \'noreferrer\')">Trace SVG</button>' +
+      '<button onclick="showAlertEvents(\'' + jsString(pattern || traceID) + '\')">Related Events</button>' +
+      '</span></span><span class="alert-time">actions</span></div>');
+  }
+  rows.push(renderJSONBlock(alert));
+  return rows;
+}
+
+function showAlertDetailsJSON(encoded) {
+  try {
+    const alert = JSON.parse(encoded || '{}');
+    const title = alert.headline || alert.pattern || alert.rule_id || alert.id || 'Alert Details';
+    const subtitle = [formatSeverity(alert.severity || 'info'), alert.status || 'open', alert.assignee || 'unassigned'].join(' · ');
+    openDetailDrawer(title, subtitle, alertDetailRows(alert).join(''));
+  } catch (e) {
+    setInvestigationLoading('Alert detail parse failed: ' + e.message);
   }
 }
 

@@ -451,6 +451,31 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 	}
 }
 
+func TestDashboardCommercialWorkbenchInteractions(t *testing.T) {
+	expected := []string{
+		"workflow-filter-bar",
+		"workflowFilterStatus",
+		"workflowFilterSeverity",
+		"workflowFilterHost",
+		"workflowFilterRule",
+		"applyAlertWorkflowFilters",
+		"resetAlertWorkflowFilters",
+		"filteredAlertWorkflowAlerts",
+		"Close Filtered Batch",
+		"detail-drawer",
+		"openDetailDrawer",
+		"showAlertDetailsJSON",
+		"showPolicyActionDetails",
+		"openGraphFullscreen",
+		"showAttackRouteMap",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing commercial workbench interaction %q", item)
+		}
+	}
+}
+
 func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	expected := []string{
 		"postJSONWithLeaderRetry",
