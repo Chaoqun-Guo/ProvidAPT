@@ -1,6 +1,6 @@
-# ProvidAPT — End User License Agreement
+# ProvidAPT - End User License Agreement
 
-**Version 1.0 — Effective 2026-06-07**
+**Version 1.0 - Effective 2026-06-07**
 
 ## 1. Acceptance
 

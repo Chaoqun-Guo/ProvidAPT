@@ -33,11 +33,25 @@ artifacts. Set `KEEP_BUILD_DIST=1` only when debugging package builders.
 ```bash
 make release-commercial
 make package-smoke-matrix
+make customer-release-gate
 
 # Use explicit host mode only on disposable Linux validation hosts when Docker
 # registry access is unavailable; it installs and purges the Debian package on
 # the host, and validates RPM metadata/extraction without installing the RPM.
 PACKAGE_SMOKE_MODE=host make package-smoke-matrix
+
+# Aggregate all customer-release blockers into one JSON/Markdown report:
+make customer-release-gate \
+  RELEASE_GATES_JSON=build/release-gate-status.json \
+  PACKAGE_SMOKE_DIR=build/package-smoke \
+  PRODUCTION_READINESS_GATE=build/production-readiness/production-readiness-gate.json \
+  ML_READINESS_GATE=build/ml-readiness/ml-readiness-gate.json \
+  OPERATIONS_READINESS_GATE=build/operations-readiness/operations-readiness-gate.json \
+  COMMERCIALIZATION_READINESS_GATE=build/commercialization-readiness/commercialization-readiness-gate.json
+
+# If blocked, convert the gate output into an owner-ready backlog:
+make release-blocker-backlog \
+  CUSTOMER_RELEASE_GATE=build/customer-release/customer-release-gate.json
 
 # Equivalent explicit release readiness check:
 providaptctl -release-check \
@@ -56,6 +70,8 @@ providaptctl -release-check \
 
 - Every published artifact must be built from the same release tag.
 - Package artifacts must pass `make package-smoke-matrix` before customer handoff.
+- `make customer-release-gate` must pass before final customer delivery. A warning is acceptable only for a named, controlled local handoff; public publication requires all customer-release sections to pass.
+- `make release-blocker-backlog` must produce zero release-blocking tasks before final publication.
 - Every published install artifact and SBOM in `dist/` must appear in `checksums.txt`; signature files, public keys, and readiness reports are release evidence and are excluded.
 - Every entry in `checksums.txt` must resolve to an existing file and match its SHA-256 digest.
 - Required commercial artifact types are `archive`, `deb`, `rpm`, `helm`, and `monitoring` unless a signed release waiver is present.

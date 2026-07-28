@@ -1,6 +1,6 @@
-# ProvidAPT — Data Processing Agreement
+# ProvidAPT - Data Processing Agreement
 
-**Version 1.0 — Effective 2026-06-07**
+**Version 1.0 - Effective 2026-06-07**
 
 ## 1. Parties and Scope
 

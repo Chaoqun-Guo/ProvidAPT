@@ -102,6 +102,23 @@ providaptctl -release-check \
   -release-check-out build/release-readiness.md
 ```
 
+Aggregate release, artifact, package-smoke, operational, ML, legal, and
+customer-handoff evidence:
+
+```bash
+make customer-release-gate \
+  RELEASE_GATES_JSON=build/release-gate-status.json \
+  PACKAGE_SMOKE_DIR=build/package-smoke
+
+make release-blocker-backlog \
+  CUSTOMER_RELEASE_GATE=build/customer-release/customer-release-gate.json
+```
+
+The generated `build/customer-release/customer-release-gate.json` is the
+machine-readable final delivery decision. `customer-release-gate.md` is the
+operator-facing blocker list. `release-blocker-backlog.json` converts each
+blocked or warning section into an owner-ready action item.
+
 ## 8. Assemble Handoff
 
 Include:
@@ -122,6 +139,7 @@ Publish only after:
 
 - final tag is pushed
 - release readiness passes
+- customer release gate passes
 - external approvals are signed
 - security waivers are closed or approved
 - artifacts are uploaded to the approved distribution channel

@@ -19,6 +19,7 @@ DEFAULT_REQUIRED_DOCS = [
     "docs/getting-started/commercial-install.md",
     "docs/getting-started/evaluation.md",
     "docs/developer/release-readiness.md",
+    "PRIVACY.md",
 ]
 
 

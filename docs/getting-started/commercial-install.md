@@ -99,7 +99,7 @@ The control plane records policy publish and rollback deployment plans with:
 - deployment status
 - target agent count
 - acknowledged agent count
-- pending agent count
+- agents awaiting approval count
 
 `queued` means the control plane has created the deployment plan for currently reporting agents. `applied` means all currently targeted agents have reported the desired policy version through telemetry.
 
