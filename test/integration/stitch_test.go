@@ -146,7 +146,7 @@ func TestMultipleStitches(t *testing.T) {
 
 func TestStitchStats(t *testing.T) {
 	st := stitch.NewStitchTable()
-	st.RecordOutbound(flowID("1", "2", 1, 2, 1, 1), "a", 1, "p1", "1", "2", 1, 2, false, "")
+	st.RecordOutbound(flowID("1", "2", 1, 2, 1, 1), "a", 1, "pkg-a", "1", "2", 1, 2, false, "")
 
 	stats := st.Stats()
 	if stats["outbound_records"].(int) != 1 {

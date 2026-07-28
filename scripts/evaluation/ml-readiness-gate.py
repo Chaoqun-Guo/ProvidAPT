@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 from scripts.evaluation import build_graph_training_dataset as graph_dataset
 
 
-SCHEMA = "providapt.p2_readiness.v1"
+SCHEMA = "providapt.ml_readiness.v1"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -155,7 +155,7 @@ def overall_status(sections: dict[str, dict[str, Any]]) -> str:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# ProvidAPT P2 ML Readiness",
+        "# ProvidAPT ML Readiness",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -191,7 +191,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Gate P2 graph ML readiness on dataset quality and model metrics.")
+    parser = argparse.ArgumentParser(description="Gate graph ML readiness on dataset quality and model metrics.")
     parser.add_argument("--dataset-manifest", required=True)
     parser.add_argument("--metrics", required=True)
     parser.add_argument("--model-gate", default="")
@@ -210,8 +210,8 @@ def main() -> int:
     parser.add_argument("--min-recall", type=float, default=80.0)
     parser.add_argument("--min-f1", type=float, default=70.0)
     parser.add_argument("--min-test-support", type=int, default=100)
-    parser.add_argument("--out-json", default="build/p2/p2-readiness.json")
-    parser.add_argument("--out-md", default="build/p2/p2-readiness.md")
+    parser.add_argument("--out-json", default="build/ml-readiness/ml-readiness-gate.json")
+    parser.add_argument("--out-md", default="build/ml-readiness/ml-readiness-gate.md")
     args = parser.parse_args()
     report = build_report(args)
     out_json = Path(args.out_json)

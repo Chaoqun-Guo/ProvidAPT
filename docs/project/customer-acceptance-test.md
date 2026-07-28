@@ -42,7 +42,7 @@ rm -f /tmp/providapt-cat.out
 
 ## Exit Criteria
 
-- All P0 tests pass.
-- Any P1/P2 issues have owner, severity, workaround, and target date.
+- All release-blocking tests pass.
+- Any production or detection issues have owner, severity, workaround, and target date.
 - Production secrets are injected through the customer's secret-management process.
 - External approvals are recorded in the commercial approval record.

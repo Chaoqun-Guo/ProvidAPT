@@ -124,8 +124,8 @@ func TestOnAccessSilent(t *testing.T) {
 
 func TestAlertsList(t *testing.T) {
 	tr := NewTrigger(nil)
-	tr.OnAccess("/path1", 1, "p1", "read")
-	tr.OnAccess("/path2", 2, "p2", "stat")
+	tr.OnAccess("/path1", 1, "pkg-a", "read")
+	tr.OnAccess("/path2", 2, "pkg-b", "stat")
 
 	alerts := tr.Alerts()
 	if len(alerts) != 2 {

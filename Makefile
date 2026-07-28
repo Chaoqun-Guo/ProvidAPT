@@ -1,11 +1,11 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train p2-ml-pipeline p2-readiness alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness p1-readiness p3-readiness p4-readiness soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -294,14 +294,14 @@ scheduled-report-plan:
 enterprise-readiness:
 	python3 scripts/ops/enterprise-readiness-report.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --postgres-drill "$(or $(POSTGRES_DRILL_JSON),build/postgres/postgres-drill.json)" --detection-quality "$(or $(DETECTION_QUALITY_JSON),build/evaluation/detection-quality.json)" --rbac-audit "$(or $(RBAC_AUDIT_JSON),build/rbac/rbac-audit.json)" --report-plan "$(or $(REPORT_PLAN_JSON),build/reports/scheduled-report-plan.json)" --siem-verify "$(or $(SIEM_VERIFY_JSON),build/siem/siem-verification.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT_JSON),build/upgrade/rollout-plan.json)" --out-json "$(or $(OUT_DIR),build)/enterprise-readiness.json" --out-md "$(or $(OUT_DIR),build)/enterprise-readiness.md"
 
-p1-readiness:
-	python3 scripts/ops/p1-readiness-report.py --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --tls-manifest "$(or $(TLS_MANIFEST),build/tls/manifest.json)" $(if $(POSTGRES_REPORT),--postgres-report "$(POSTGRES_REPORT)") $(if $(PROVIDAPT_SERVER_URL),--server "$(PROVIDAPT_SERVER_URL)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),60)" --out-json "$(or $(OUT_DIR),build/p1)/p1-readiness.json" --out-md "$(or $(OUT_DIR),build/p1)/p1-readiness.md"
+production-readiness-gate:
+	python3 scripts/ops/production-readiness-gate.py --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --tls-manifest "$(or $(TLS_MANIFEST),build/tls/manifest.json)" $(if $(POSTGRES_REPORT),--postgres-report "$(POSTGRES_REPORT)") $(if $(PROVIDAPT_SERVER_URL),--server "$(PROVIDAPT_SERVER_URL)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),60)" --out-json "$(or $(OUT_DIR),build/production-readiness)/production-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/production-readiness)/production-readiness-gate.md"
 
-p3-readiness:
-	python3 scripts/ops/p3-readiness-report.py --p1-readiness "$(or $(P1_READINESS),build/p1/p1-readiness.json)" --p2-readiness "$(or $(P2_READINESS),build/p2/p2-readiness.json)" --fleet-verification "$(or $(FLEET_VERIFICATION),build/deploy/vm-fleet-verification.json)" --soak-readiness "$(or $(SOAK_READINESS),build/performance/soak-readiness.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT),build/upgrade/rollout-plan.json)" --siem-verify "$(or $(SIEM_VERIFY),build/siem/siem-verification.json)" --rbac-audit "$(or $(RBAC_AUDIT),build/rbac/rbac-audit.json)" --out-json "$(or $(OUT_DIR),build/p3)/p3-readiness.json" --out-md "$(or $(OUT_DIR),build/p3)/p3-readiness.md"
+operations-readiness-gate:
+	python3 scripts/ops/operations-readiness-gate.py --production-readiness-gate "$(or $(PRODUCTION_READINESS_GATE),build/production-readiness/production-readiness-gate.json)" --ml-readiness-gate "$(or $(ML_READINESS_GATE),build/ml-readiness/ml-readiness-gate.json)" --fleet-verification "$(or $(FLEET_VERIFICATION),build/deploy/vm-fleet-verification.json)" --soak-readiness "$(or $(SOAK_READINESS),build/performance/soak-readiness.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT),build/upgrade/rollout-plan.json)" --siem-verify "$(or $(SIEM_VERIFY),build/siem/siem-verification.json)" --rbac-audit "$(or $(RBAC_AUDIT),build/rbac/rbac-audit.json)" --out-json "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.md"
 
-p4-readiness:
-	python3 scripts/ops/p4-readiness-report.py --p3-readiness "$(or $(P3_READINESS),build/p3/p3-readiness.json)" --enterprise-readiness "$(or $(ENTERPRISE_READINESS),build/enterprise-readiness.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" $(if $(PLUGIN_GATE),--plugin-gate "$(PLUGIN_GATE)") --external-approval "$(or $(EXTERNAL_APPROVAL),docs/project/external-approval-request-v1.2.3-rc.1.md)" --out-json "$(or $(OUT_DIR),build/p4)/p4-readiness.json" --out-md "$(or $(OUT_DIR),build/p4)/p4-readiness.md"
+commercialization-readiness-gate:
+	python3 scripts/ops/commercialization-readiness-gate.py --operations-readiness-gate "$(or $(OPERATIONS_READINESS_GATE),build/operations-readiness/operations-readiness-gate.json)" --enterprise-readiness "$(or $(ENTERPRISE_READINESS),build/enterprise-readiness.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" $(if $(PLUGIN_GATE),--plugin-gate "$(PLUGIN_GATE)") --external-approval "$(or $(EXTERNAL_APPROVAL),docs/project/external-approval-request-v1.2.3-rc.1.md)" --out-json "$(or $(OUT_DIR),build/commercialization-readiness)/commercialization-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/commercialization-readiness)/commercialization-readiness-gate.md"
 
 soak-sample:
 	@if [ -z "$(STATUS_URL)" ] && [ -z "$(STATUS_JSON)" ]; then echo 'usage: make soak-sample STATUS_URL=http://localhost:18080/api/v1/status [SOAK_STARTED_AT_EPOCH=...] [OUT=build/performance/soak-samples.json]'; exit 2; fi
@@ -385,15 +385,15 @@ graph-augment:
 graph-train:
 	$(or $(CONDA_RUN),conda run -n $(or $(CONDA_ENV),torch_py39)) python scripts/evaluation/train_graph_detector.py --dataset "$(or $(GRAPH_DATASET),build/ml-dataset/graphs.jsonl)" --out-dir "$(or $(OUT_DIR),build/ml-model)" --architecture "$(or $(ARCH),gcn)" --epochs "$(or $(EPOCHS),20)" --hidden-dim "$(or $(HIDDEN_DIM),32)" --device "$(or $(DEVICE),auto)" --pos-weight "$(or $(POS_WEIGHT),auto)"
 
-p2-ml-pipeline:
-	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make p2-ml-pipeline EVENTS=... GROUND_TRUTH=... MODEL_VERSION=... [MODEL_NAME=graph-detector]'; exit 2; fi
+ml-training-pipeline:
+	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make ml-training-pipeline EVENTS=... GROUND_TRUTH=... MODEL_VERSION=... [MODEL_NAME=graph-detector]'; exit 2; fi
 	$(MAKE) graph-dataset EVENTS="$(EVENTS)" GROUND_TRUTH="$(GROUND_TRUTH)" OUT_DIR="$(or $(DATASET_OUT_DIR),build/ml-dataset)" DATASET_VERSION="$(or $(DATASET_VERSION),$(MODEL_VERSION))"
 	$(MAKE) graph-train GRAPH_DATASET="$(or $(DATASET_OUT_DIR),build/ml-dataset)/graphs.jsonl" OUT_DIR="$(or $(MODEL_OUT_DIR),build/ml-model)" ARCH="$(or $(ARCH),gcn)" EPOCHS="$(or $(EPOCHS),20)"
-	$(MAKE) model-register DATASET_MANIFEST="$(or $(DATASET_OUT_DIR),build/ml-dataset)/manifest.json" MODEL_NAME="$(or $(MODEL_NAME),graph-detector)" MODEL_VERSION="$(MODEL_VERSION)" MODEL_METRICS="$(or $(MODEL_OUT_DIR),build/ml-model)/metrics.json" MODEL_ARTIFACT="$(or $(MODEL_OUT_DIR),build/ml-model)/model.pt" FEATURE_SCHEMA="$(or $(DATASET_OUT_DIR),build/ml-dataset)/feature_schema.json" MODEL_REGISTRY="$(or $(MODEL_REGISTRY),build/model-registry.json)" NOTES="P2 graph detector training pipeline"
+	$(MAKE) model-register DATASET_MANIFEST="$(or $(DATASET_OUT_DIR),build/ml-dataset)/manifest.json" MODEL_NAME="$(or $(MODEL_NAME),graph-detector)" MODEL_VERSION="$(MODEL_VERSION)" MODEL_METRICS="$(or $(MODEL_OUT_DIR),build/ml-model)/metrics.json" MODEL_ARTIFACT="$(or $(MODEL_OUT_DIR),build/ml-model)/model.pt" FEATURE_SCHEMA="$(or $(DATASET_OUT_DIR),build/ml-dataset)/feature_schema.json" MODEL_REGISTRY="$(or $(MODEL_REGISTRY),build/model-registry.json)" NOTES="Graph detector training pipeline"
 
-p2-readiness:
-	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_METRICS)" ]; then echo 'usage: make p2-readiness DATASET_MANIFEST=... MODEL_METRICS=... [MODEL_GATE=...]'; exit 2; fi
-	python3 scripts/evaluation/p2-readiness-report.py --dataset-manifest "$(DATASET_MANIFEST)" --metrics "$(MODEL_METRICS)" $(if $(MODEL_GATE),--model-gate "$(MODEL_GATE)") $(if $(EVENTS),--events "$(EVENTS)") $(if $(NORMAL_EVENTS),--normal-events "$(NORMAL_EVENTS)") $(if $(GROUND_TRUTH),--ground-truth "$(GROUND_TRUTH)") --window-seconds "$(or $(WINDOW_SECONDS),300)" --min-graphs "$(or $(MIN_GRAPHS),1000)" --min-source-events "$(or $(MIN_SOURCE_EVENTS),10000)" --min-malicious-graphs "$(or $(MIN_MALICIOUS_GRAPHS),100)" --min-benign-graphs "$(or $(MIN_BENIGN_GRAPHS),100)" --min-truth-match-rate "$(or $(MIN_TRUTH_MATCH_RATE),80)" --min-cmdline-rate "$(or $(MIN_CMDLINE_RATE),10)" --min-path-rate "$(or $(MIN_PATH_RATE),10)" --min-precision "$(or $(MIN_PRECISION),70)" --min-recall "$(or $(MIN_RECALL),80)" --min-f1 "$(or $(MIN_F1),70)" --min-test-support "$(or $(MIN_TEST_SUPPORT),100)" --out-json "$(or $(OUT_DIR),build/p2)/p2-readiness.json" --out-md "$(or $(OUT_DIR),build/p2)/p2-readiness.md"
+ml-readiness-gate:
+	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_METRICS)" ]; then echo 'usage: make ml-readiness-gate DATASET_MANIFEST=... MODEL_METRICS=... [MODEL_GATE=...]'; exit 2; fi
+	python3 scripts/evaluation/ml-readiness-gate.py --dataset-manifest "$(DATASET_MANIFEST)" --metrics "$(MODEL_METRICS)" $(if $(MODEL_GATE),--model-gate "$(MODEL_GATE)") $(if $(EVENTS),--events "$(EVENTS)") $(if $(NORMAL_EVENTS),--normal-events "$(NORMAL_EVENTS)") $(if $(GROUND_TRUTH),--ground-truth "$(GROUND_TRUTH)") --window-seconds "$(or $(WINDOW_SECONDS),300)" --min-graphs "$(or $(MIN_GRAPHS),1000)" --min-source-events "$(or $(MIN_SOURCE_EVENTS),10000)" --min-malicious-graphs "$(or $(MIN_MALICIOUS_GRAPHS),100)" --min-benign-graphs "$(or $(MIN_BENIGN_GRAPHS),100)" --min-truth-match-rate "$(or $(MIN_TRUTH_MATCH_RATE),80)" --min-cmdline-rate "$(or $(MIN_CMDLINE_RATE),10)" --min-path-rate "$(or $(MIN_PATH_RATE),10)" --min-precision "$(or $(MIN_PRECISION),70)" --min-recall "$(or $(MIN_RECALL),80)" --min-f1 "$(or $(MIN_F1),70)" --min-test-support "$(or $(MIN_TEST_SUPPORT),100)" --out-json "$(or $(OUT_DIR),build/ml-readiness)/ml-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/ml-readiness)/ml-readiness-gate.md"
 
 alert-quality:
 	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [OUT_DIR=build/evaluation]'; exit 2; fi
@@ -519,8 +519,8 @@ help:
 	@echo '  make ops-rbac-audit PROVIDAPT_CONFIG=... Audit RBAC and tenant scoping'
 	@echo '  make scheduled-report-plan Generate executive/compliance report schedule'
 	@echo '  make enterprise-readiness Aggregate release, secret, PostgreSQL, and detection evidence'
-	@echo '  make p3-readiness      Aggregate production operations readiness evidence'
-	@echo '  make p4-readiness      Aggregate commercialization readiness evidence'
+	@echo '  make operations-readiness-gate      Aggregate production operations readiness evidence'
+	@echo '  make commercialization-readiness-gate      Aggregate commercialization readiness evidence'
 	@echo '  make soak-sample STATUS_URL=... Append one long-duration soak sample'
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... Plan staged upgrades'

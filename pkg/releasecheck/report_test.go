@@ -33,8 +33,8 @@ func TestRenderMarkdown(t *testing.T) {
 	if !strings.Contains(out, "# ProvidAPT Release Evidence") {
 		t.Fatalf("missing title: %s", out)
 	}
-	if !strings.Contains(out, "## P0 Gates") {
-		t.Fatalf("missing P0 gate section: %s", out)
+	if !strings.Contains(out, "## Release Gates") {
+		t.Fatalf("missing release gate section: %s", out)
 	}
 	if !strings.Contains(out, "| PASS | `config_valid` | configuration loads |  |  |") {
 		t.Fatalf("missing check row: %s", out)

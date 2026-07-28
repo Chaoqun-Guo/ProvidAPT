@@ -254,7 +254,7 @@ make detection-quality \
   OUT_DIR=build/evaluation
 ```
 
-`detection-quality.json` is the P2 release evidence artifact for recall,
+`detection-quality.json` is the ML release evidence artifact for recall,
 precision, F1, missed tactics, missed techniques, and rule-tuning
 recommendations.
 
@@ -303,20 +303,20 @@ Outputs:
 Keep the gate output with the model artifact, dataset manifest, drift report,
 feature schema report, and release evidence bundle.
 
-## P2 ML Readiness Gate
+## ML Readiness Gate
 
-Before marking P2 complete, run the dataset-quality and model-quality readiness
+Before marking ML readiness complete, run the dataset-quality and model-quality readiness
 gate against the exact VM-captured dataset and trained model metrics:
 
 ```bash
-make p2-readiness \
+make ml-readiness-gate \
   DATASET_MANIFEST=build/ml-dataset/manifest.json \
   MODEL_METRICS=build/ml-model/metrics.json \
   MODEL_GATE=build/evaluation/model-deploy-gate.json \
   EVENTS=build/vm-training/attack_events.ndjson \
   NORMAL_EVENTS=build/vm-training/normal.ndjson \
   GROUND_TRUTH=build/vm-training/ground_truth.jsonl \
-  OUT_DIR=build/p2
+  OUT_DIR=build/ml-readiness
 ```
 
 The gate verifies:
@@ -331,7 +331,7 @@ Use stricter thresholds for release candidates and lower thresholds only for
 local smoke checks:
 
 ```bash
-make p2-readiness \
+make ml-readiness-gate \
   DATASET_MANIFEST=build/ml-dataset/manifest.json \
   MODEL_METRICS=build/ml-model/metrics.json \
   MIN_GRAPHS=100000 \
@@ -348,8 +348,8 @@ Outputs:
 
 | File | Purpose |
 | --- | --- |
-| `p2-readiness.json` | Machine-readable P2 release gate summary |
-| `p2-readiness.md` | Operator-readable readiness evidence |
+| `ml-readiness-gate.json` | Machine-readable ML release gate summary |
+| `ml-readiness-gate.md` | Operator-readable readiness evidence |
 
 If the report is blocked by low truth-match or missing enrichment, fix capture
 and enrichment first, recollect the VM dataset, and retrain before approving the

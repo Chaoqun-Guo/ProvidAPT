@@ -29,7 +29,7 @@ ProvidAPT has completed the core product-hardening work needed for the `v1.2.2` 
 | Commercial control plane | In progress | APIs available; UX and lifecycle polish continue |
 | Enterprise integrations | In progress | Ticketing and workflow primitives exist; broader ecosystem support remains |
 
-## P0 Priorities
+## Release-Blocking Priorities
 
 These items are considered release-blocking or immediate post-release hardening work.
 
@@ -38,7 +38,7 @@ These items are considered release-blocking or immediate post-release hardening 
 3. Maintain documentation consistency across root docs, `docs/developer/`, and deployment guides
 4. Prevent regressions in support bundle, upgrade, and license-control workflows
 
-## P1 Priorities
+## Production Operations Priorities
 
 These items improve commercial usability and adoption without blocking the `v1.2.2` release.
 

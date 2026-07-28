@@ -61,7 +61,7 @@ def build_plan(report: dict[str, Any]) -> dict[str, Any]:
     tasks = []
     for row in rows_from_report(report):
         name, guidance = TECHNIQUE_GUIDANCE.get(row["technique_id"], ("Unmapped ATT&CK technique", "Add a safe simulation step, rule expectation, and ground-truth label."))
-        priority = "P1" if row["missed"] >= 3 or row["recall_percent"] == 0 else "P2"
+        priority = "high" if row["missed"] >= 3 or row["recall_percent"] == 0 else "medium"
         tasks.append({
             "technique_id": row["technique_id"],
             "technique_name": name,

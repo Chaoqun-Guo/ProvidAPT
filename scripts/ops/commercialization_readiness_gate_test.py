@@ -6,16 +6,16 @@ from argparse import Namespace
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("p4-readiness-report.py")
-SPEC = importlib.util.spec_from_file_location("p4_readiness_report", SCRIPT)
-p4 = importlib.util.module_from_spec(SPEC)
+SCRIPT = Path(__file__).with_name("commercialization-readiness-gate.py")
+SPEC = importlib.util.spec_from_file_location("commercialization_readiness_gate", SCRIPT)
+subject = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(p4)
+SPEC.loader.exec_module(subject)
 
 
-class P4ReadinessReportTest(unittest.TestCase):
+class CommercializationReadinessGateTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / "build" / "unit-tmp" / "p4-readiness"
+        self.tmp = Path.cwd() / "build" / "unit-tmp" / "commercialization-readiness-gate"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir(parents=True)
@@ -37,8 +37,8 @@ class P4ReadinessReportTest(unittest.TestCase):
     def test_build_report_warns_without_plugin_evidence(self):
         doc = self.write_doc("handoff.md", "approved\n")
         onboarding = self.write_json("onboarding.json", {"mode": "standalone", "postgres": True, "outputs": {"config": "a", "checklist": "b"}})
-        report = p4.build_report(Namespace(
-            p3_readiness=str(self.write_json("p3.json", {"status": "pass"})),
+        report = subject.build_report(Namespace(
+            operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
             enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
             onboarding_manifest=str(onboarding),
             plugin_gate=[],
@@ -47,14 +47,14 @@ class P4ReadinessReportTest(unittest.TestCase):
         ))
         self.assertEqual(report["status"], "warn")
         self.assertEqual(report["sections"]["plugin_release_gates"]["status"], "warn")
-        self.assertIn("P4 Commercialization Readiness", p4.render_markdown(report))
+        self.assertIn("Commercialization Readiness", subject.render_markdown(report))
 
     def test_build_report_blocks_on_missing_required_doc(self):
         approval = self.write_doc("approval.md", "approved\n")
         onboarding = self.write_json("onboarding.json", {"outputs": {"config": "a", "checklist": "b"}})
         plugin = self.write_json("plugin.json", {"status": "pass", "signature_present": True, "plugin": {"name": "demo"}})
-        report = p4.build_report(Namespace(
-            p3_readiness=str(self.write_json("p3.json", {"status": "pass"})),
+        report = subject.build_report(Namespace(
+            operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
             enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
             onboarding_manifest=str(onboarding),
             plugin_gate=[str(plugin)],

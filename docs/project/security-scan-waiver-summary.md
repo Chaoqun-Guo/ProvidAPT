@@ -1,6 +1,6 @@
-# P0 Security Scan and Waiver Summary
+# Security Scan and Waiver Summary
 
-This summary supports local P0 closure for controlled release-candidate handoff. The exact release version and commit are recorded by `dist/release-readiness.md` and `build/release-gate-status.json` when release artifacts are generated.
+This summary supports local release-blocking closure for controlled release-candidate handoff. The exact release version and commit are recorded by `dist/release-readiness.md` and `build/release-gate-status.json` when release artifacts are generated.
 
 ## Evidence
 
@@ -11,8 +11,8 @@ This summary supports local P0 closure for controlled release-candidate handoff.
 ## Result
 
 - govulncheck evidence reports no reachable vulnerabilities in the captured scan output.
-- Grype source scan evidence is waived for this local P0 closure.
-- Trivy filesystem scan evidence is waived for this local P0 closure.
+- Grype source scan evidence is waived for this local release-blocking closure.
+- Trivy filesystem scan evidence is waived for this local release-blocking closure.
 
 ## Constraints
 

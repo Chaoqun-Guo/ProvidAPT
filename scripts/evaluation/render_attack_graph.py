@@ -187,8 +187,8 @@ def render_html(svg: str, rows: list[dict[str, Any]], title: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render a directed ATT&CK ground-truth graph as SVG/HTML.")
     parser.add_argument("inputs", nargs="+", help="Ground-truth JSONL files or directories")
-    parser.add_argument("--out-svg", default="build/p2-vm-data/attack-graph.svg")
-    parser.add_argument("--out-html", default="build/p2-vm-data/attack-graph.html")
+    parser.add_argument("--out-svg", default="build/ml-readiness-vm-data/attack-graph.svg")
+    parser.add_argument("--out-html", default="build/ml-readiness-vm-data/attack-graph.html")
     parser.add_argument("--title", default="ProvidAPT Full-Chain Attack Graph")
     args = parser.parse_args()
     rows = [row for path in iter_inputs(args.inputs) for row in load_jsonl(path)]

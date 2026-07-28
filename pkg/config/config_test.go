@@ -995,7 +995,7 @@ func TestValidateTLSRotationAndSecretProvider(t *testing.T) {
 	cfg.TLS.RotationRenewBefore = "720h"
 	cfg.Secrets.Provider = "vault"
 	if err := cfg.Validate(); err != nil {
-		t.Fatalf("valid P1 settings rejected: %v", err)
+		t.Fatalf("valid production settings rejected: %v", err)
 	}
 	cfg.TLS.RotationCheck = "0s"
 	if err := cfg.Validate(); err == nil {

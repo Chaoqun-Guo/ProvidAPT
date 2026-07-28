@@ -14,7 +14,7 @@ class AttackCoveragePlanTest(unittest.TestCase):
         }
         result = plan.build_plan(report)
         self.assertEqual(result["status"], "planned")
-        self.assertEqual(result["tasks"][0]["priority"], "P1")
+        self.assertEqual(result["tasks"][0]["priority"], "high")
         self.assertIn("Unix Shell", result["tasks"][0]["technique_name"])
         self.assertIn("ATT&CK Coverage Plan", plan.render_markdown(result))
 

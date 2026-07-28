@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "providapt.p4_readiness.v1"
+SCHEMA = "providapt.commercialization_readiness.v1"
 DEFAULT_REQUIRED_DOCS = [
     "docs/project/commercial-release-checklist.md",
     "docs/project/customer-handoff.md",
@@ -117,7 +117,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     docs = args.required_doc or DEFAULT_REQUIRED_DOCS
     plugin_reports = [load_json(Path(path)) for path in args.plugin_gate]
     sections = {
-        "p3_operations_readiness": {"status": status_value(load_json(Path(args.p3_readiness)), {"pass", "warn"})},
+        "operations_readiness": {"status": status_value(load_json(Path(args.operations_readiness_gate)), {"pass", "warn"})},
         "enterprise_readiness": {"status": status_value(load_json(Path(args.enterprise_readiness)), {"pass", "warn"})},
         "onboarding_bundle": onboarding_detail(load_json(Path(args.onboarding_manifest))),
         "plugin_release_gates": plugin_detail(plugin_reports),
@@ -134,7 +134,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# ProvidAPT P4 Commercialization Readiness",
+        "# ProvidAPT Commercialization Readiness",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -170,15 +170,15 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Aggregate P4 commercialization, documentation, onboarding, and plugin readiness evidence.")
-    parser.add_argument("--p3-readiness", default="build/p3/p3-readiness.json")
+    parser = argparse.ArgumentParser(description="Aggregate commercialization, documentation, onboarding, and plugin readiness evidence.")
+    parser.add_argument("--operations-readiness-gate", default="build/operations-readiness/operations-readiness-gate.json")
     parser.add_argument("--enterprise-readiness", default="build/enterprise-readiness.json")
     parser.add_argument("--onboarding-manifest", default="build/onboarding/onboarding-manifest.json")
     parser.add_argument("--plugin-gate", action="append", default=[])
     parser.add_argument("--required-doc", action="append", default=[])
     parser.add_argument("--external-approval", default="docs/project/external-approval-request-v1.2.3-rc.1.md")
-    parser.add_argument("--out-json", default="build/p4/p4-readiness.json")
-    parser.add_argument("--out-md", default="build/p4/p4-readiness.md")
+    parser.add_argument("--out-json", default="build/commercialization-readiness/commercialization-readiness-gate.json")
+    parser.add_argument("--out-md", default="build/commercialization-readiness/commercialization-readiness-gate.md")
     args = parser.parse_args()
     report = build_report(args)
     out_json = Path(args.out_json)

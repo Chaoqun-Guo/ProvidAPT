@@ -103,8 +103,8 @@ func TestNoThrottleDifferentPattern(t *testing.T) {
 	n := &mockNotifier{name: "n"}
 	m.AddNotifier(n)
 
-	m.Send(Alert{Severity: SeverityHigh, Pattern: "P1", Headline: "a"})
-	m.Send(Alert{Severity: SeverityHigh, Pattern: "P2", Headline: "b"})
+	m.Send(Alert{Severity: SeverityHigh, Pattern: "pattern-a", Headline: "a"})
+	m.Send(Alert{Severity: SeverityHigh, Pattern: "pattern-b", Headline: "b"})
 
 	if len(n.sent) != 2 {
 		t.Errorf("expected 2, got %d", len(n.sent))
@@ -136,7 +136,7 @@ func TestRetryDeliveryEventuallySucceeds(t *testing.T) {
 	n := &mockNotifier{name: "retry", fail: 1}
 	m.AddNotifier(n)
 
-	m.Send(Alert{ID: "a-1", Severity: SeverityHigh, Pattern: "P1", Headline: "retry"})
+	m.Send(Alert{ID: "a-1", Severity: SeverityHigh, Pattern: "pattern-a", Headline: "retry"})
 
 	if len(n.sent) != 1 {
 		t.Fatalf("expected 1 sent alert, got %d", len(n.sent))
@@ -156,7 +156,7 @@ func TestDeadLetterAfterExhaustedRetries(t *testing.T) {
 	n := &mockNotifier{name: "dead", fail: 2}
 	m.AddNotifier(n)
 
-	m.Send(Alert{ID: "a-2", Severity: SeverityCritical, Pattern: "P2", Headline: "dead"})
+	m.Send(Alert{ID: "a-2", Severity: SeverityCritical, Pattern: "pattern-b", Headline: "dead"})
 
 	snapshot := m.DeliverySnapshot()
 	if snapshot.Summary.DeadLetter != 1 {
@@ -176,7 +176,7 @@ func TestReplayDeadLetter(t *testing.T) {
 	n := &mockNotifier{name: "dead", fail: 1}
 	m.AddNotifier(n)
 
-	m.Send(Alert{ID: "a-3", Severity: SeverityHigh, Pattern: "P3", Headline: "replay"})
+	m.Send(Alert{ID: "a-3", Severity: SeverityHigh, Pattern: "pattern-c", Headline: "replay"})
 	snapshot := m.DeliverySnapshot()
 	if len(snapshot.DeadLetters) != 1 {
 		t.Fatalf("dead letter list = %d", len(snapshot.DeadLetters))
@@ -204,7 +204,7 @@ func TestReplayAllDeadLetters(t *testing.T) {
 	n := &mockNotifier{name: "dead", fail: 3}
 	m.AddNotifier(n)
 
-	m.Send(Alert{ID: "a-4", Severity: SeverityHigh, Pattern: "P4", Headline: "replay one"})
+	m.Send(Alert{ID: "a-4", Severity: SeverityHigh, Pattern: "pattern-d", Headline: "replay one"})
 	m.Send(Alert{ID: "a-5", Severity: SeverityCritical, Pattern: "P5", Headline: "replay two"})
 
 	batch := m.ReplayAllDeadLetters()

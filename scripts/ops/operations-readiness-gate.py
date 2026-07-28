@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "providapt.p3_readiness.v1"
+SCHEMA = "providapt.operations_readiness.v1"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -33,7 +33,7 @@ def status_value(report: dict[str, Any], pass_values: set[str] | None = None) ->
     return "blocked"
 
 
-def p2_detail(report: dict[str, Any]) -> dict[str, Any]:
+def ml_detail(report: dict[str, Any]) -> dict[str, Any]:
     sections = report.get("sections") if isinstance(report.get("sections"), dict) else {}
     dataset = sections.get("dataset_quality", {}) if isinstance(sections.get("dataset_quality"), dict) else {}
     metrics = sections.get("model_metrics", {}) if isinstance(sections.get("model_metrics"), dict) else {}
@@ -101,8 +101,8 @@ def overall_status(sections: dict[str, dict[str, Any]]) -> str:
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
     sections = {
-        "p1_production_foundation": simple_detail(load_json(Path(args.p1_readiness)), healthy_agents="healthy_agents"),
-        "p2_detection_ml": p2_detail(load_json(Path(args.p2_readiness))),
+        "production_foundation": simple_detail(load_json(Path(args.production_readiness_gate)), healthy_agents="healthy_agents"),
+        "detection_ml": ml_detail(load_json(Path(args.ml_readiness_gate))),
         "fleet_health": fleet_detail(load_json(Path(args.fleet_verification))),
         "soak_stability": soak_detail(load_json(Path(args.soak_readiness))),
         "upgrade_rollout": upgrade_detail(load_json(Path(args.upgrade_rollout))),
@@ -119,7 +119,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# ProvidAPT P3 Operations Readiness",
+        "# ProvidAPT Operations Readiness",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -143,16 +143,16 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Aggregate P3 production operations readiness evidence.")
-    parser.add_argument("--p1-readiness", default="build/p1/p1-readiness.json")
-    parser.add_argument("--p2-readiness", default="build/p2/p2-readiness.json")
+    parser = argparse.ArgumentParser(description="Aggregate production operations readiness evidence.")
+    parser.add_argument("--production-readiness-gate", default="build/production-readiness/production-readiness-gate.json")
+    parser.add_argument("--ml-readiness-gate", default="build/ml-readiness/ml-readiness-gate.json")
     parser.add_argument("--fleet-verification", default="build/deploy/vm-fleet-verification.json")
     parser.add_argument("--soak-readiness", default="build/performance/soak-readiness.json")
     parser.add_argument("--upgrade-rollout", default="build/upgrade/rollout-plan.json")
     parser.add_argument("--siem-verify", default="build/siem/siem-verification.json")
     parser.add_argument("--rbac-audit", default="build/rbac/rbac-audit.json")
-    parser.add_argument("--out-json", default="build/p3/p3-readiness.json")
-    parser.add_argument("--out-md", default="build/p3/p3-readiness.md")
+    parser.add_argument("--out-json", default="build/operations-readiness/operations-readiness-gate.json")
+    parser.add_argument("--out-md", default="build/operations-readiness/operations-readiness-gate.md")
     args = parser.parse_args()
     report = build_report(args)
     out_json = Path(args.out_json)

@@ -135,8 +135,8 @@ func checkSensitiveExfil(te *TaintEngine) []*Alert {
 //
 // Signal chain:
 //
-//	proc:P1 --wasGeneratedBy--> file:/tmp/evil.sh   (write)
-//	proc:P2 --used--> file:/tmp/evil.sh              (exec/read)
+//	proc:writer --wasGeneratedBy--> file:/tmp/evil.sh   (write)
+//	proc:runner --used--> file:/tmp/evil.sh              (exec/read)
 //	⇒ ALERT: script provenance chain
 func checkScriptChild(te *TaintEngine) []*Alert {
 	var alerts []*Alert

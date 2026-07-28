@@ -2,7 +2,7 @@
 
 This register tracks remaining product capabilities that improve commercial readiness beyond the current release gates.
 
-## P0 - Release Blocking
+## Release Blocking
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ Current closure progress:
 - Final artifact generation remains tied to `make release-commercial` from the final release tag.
 - Named Product, Security, Legal, Support, and Sales Engineering decisions still require real owner signoff.
 
-## P1 - Production Operations
+## Production Operations
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
@@ -40,7 +40,7 @@ Current closure progress:
 - Alert quality reporting is available through `make alert-quality ALERTS=...`.
 - RBAC and tenant-scope configuration audits are available through `make ops-rbac-audit PROVIDAPT_CONFIG=...`.
 
-## P2 - Detection and Investigation
+## Detection and Investigation
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
@@ -55,12 +55,12 @@ Current closure progress:
 - ATT&CK coverage planning converts missed techniques into safe simulation, ground-truth, rule assertion, and cleanup tasks through `make attack-coverage-plan`.
 - Graph training datasets are generated from normal/attack NDJSON plus ATT&CK ground truth through `make graph-dataset`, producing graph labels, split metadata, and feature schema evidence.
 - GCN, GAT, GraphSAGE, and MLP detector baselines can be trained in the `torch_py39` conda environment through `make graph-train`.
-- The end-to-end P2 training path is wrapped by `make p2-ml-pipeline`, which builds graph data, trains a detector, and registers model provenance.
+- The end-to-end graph detector training path is wrapped by `make ml-training-pipeline`, which builds graph data, trains a detector, and registers model provenance.
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
 
-## P3 - Enterprise Integration
+## Enterprise Integration
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ Current closure progress:
 - Upgrade rollout planning produces canary, wave, pause/resume, and rollback evidence through `make upgrade-rollout-plan`.
 - SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.
 
-## P4 - Scale and Ecosystem
+## Scale and Ecosystem
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |

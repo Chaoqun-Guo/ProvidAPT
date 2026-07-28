@@ -82,7 +82,7 @@ func RenderMarkdown(report Report) string {
 	fmt.Fprintf(&b, "| Release Ready | %t |\n", report.ReleaseReady)
 	fmt.Fprintf(&b, "| Commercial Ready | %t |\n\n", report.CommercialReady)
 
-	fmt.Fprintf(&b, "## P0 Gates\n\n")
+	fmt.Fprintf(&b, "## Release Gates\n\n")
 	fmt.Fprintf(&b, "| Gate | Status | Evidence |\n")
 	fmt.Fprintf(&b, "|---|---|---|\n")
 	for _, gate := range []string{"config_valid", "version_metadata", "release_evidence", "release_checksums", "release_artifact_matrix", "release_artifact_hashes", "release_checksums_signature", "release_sbom", "release_handoff"} {

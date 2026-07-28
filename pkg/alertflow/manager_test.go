@@ -46,7 +46,7 @@ func TestSilenceAndUnsilence(t *testing.T) {
 	mgr := NewManager()
 	record, _ := mgr.Ingest(notify.Alert{
 		ID:        "a-1",
-		Pattern:   "P1",
+		Pattern:   "pattern-a",
 		Severity:  notify.SeverityMedium,
 		Headline:  "test",
 		Timestamp: time.Now().UTC(),
@@ -78,7 +78,7 @@ func TestAssignAndClose(t *testing.T) {
 	mgr := NewManager()
 	record, _ := mgr.Ingest(notify.Alert{
 		ID:        "a-2",
-		Pattern:   "P2",
+		Pattern:   "pattern-b",
 		Severity:  notify.SeverityCritical,
 		Headline:  "critical",
 		Timestamp: time.Now().UTC(),
@@ -113,7 +113,7 @@ func TestAnnotateClassification(t *testing.T) {
 	mgr := NewManager()
 	record, _ := mgr.Ingest(notify.Alert{
 		ID:        "a-3",
-		Pattern:   "P3",
+		Pattern:   "pattern-c",
 		Severity:  notify.SeverityHigh,
 		Headline:  "review me",
 		Timestamp: time.Now().UTC(),

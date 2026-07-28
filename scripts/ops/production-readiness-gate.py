@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "providapt.p1_readiness.v1"
+SCHEMA = "providapt.production_readiness.v1"
 REQUIRED_SECRET_OUTPUTS = {
     "systemd_dropin",
     "docker_compose",
@@ -146,7 +146,7 @@ def overall_status(sections: dict[str, dict[str, Any]]) -> str:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# ProvidAPT P1 Readiness",
+        "# ProvidAPT Production Foundation Readiness",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -191,7 +191,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Aggregate P1 production-readiness evidence.")
+    parser = argparse.ArgumentParser(description="Aggregate production foundation readiness evidence.")
     parser.add_argument("--secret-manifest", default="build/secrets/secret-backend-manifest.json")
     parser.add_argument("--tls-manifest", default="build/tls/manifest.json")
     parser.add_argument("--postgres-report", default="")
@@ -200,8 +200,8 @@ def main() -> int:
     parser.add_argument("--min-agents", type=int, default=3)
     parser.add_argument("--min-healthy", type=int, default=3)
     parser.add_argument("--max-report-age-seconds", type=int, default=60)
-    parser.add_argument("--out-json", default="build/p1/p1-readiness.json")
-    parser.add_argument("--out-md", default="build/p1/p1-readiness.md")
+    parser.add_argument("--out-json", default="build/production-readiness/production-readiness-gate.json")
+    parser.add_argument("--out-md", default="build/production-readiness/production-readiness-gate.md")
     args = parser.parse_args()
     report = build_report(args)
     out_json = Path(args.out_json)

@@ -709,8 +709,8 @@ func TestEmptySBOMImport(t *testing.T) {
 func TestMultipleSBOMImports(t *testing.T) {
 	store := NewSBOMStore()
 
-	doc1 := `{"spdxId":"SPDXRef-1","name":"app-a","documentNamespace":"spdx://app-a","packages":[{"spdxId":"p1","name":"lib-a","versionInfo":"1.0","checksums":[],"externalRefs":[]}],"creationInfo":{}}`
-	doc2 := `{"spdxId":"SPDXRef-2","name":"app-b","documentNamespace":"spdx://app-b","packages":[{"spdxId":"p2","name":"lib-b","versionInfo":"2.0","checksums":[],"externalRefs":[]}],"creationInfo":{}}`
+	doc1 := `{"spdxId":"SPDXRef-A","name":"app-a","documentNamespace":"spdx://app-alpha","packages":[{"spdxId":"pkg-a","name":"lib-a","versionInfo":"1.0","checksums":[],"externalRefs":[]}],"creationInfo":{}}`
+	doc2 := `{"spdxId":"SPDXRef-B","name":"app-b","documentNamespace":"spdx://app-beta","packages":[{"spdxId":"pkg-b","name":"lib-b","versionInfo":"2.0","checksums":[],"externalRefs":[]}],"creationInfo":{}}`
 
 	d1, err := store.ImportSPDX([]byte(doc1), "src1")
 	if err != nil {

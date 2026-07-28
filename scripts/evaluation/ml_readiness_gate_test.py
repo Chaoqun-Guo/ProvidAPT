@@ -6,16 +6,16 @@ from argparse import Namespace
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("p2-readiness-report.py")
-SPEC = importlib.util.spec_from_file_location("p2_readiness_report", SCRIPT)
-p2 = importlib.util.module_from_spec(SPEC)
+SCRIPT = Path(__file__).with_name("ml-readiness-gate.py")
+SPEC = importlib.util.spec_from_file_location("ml_readiness_gate", SCRIPT)
+subject = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(p2)
+SPEC.loader.exec_module(subject)
 
 
 class P2ReadinessReportTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / "build" / "unit-tmp" / "p2-readiness"
+        self.tmp = Path.cwd() / "build" / "unit-tmp" / "ml-readiness-gate"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir(parents=True)
@@ -54,7 +54,7 @@ class P2ReadinessReportTest(unittest.TestCase):
                 "confusion": {"tp": 22, "fp": 2, "tn": 23, "fn": 3},
             },
         })
-        report = p2.build_report(Namespace(
+        report = subject.build_report(Namespace(
             dataset_manifest=str(manifest),
             metrics=str(metrics),
             model_gate="",
@@ -78,7 +78,7 @@ class P2ReadinessReportTest(unittest.TestCase):
         self.assertEqual(report["sections"]["model_deploy_gate"]["status"], "skipped")
 
     def test_dataset_blocks_on_low_truth_match(self):
-        section = p2.check_dataset(
+        section = subject.check_dataset(
             {"record_count": 10, "event_source_count": 10, "label_summary": {"malicious": 1, "benign": 9}, "quality": {"truth_match_rate_percent": 0}},
             Namespace(min_graphs=1, min_source_events=1, min_malicious_graphs=1, min_benign_graphs=1, min_truth_match_rate=80.0, min_cmdline_rate=0, min_path_rate=0),
         )
@@ -101,7 +101,7 @@ class P2ReadinessReportTest(unittest.TestCase):
             "command": "curl",
             "malicious": True,
         }) + "\n", encoding="utf-8")
-        section = p2.check_dataset(
+        section = subject.check_dataset(
             {"dataset_id": "legacy", "record_count": 2, "event_source_count": 2, "label_summary": {"malicious": 1, "benign": 1}},
             Namespace(
                 events=[str(events)],

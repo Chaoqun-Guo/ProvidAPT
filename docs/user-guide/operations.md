@@ -178,11 +178,11 @@ then validate the filled file before wiring it into systemd, Docker Compose, or
 Kubernetes. See `docs/getting-started/secret-management.md` for deployment
 patterns.
 
-Generate P1 production-readiness evidence after secrets, TLS, PostgreSQL, and
+Generate production foundation readiness evidence after secrets, TLS, PostgreSQL, and
 fleet checks are available:
 
 ```bash
-make p1-readiness \
+make production-readiness-gate \
   SECRET_MANIFEST=build/secrets/secret-backend-manifest.json \
   TLS_MANIFEST=build/tls/manifest.json \
   POSTGRES_REPORT=build/postgres/postgres-drill.json \
@@ -264,7 +264,7 @@ The generated plan records the report command, retention budget, systemd timer
 metadata, and Kubernetes CronJob schedule. Treat it as the approval artifact
 before wiring the schedule into customer automation.
 
-## 8. P3 Operations Readiness
+## 8. Operations Readiness
 
 After constrained VM deployment, capture deployment evidence from the control
 plane:
@@ -279,7 +279,7 @@ The report verifies dashboard cluster actions, graph export, alert workflow
 access, agent health, and telemetry freshness. Store the JSON/Markdown outputs
 with the deployment handoff record.
 
-Aggregate P3 enterprise delivery evidence after release gates, secret backend
+Aggregate enterprise delivery evidence after release gates, secret backend
 handoff, PostgreSQL drills, detection quality, RBAC audit, and scheduled report
 plan artifacts are generated:
 
@@ -313,12 +313,12 @@ Run `make soak-sample` on a schedule during 24-72 hour validation windows. Keep
 the generated `soak-samples.json` with the final `soak-readiness.json` and
 `soak-readiness.md` evidence.
 
-Close P3 with the operations readiness gate:
+Close operations readiness with the operations readiness gate:
 
 ```bash
-make p3-readiness \
-  P1_READINESS=build/p1/p1-readiness.json \
-  P2_READINESS=build/p2/p2-readiness.json \
+make operations-readiness-gate \
+  PRODUCTION_READINESS_GATE=build/production-readiness/production-readiness-gate.json \
+  ML_READINESS_GATE=build/ml-readiness/ml-readiness-gate.json \
   FLEET_VERIFICATION=build/deploy/vm-fleet-verification.json \
   SOAK_READINESS=build/performance/soak-readiness.json \
   UPGRADE_ROLLOUT=build/upgrade/rollout-plan.json \
@@ -326,7 +326,7 @@ make p3-readiness \
   RBAC_AUDIT=build/rbac/rbac-audit.json
 ```
 
-The P3 gate blocks when production foundation, detection/ML evidence, fleet
+The operations readiness gate blocks when production foundation, detection/ML evidence, fleet
 health, soak stability, upgrade rollout, SIEM/SOAR delivery, or RBAC audit
 evidence is missing or failed.
 
@@ -356,7 +356,7 @@ make onboarding-wizard \
 The onboarding bundle includes a production-oriented starter config, checklist,
 and manifest that can be attached to customer handoff evidence.
 
-## 9. P4 Commercialization Readiness
+## 9. Commercialization Readiness
 
 Validate plugin release evidence before enabling customer-specific detection,
 scoring, threat-intelligence, or enrichment extensions:
@@ -367,18 +367,18 @@ make plugin-release-gate \
   PLUGIN_SIGNATURE=plugins/example/plugin.json.sig
 ```
 
-Close P4 with the commercialization readiness gate:
+Close commercialization readiness with the commercialization readiness gate:
 
 ```bash
-make p4-readiness \
-  P3_READINESS=build/p3/p3-readiness.json \
+make commercialization-readiness-gate \
+  OPERATIONS_READINESS_GATE=build/operations-readiness/operations-readiness-gate.json \
   ENTERPRISE_READINESS=build/enterprise-readiness.json \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json \
   PLUGIN_GATE=build/plugins/plugin-release-gate.json \
   EXTERNAL_APPROVAL=docs/project/external-approval-request-v1.2.3-rc.1.md
 ```
 
-The P4 gate verifies customer handoff documentation, onboarding artifacts,
+The commercialization readiness gate verifies customer handoff documentation, onboarding artifacts,
 external approval evidence, enterprise readiness, and optional plugin release
 gates. Missing plugin evidence is a warning when no plugins are shipped; failed
 plugin evidence blocks release.

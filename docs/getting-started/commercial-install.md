@@ -284,7 +284,7 @@ Policy authors can validate a Sigma rule without mutating the draft:
 POST /api/v1/control/policies {"action":"validate_sigma","rule_yaml":"title: ..."}
 ```
 
-## P2 Compliance Operations
+## Compliance Operations
 
 ProvidAPT exposes a compact commercial compliance control plane for audit retention visibility, SIEM handoff tests, change approvals, and release evidence reports:
 
@@ -332,7 +332,7 @@ POST /api/v1/control/compliance {"action":"approve","approval_id":"appr-000001"}
 
 The dashboard includes a `Compliance & SIEM` panel with audit export, retention, report generation, and SIEM test controls. Generated evidence files are written under `compliance.report_dir` or `<output.dir>/compliance` by default.
 
-P4 behavior:
+Commercial behavior:
 
 - SIEM events are queued in the outbox and flushed on `siem.flush_interval`.
 - `file://`, `http://`, `https://`, `tcp://`, and `udp://` SIEM endpoints are supported; `siem.provider: splunk` sends Splunk HEC events and `siem.provider: elastic` sends Elastic `_bulk` payloads.

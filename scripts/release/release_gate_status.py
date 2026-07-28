@@ -163,7 +163,7 @@ def collect(repo: Path, dist: Path, security_dir: Path, ci_evidence: Iterable[Pa
     grype = scan_evidence_gate("grype_evidence", [security_dir / "grype-source.json"], "Run grype source scan or record a security waiver")
     trivy = scan_evidence_gate("trivy_evidence", [security_dir / "trivy-fs.json"], "Run trivy filesystem scan or record a security waiver")
     gates = [
-        Gate("github_actions", "skipped", "GitHub Actions evidence intentionally skipped for this local P0 closure", evidence="--skip-ci")
+        Gate("github_actions", "skipped", "GitHub Actions evidence intentionally skipped for this local release-blocking closure", evidence="--skip-ci")
         if skip_ci else ci_gate(repo, full_commit, ci_evidence),
         waiver_gate("govulncheck", waiver_paths, ["govulncheck", "govulncheck_command"], command_gate("govulncheck", "golang.org/x/vuln/cmd/govulncheck")),
         waiver_gate("grype", waiver_paths, ["grype", "grype_command"], command_gate("grype", "anchore/grype")),

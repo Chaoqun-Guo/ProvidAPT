@@ -103,7 +103,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Aggregate P3 enterprise delivery readiness evidence.")
+    parser = argparse.ArgumentParser(description="Aggregate enterprise delivery readiness evidence.")
     parser.add_argument("--release-gates", default="build/release-gate-status.json")
     parser.add_argument("--secret-manifest", default="build/secrets/secret-backend-manifest.json")
     parser.add_argument("--postgres-drill", default="build/postgres/postgres-drill.json")

@@ -6,16 +6,16 @@ from argparse import Namespace
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("p1-readiness-report.py")
-SPEC = importlib.util.spec_from_file_location("p1_readiness_report", SCRIPT)
-p1 = importlib.util.module_from_spec(SPEC)
+SCRIPT = Path(__file__).with_name("production-readiness-gate.py")
+SPEC = importlib.util.spec_from_file_location("production_readiness_gate", SCRIPT)
+subject = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(p1)
+SPEC.loader.exec_module(subject)
 
 
 class P1ReadinessReportTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / ".tmp-p1-readiness-test"
+        self.tmp = Path.cwd() / ".tmp-production-readiness-gate-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir()
@@ -52,7 +52,7 @@ class P1ReadinessReportTest(unittest.TestCase):
             "restore": {"status": "skipped"},
             "schema_check": {"status": "skipped"},
         })
-        report = p1.build_report(Namespace(
+        report = subject.build_report(Namespace(
             secret_manifest=str(secret_manifest),
             tls_manifest=str(tls_manifest),
             postgres_report=str(postgres_report),
@@ -67,7 +67,7 @@ class P1ReadinessReportTest(unittest.TestCase):
         self.assertEqual(report["sections"]["postgres_state"]["backup_bytes"], 42)
 
     def test_secret_backend_blocks_without_vault(self):
-        section = p1.check_secret_backends({"variable_count": 1, "outputs": {"systemd_dropin": "x"}})
+        section = subject.check_secret_backends({"variable_count": 1, "outputs": {"systemd_dropin": "x"}})
         self.assertEqual(section["status"], "blocked")
         self.assertTrue(section["failures"])
 
