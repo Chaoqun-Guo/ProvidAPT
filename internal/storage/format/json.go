@@ -38,6 +38,7 @@ type JSONWriter struct {
 	maxFileBytes int64
 	retainFiles  int
 	retainBytes  int64
+	enricher     *collector.ProcessEnricher
 }
 
 // NewJSONWriter creates a JSON lines writer.
@@ -71,6 +72,7 @@ func NewJSONWriterWithOptions(dir string, opts JSONWriterOptions) (*JSONWriter, 
 		maxFileBytes: opts.MaxFileBytes,
 		retainFiles:  opts.RetainFiles,
 		retainBytes:  opts.RetainBytes,
+		enricher:     collector.NewProcessEnricher(),
 	}, nil
 }
 
@@ -79,6 +81,7 @@ func (w *JSONWriter) Write(evt *collector.Event) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	w.enricher.Enrich(evt)
 	normalized := collector.NormalizeEvent(evt)
 	data, err := json.Marshal(normalized)
 	if err != nil {

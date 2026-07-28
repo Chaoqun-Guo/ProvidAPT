@@ -111,6 +111,7 @@ type Event struct {
 func Start(rb *ringbuf.Reader) (<-chan *Event, <-chan error) {
 	eventCh := make(chan *Event, 1024)
 	errCh := make(chan error, 1)
+	enricher := NewProcessEnricher()
 
 	go func() {
 		defer close(eventCh)
@@ -131,6 +132,7 @@ func Start(rb *ringbuf.Reader) (<-chan *Event, <-chan error) {
 				errCh <- fmt.Errorf("parse event: %w", err)
 				continue
 			}
+			enricher.Enrich(evt)
 			eventCh <- evt
 		}
 	}()

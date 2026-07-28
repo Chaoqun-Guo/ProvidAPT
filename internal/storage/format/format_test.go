@@ -67,6 +67,44 @@ func TestJSONWriterWriteAndRead(t *testing.T) {
 	}
 }
 
+func TestJSONWriterEnrichesWithCachedCmdline(t *testing.T) {
+	dir := t.TempDir()
+	w, err := NewJSONWriter(dir)
+	if err != nil {
+		t.Fatalf("NewJSONWriter failed: %v", err)
+	}
+	execEvent := &collector.Event{
+		Type:    syscall.EventProcessExec,
+		PID:     4242,
+		PPID:    1,
+		UID:     1000,
+		GID:     1000,
+		Comm:    "bash",
+		ExePath: "/usr/bin/bash",
+		Cmdline: "bash /tmp/payload.sh",
+	}
+	if err := w.Write(execEvent); err != nil {
+		t.Fatalf("write exec: %v", err)
+	}
+	fileEvent := &collector.Event{
+		Type:     syscall.EventFileOpen,
+		PID:      4242,
+		Pathname: "/tmp/payload.sh",
+	}
+	if err := w.Write(fileEvent); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	w.Close()
+
+	data, err := os.ReadFile(w.filename)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	if !strings.Contains(string(data), `"cmdline":"bash /tmp/payload.sh"`) {
+		t.Fatalf("cached cmdline missing from NDJSON:\n%s", string(data))
+	}
+}
+
 func TestJSONWriterUsesTypedPayload(t *testing.T) {
 	dir := t.TempDir()
 	w, err := NewJSONWriter(dir)

@@ -154,7 +154,7 @@ static __always_inline bool is_sensitive_path(const char *path, u32 max_len) {
 	return false;
 }
 
-/* ── fill_file_path — full path via bpf_d_path ───────── */
+/* ── fill_file_path — stable kernel-side basename fallback ───────── */
 static __always_inline void fill_file_path(struct file *file, char *dst, u32 dst_sz) {
 	if (!file) { bpf_probe_read_kernel_str(dst, dst_sz, "?"); return; }
 	struct dentry *d = BPF_CORE_READ(file, f_path.dentry);
@@ -293,7 +293,6 @@ int BPF_PROG(probe_bprm_check, struct linux_binprm *bprm)
 	struct event *e;
 	struct file *exe_file;
 	u32 pid = bpf_get_current_pid_tgid() >> 32;
-	u32 detail = get_detail(pid);
 
 	if (should_skip(pid)) return 0;
 
@@ -304,10 +303,7 @@ int BPF_PROG(probe_bprm_check, struct linux_binprm *bprm)
 	exe_file = BPF_CORE_READ(bprm, file);
 	if (exe_file) {
 		fill_file_payload(&e->payload.file, exe_file);
-		if (detail >= DETAIL_FULL)
-			fill_file_path(exe_file, e->pathname, sizeof(e->pathname));
-		else
-			bpf_probe_read_kernel_str(e->pathname, sizeof(e->pathname), "…");
+		fill_file_path(exe_file, e->pathname, sizeof(e->pathname));
 	} else {
 		__builtin_memset(&e->payload.file, 0, sizeof(e->payload.file));
 		bpf_probe_read_kernel_str(e->pathname, sizeof(e->pathname), "?");
@@ -369,7 +365,7 @@ int BPF_PROG(probe_file_open, struct file *file)
 
 		/* Dedup: skip ring buffer if repeated within 100ms */
 		{
-			char _p[16];
+			char _p[PATH_MAX_LEN];
 			fill_file_path(file, _p, sizeof(_p));
 			if (try_dedup(pid, type, 0, _p, sizeof(_p)))
 				return 0;
@@ -379,10 +375,7 @@ int BPF_PROG(probe_file_open, struct file *file)
 
 	fill_event_hdr(e, type);
 	fill_file_payload(&e->payload.file, file);
-	if (get_detail(pid) >= DETAIL_FULL)
-		fill_file_path(file, e->pathname, sizeof(e->pathname));
-	else
-		__builtin_memcpy(e->pathname, "…", 4);
+	fill_file_path(file, e->pathname, sizeof(e->pathname));
 
 	bpf_ringbuf_submit(e, 0);
 	return 0;
