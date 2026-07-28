@@ -386,7 +386,8 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <button class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Open Batch</button>
         <button class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Open Batch</button>
         <button class="secondary" onclick="showAlertQuality()">Quality</button>
-        <button class="secondary" onclick="downloadAlertQuality()">Export Quality</button>
+        <button class="secondary" onclick="downloadAlertQuality()">Export Quality Summary</button>
+        <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback Ledger</button>
       </div>
       <div class="loading" style="margin-top:12px;">Recent Workflow Actions</div>
       <div class="alerts-list" id="workflowHistoryList">
@@ -1992,6 +1993,14 @@ function downloadAlertQuality() {
     renderKVItem('alert quality export', metrics.total_alerts + ' alerts', metrics.review_coverage_percent + '% reviewed'),
     renderKVItem('precision', metrics.actionable_precision_percent + '%', metrics.true_positive + ' true positive alerts'),
   ], 'Alert quality export prepared');
+}
+
+function openAlertFeedbackLedger() {
+  window.open('/api/v1/control/alerts/feedback?format=csv', '_blank', 'noopener,noreferrer');
+  setInvestigationItems([
+    renderKVItem('feedback ledger', 'CSV export requested', '/api/v1/control/alerts/feedback?format=csv'),
+    renderKVItem('audit use', 'analyst labels, workflow actions, actor, role, timestamp', 'append-only evidence')
+  ], 'Alert feedback ledger export opened');
 }
 
 function workflowActionButtons(alert) {

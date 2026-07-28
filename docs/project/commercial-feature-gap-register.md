@@ -47,7 +47,7 @@ Current closure progress:
 | ATT&CK coverage | Full-chain simulation exists, but technique coverage is still limited to a curated safe subset | Coverage report maps simulated and detected techniques by tactic and host |
 | Ground truth lifecycle | Ground truth is captured, but dataset versioning and training/test splits need formal tooling | Reproducible datasets can be exported with labels, manifests, and split metadata |
 | Provenance UX | Graphs support tree and horizontal layouts, and dashboard summaries now group clusters and hubs; full in-canvas expand/collapse still needs richer layout controls | Analysts can collapse, expand, filter, and export large traces without visual clutter |
-| Alert quality | Alerts are visible, but precision/recall tracking needs closed-loop analyst feedback | Alerts can be marked true positive, false positive, duplicate, or benign with audit trail |
+| Alert quality | Persistent analyst feedback now exists; downstream release evidence should consume the ledger by default | Alerts can be marked true positive, false positive, duplicate, or benign with audit trail |
 
 Current closure progress:
 
@@ -59,6 +59,7 @@ Current closure progress:
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
+- Alert workflow feedback is persisted to an append-only `alert-feedback.ndjson` ledger, merged back into dashboard alert views after restart, and exported through `/api/v1/control/alerts/feedback`.
 
 ## Enterprise Integration
 

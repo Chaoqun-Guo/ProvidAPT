@@ -191,6 +191,19 @@ The annotation is stored in alert `details.classification` and
 `details.classification_updated_at`, so exports can join analyst feedback with
 ground-truth and ATT&CK coverage reports.
 
+When the in-memory workflow manager is not attached, ProvidAPT persists analyst
+feedback to an append-only `alert-feedback.ndjson` ledger next to the configured
+alert log. The control plane merges the latest ledger entry back into
+`GET /api/v1/control/alerts` so dashboard labels survive daemon restarts.
+
+Export the persistent feedback ledger:
+
+```bash
+curl "http://<server>:18080/api/v1/control/alerts/feedback"
+curl "http://<server>:18080/api/v1/control/alerts/feedback?format=csv" \
+  -o providapt-alert-feedback.csv
+```
+
 Generate an offline quality report from active or archived alert workflow files:
 
 ```bash

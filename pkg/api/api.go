@@ -614,6 +614,35 @@ type AlertWorkflowItem struct {
 	Details        map[string]string `json:"details,omitempty"`
 }
 
+type AlertFeedbackEntry struct {
+	Schema         string `json:"schema,omitempty"`
+	ID             string `json:"id"`
+	AlertID        string `json:"alert_id"`
+	Action         string `json:"action"`
+	Classification string `json:"classification,omitempty"`
+	Assignee       string `json:"assignee,omitempty"`
+	Note           string `json:"note,omitempty"`
+	Actor          string `json:"actor,omitempty"`
+	Role           string `json:"role,omitempty"`
+	CreatedAt      string `json:"created_at"`
+}
+
+type AlertFeedbackSummary struct {
+	Total         int            `json:"total"`
+	ByAction      map[string]int `json:"by_action,omitempty"`
+	ByClass       map[string]int `json:"by_classification,omitempty"`
+	Reviewed      int            `json:"reviewed"`
+	NeedsReview   int            `json:"needs_review"`
+	LatestEntryAt string         `json:"latest_entry_at,omitempty"`
+}
+
+type AlertFeedbackFeed struct {
+	UpdatedAt string                 `json:"updated_at"`
+	Summary   AlertFeedbackSummary   `json:"summary"`
+	Entries   []AlertFeedbackEntry   `json:"entries"`
+	Latest    map[string]interface{} `json:"latest_by_alert,omitempty"`
+}
+
 type AlertWorkflow struct {
 	UpdatedAt string               `json:"updated_at"`
 	Summary   AlertWorkflowSummary `json:"summary"`
@@ -881,6 +910,7 @@ type Server struct {
 	runtimeMu                sync.RWMutex
 	runtimeDiagnostics       RuntimeDiagnostics
 	alertLogPath             string
+	alertFeedbackPath        string
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
@@ -898,6 +928,10 @@ func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
 
 func (s *Server) SetAlertLogPath(path string) {
 	s.alertLogPath = path
+}
+
+func (s *Server) SetAlertFeedbackPath(path string) {
+	s.alertFeedbackPath = path
 }
 
 // SetHealthFunc registers a health check callback for the /health endpoint.
@@ -1364,6 +1398,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/control/upgrade", s.jsonHandler(s.handleUpgradeReadiness))
 	mux.HandleFunc("/api/v1/control/policies", s.jsonHandler(s.handlePolicies))
 	mux.HandleFunc("/api/v1/control/policies/bundle", s.handlePolicyBundleDownload)
+	mux.HandleFunc("/api/v1/control/alerts/feedback", s.jsonHandler(s.handleAlertFeedback))
 	mux.HandleFunc("/api/v1/control/alerts", s.jsonHandler(s.handleAlertWorkflow))
 	mux.HandleFunc("/api/v1/control/deliveries", s.jsonHandler(s.handleNotifyDeliveries))
 	mux.HandleFunc("/api/v1/graph/export", s.jsonHandler(s.handleExport))
@@ -2270,18 +2305,27 @@ func (s *Server) handleAlertWorkflow(w http.ResponseWriter, r *http.Request) err
 				workflow.Alerts = []AlertWorkflowItem{}
 			}
 		}
+		usedDiskAlerts := false
 		if len(workflow.Alerts) == 0 {
-			diskAlerts := loadAlertWorkflowItems(s.alertLogPath, r.URL.Query().Get("status"), r.URL.Query().Get("assignee"))
+			diskAlerts := loadAlertWorkflowItems(s.alertLogPath, "", "")
 			if len(diskAlerts) > 0 {
 				workflow.Alerts = diskAlerts
-				workflow.Summary = summarizeAlertWorkflowItems(diskAlerts)
+				usedDiskAlerts = true
 			}
+		}
+		feedback := loadAlertFeedbackLatest(s.feedbackPath())
+		workflow.Alerts = mergeAlertFeedback(workflow.Alerts, feedback)
+		workflow.Alerts = filterAlertWorkflowItems(workflow.Alerts, r.URL.Query().Get("status"), r.URL.Query().Get("assignee"))
+		if usedDiskAlerts || len(feedback) > 0 {
+			workflow.Summary = summarizeAlertWorkflowItems(workflow.Alerts)
 		}
 		return json.NewEncoder(w).Encode(workflow)
 	case http.MethodPost:
 		if s.alertActFn == nil {
-			w.WriteHeader(http.StatusNotImplemented)
-			return json.NewEncoder(w).Encode(map[string]string{"error": "alert workflow actions not enabled"})
+			if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("fallback")), "disabled") {
+				w.WriteHeader(http.StatusNotImplemented)
+				return json.NewEncoder(w).Encode(map[string]string{"error": "alert workflow actions not enabled"})
+			}
 		}
 		if !s.requireLeaderForControlWrite(w) {
 			return nil
@@ -2302,7 +2346,15 @@ func (s *Server) handleAlertWorkflow(w http.ResponseWriter, r *http.Request) err
 				itemReq.AlertID = alertID
 				itemReq.AlertIDs = nil
 				result.Processed++
-				item, err := s.alertActFn(itemReq)
+				var (
+					item AlertWorkflowItem
+					err  error
+				)
+				if s.alertActFn == nil {
+					item, err = s.persistAlertFeedbackAction(itemReq)
+				} else {
+					item, err = s.alertActFn(itemReq)
+				}
 				if err != nil {
 					result.Failed++
 					result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", alertID, err))
@@ -2323,11 +2375,38 @@ func (s *Server) handleAlertWorkflow(w http.ResponseWriter, r *http.Request) err
 		if len(alertIDs) == 1 {
 			req.AlertID = alertIDs[0]
 		}
+		if s.alertActFn == nil {
+			result, err := s.persistAlertFeedbackAction(req)
+			if err != nil {
+				return err
+			}
+			return json.NewEncoder(w).Encode(result)
+		}
 		result, err := s.alertActFn(req)
 		if err != nil {
 			return err
 		}
 		return json.NewEncoder(w).Encode(result)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (s *Server) handleAlertFeedback(w http.ResponseWriter, r *http.Request) error {
+	switch r.Method {
+	case http.MethodGet:
+		entries := loadAlertFeedbackEntries(s.feedbackPath(), queryInt(r, "limit", 500))
+		feed := AlertFeedbackFeed{
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			Summary:   summarizeAlertFeedback(entries),
+			Entries:   entries,
+			Latest:    alertFeedbackLatestAsMap(entries),
+		}
+		if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("format")), "csv") {
+			return writeAlertFeedbackCSV(w, feed)
+		}
+		return json.NewEncoder(w).Encode(feed)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
@@ -3470,6 +3549,281 @@ func matchesWorkflowFilter(item AlertWorkflowItem, statusFilter, assigneeFilter 
 		return false
 	}
 	return true
+}
+
+func (s *Server) feedbackPath() string {
+	if strings.TrimSpace(s.alertFeedbackPath) != "" {
+		return s.alertFeedbackPath
+	}
+	if strings.TrimSpace(s.alertLogPath) != "" {
+		return filepath.Join(filepath.Dir(s.alertLogPath), "alert-feedback.ndjson")
+	}
+	return "/var/log/providapt/alert-feedback.ndjson"
+}
+
+func (s *Server) persistAlertFeedbackAction(req AlertWorkflowActionRequest) (AlertWorkflowItem, error) {
+	alertID := strings.TrimSpace(req.AlertID)
+	if alertID == "" {
+		return AlertWorkflowItem{}, fmt.Errorf("alert_id is required")
+	}
+	action := normalizeAlertFeedbackAction(req.Action)
+	if action == "" {
+		return AlertWorkflowItem{}, fmt.Errorf("unsupported alert workflow fallback action %q", req.Action)
+	}
+	classification := ""
+	if action == "annotate" {
+		classification = normalizeAlertFeedbackClassification(req.Classification)
+		if classification == "" {
+			return AlertWorkflowItem{}, fmt.Errorf("classification must be true_positive, false_positive, benign, duplicate, or needs_review")
+		}
+	}
+	now := time.Now().UTC()
+	entry := AlertFeedbackEntry{
+		Schema:         "providapt.alert_feedback.v1",
+		ID:             stableFeedbackID(alertID, action, now),
+		AlertID:        alertID,
+		Action:         action,
+		Classification: classification,
+		Assignee:       strings.TrimSpace(req.Assignee),
+		Note:           strings.TrimSpace(req.Note),
+		Actor:          strings.TrimSpace(req.Actor),
+		Role:           strings.TrimSpace(req.Role),
+		CreatedAt:      now.Format(time.RFC3339),
+	}
+	if err := appendAlertFeedbackEntry(s.feedbackPath(), entry); err != nil {
+		return AlertWorkflowItem{}, err
+	}
+	item := findAlertWorkflowItem(loadAlertWorkflowItems(s.alertLogPath, "", ""), alertID)
+	if item.ID == "" {
+		item = AlertWorkflowItem{ID: alertID, Status: "open", Count: 1}
+	}
+	return applyAlertFeedback(item, entry), nil
+}
+
+func normalizeAlertFeedbackAction(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "annotate", "assign", "close", "reopen", "silence", "unsilence":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
+func normalizeAlertFeedbackClassification(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+	switch normalized {
+	case "tp", "true_positive":
+		return "true_positive"
+	case "fp", "false_positive":
+		return "false_positive"
+	case "benign":
+		return "benign"
+	case "duplicate":
+		return "duplicate"
+	case "needs_review", "review":
+		return "needs_review"
+	default:
+		return ""
+	}
+}
+
+func stableFeedbackID(alertID, action string, at time.Time) string {
+	clean := strings.NewReplacer("/", "_", "\\", "_", ":", "_", " ", "_").Replace(alertID)
+	if len(clean) > 48 {
+		clean = clean[:48]
+	}
+	return fmt.Sprintf("af-%s-%s-%d", clean, action, at.UnixNano())
+}
+
+func appendAlertFeedbackEntry(path string, entry AlertFeedbackEntry) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("alert feedback path is not configured")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("create alert feedback dir: %w", err)
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640)
+	if err != nil {
+		return fmt.Errorf("open alert feedback ledger: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+	if err := json.NewEncoder(file).Encode(entry); err != nil {
+		return fmt.Errorf("write alert feedback ledger: %w", err)
+	}
+	return nil
+}
+
+func loadAlertFeedbackEntries(path string, limit int) []AlertFeedbackEntry {
+	if limit <= 0 {
+		limit = 500
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var entries []AlertFeedbackEntry
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry AlertFeedbackEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		if entry.AlertID == "" {
+			continue
+		}
+		entries = append(entries, entry)
+		if len(entries) > limit {
+			entries = entries[1:]
+		}
+	}
+	return entries
+}
+
+func loadAlertFeedbackLatest(path string) map[string]AlertFeedbackEntry {
+	return alertFeedbackLatest(loadAlertFeedbackEntries(path, 10000))
+}
+
+func alertFeedbackLatest(entries []AlertFeedbackEntry) map[string]AlertFeedbackEntry {
+	latest := map[string]AlertFeedbackEntry{}
+	for _, entry := range entries {
+		if entry.AlertID == "" {
+			continue
+		}
+		current, ok := latest[entry.AlertID]
+		if !ok || entry.CreatedAt >= current.CreatedAt {
+			latest[entry.AlertID] = entry
+		}
+	}
+	return latest
+}
+
+func alertFeedbackLatestAsMap(entries []AlertFeedbackEntry) map[string]interface{} {
+	latest := alertFeedbackLatest(entries)
+	out := make(map[string]interface{}, len(latest))
+	for alertID, entry := range latest {
+		out[alertID] = entry
+	}
+	return out
+}
+
+func mergeAlertFeedback(items []AlertWorkflowItem, latest map[string]AlertFeedbackEntry) []AlertWorkflowItem {
+	if len(items) == 0 || len(latest) == 0 {
+		return items
+	}
+	for i := range items {
+		if entry, ok := latest[items[i].ID]; ok {
+			items[i] = applyAlertFeedback(items[i], entry)
+		}
+	}
+	return items
+}
+
+func applyAlertFeedback(item AlertWorkflowItem, entry AlertFeedbackEntry) AlertWorkflowItem {
+	if item.Details == nil {
+		item.Details = map[string]string{}
+	}
+	if entry.Classification != "" {
+		item.Details["classification"] = entry.Classification
+		item.Details["classification_updated_at"] = entry.CreatedAt
+	}
+	if entry.Action != "" {
+		item.Details["last_feedback_action"] = entry.Action
+		item.Details["last_feedback_at"] = entry.CreatedAt
+	}
+	if entry.Actor != "" {
+		item.Details["last_feedback_actor"] = entry.Actor
+	}
+	if entry.Note != "" {
+		item.Note = entry.Note
+	}
+	switch entry.Action {
+	case "assign":
+		if entry.Assignee != "" {
+			item.Assignee = entry.Assignee
+		} else if entry.Actor != "" && item.Assignee == "" {
+			item.Assignee = entry.Actor
+		}
+		item.Status = "assigned"
+	case "close":
+		item.Status = "closed"
+	case "reopen":
+		item.Status = "open"
+	case "silence":
+		item.Status = "suppressed"
+	case "unsilence":
+		item.Status = "open"
+	}
+	return item
+}
+
+func findAlertWorkflowItem(items []AlertWorkflowItem, alertID string) AlertWorkflowItem {
+	for _, item := range items {
+		if item.ID == alertID {
+			return item
+		}
+	}
+	return AlertWorkflowItem{}
+}
+
+func filterAlertWorkflowItems(items []AlertWorkflowItem, statusFilter, assigneeFilter string) []AlertWorkflowItem {
+	if strings.TrimSpace(statusFilter) == "" && strings.TrimSpace(assigneeFilter) == "" {
+		return items
+	}
+	filtered := make([]AlertWorkflowItem, 0, len(items))
+	for _, item := range items {
+		if matchesWorkflowFilter(item, statusFilter, assigneeFilter) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func summarizeAlertFeedback(entries []AlertFeedbackEntry) AlertFeedbackSummary {
+	summary := AlertFeedbackSummary{
+		ByAction: map[string]int{},
+		ByClass:  map[string]int{},
+	}
+	for _, entry := range entries {
+		summary.Total++
+		if entry.Action != "" {
+			summary.ByAction[entry.Action]++
+		}
+		classification := normalizeAlertFeedbackClassification(entry.Classification)
+		if classification == "" {
+			classification = "needs_review"
+		}
+		summary.ByClass[classification]++
+		if classification == "needs_review" {
+			summary.NeedsReview++
+		} else {
+			summary.Reviewed++
+		}
+		if entry.CreatedAt > summary.LatestEntryAt {
+			summary.LatestEntryAt = entry.CreatedAt
+		}
+	}
+	return summary
+}
+
+func writeAlertFeedbackCSV(w http.ResponseWriter, feed AlertFeedbackFeed) error {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="providapt-alert-feedback.csv"`)
+	writer := csv.NewWriter(w)
+	if err := writer.Write([]string{"id", "alert_id", "action", "classification", "assignee", "actor", "role", "note", "created_at"}); err != nil {
+		return err
+	}
+	for _, entry := range feed.Entries {
+		if err := writer.Write([]string{entry.ID, entry.AlertID, entry.Action, entry.Classification, entry.Assignee, entry.Actor, entry.Role, entry.Note, entry.CreatedAt}); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+	return writer.Error()
 }
 
 func firstRecordValue(record map[string]interface{}, keys ...string) interface{} {

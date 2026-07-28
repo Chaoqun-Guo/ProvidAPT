@@ -192,8 +192,10 @@ Use `alert-quality.json` as machine-readable detector quality evidence and
 
 The dashboard Alert Workflow panel also computes the same release-facing review
 coverage, precision, duplicate, and needs-review counters from currently loaded
-alerts. Use the `Quality` action for analyst triage and `Export Quality` to
-download a JSON snapshot from the browser.
+alerts. Use the `Quality` action for analyst triage, `Export Quality Summary` to
+download a JSON snapshot from the browser, and `Feedback Ledger` to export the
+persistent append-only analyst feedback CSV from
+`/api/v1/control/alerts/feedback?format=csv`.
 
 ## Model Registry and Drift
 

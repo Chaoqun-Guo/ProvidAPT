@@ -1711,6 +1711,89 @@ func TestAlertWorkflowEndpointFallsBackToAlertLog(t *testing.T) {
 	}
 }
 
+func TestAlertWorkflowFallbackPersistsAnalystFeedback(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	alertPath := filepath.Join(dir, "alerts.ndjson")
+	if err := os.WriteFile(alertPath, []byte(`{"AlertNodeID":"p:123","Severity":40,"Pattern":"SCRIPT_CHILD","Headline":"bash spawned payload","DetectedAt":"2026-07-22T03:00:00Z"}`+"\n"), 0644); err != nil {
+		t.Fatalf("write alert log: %v", err)
+	}
+	feedbackPath := filepath.Join(dir, "alert-feedback.ndjson")
+	ts.SetAlertLogPath(alertPath)
+	ts.SetAlertFeedbackPath(feedbackPath)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"annotate","alert_id":"p:123","classification":"false_positive","note":"benign admin curl"}`))
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
+	}
+	var updated AlertWorkflowItem
+	if err := json.NewDecoder(w.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode update: %v", err)
+	}
+	if updated.Details["classification"] != "false_positive" || updated.Note != "benign admin curl" {
+		t.Fatalf("updated alert = %#v", updated)
+	}
+	if data, err := os.ReadFile(feedbackPath); err != nil || !strings.Contains(string(data), `"classification":"false_positive"`) {
+		t.Fatalf("feedback ledger data=%q err=%v", string(data), err)
+	}
+
+	w = apiGet(ts, "/api/v1/control/alerts")
+	if w.Code != http.StatusOK {
+		t.Fatalf("get status code = %d", w.Code)
+	}
+	var workflow AlertWorkflow
+	if err := json.NewDecoder(w.Body).Decode(&workflow); err != nil {
+		t.Fatalf("decode workflow: %v", err)
+	}
+	if len(workflow.Alerts) != 1 || workflow.Alerts[0].Details["classification"] != "false_positive" {
+		t.Fatalf("workflow alerts = %#v", workflow.Alerts)
+	}
+
+	w = apiGet(ts, "/api/v1/control/alerts/feedback")
+	if w.Code != http.StatusOK {
+		t.Fatalf("feedback status code = %d", w.Code)
+	}
+	var feed AlertFeedbackFeed
+	if err := json.NewDecoder(w.Body).Decode(&feed); err != nil {
+		t.Fatalf("decode feedback: %v", err)
+	}
+	if feed.Summary.Total != 1 || feed.Summary.ByClass["false_positive"] != 1 {
+		t.Fatalf("feedback feed = %#v", feed)
+	}
+}
+
+func TestAlertWorkflowFallbackPersistsStatusForFiltering(t *testing.T) {
+	ts := testServer(t)
+	dir := t.TempDir()
+	alertPath := filepath.Join(dir, "alerts.ndjson")
+	if err := os.WriteFile(alertPath, []byte(`{"AlertNodeID":"a-closed","Severity":30,"Pattern":"NOISY","Headline":"noisy alert","DetectedAt":"2026-07-22T03:00:00Z"}`+"\n"), 0644); err != nil {
+		t.Fatalf("write alert log: %v", err)
+	}
+	ts.SetAlertLogPath(alertPath)
+	ts.SetAlertFeedbackPath(filepath.Join(dir, "alert-feedback.ndjson"))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"close","alert_id":"a-closed","note":"duplicate campaign"}`))
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("close status code = %d: %s", w.Code, w.Body.String())
+	}
+
+	w = apiGet(ts, "/api/v1/control/alerts?status=closed")
+	if w.Code != http.StatusOK {
+		t.Fatalf("filter status code = %d", w.Code)
+	}
+	var workflow AlertWorkflow
+	if err := json.NewDecoder(w.Body).Decode(&workflow); err != nil {
+		t.Fatalf("decode workflow: %v", err)
+	}
+	if workflow.Summary.Total != 1 || len(workflow.Alerts) != 1 || workflow.Alerts[0].Status != "closed" {
+		t.Fatalf("closed workflow = %#v", workflow)
+	}
+}
+
 func TestGroundTruthEndpointLoadsJSONL(t *testing.T) {
 	ts := testServer(t)
 	dir := t.TempDir()

@@ -10,7 +10,7 @@ The dashboard is backed by REST endpoints under `/api/v1/`.
 | Agent Overview | `/api/v1/control/fleet` | agent state, metadata, enrollment |
 | Policy Center | `/api/v1/control/policies` | draft, diff, validate, publish, rollback |
 | Delivery Health | `/api/v1/control/compliance` | SIEM, retention, reports, approvals |
-| Alert Workflow | `/api/v1/alerts`, `/api/v1/control/alerts` | triage, assignment, silence, close, reopen |
+| Alert Workflow | `/api/v1/alerts`, `/api/v1/control/alerts`, `/api/v1/control/alerts/feedback` | triage, assignment, silence, close, reopen, analyst feedback export |
 | Investigation | `/api/v1/investigation/report`, `/api/v1/graph/export` | trace, SVG/Markdown export, graph filters |
 | License / Upgrade | `/api/v1/control/license`, `/api/v1/control/upgrade` | activation, renewal, preflight, apply, rollback |
 
@@ -26,6 +26,18 @@ Mutation endpoints generally accept JSON with:
 ```
 
 High-risk actions should be protected by RBAC and compliance approvals.
+
+## Alert Feedback Ledger
+
+`POST /api/v1/control/alerts` accepts `annotate`, `assign`, `close`, `reopen`,
+`silence`, and `unsilence`. If no live workflow manager is attached, the control
+plane stores these analyst actions in an append-only `alert-feedback.ndjson`
+ledger and merges the latest entry into subsequent `GET /api/v1/control/alerts`
+responses.
+
+`GET /api/v1/control/alerts/feedback` returns JSON feedback evidence. Add
+`?format=csv` to export `providapt-alert-feedback.csv` for release evidence,
+detector training review, and customer SOC handoff.
 
 ## UI Expectations
 
