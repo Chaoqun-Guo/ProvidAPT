@@ -16,28 +16,32 @@ import (
 )
 
 type ProcessContext struct {
-	PID       uint32
-	PPID      uint32
-	UID       uint32
-	GID       uint32
-	Comm      string
-	ExePath   string
-	Cmdline   string
-	UpdatedAt time.Time
+	PID           uint32
+	PPID          uint32
+	UID           uint32
+	GID           uint32
+	Comm          string
+	ExePath       string
+	Cmdline       string
+	CmdlineSource string
+	Cwd           string
+	UpdatedAt     time.Time
 }
 
 type ProcessEnricher struct {
-	mu       sync.Mutex
-	cache    map[uint32]ProcessContext
-	maxItems int
-	now      func() time.Time
+	mu        sync.Mutex
+	cache     map[uint32]ProcessContext
+	pathCache map[string]string
+	maxItems  int
+	now       func() time.Time
 }
 
 func NewProcessEnricher() *ProcessEnricher {
 	return &ProcessEnricher{
-		cache:    make(map[uint32]ProcessContext),
-		maxItems: 8192,
-		now:      time.Now,
+		cache:     make(map[uint32]ProcessContext),
+		pathCache: make(map[string]string),
+		maxItems:  8192,
+		now:       time.Now,
 	}
 }
 
@@ -56,6 +60,8 @@ func (pe *ProcessEnricher) Enrich(evt *Event) {
 	ctx.Comm = firstNonEmpty(evt.Comm, ctx.Comm)
 	ctx.ExePath = firstNonEmpty(evt.ExePath, ctx.ExePath)
 	ctx.Cmdline = firstNonEmpty(evt.Cmdline, ctx.Cmdline)
+	ctx.CmdlineSource = firstNonEmpty(evt.CmdlineSource, ctx.CmdlineSource)
+	ctx.Cwd = firstNonEmpty(evt.Cwd, ctx.Cwd)
 	ctx.UpdatedAt = pe.now()
 	pe.cache[evt.PID] = ctx
 	pe.applyCachedContext(evt, ctx)
@@ -65,6 +71,7 @@ func (pe *ProcessEnricher) Enrich(evt *Event) {
 		child.PPID = evt.PID
 		child.UID = firstNonZero(evt.UID, child.UID)
 		child.GID = firstNonZero(evt.GID, child.GID)
+		child.Cwd = firstNonEmpty(evt.Cwd, child.Cwd)
 		child.UpdatedAt = pe.now()
 		pe.cache[evt.ChildPID] = child
 	}
@@ -76,16 +83,50 @@ func (pe *ProcessEnricher) Enrich(evt *Event) {
 	if inferred := inferPathFromCmdline(evt.Pathname, evt.Cmdline); inferred != "" {
 		evt.Pathname = inferred
 	}
+	if inferred := inferPathFromCwd(evt.Pathname, evt.Cwd); inferred != "" {
+		evt.Pathname = inferred
+	}
+	if inferred := pe.resolveCachedInodePath(evt.Pathname, evt.DevMajor, evt.DevMinor, evt.Inode); inferred != "" {
+		evt.Pathname = inferred
+	}
 	if evt.Type == eventsyscall.EventProcessExec && evt.Pathname == "" && evt.ExePath != "" {
 		evt.Pathname = evt.ExePath
 	}
+	if evt.Type == eventsyscall.EventProcessExec && evt.Cmdline == "" && evt.Pathname != "" && !pathUnavailable(evt.Pathname) {
+		evt.Cmdline = evt.Pathname
+		evt.CmdlineSource = "exec_path"
+	}
 	pe.pruneLocked()
+}
+
+func (pe *ProcessEnricher) resolveCachedInodePath(pathname string, devMajor uint32, devMinor uint32, inode uint64) string {
+	if inode == 0 || pathpkg.IsAbs(pathname) || strings.HasPrefix(pathname, "inode://") || !isWorthInodePathScan(pathname) {
+		return ""
+	}
+	key := fmt.Sprintf("%d:%d/%d/%s", devMajor, devMinor, inode, pathpkg.Base(pathname))
+	if cached := pe.pathCache[key]; cached != "" {
+		return cached
+	}
+	resolved := resolveInodePath(pathname, devMajor, devMinor, inode)
+	if resolved != "" {
+		if len(pe.pathCache) > pe.maxItems {
+			clear(pe.pathCache)
+		}
+		pe.pathCache[key] = resolved
+	}
+	return resolved
 }
 
 func (pe *ProcessEnricher) applyCachedContext(evt *Event, ctx ProcessContext) {
 	evt.Comm = firstNonEmpty(evt.Comm, ctx.Comm)
 	evt.ExePath = firstNonEmpty(evt.ExePath, ctx.ExePath)
-	evt.Cmdline = firstNonEmpty(evt.Cmdline, ctx.Cmdline)
+	if strings.TrimSpace(evt.Cmdline) == "" && strings.TrimSpace(ctx.Cmdline) != "" {
+		evt.Cmdline = ctx.Cmdline
+		evt.CmdlineSource = firstNonEmpty(ctx.CmdlineSource, "cache")
+	} else {
+		evt.CmdlineSource = firstNonEmpty(evt.CmdlineSource, ctx.CmdlineSource)
+	}
+	evt.Cwd = firstNonEmpty(evt.Cwd, ctx.Cwd)
 	if evt.PPID == 0 {
 		evt.PPID = ctx.PPID
 	}
@@ -130,6 +171,12 @@ func (e *Event) Enrich() {
 		if data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(int(e.PID)), "cmdline")); err == nil {
 			cmdline := strings.ReplaceAll(strings.TrimRight(string(data), "\x00"), "\x00", " ")
 			e.Cmdline = strings.TrimSpace(cmdline)
+			if e.Cmdline != "" {
+				e.CmdlineSource = "procfs"
+			}
+		}
+		if target, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(int(e.PID)), "cwd")); err == nil && target != "" {
+			e.Cwd = target
 		}
 	}
 }
@@ -205,6 +252,131 @@ func inferPathFromCmdline(pathname string, cmdline string) string {
 		}
 	}
 	return ""
+}
+
+func inferPathFromCwd(pathname string, cwd string) string {
+	pathname = strings.TrimSpace(pathname)
+	cwd = strings.TrimSpace(cwd)
+	if cwd == "" || pathname == "" || pathpkg.IsAbs(pathname) || strings.HasPrefix(pathname, "inode://") {
+		return ""
+	}
+	if isPseudoPathname(pathname) || strings.Contains(pathname, "/") {
+		return ""
+	}
+	if !pathpkg.IsAbs(cwd) {
+		return ""
+	}
+	return pathpkg.Clean(pathpkg.Join(cwd, pathname))
+}
+
+func resolveInodePath(pathname string, devMajor uint32, devMinor uint32, inode uint64) string {
+	base := pathpkg.Base(strings.TrimSpace(pathname))
+	if base == "" || base == "." || isPseudoPathname(base) {
+		return ""
+	}
+	roots := inodeSearchRoots(base)
+	visited := 0
+	const maxVisited = 20000
+	for _, root := range roots {
+		root = filepath.Clean(root)
+		if root == "." || root == string(filepath.Separator) {
+			continue
+		}
+		var found string
+		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+			if err != nil || found != "" {
+				return nil
+			}
+			visited++
+			if visited > maxVisited {
+				return filepath.SkipAll
+			}
+			if entry.IsDir() {
+				if shouldSkipInodeSearchDir(path, entry.Name()) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if entry.Name() != base {
+				return nil
+			}
+			info, err := entry.Info()
+			if err != nil {
+				return nil
+			}
+			if sameInode(info, devMajor, devMinor, inode) {
+				found = filepath.ToSlash(path)
+				return filepath.SkipAll
+			}
+			return nil
+		})
+		if found != "" {
+			return found
+		}
+	}
+	return ""
+}
+
+func inodeSearchRoots(base string) []string {
+	switch base {
+	case "passwd", "shadow", "group", "gshadow", "sudoers", "crontab":
+		return []string{"/etc"}
+	default:
+		return []string{"/tmp", "/var/tmp", "/home", "/root", "/etc"}
+	}
+}
+
+func shouldSkipInodeSearchDir(pathname string, name string) bool {
+	if name == "" {
+		return false
+	}
+	switch name {
+	case ".git", "node_modules", "vendor", "__pycache__", ".cache", ".conda", ".local", "go", "pkg":
+		return true
+	default:
+		return strings.HasPrefix(pathname, "/home/") && (name == "Downloads" || name == "Videos" || name == "Pictures")
+	}
+}
+
+func isWorthInodePathScan(pathname string) bool {
+	base := strings.TrimSpace(pathpkg.Base(pathname))
+	if base == "" || base == "." || isPseudoPathname(base) {
+		return false
+	}
+	switch base {
+	case "passwd", "shadow", "group", "gshadow", "sudoers", "crontab":
+		return true
+	}
+	lower := strings.ToLower(base)
+	if strings.HasPrefix(lower, "lc_") ||
+		strings.HasPrefix(lower, "lib") ||
+		strings.Contains(lower, "locale") ||
+		strings.Contains(lower, "gconv") {
+		return false
+	}
+	if strings.Contains(lower, "payload") ||
+		strings.Contains(lower, "providapt") ||
+		strings.Contains(lower, "evil") ||
+		strings.Contains(lower, "backdoor") ||
+		strings.Contains(lower, "attack") {
+		return true
+	}
+	for _, suffix := range []string{".sh", ".py", ".pl", ".rb", ".bin", ".txt", ".conf", ".service", ".key", ".pem", ".cron"} {
+		if strings.HasSuffix(lower, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPseudoPathname(pathname string) bool {
+	switch strings.TrimSpace(pathname) {
+	case ".", "..", "null", "zero", "random", "urandom", "stdin", "stdout", "stderr",
+		"cmdline", "environ", "status", "maps", "mem", "fd", "socket", "pipe", "anon_inode":
+		return true
+	default:
+		return strings.HasPrefix(pathname, "[") || strings.HasSuffix(pathname, "]")
+	}
 }
 
 func firstNonEmpty(values ...string) string {

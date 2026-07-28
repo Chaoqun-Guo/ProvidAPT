@@ -42,18 +42,20 @@ func TestNormalizeEventForkTypedPayload(t *testing.T) {
 
 func TestParseStoredEventJSONSupportsNormalized(t *testing.T) {
 	normalized := NormalizeEvent(&Event{
-		Type:        syscall.EventFileModify,
-		TimestampNS: 1000,
-		PID:         10,
-		UID:         1000,
-		Comm:        "curl",
-		Pathname:    "/tmp/payload.sh",
-		Inode:       123,
-		DevMajor:    8,
-		DevMinor:    3,
-		FFlags:      1,
-		ExePath:     "/usr/bin/curl",
-		Cmdline:     "curl -o /tmp/payload.sh https://example.com",
+		Type:          syscall.EventFileModify,
+		TimestampNS:   1000,
+		PID:           10,
+		UID:           1000,
+		Comm:          "curl",
+		Pathname:      "/tmp/payload.sh",
+		Inode:         123,
+		DevMajor:      8,
+		DevMinor:      3,
+		FFlags:        1,
+		ExePath:       "/usr/bin/curl",
+		Cmdline:       "curl -o /tmp/payload.sh https://example.com",
+		CmdlineSource: "procfs",
+		Cwd:           "/tmp",
 	})
 	data, err := json.Marshal(normalized)
 	if err != nil {
@@ -67,7 +69,7 @@ func TestParseStoredEventJSONSupportsNormalized(t *testing.T) {
 	if evt.Type != syscall.EventFileModify || evt.Pathname != "/tmp/payload.sh" || evt.Inode != 123 {
 		t.Fatalf("parsed event = %#v", evt)
 	}
-	if evt.ExePath != "/usr/bin/curl" || evt.Cmdline == "" {
+	if evt.ExePath != "/usr/bin/curl" || evt.Cmdline == "" || evt.CmdlineSource != "procfs" || evt.Cwd != "/tmp" {
 		t.Fatalf("enrich fields not preserved: %#v", evt)
 	}
 }

@@ -104,6 +104,9 @@ type Event struct {
 	Pathname string
 	ExePath  string
 	Cmdline  string
+	// CmdlineSource explains how Cmdline was derived: procfs, cache, or exec_path.
+	CmdlineSource string
+	Cwd           string
 }
 
 // Start begins reading events from the BPF ring buffer.

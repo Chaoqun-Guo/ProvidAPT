@@ -32,8 +32,10 @@ type NormalizedProcess struct {
 }
 
 type NormalizedEnrich struct {
-	ExePath string `json:"exe_path,omitempty"`
-	Cmdline string `json:"cmdline,omitempty"`
+	ExePath       string `json:"exe_path,omitempty"`
+	Cmdline       string `json:"cmdline,omitempty"`
+	CmdlineSource string `json:"cmdline_source,omitempty"`
+	Cwd           string `json:"cwd,omitempty"`
 }
 
 type NormalizedRaw struct {
@@ -61,8 +63,10 @@ func NormalizeEvent(evt *Event) NormalizedEvent {
 			Comm: evt.Comm,
 		},
 		Enrich: NormalizedEnrich{
-			ExePath: evt.ExePath,
-			Cmdline: evt.Cmdline,
+			ExePath:       evt.ExePath,
+			Cmdline:       evt.Cmdline,
+			CmdlineSource: evt.CmdlineSource,
+			Cwd:           evt.Cwd,
 		},
 		Raw: NormalizedRaw{
 			SampleHookID: evt.SampleHookID,
@@ -123,19 +127,21 @@ func filePayload(evt *Event) map[string]interface{} {
 
 func EventFromNormalized(norm NormalizedEvent) *Event {
 	evt := &Event{
-		Type:         syscall.EventType(norm.TypeID),
-		Flags:        norm.Flags,
-		TimestampNS:  norm.TimestampNS,
-		PID:          norm.Process.PID,
-		TID:          norm.Process.TID,
-		PPID:         norm.Process.PPID,
-		UID:          norm.Process.UID,
-		GID:          norm.Process.GID,
-		Comm:         norm.Process.Comm,
-		ExePath:      norm.Enrich.ExePath,
-		Cmdline:      norm.Enrich.Cmdline,
-		SampleHookID: norm.Raw.SampleHookID,
-		SampleCount:  norm.Raw.SampleCount,
+		Type:          syscall.EventType(norm.TypeID),
+		Flags:         norm.Flags,
+		TimestampNS:   norm.TimestampNS,
+		PID:           norm.Process.PID,
+		TID:           norm.Process.TID,
+		PPID:          norm.Process.PPID,
+		UID:           norm.Process.UID,
+		GID:           norm.Process.GID,
+		Comm:          norm.Process.Comm,
+		ExePath:       norm.Enrich.ExePath,
+		Cmdline:       norm.Enrich.Cmdline,
+		CmdlineSource: norm.Enrich.CmdlineSource,
+		Cwd:           norm.Enrich.Cwd,
+		SampleHookID:  norm.Raw.SampleHookID,
+		SampleCount:   norm.Raw.SampleCount,
 	}
 	if norm.Payload == nil {
 		return evt

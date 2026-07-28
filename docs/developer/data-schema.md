@@ -180,6 +180,34 @@ endKey   = fmt.Sprintf("e:%020x", T2.UnixNano())
 // Pebble prefix scan on [startKey, endKey)
 ```
 
+### 2.4 Normalized NDJSON Event Schema
+
+Events written to `providapt-*.ndjson` use a stable normalized envelope:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `schema_version` | integer | Normalized event schema version. |
+| `type` / `type_id` | string / integer | Human-readable event type and numeric kernel event type. |
+| `timestamp_ns` | integer | Monotonic kernel timestamp in nanoseconds. |
+| `process` | object | `pid`, `tid`, `ppid`, `uid`, `gid`, and `comm`. |
+| `payload` | object | Type-specific payload, such as file path/inode or network tuple. |
+| `enrich` | object | Best-effort userspace enrichment. |
+| `raw` | object | Kernel payload kind and sampling metadata. |
+
+`enrich` fields are best-effort and may be empty for very short-lived processes:
+
+| Field | Description |
+|-------|-------------|
+| `exe_path` | Executable path read from `/proc/<pid>/exe` when the process is still alive. |
+| `cmdline` | Full procfs command line when available; otherwise an exec-path fallback for `proc_exec`. |
+| `cmdline_source` | Source marker: `procfs`, `cache`, or `exec_path`. |
+| `cwd` | Current working directory read from `/proc/<pid>/cwd`, propagated across fork when available. |
+
+For remote SSH-based attack simulation, disable `capture.auto_exclude_noisy` and set
+`PROVIDAPT_SKIP_PRIVILEGE_DROP="1"` in the VM lab environment. Otherwise the default
+production hardening can intentionally exclude SSH session trees or restrict `/proc`
+access, which reduces command-line/path enrichment for short-lived injected commands.
+
 ---
 
 ## 3. Global Graph Schema

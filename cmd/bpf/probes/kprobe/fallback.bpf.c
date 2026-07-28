@@ -93,6 +93,19 @@ static __always_inline void fill_file_path(struct file *file, char *dst, u32 dst
 	bpf_probe_read_kernel_str(dst, dst_sz, "?");
 }
 
+static __always_inline bool fill_bprm_filename(struct linux_binprm *bprm, char *dst, u32 dst_sz) {
+	const char *filename;
+	int n;
+
+	if (!bprm)
+		return false;
+	filename = BPF_CORE_READ(bprm, filename);
+	if (!filename)
+		return false;
+	n = bpf_probe_read_kernel_str(dst, dst_sz, filename);
+	return n > 1;
+}
+
 static __always_inline void fill_event_hdr(struct event *e, u32 type) {
 	e->type = type;
 	e->flags = 0;
@@ -186,10 +199,12 @@ int BPF_KPROBE(probe_bprm_check, struct linux_binprm *bprm)
 	exe_file = BPF_CORE_READ(bprm, file);
 	if (exe_file) {
 		fill_file_payload(&e->payload.file, exe_file);
-		fill_file_path(exe_file, e->pathname, sizeof(e->pathname));
+		if (!fill_bprm_filename(bprm, e->pathname, sizeof(e->pathname)))
+			fill_file_path(exe_file, e->pathname, sizeof(e->pathname));
 	} else {
 		__builtin_memset(&e->payload.file, 0, sizeof(e->payload.file));
-		bpf_probe_read_kernel_str(e->pathname, sizeof(e->pathname), "?");
+		if (!fill_bprm_filename(bprm, e->pathname, sizeof(e->pathname)))
+			bpf_probe_read_kernel_str(e->pathname, sizeof(e->pathname), "?");
 	}
 
 	if (bprm) {
