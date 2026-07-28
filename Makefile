@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness p1-readiness soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness p1-readiness p3-readiness p4-readiness soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -297,6 +297,12 @@ enterprise-readiness:
 p1-readiness:
 	python3 scripts/ops/p1-readiness-report.py --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --tls-manifest "$(or $(TLS_MANIFEST),build/tls/manifest.json)" $(if $(POSTGRES_REPORT),--postgres-report "$(POSTGRES_REPORT)") $(if $(PROVIDAPT_SERVER_URL),--server "$(PROVIDAPT_SERVER_URL)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),60)" --out-json "$(or $(OUT_DIR),build/p1)/p1-readiness.json" --out-md "$(or $(OUT_DIR),build/p1)/p1-readiness.md"
 
+p3-readiness:
+	python3 scripts/ops/p3-readiness-report.py --p1-readiness "$(or $(P1_READINESS),build/p1/p1-readiness.json)" --p2-readiness "$(or $(P2_READINESS),build/p2/p2-readiness.json)" --fleet-verification "$(or $(FLEET_VERIFICATION),build/deploy/vm-fleet-verification.json)" --soak-readiness "$(or $(SOAK_READINESS),build/performance/soak-readiness.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT),build/upgrade/rollout-plan.json)" --siem-verify "$(or $(SIEM_VERIFY),build/siem/siem-verification.json)" --rbac-audit "$(or $(RBAC_AUDIT),build/rbac/rbac-audit.json)" --out-json "$(or $(OUT_DIR),build/p3)/p3-readiness.json" --out-md "$(or $(OUT_DIR),build/p3)/p3-readiness.md"
+
+p4-readiness:
+	python3 scripts/ops/p4-readiness-report.py --p3-readiness "$(or $(P3_READINESS),build/p3/p3-readiness.json)" --enterprise-readiness "$(or $(ENTERPRISE_READINESS),build/enterprise-readiness.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" $(if $(PLUGIN_GATE),--plugin-gate "$(PLUGIN_GATE)") --external-approval "$(or $(EXTERNAL_APPROVAL),docs/project/external-approval-request-v1.2.3-rc.1.md)" --out-json "$(or $(OUT_DIR),build/p4)/p4-readiness.json" --out-md "$(or $(OUT_DIR),build/p4)/p4-readiness.md"
+
 soak-sample:
 	@if [ -z "$(STATUS_URL)" ] && [ -z "$(STATUS_JSON)" ]; then echo 'usage: make soak-sample STATUS_URL=http://localhost:18080/api/v1/status [SOAK_STARTED_AT_EPOCH=...] [OUT=build/performance/soak-samples.json]'; exit 2; fi
 	python3 scripts/ops/collect-soak-sample.py $(if $(STATUS_URL),--status-url "$(STATUS_URL)") $(if $(STATUS_JSON),--status-json "$(STATUS_JSON)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") $(if $(SOAK_HOST),--host "$(SOAK_HOST)") $(if $(SOAK_STARTED_AT_EPOCH),--started-at-epoch "$(SOAK_STARTED_AT_EPOCH)") --out "$(or $(OUT),build/performance/soak-samples.json)"
@@ -513,6 +519,8 @@ help:
 	@echo '  make ops-rbac-audit PROVIDAPT_CONFIG=... Audit RBAC and tenant scoping'
 	@echo '  make scheduled-report-plan Generate executive/compliance report schedule'
 	@echo '  make enterprise-readiness Aggregate release, secret, PostgreSQL, and detection evidence'
+	@echo '  make p3-readiness      Aggregate production operations readiness evidence'
+	@echo '  make p4-readiness      Aggregate commercialization readiness evidence'
 	@echo '  make soak-sample STATUS_URL=... Append one long-duration soak sample'
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... Plan staged upgrades'

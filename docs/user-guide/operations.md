@@ -264,7 +264,7 @@ The generated plan records the report command, retention budget, systemd timer
 metadata, and Kubernetes CronJob schedule. Treat it as the approval artifact
 before wiring the schedule into customer automation.
 
-## 8. Enterprise and Soak Readiness
+## 8. P3 Operations Readiness
 
 After constrained VM deployment, capture deployment evidence from the control
 plane:
@@ -289,7 +289,7 @@ make enterprise-readiness \
   REPORT_PLAN_JSON=build/reports/scheduled-report-plan.json
 ```
 
-Evaluate long-duration P4 soak evidence against CPU, memory, disk, duration,
+Evaluate long-duration soak evidence against CPU, memory, disk, duration,
 and dropped-event budgets:
 
 ```bash
@@ -312,6 +312,23 @@ review, support handoff, and customer readiness meetings.
 Run `make soak-sample` on a schedule during 24-72 hour validation windows. Keep
 the generated `soak-samples.json` with the final `soak-readiness.json` and
 `soak-readiness.md` evidence.
+
+Close P3 with the operations readiness gate:
+
+```bash
+make p3-readiness \
+  P1_READINESS=build/p1/p1-readiness.json \
+  P2_READINESS=build/p2/p2-readiness.json \
+  FLEET_VERIFICATION=build/deploy/vm-fleet-verification.json \
+  SOAK_READINESS=build/performance/soak-readiness.json \
+  UPGRADE_ROLLOUT=build/upgrade/rollout-plan.json \
+  SIEM_VERIFY=build/siem/siem-verification.json \
+  RBAC_AUDIT=build/rbac/rbac-audit.json
+```
+
+The P3 gate blocks when production foundation, detection/ML evidence, fleet
+health, soak stability, upgrade rollout, SIEM/SOAR delivery, or RBAC audit
+evidence is missing or failed.
 
 For large investigations, the dashboard graph summary groups nodes into
 clusters and high-degree hubs. Use `Inspect` to view a collapsed cluster,
@@ -338,3 +355,30 @@ make onboarding-wizard \
 
 The onboarding bundle includes a production-oriented starter config, checklist,
 and manifest that can be attached to customer handoff evidence.
+
+## 9. P4 Commercialization Readiness
+
+Validate plugin release evidence before enabling customer-specific detection,
+scoring, threat-intelligence, or enrichment extensions:
+
+```bash
+make plugin-release-gate \
+  PLUGIN_MANIFEST=plugins/example/plugin.json \
+  PLUGIN_SIGNATURE=plugins/example/plugin.json.sig
+```
+
+Close P4 with the commercialization readiness gate:
+
+```bash
+make p4-readiness \
+  P3_READINESS=build/p3/p3-readiness.json \
+  ENTERPRISE_READINESS=build/enterprise-readiness.json \
+  ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json \
+  PLUGIN_GATE=build/plugins/plugin-release-gate.json \
+  EXTERNAL_APPROVAL=docs/project/external-approval-request-v1.2.3-rc.1.md
+```
+
+The P4 gate verifies customer handoff documentation, onboarding artifacts,
+external approval evidence, enterprise readiness, and optional plugin release
+gates. Missing plugin evidence is a warning when no plugins are shipped; failed
+plugin evidence blocks release.
