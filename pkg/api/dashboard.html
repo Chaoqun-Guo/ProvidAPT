@@ -245,6 +245,252 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .auth-strip { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; min-width:0; }
 .auth-strip input { background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:5px 8px; min-width:160px; max-width:100%; flex:1 1 220px; }
 .auth-strip button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:5px 8px; cursor:pointer; }
+
+/* Professional Cyber IDS glassmorphism HUD theme: Electric Red, Amber, Emerald Green severity accents. */
+:root {
+  --ids-bg-0: #030712;
+  --ids-bg-1: #07111f;
+  --ids-bg-2: #0b1628;
+  --ids-card: rgba(12, 24, 42, 0.72);
+  --ids-card-strong: rgba(15, 30, 52, 0.88);
+  --ids-border: rgba(88, 166, 255, 0.24);
+  --ids-border-hot: rgba(0, 229, 255, 0.62);
+  --ids-text: #d7e6f7;
+  --ids-muted: #7f93ad;
+  --ids-dim: #4f6580;
+  --ids-cyan: #00e5ff;
+  --ids-blue: #58a6ff;
+  --ids-red: #ff3158;
+  --ids-amber: #ffb020;
+  --ids-green: #19f28a;
+  --ids-purple: #9d7cff;
+  --ids-shadow-cyan: 0 0 22px rgba(0, 229, 255, 0.16);
+  --ids-shadow-red: 0 0 20px rgba(255, 49, 88, 0.18);
+  --ids-radius: 14px;
+}
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--ids-text);
+  background:
+    radial-gradient(circle at 12% 10%, rgba(0, 229, 255, 0.13), transparent 28%),
+    radial-gradient(circle at 86% 18%, rgba(157, 124, 255, 0.12), transparent 26%),
+    linear-gradient(135deg, var(--ids-bg-0) 0%, var(--ids-bg-1) 48%, #040812 100%);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(rgba(88, 166, 255, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88, 166, 255, 0.026) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.18));
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(180deg, transparent 0, rgba(0,229,255,0.035) 50%, transparent 100%);
+  background-size: 100% 5px;
+  opacity: 0.42;
+  mix-blend-mode: screen;
+}
+header, .workspace-nav, .dashboard-shell, .api-status-banner, .detail-drawer, .detail-drawer-backdrop { position: relative; z-index: 1; }
+
+header.platform-header {
+  background: linear-gradient(180deg, rgba(8, 18, 32, 0.92), rgba(5, 12, 22, 0.78));
+  border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+}
+header h1 {
+  color: #ecf8ff;
+  letter-spacing: 0.3px;
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.34);
+}
+header .subtitle, .role-info, .refresh-info, .workspace-hint {
+  color: var(--ids-muted);
+}
+.platform-title-row::before {
+  content: "";
+  width: 10px;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--ids-cyan), var(--ids-blue));
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.56);
+}
+
+.dashboard-sidebar, .panel, .card, .mini-card, .policy-item, .agent-card, .sidebar-status, .alert-item, .detail-drawer, .api-status-banner {
+  background: linear-gradient(145deg, rgba(12, 24, 42, 0.78), rgba(7, 16, 30, 0.68));
+  border-color: var(--ids-border);
+  box-shadow: var(--ids-shadow-cyan), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(14px);
+}
+.dashboard-sidebar, .panel, .card, .mini-card, .policy-item, .agent-card, .detail-drawer {
+  border-radius: var(--ids-radius);
+}
+.card, .mini-card, .policy-item, .agent-card {
+  position: relative;
+}
+.panel {
+  overflow: hidden;
+}
+.panel::before, .card::before, .dashboard-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.12), transparent) top left / 100% 1px no-repeat,
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent 34%);
+}
+.panel h2 {
+  color: #b9d9ff;
+  border-bottom-color: rgba(88, 166, 255, 0.18);
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.08), rgba(88, 166, 255, 0.02));
+  letter-spacing: 1.3px;
+}
+.dashboard-panel h2::after {
+  color: var(--ids-dim);
+}
+.panel-body {
+  background: radial-gradient(circle at 100% 0, rgba(0, 229, 255, 0.06), transparent 28%);
+}
+
+.card {
+  min-height: 92px;
+  border-radius: 16px;
+}
+.card.clickable:hover, .mini-card.clickable:hover, .policy-item.clickable:hover, .agent-actions button:hover, .sidebar-button:hover,
+.workspace-tabs button:hover, .workspace-tools button:hover, .console-toolbar button:hover {
+  border-color: var(--ids-border-hot);
+  color: #e7fbff;
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.18), 0 0 24px rgba(0, 229, 255, 0.18);
+}
+.card .value, .mini-card .value, .policy-item .value, .sidebar-status .value {
+  color: var(--ids-cyan);
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.36);
+}
+.card .label, .mini-card .label, .policy-item .label, .sidebar-status .label {
+  color: #9fb3ca;
+  letter-spacing: 0.85px;
+}
+.card .sub {
+  color: var(--ids-dim);
+}
+
+.workspace-tabs button, .workspace-tools button, .sidebar-button, .platform-button, .license-pill, .console-toolbar button,
+.agent-actions button, .fleet-toolbar button, .action-row button, .delivery-inline-actions button, .workflow-filter-bar button,
+.detail-drawer button, .auth-strip button {
+  border-radius: 999px;
+  border: 1px solid rgba(88, 166, 255, 0.28);
+  background: linear-gradient(180deg, rgba(17, 34, 58, 0.92), rgba(8, 18, 33, 0.92));
+  color: var(--ids-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+.workspace-tabs button.active, .sidebar-button.active, button.btn-primary, .fleet-toolbar button, .action-row button:not(.secondary), .delivery-inline-actions button:not(.secondary) {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.95), rgba(31, 111, 235, 0.92)) !important;
+  color: #02111f !important;
+  border-color: rgba(0, 229, 255, 0.72) !important;
+  font-weight: 700;
+}
+.delivery-inline-actions button.secondary, .action-row button.secondary {
+  background: linear-gradient(180deg, rgba(31, 45, 68, 0.95), rgba(13, 24, 42, 0.94));
+}
+.license-pill {
+  background: rgba(7, 16, 30, 0.72);
+}
+.license-pill.activation .value, .status-badge.healthy, .healthy .status-dot {
+  color: var(--ids-green);
+}
+
+.status-badge {
+  border-radius: 999px;
+  background: rgba(10, 22, 38, 0.74);
+}
+.status-badge.healthy, .sev-low {
+  background: rgba(25, 242, 138, 0.1);
+  color: var(--ids-green);
+  border-color: rgba(25, 242, 138, 0.42);
+}
+.status-badge.degraded, .status-badge.stale, .status-badge.unknown, .sev-high {
+  background: rgba(255, 176, 32, 0.1);
+  color: var(--ids-amber);
+  border-color: rgba(255, 176, 32, 0.45);
+}
+.status-badge.unhealthy, .status-badge.offline, .sev-critical {
+  background: rgba(255, 49, 88, 0.12);
+  color: var(--ids-red);
+  border-color: rgba(255, 49, 88, 0.48);
+  box-shadow: var(--ids-shadow-red);
+}
+.sev-medium {
+  background: rgba(0, 229, 255, 0.1);
+  color: var(--ids-cyan);
+  border: 1px solid rgba(0, 229, 255, 0.36);
+}
+.alert-sev {
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.legend-critical { background: var(--ids-red); box-shadow: 0 0 12px rgba(255,49,88,0.42); }
+.legend-high { background: var(--ids-amber); box-shadow: 0 0 12px rgba(255,176,32,0.34); }
+.legend-medium { background: var(--ids-cyan); box-shadow: 0 0 12px rgba(0,229,255,0.38); }
+.legend-low { background: var(--ids-green); box-shadow: 0 0 12px rgba(25,242,138,0.28); }
+
+.alerts-list, .dashboard-sidebar, .detail-drawer-body {
+  scrollbar-color: rgba(0, 229, 255, 0.42) rgba(7, 16, 30, 0.62);
+}
+.alert-item {
+  border-bottom-color: rgba(88, 166, 255, 0.11);
+}
+.alert-time, .loading {
+  color: var(--ids-muted);
+}
+.alert-msg, .agent-name {
+  color: var(--ids-text);
+}
+
+input, textarea, .compact-input-grid input, .policy-editor textarea, .fleet-toolbar input, .workflow-filter-bar input, .workflow-filter-bar select, .auth-strip input {
+  background: rgba(3, 8, 18, 0.72) !important;
+  color: var(--ids-text) !important;
+  border-color: rgba(88, 166, 255, 0.24) !important;
+  border-radius: 10px !important;
+  outline: none;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--ids-border-hot) !important;
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.12);
+}
+
+.api-status-banner.ok {
+  background: rgba(25, 242, 138, 0.08);
+  border-color: rgba(25, 242, 138, 0.34);
+  color: #bdfbdd;
+}
+.api-status-banner.error, .error {
+  background: rgba(255, 49, 88, 0.08);
+  border-color: rgba(255, 49, 88, 0.36);
+  color: #ffb6c5;
+}
+
+button.btn-download { background: linear-gradient(135deg, rgba(25, 242, 138, 0.18), rgba(10, 96, 70, 0.88)) !important; color: #caffdf !important; border-color: rgba(25, 242, 138, 0.45) !important; }
+button.btn-warning { background: linear-gradient(135deg, rgba(255, 176, 32, 0.16), rgba(92, 57, 10, 0.88)) !important; color: #ffe0a3 !important; border-color: rgba(255, 176, 32, 0.48) !important; }
+button.btn-danger { background: linear-gradient(135deg, rgba(255, 49, 88, 0.18), rgba(82, 14, 31, 0.88)) !important; color: #ffc2cc !important; border-color: rgba(255, 49, 88, 0.5) !important; }
+button.btn-refresh, button.btn-view { background: linear-gradient(180deg, rgba(18, 36, 61, 0.94), rgba(7, 16, 30, 0.92)) !important; color: #cdefff !important; border-color: rgba(0, 229, 255, 0.28) !important; }
+
+body.dashboard-theme-contrast {
+  background: #010409;
+}
+body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.dashboard-theme-contrast .dashboard-sidebar, body.dashboard-theme-contrast header {
+  border-color: rgba(0, 229, 255, 0.58);
+}
 </style>
 </head>
 <body>

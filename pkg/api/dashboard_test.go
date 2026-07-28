@@ -240,6 +240,26 @@ func TestDashboardSemanticButtonClasses(t *testing.T) {
 	}
 }
 
+func TestDashboardCyberIDSTheme(t *testing.T) {
+	expected := []string{
+		"--ids-bg-0",
+		"--ids-cyan",
+		"--ids-red",
+		"--ids-amber",
+		"--ids-green",
+		"glassmorphism",
+		"radial-gradient(circle at 12% 10%",
+		"backdrop-filter: blur(14px)",
+		"text-shadow: 0 0 18px",
+		"Electric Red",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing cyber IDS theme content %q", item)
+		}
+	}
+}
+
 func TestDashboardGroundTruthPanel(t *testing.T) {
 	expected := []string{
 		"Evaluation Ground Truth",
