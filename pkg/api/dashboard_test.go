@@ -178,6 +178,11 @@ func TestDashboardModuleActions(t *testing.T) {
 		"runAlertWorkflowAction('assign'",
 		"runAlertWorkflowAction('silence'",
 		"runAlertWorkflowAction('close'",
+		"data-module=\\\"alert-workflow\\\" data-module-action=\\\"close\\\"",
+		"data-ui-close=\"detail-drawer\"",
+		"event.stopPropagation(); closeDetailDrawer()",
+		"moduleStatusTargets",
+		"setModuleStatus('alert-workflow'",
 		"runAlertWorkflowBulkAction('close')",
 		"runAlertWorkflowBulkAction('silence')",
 		"showAlertQuality()",
@@ -205,8 +210,10 @@ func TestDashboardModuleActions(t *testing.T) {
 		"native connector",
 		"readiness",
 		"prepareLicenseAction('activate_online')",
+		"data-module=\"license-activation\"",
 		"activation server",
 		"prepareUpgradeAction('discover')",
+		"data-module=\"version-update\"",
 		"Release manifest URL",
 		"prepareUpgradeAction('apply')",
 		"prepareUpgradeAction('rollback')",
@@ -256,6 +263,26 @@ func TestDashboardCyberIDSTheme(t *testing.T) {
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
 			t.Fatalf("dashboard missing cyber IDS theme content %q", item)
+		}
+	}
+}
+
+func TestDashboardModuleScopedActions(t *testing.T) {
+	expected := []string{
+		"data-module=\"support\" data-module-action=\"export\"",
+		"data-module=\"backup\" data-module-action=\"create\"",
+		"data-module=\"policy-center\" data-module-action=\"publish\"",
+		"data-module=\"delivery-health\" data-module-action=\"replay-all\"",
+		"data-module=\"compliance-siem\" data-module-action=\"export-audit\"",
+		"data-module=\"alert-workflow\" data-module-action=\"bulk-close\"",
+		"data-module=\"license-activation\" data-module-action=\"activate-online\"",
+		"data-module=\"version-update\" data-module-action=\"discover\"",
+		"hasAttribute('data-ui-close')",
+		"moduleName + ': ' + moduleAction",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing module-scoped action content %q", item)
 		}
 	}
 }

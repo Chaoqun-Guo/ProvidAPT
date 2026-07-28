@@ -650,9 +650,9 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
         <div class="policy-item clickable" onclick="showSupportDetails('history')"><div class="value" id="sbHistoryCount">--</div><div class="label">History</div></div>
       </div>
       <div class="action-row">
-        <button id="exportSupportBundleBtn" onclick="prepareSupportBundleAction()">Export Support Bundle</button>
-        <button id="downloadSupportBundleBtn" class="secondary" onclick="downloadSupportBundle()">Download Latest Archive</button>
-        <button class="secondary" onclick="downloadAuditCSV('supportbundle')">Export Audit CSV</button>
+        <button id="exportSupportBundleBtn" data-module="support" data-module-action="export" onclick="prepareSupportBundleAction()">Export Support Bundle</button>
+        <button id="downloadSupportBundleBtn" data-module="support" data-module-action="download" class="secondary" onclick="downloadSupportBundle()">Download Latest Archive</button>
+        <button data-module="support" data-module-action="audit-export" class="secondary" onclick="downloadAuditCSV('supportbundle')">Export Audit CSV</button>
       </div>
       <div class="policy-editor compact">
         <div class="compact-input-grid">
@@ -681,10 +681,10 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
         <div class="policy-item clickable" onclick="showBackupDetails('history')"><div class="value" id="bkHistoryCount">--</div><div class="label">History</div></div>
       </div>
       <div class="action-row">
-        <button id="createBackupBtn" onclick="runBackupAction('create')">Create Backup</button>
-        <button id="restoreBackupBtn" class="secondary" onclick="runBackupAction('restore_staging')">Restore to Staging</button>
-        <button id="prepareCutoverBtn" class="secondary" onclick="runBackupAction('prepare_cutover')">Prepare Cutover</button>
-        <button id="downloadBackupBtn" class="secondary" onclick="downloadBackupArchive()">Download Backup</button>
+        <button id="createBackupBtn" data-module="backup" data-module-action="create" onclick="runBackupAction('create')">Create Backup</button>
+        <button id="restoreBackupBtn" data-module="backup" data-module-action="restore-staging" class="secondary" onclick="runBackupAction('restore_staging')">Restore to Staging</button>
+        <button id="prepareCutoverBtn" data-module="backup" data-module-action="prepare-cutover" class="secondary" onclick="runBackupAction('prepare_cutover')">Prepare Cutover</button>
+        <button id="downloadBackupBtn" data-module="backup" data-module-action="download" class="secondary" onclick="downloadBackupArchive()">Download Backup</button>
       </div>
       <div class="loading" id="backupStatus"></div>
       <div class="alerts-list" id="backupDetails">
@@ -703,13 +703,13 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
         <div class="policy-item clickable" onclick="showPolicyDetails('deployment')"><div class="value" id="pDeploymentStatus">--</div><div class="label">Deployment</div></div>
       </div>
       <div class="action-row">
-        <button onclick="showPolicyDetails('current')">Browse Current</button>
-        <button class="secondary" onclick="showPolicyDetails('draft')">Browse Draft</button>
-        <button class="secondary" onclick="showPolicyDetails('rules')">Browse Rules</button>
-        <button class="secondary" onclick="showPolicyDetails('deployment')">Deployment</button>
-        <button class="secondary" onclick="showPolicyDetails('history')">Audit Trail</button>
-        <button class="secondary" onclick="showPolicyDetails('diff')">Show Diff</button>
-        <button id="downloadPolicyBundleBtn" class="secondary" onclick="downloadPolicyBundle()">Download Bundle</button>
+        <button data-module="policy-center" data-module-action="browse-current" onclick="showPolicyDetails('current')">Browse Current</button>
+        <button data-module="policy-center" data-module-action="browse-draft" class="secondary" onclick="showPolicyDetails('draft')">Browse Draft</button>
+        <button data-module="policy-center" data-module-action="browse-rules" class="secondary" onclick="showPolicyDetails('rules')">Browse Rules</button>
+        <button data-module="policy-center" data-module-action="deployment" class="secondary" onclick="showPolicyDetails('deployment')">Deployment</button>
+        <button data-module="policy-center" data-module-action="audit-trail" class="secondary" onclick="showPolicyDetails('history')">Audit Trail</button>
+        <button data-module="policy-center" data-module-action="diff" class="secondary" onclick="showPolicyDetails('diff')">Show Diff</button>
+        <button id="downloadPolicyBundleBtn" data-module="policy-center" data-module-action="download" class="secondary" onclick="downloadPolicyBundle()">Download Bundle</button>
       </div>
       <div class="policy-editor">
         <textarea id="policyEditNotes" placeholder="Edit policy release notes, rule change reason, or deployment instruction"></textarea>
@@ -724,19 +724,19 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
         </div>
         <textarea id="policyRuleYAML" placeholder="Sigma rule YAML for add/update"></textarea>
         <div class="action-row" style="margin:0;align-content:start;">
-          <button class="secondary" onclick="preparePolicyMutation('add_sigma')">Add Sigma</button>
-          <button class="secondary" onclick="preparePolicyMutation('validate_sigma')">Validate Sigma</button>
-          <button class="secondary" onclick="preparePolicyMutation('update_sigma')">Update Sigma</button>
-          <button class="secondary" onclick="preparePolicyMutation('remove_sigma')">Remove Sigma</button>
-          <button class="secondary" onclick="preparePolicyMutation('add_whitelist')">Add Whitelist</button>
-          <button class="secondary" onclick="preparePolicyMutation('remove_whitelist')">Remove Whitelist</button>
-          <button class="secondary" onclick="preparePolicyMutation('add_taint')">Add Taint</button>
-          <button class="secondary" onclick="preparePolicyMutation('remove_taint')">Remove Taint</button>
-          <button class="secondary" onclick="loadExamplePolicyRule()">Load Example Rule</button>
+          <button data-module="policy-center" data-module-action="add-sigma" class="secondary" onclick="preparePolicyMutation('add_sigma')">Add Sigma</button>
+          <button data-module="policy-center" data-module-action="validate-sigma" class="secondary" onclick="preparePolicyMutation('validate_sigma')">Validate Sigma</button>
+          <button data-module="policy-center" data-module-action="update-sigma" class="secondary" onclick="preparePolicyMutation('update_sigma')">Update Sigma</button>
+          <button data-module="policy-center" data-module-action="remove-sigma" class="secondary" onclick="preparePolicyMutation('remove_sigma')">Remove Sigma</button>
+          <button data-module="policy-center" data-module-action="add-whitelist" class="secondary" onclick="preparePolicyMutation('add_whitelist')">Add Whitelist</button>
+          <button data-module="policy-center" data-module-action="remove-whitelist" class="secondary" onclick="preparePolicyMutation('remove_whitelist')">Remove Whitelist</button>
+          <button data-module="policy-center" data-module-action="add-taint" class="secondary" onclick="preparePolicyMutation('add_taint')">Add Taint</button>
+          <button data-module="policy-center" data-module-action="remove-taint" class="secondary" onclick="preparePolicyMutation('remove_taint')">Remove Taint</button>
+          <button data-module="policy-center" data-module-action="load-example" class="secondary" onclick="loadExamplePolicyRule()">Load Example Rule</button>
         </div>
         <div class="action-row" style="margin:0;align-content:start;">
-          <button id="publishPolicyBtn" onclick="preparePolicyAction('publish')">Publish Draft</button>
-          <button id="rollbackPolicyBtn" class="secondary" onclick="preparePolicyAction('rollback')">Rollback</button>
+          <button id="publishPolicyBtn" data-module="policy-center" data-module-action="publish" onclick="preparePolicyAction('publish')">Publish Draft</button>
+          <button id="rollbackPolicyBtn" data-module="policy-center" data-module-action="rollback" class="secondary" onclick="preparePolicyAction('rollback')">Rollback</button>
         </div>
       </div>
       <div class="loading" id="policyActionStatus"></div>
@@ -787,8 +787,8 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
         <div class="loading">Loading workflow alerts...</div>
       </div>
       <div class="action-row">
-        <button class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Filtered Batch</button>
-        <button class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Filtered Batch</button>
+        <button data-module="alert-workflow" data-module-action="bulk-close" class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Filtered Batch</button>
+        <button data-module="alert-workflow" data-module-action="bulk-silence" class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Filtered Batch</button>
         <button class="secondary" onclick="showAlertQuality()">Quality</button>
         <button class="secondary" onclick="downloadAlertQuality()">Export Quality Summary</button>
         <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback Ledger</button>
@@ -842,9 +842,9 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
         <div class="mini-card clickable" onclick="showDeliveryRisk('errors')"><div class="value" id="dErrors">--</div><div class="label">Error Types</div></div>
       </div>
       <div class="action-row">
-        <button id="replayAllBtn" onclick="prepareDeliveryAction('replay_all')">Replay All Dead Letters</button>
-        <button id="createAllTicketsBtn" onclick="prepareDeliveryAction('create_ticket_all')">Create Tickets for All</button>
-        <button id="refreshDeliveryBtn" class="secondary" onclick="loadDeliveries()">Refresh Delivery View</button>
+        <button id="replayAllBtn" data-module="delivery-health" data-module-action="replay-all" onclick="prepareDeliveryAction('replay_all')">Replay All Dead Letters</button>
+        <button id="createAllTicketsBtn" data-module="delivery-health" data-module-action="create-ticket-all" onclick="prepareDeliveryAction('create_ticket_all')">Create Tickets for All</button>
+        <button id="refreshDeliveryBtn" data-module="delivery-health" data-module-action="refresh" class="secondary" onclick="loadDeliveries()">Refresh Delivery View</button>
       </div>
       <div class="loading" id="deliveryActionStatus"></div>
       <div class="alerts-list" id="deliveryList">
@@ -866,16 +866,16 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
         <div class="policy-item clickable" onclick="showComplianceDetails('approvals')"><div class="value" id="cApprovals">--</div><div class="label">Approvals</div></div>
       </div>
       <div class="action-row">
-        <button id="exportAuditBtn" onclick="runComplianceAction('export_audit')">Export Audit</button>
-        <button id="applyRetentionBtn" class="secondary" onclick="runComplianceAction('apply_retention')">Apply Retention</button>
-        <button id="generateComplianceReportBtn" class="secondary" onclick="runComplianceAction('generate_report')">Generate Report</button>
-        <button class="secondary" onclick="runComplianceAction('generate_report', 'html')">Generate HTML</button>
-        <button class="secondary" onclick="runComplianceAction('generate_report', 'bundle')">Generate Bundle</button>
-        <button id="testSIEMBtn" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
-        <button class="secondary" onclick="showReleaseReadiness()">Release Readiness</button>
-        <button class="secondary" onclick="downloadExecutiveReport()">Executive Report</button>
-        <button class="secondary" onclick="showAuditSearch()">Audit Search</button>
-        <button class="secondary" onclick="loadCompliance()">Refresh Compliance</button>
+        <button id="exportAuditBtn" data-module="compliance-siem" data-module-action="export-audit" onclick="runComplianceAction('export_audit')">Export Audit</button>
+        <button id="applyRetentionBtn" data-module="compliance-siem" data-module-action="apply-retention" class="secondary" onclick="runComplianceAction('apply_retention')">Apply Retention</button>
+        <button id="generateComplianceReportBtn" data-module="compliance-siem" data-module-action="generate-report" class="secondary" onclick="runComplianceAction('generate_report')">Generate Report</button>
+        <button data-module="compliance-siem" data-module-action="generate-html" class="secondary" onclick="runComplianceAction('generate_report', 'html')">Generate HTML</button>
+        <button data-module="compliance-siem" data-module-action="generate-bundle" class="secondary" onclick="runComplianceAction('generate_report', 'bundle')">Generate Bundle</button>
+        <button id="testSIEMBtn" data-module="compliance-siem" data-module-action="test-siem" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
+        <button data-module="compliance-siem" data-module-action="release-readiness" class="secondary" onclick="showReleaseReadiness()">Release Readiness</button>
+        <button data-module="compliance-siem" data-module-action="executive-report" class="secondary" onclick="downloadExecutiveReport()">Executive Report</button>
+        <button data-module="compliance-siem" data-module-action="audit-search" class="secondary" onclick="showAuditSearch()">Audit Search</button>
+        <button data-module="compliance-siem" data-module-action="refresh" class="secondary" onclick="loadCompliance()">Refresh Compliance</button>
       </div>
       <div class="loading" id="complianceActionStatus"></div>
       <div class="alerts-list" id="complianceDetails">
@@ -924,14 +924,14 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
 </main>
 </div>
 
-<div id="detailDrawerBackdrop" class="detail-drawer-backdrop" onclick="closeDetailDrawer()"></div>
+<div id="detailDrawerBackdrop" class="detail-drawer-backdrop" data-ui-close="detail-drawer" onclick="event.stopPropagation(); closeDetailDrawer()"></div>
 <section id="detailDrawer" class="detail-drawer" aria-label="Details drawer" aria-hidden="true">
   <header>
     <div>
       <h3 id="detailDrawerTitle">Details</h3>
       <div class="drawer-subtitle" id="detailDrawerSubtitle">Select an item to inspect evidence.</div>
     </div>
-    <button onclick="closeDetailDrawer()" aria-label="Close details drawer">Close</button>
+    <button data-ui-close="detail-drawer" onclick="event.stopPropagation(); closeDetailDrawer()" aria-label="Close details drawer">Close</button>
   </header>
   <div class="detail-drawer-body" id="detailDrawerBody">
     <div class="empty-diagnostic">No item selected.</div>
@@ -1086,11 +1086,16 @@ function installInteractionFeedback() {
     const target = event.target.closest('button, .clickable');
     if (!target) return;
     target.classList.add('action-clicked');
-    if (target.closest('.header-right')) {
+    if (target.closest('.header-right') || target.hasAttribute('data-ui-close')) {
       window.setTimeout(() => target.classList.remove('action-clicked'), 450);
       return;
     }
-    const label = (target.textContent || target.getAttribute('aria-label') || target.title || 'Action').trim().replace(/\s+/g, ' ').slice(0, 80);
+    const moduleName = target.getAttribute('data-module') || '';
+    const moduleAction = target.getAttribute('data-module-action') || '';
+    const rawLabel = moduleName && moduleAction
+      ? moduleName + ': ' + moduleAction
+      : (target.textContent || target.getAttribute('aria-label') || target.title || 'Action');
+    const label = rawLabel.trim().replace(/\s+/g, ' ').slice(0, 80);
     interactionFeedback(label);
     window.setTimeout(() => target.classList.remove('action-clicked'), 450);
   }, true);
@@ -1103,6 +1108,11 @@ function classifyDashboardButtons() {
     const text = (button.textContent || '').trim().toLowerCase();
     const action = (button.getAttribute('onclick') || '').toLowerCase();
     button.classList.remove('btn-view', 'btn-primary', 'btn-download', 'btn-warning', 'btn-danger', 'btn-refresh', 'btn-disabled-context');
+    if (button.hasAttribute('data-ui-close')) {
+      button.classList.add('btn-refresh');
+      if (!button.title) button.title = 'Close this panel';
+      return;
+    }
     const haystack = text + ' ' + action;
     let kind = 'view';
     if (/(revoke|quarantine|reject|rollback|close|purge|delete|cutover)/.test(haystack)) {
@@ -1163,6 +1173,32 @@ function updateAuthStatus(message) {
   if (status) {
     status.textContent = message || (apiKey ? 'API key stored locally' : 'No key stored');
   }
+}
+
+const moduleStatusTargets = {
+  'support': 'supportBundleStatus',
+  'backup': 'backupStatus',
+  'policy-center': 'policyActionStatus',
+  'alert-workflow': 'workflowFilterSummary',
+  'delivery-health': 'deliveryActionStatus',
+  'compliance-siem': 'complianceActionStatus',
+  'license-activation': 'licenseUpgradeStatus',
+  'version-update': 'licenseUpgradeStatus',
+};
+
+function setModuleStatus(moduleName, message) {
+  const id = moduleStatusTargets[moduleName];
+  const target = id ? document.getElementById(id) : null;
+  if (target) {
+    target.textContent = message || '';
+  }
+}
+
+function modulePayload(moduleName, action, extra) {
+  return Object.assign({
+    action: action,
+    note: moduleName + ' dashboard ' + action,
+  }, extra || {});
 }
 
 function rememberLastRequest(method, url, payload) {
@@ -1306,6 +1342,12 @@ function closeDetailDrawer() {
   }
   if (backdrop) backdrop.classList.remove('visible');
 }
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeDetailDrawer();
+  }
+});
 
 function renderJSONBlock(value) {
   return '<pre>' + escapeHTML(JSON.stringify(value || {}, null, 2)) + '</pre>';
@@ -2292,8 +2334,8 @@ function renderLicenseUpgradePage(scope) {
   const isActivation = scope === 'activation';
   const title = isActivation ? 'License Activation' : 'Version Update';
   const actionHTML = isActivation
-    ? `<span class="delivery-inline-actions"><button id="activateLicenseBtn" onclick="prepareLicenseAction('activate_online')">Activate Online</button><button id="validateLicenseBtn" class="secondary" onclick="prepareLicenseAction('validate')">Validate</button><button class="secondary" onclick="showLicenseUpgradeDetails('license')">Evidence</button></span>`
-    : `<span class="delivery-inline-actions"><button id="discoverUpgradeBtn" onclick="prepareUpgradeAction('discover')">Discover</button><button id="checkUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('check')">Record Check</button><button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Preflight</button><button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download</button><button class="secondary" onclick="prepareUpgradeAction('apply')">Apply</button><button class="secondary" onclick="prepareUpgradeAction('rollback')">Rollback</button><button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Note</button></span>`;
+    ? `<span class="delivery-inline-actions"><button id="activateLicenseBtn" data-module="license-activation" data-module-action="activate-online" onclick="prepareLicenseAction('activate_online')">Activate Online</button><button id="validateLicenseBtn" data-module="license-activation" data-module-action="validate" class="secondary" onclick="prepareLicenseAction('validate')">Validate</button><button data-module="license-activation" data-module-action="evidence" class="secondary" onclick="showLicenseUpgradeDetails('license')">Evidence</button></span>`
+    : `<span class="delivery-inline-actions"><button id="discoverUpgradeBtn" data-module="version-update" data-module-action="discover" onclick="prepareUpgradeAction('discover')">Discover</button><button id="checkUpgradeBtn" data-module="version-update" data-module-action="check" class="secondary" onclick="prepareUpgradeAction('check')">Record Check</button><button id="preflightUpgradeBtn" data-module="version-update" data-module-action="preflight" onclick="prepareUpgradeAction('preflight')">Preflight</button><button id="downloadUpgradeBtn" data-module="version-update" data-module-action="download" class="secondary" onclick="prepareUpgradeAction('download')">Download</button><button data-module="version-update" data-module-action="apply" class="secondary" onclick="prepareUpgradeAction('apply')">Apply</button><button data-module="version-update" data-module-action="rollback" class="secondary" onclick="prepareUpgradeAction('rollback')">Rollback</button><button id="recordUpgradeBtn" data-module="version-update" data-module-action="record" class="secondary" onclick="prepareUpgradeAction('record')">Record Note</button></span>`;
   const items = isActivation ? [
     renderKVItem('page', title, 'activation'),
     renderKVItem('state', license.present ? (license.expired ? 'expired' : 'active') : 'inactive', license.license_id || ''),
@@ -2345,20 +2387,13 @@ function showLicenseUpgradeDetails(scope) {
 }
 
 async function runLicenseAction(payload) {
-  const status = document.getElementById('licenseUpgradeStatus');
-  if (status) {
-    status.textContent = 'Validating license...';
-  }
+  setModuleStatus('license-activation', 'Validating license...');
   try {
     const data = await postJSON('/api/v1/control/license', payload);
-    if (status) {
-      status.textContent = data.message || 'License validation recorded';
-    }
+    setModuleStatus('license-activation', data.message || 'License validation recorded');
     await loadLicenseAndUpgrade();
   } catch (e) {
-    if (status) {
-      status.textContent = 'License validation failed: ' + e.message;
-    }
+    setModuleStatus('license-activation', 'License validation failed: ' + e.message);
   }
 }
 
@@ -2367,7 +2402,7 @@ function prepareLicenseAction(action) {
   if (!requireAdminAction(selectedAction === 'activate_online' ? 'Online license activation' : 'License validation')) {
     return;
   }
-  const payload = { action: selectedAction, note: 'dashboard ' + selectedAction };
+  const payload = modulePayload('license-activation', selectedAction);
   if (selectedAction === 'activate_online') {
     const urlInput = document.getElementById('licenseActivationURL');
     const codeInput = document.getElementById('licenseActivationCode');
@@ -2384,20 +2419,13 @@ function prepareLicenseAction(action) {
 }
 
 async function runUpgradeAction(payload) {
-  const status = document.getElementById('licenseUpgradeStatus');
-  if (status) {
-    status.textContent = 'Recording upgrade action...';
-  }
+  setModuleStatus('version-update', 'Recording upgrade action...');
   try {
     const data = await postJSON('/api/v1/control/upgrade', payload);
-    if (status) {
-      status.textContent = data.message || 'Upgrade action recorded';
-    }
+    setModuleStatus('version-update', data.message || 'Upgrade action recorded');
     await loadLicenseAndUpgrade();
   } catch (e) {
-    if (status) {
-      status.textContent = 'Upgrade action failed: ' + e.message;
-    }
+    setModuleStatus('version-update', 'Upgrade action failed: ' + e.message);
   }
 }
 
@@ -2405,7 +2433,7 @@ function prepareUpgradeAction(action) {
   if (!requireAdminAction('Upgrade action')) {
     return;
   }
-  const payload = { action: action, note: 'dashboard ' + action };
+  const payload = modulePayload('version-update', action);
   if (action === 'discover') {
     const manifestInput = document.getElementById('upgradeManifestURL');
     const manifestURL = (manifestInput && manifestInput.value ? manifestInput.value.trim() : '') || (latestUpgrade && latestUpgrade.manifest_url) || '';
@@ -2650,13 +2678,13 @@ function workflowActionButtons(alert) {
   }
   const id = jsString(alert.id || '');
   const status = String(alert.status || '').toLowerCase();
-  const assign = "<button onclick=\"runAlertWorkflowAction('assign', 'REPLACE_ID')\">Assign</button>";
-  const silence = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('silence', 'REPLACE_ID')\">Silence 30m</button>";
-  const unsilence = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('unsilence', 'REPLACE_ID')\">Unsilence</button>";
-  const close = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('close', 'REPLACE_ID')\">Close</button>";
-  const reopen = "<button onclick=\"runAlertWorkflowAction('reopen', 'REPLACE_ID')\">Reopen</button>";
-  const tp = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('annotate_tp', 'REPLACE_ID')\">TP</button>";
-  const fp = "<button class=\"secondary\" onclick=\"runAlertWorkflowAction('annotate_fp', 'REPLACE_ID')\">FP</button>";
+  const assign = "<button data-module=\"alert-workflow\" data-module-action=\"assign\" onclick=\"event.stopPropagation(); runAlertWorkflowAction('assign', 'REPLACE_ID')\">Assign</button>";
+  const silence = "<button data-module=\"alert-workflow\" data-module-action=\"silence\" class=\"secondary\" onclick=\"event.stopPropagation(); runAlertWorkflowAction('silence', 'REPLACE_ID')\">Silence 30m</button>";
+  const unsilence = "<button data-module=\"alert-workflow\" data-module-action=\"unsilence\" class=\"secondary\" onclick=\"event.stopPropagation(); runAlertWorkflowAction('unsilence', 'REPLACE_ID')\">Unsilence</button>";
+  const close = "<button data-module=\"alert-workflow\" data-module-action=\"close\" class=\"secondary\" onclick=\"event.stopPropagation(); runAlertWorkflowAction('close', 'REPLACE_ID')\">Close</button>";
+  const reopen = "<button data-module=\"alert-workflow\" data-module-action=\"reopen\" onclick=\"event.stopPropagation(); runAlertWorkflowAction('reopen', 'REPLACE_ID')\">Reopen</button>";
+  const tp = "<button data-module=\"alert-workflow\" data-module-action=\"annotate_tp\" class=\"secondary\" onclick=\"event.stopPropagation(); runAlertWorkflowAction('annotate_tp', 'REPLACE_ID')\">TP</button>";
+  const fp = "<button data-module=\"alert-workflow\" data-module-action=\"annotate_fp\" class=\"secondary\" onclick=\"event.stopPropagation(); runAlertWorkflowAction('annotate_fp', 'REPLACE_ID')\">FP</button>";
   const actions = [];
   if (status !== 'assigned') actions.push(assign);
   if (status === 'suppressed') actions.push(unsilence); else actions.push(silence);
@@ -2713,13 +2741,14 @@ async function runAlertWorkflowAction(action, alertID) {
     payload.duration = '30m';
   }
   try {
-    setInvestigationLoading('Running alert workflow action: ' + action + '...');
+    setModuleStatus('alert-workflow', 'Running alert workflow action: ' + action + '...');
     await postJSON('/api/v1/control/alerts', payload);
     await loadAlertWorkflow();
     const updated = (latestWorkflow.alerts || []).find(item => item.id === alertID);
+    setModuleStatus('alert-workflow', 'Alert workflow action completed: ' + action);
     setInvestigationItems(updated ? [renderWorkflowAlert(updated)] : [], 'Alert action completed');
   } catch (e) {
-    setInvestigationLoading('Alert workflow action failed: ' + e.message);
+    setModuleStatus('alert-workflow', 'Alert workflow action failed: ' + e.message);
   }
 }
 
@@ -2730,7 +2759,7 @@ async function runAlertWorkflowBulkAction(action) {
   const alerts = filteredAlertWorkflowAlerts().filter(item => String(item.status || '').toLowerCase() !== 'closed');
   const ids = alerts.slice(0, 20).map(item => item.id).filter(Boolean);
   if (ids.length === 0) {
-    setInvestigationLoading('No filtered active alerts available for bulk action');
+    setModuleStatus('alert-workflow', 'No filtered active alerts available for bulk action');
     return;
   }
   setInvestigationItems([
@@ -2746,14 +2775,15 @@ async function runAlertWorkflowBulkAction(action) {
     payload.duration = '30m';
   }
   try {
-    setInvestigationLoading('Running bulk alert action: ' + action + ' for ' + ids.length + ' alerts...');
+    setModuleStatus('alert-workflow', 'Running bulk alert action: ' + action + ' for ' + ids.length + ' alerts...');
     const result = await postJSON('/api/v1/control/alerts', payload);
     await loadAlertWorkflow();
+    setModuleStatus('alert-workflow', 'Bulk ' + action + ': ' + (result.succeeded || 0) + ' succeeded · ' + (result.failed || 0) + ' failed');
     setInvestigationItems([
       renderKVItem('bulk ' + action, (result.succeeded || 0) + ' succeeded · ' + (result.failed || 0) + ' failed', result.status || 'done')
     ], 'Bulk alert action completed');
   } catch (e) {
-    setInvestigationLoading('Bulk alert workflow action failed: ' + e.message);
+    setModuleStatus('alert-workflow', 'Bulk alert workflow action failed: ' + e.message);
   }
 }
 
