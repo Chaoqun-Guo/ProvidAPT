@@ -65,6 +65,32 @@ def text_mentions_gate(text: str, names: Iterable[str]) -> bool:
     return any(name.lower() in lower for name in names) and any(decision in lower for decision in decisions)
 
 
+def structured_ci_evidence_gate(path: Path, commit: str) -> Gate | None:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    if data.get("schema") != "providapt.github_actions_evidence.v1":
+        return None
+    evidence_commit = str(data.get("full_commit") or data.get("commit") or "")
+    if commit and evidence_commit and not evidence_commit.startswith(commit) and not commit.startswith(evidence_commit):
+        return Gate("github_actions", "blocked", f"GitHub Actions evidence is for {evidence_commit}, not {commit}", evidence=str(path))
+    runs = data.get("runs") if isinstance(data.get("runs"), list) else []
+    if not runs:
+        return Gate("github_actions", "blocked", "GitHub Actions evidence has no runs", evidence=str(path))
+    failed = [
+        run for run in runs
+        if str(run.get("status", "")).lower() != "completed" or str(run.get("conclusion", "")).lower() != "success"
+    ]
+    if failed:
+        names = ", ".join(str(run.get("workflowName") or run.get("name") or "run") for run in failed[:5])
+        return Gate("github_actions", "fail", f"GitHub Actions evidence has failing or incomplete runs: {names}", evidence=str(path))
+    urls = ", ".join(str(run.get("url") or "") for run in runs if run.get("url"))
+    return Gate("github_actions", "pass", f"{len(runs)} GitHub Actions run(s) completed successfully", evidence=urls or str(path))
+
+
 def waiver_gate(name: str, waiver_paths: Iterable[Path], aliases: Iterable[str], blocked: Gate) -> Gate:
     alias_set = {alias.lower() for alias in aliases}
     for path in waiver_paths:
@@ -96,6 +122,9 @@ def ci_gate(repo: Path, commit: str, evidence_paths: Iterable[Path] = ()) -> Gat
     for path in evidence_paths:
         if not path.exists() or path.stat().st_size == 0:
             continue
+        structured = structured_ci_evidence_gate(path, commit)
+        if structured is not None:
+            return structured
         text = path.read_text(encoding="utf-8", errors="replace")
         if commit in text and text_mentions_gate(text, ["github_actions", "github actions", "ci"]):
             return Gate("github_actions", "pass", "GitHub Actions evidence supplied by external record", evidence=str(path))

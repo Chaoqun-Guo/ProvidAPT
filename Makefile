@@ -4,7 +4,7 @@
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-run help
 .PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
@@ -242,6 +242,9 @@ dist: dist-all
 
 release-commercial:
 	bash scripts/release/commercial-release.sh
+
+github-actions-evidence:
+	python3 scripts/release/github-actions-evidence.py --repo . --limit "$(or $(CI_RUN_LIMIT),20)" --out-json "$(or $(OUT_DIR),build/ci)/github-actions-evidence.json" --out-md "$(or $(OUT_DIR),build/ci)/github-actions-evidence.md"
 
 release-gates:
 	python3 scripts/release/release_gate_status.py $(if $(SKIP_CI),--skip-ci) $(if $(RELEASE_WAIVER),--waiver "$(RELEASE_WAIVER)") $(if $(CI_EVIDENCE),--ci-evidence "$(CI_EVIDENCE)")
@@ -510,6 +513,7 @@ help:
 	@echo '  make dist-rpm         Build the .rpm package'
 	@echo '  make dist-tar         Build the portable tarball'
 	@echo '  make release-commercial Build commercial release artifacts, SBOMs, checksums, scans, and readiness report'
+	@echo '  make github-actions-evidence Collect structured GitHub Actions evidence'
 	@echo '  make release-gates     Collect CI, scanner, approval, and artifact gate status'
 	@echo '  make customer-release-gate Aggregate customer-release evidence and blockers'
 	@echo '  make release-blocker-backlog Convert customer-release blockers to action items'

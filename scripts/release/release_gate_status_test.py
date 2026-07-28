@@ -2,6 +2,7 @@ import shutil
 import unittest
 from pathlib import Path
 import sys
+import json
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import release_gate_status as gates
@@ -81,6 +82,33 @@ class ReleaseGateStatusTest(unittest.TestCase):
         evidence.write_text(f"GitHub Actions approved for CI commit {commit}\n", encoding="utf-8")
         result = gates.ci_gate(self.tmp_root, commit, [evidence])
         self.assertEqual(result.status, "pass")
+
+    def test_ci_gate_accepts_structured_github_actions_evidence(self):
+        evidence = self.tmp_root / "github-actions.json"
+        commit = "abcdef123456"
+        evidence.write_text(
+            json.dumps({
+                "schema": "providapt.github_actions_evidence.v1",
+                "full_commit": commit,
+                "runs": [{"workflowName": "CI", "status": "completed", "conclusion": "success", "url": "https://example.test/run"}],
+            }),
+            encoding="utf-8",
+        )
+        result = gates.ci_gate(self.tmp_root, commit, [evidence])
+        self.assertEqual(result.status, "pass")
+
+    def test_ci_gate_blocks_structured_evidence_for_wrong_commit(self):
+        evidence = self.tmp_root / "github-actions.json"
+        evidence.write_text(
+            json.dumps({
+                "schema": "providapt.github_actions_evidence.v1",
+                "full_commit": "abc",
+                "runs": [{"workflowName": "CI", "status": "completed", "conclusion": "success"}],
+            }),
+            encoding="utf-8",
+        )
+        result = gates.ci_gate(self.tmp_root, "def", [evidence])
+        self.assertEqual(result.status, "blocked")
 
     def test_collect_can_skip_ci_gate(self):
         dist = self.tmp_root / "dist"

@@ -33,6 +33,7 @@ artifacts. Set `KEEP_BUILD_DIST=1` only when debugging package builders.
 ```bash
 make release-commercial
 make package-smoke-matrix
+make github-actions-evidence
 make customer-release-gate
 
 # Use explicit host mode only on disposable Linux validation hosts when Docker
@@ -48,6 +49,10 @@ make customer-release-gate \
   ML_READINESS_GATE=build/ml-readiness/ml-readiness-gate.json \
   OPERATIONS_READINESS_GATE=build/operations-readiness/operations-readiness-gate.json \
   COMMERCIALIZATION_READINESS_GATE=build/commercialization-readiness/commercialization-readiness-gate.json
+
+# To replace a controlled local CI waiver with real GitHub Actions evidence:
+make github-actions-evidence
+make release-gates CI_EVIDENCE=build/ci/github-actions-evidence.json
 
 # If blocked, convert the gate output into an owner-ready backlog:
 make release-blocker-backlog \

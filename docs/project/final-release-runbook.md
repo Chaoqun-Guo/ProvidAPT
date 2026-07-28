@@ -92,6 +92,11 @@ PACKAGE_SMOKE_MODE=docker make package-smoke-matrix
 ## 7. Verify Release Readiness
 
 ```bash
+make github-actions-evidence
+
+make release-gates \
+  CI_EVIDENCE=build/ci/github-actions-evidence.json
+
 providaptctl -release-check \
   -release-evidence docs/project/release-evidence-v<version>.md \
   -release-checksums dist/checksums.txt \
