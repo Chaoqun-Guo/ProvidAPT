@@ -559,6 +559,7 @@ func TestSupportBundleEnvOverrides(t *testing.T) {
 
 func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_LICENSE_PATH", "/etc/providapt/license.yaml")
+	os.Setenv("PROVIDAPT_LICENSE_ACTIVATION_URL", "http://auth-server:19090/v1/activate")
 	os.Setenv("PROVIDAPT_LICENSE_SIGNING_KEY", "env:PROVIDAPT_LICENSE_HMAC")
 	os.Setenv("PROVIDAPT_LICENSE_HMAC", "shared-secret")
 	os.Setenv("PROVIDAPT_LICENSE_REVOKED_IDS", "lic-1, lic-2")
@@ -569,6 +570,7 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_CACHE", "/var/lib/providapt/revocations.json")
 	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_SIG_URL", "https://licenses.example.com/revocations.json.sig")
 	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE", "/var/lib/providapt/revocations.json.sig")
+	os.Setenv("PROVIDAPT_UPGRADE_MANIFEST_URL", "http://auth-server:19090/v1/releases/latest")
 	os.Setenv("PROVIDAPT_UPGRADE_DOWNLOAD_URL", "https://downloads.example.com/providapt.tar.gz")
 	os.Setenv("PROVIDAPT_UPGRADE_PACKAGE_PATH", "/tmp/providapt-upgrade.tar.gz")
 	os.Setenv("PROVIDAPT_UPGRADE_EXPECTED_SHA256", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
@@ -581,6 +583,7 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_UPGRADE_CANARY_PERCENT", "20")
 	defer func() {
 		os.Unsetenv("PROVIDAPT_LICENSE_PATH")
+		os.Unsetenv("PROVIDAPT_LICENSE_ACTIVATION_URL")
 		os.Unsetenv("PROVIDAPT_LICENSE_SIGNING_KEY")
 		os.Unsetenv("PROVIDAPT_LICENSE_HMAC")
 		os.Unsetenv("PROVIDAPT_LICENSE_REVOKED_IDS")
@@ -591,6 +594,7 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_CACHE")
 		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_SIG_URL")
 		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE")
+		os.Unsetenv("PROVIDAPT_UPGRADE_MANIFEST_URL")
 		os.Unsetenv("PROVIDAPT_UPGRADE_DOWNLOAD_URL")
 		os.Unsetenv("PROVIDAPT_UPGRADE_PACKAGE_PATH")
 		os.Unsetenv("PROVIDAPT_UPGRADE_EXPECTED_SHA256")
@@ -609,6 +613,9 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 
 	if cfg.License.Path != "/etc/providapt/license.yaml" {
 		t.Fatalf("license path = %q", cfg.License.Path)
+	}
+	if cfg.License.ActivationURL != "http://auth-server:19090/v1/activate" {
+		t.Fatalf("license activation_url = %q", cfg.License.ActivationURL)
 	}
 	if cfg.License.SigningKey != "shared-secret" {
 		t.Fatalf("license signing key = %q", cfg.License.SigningKey)
@@ -636,6 +643,9 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	}
 	if cfg.License.RevocationSigCache != "/var/lib/providapt/revocations.json.sig" {
 		t.Fatalf("license revocation_sig_cache = %q", cfg.License.RevocationSigCache)
+	}
+	if cfg.Upgrade.ManifestURL != "http://auth-server:19090/v1/releases/latest" {
+		t.Fatalf("upgrade manifest_url = %q", cfg.Upgrade.ManifestURL)
 	}
 	if cfg.Upgrade.DownloadURL != "https://downloads.example.com/providapt.tar.gz" {
 		t.Fatalf("upgrade download_url = %q", cfg.Upgrade.DownloadURL)

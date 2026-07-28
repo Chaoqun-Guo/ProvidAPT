@@ -11,6 +11,7 @@ This section explains how to install, evaluate, deploy, and operate ProvidAPT in
 | [commercial-install.md](commercial-install.md) | Commercial Linux installation, removal, upgrade, and preflight checks |
 | [secret-management.md](secret-management.md) | Production secret injection and validation |
 | [docker-compose.md](docker-compose.md) | Docker Compose deployment and operations |
+| [license-activation-server.md](license-activation-server.md) | Docker-based activation, revocation, and upgrade manifest service |
 | [helm.md](helm.md) | Helm install, upgrade, rollback, and uninstall workflows |
 | [deployment.md](deployment.md) | Production deployment guide |
 | [evaluation.md](evaluation.md) | Customer evaluation and proof-of-concept guide |

@@ -207,6 +207,7 @@ type Config struct {
 
 	License struct {
 		Path               string   `json:"path" yaml:"path"`
+		ActivationURL      string   `json:"activation_url" yaml:"activation_url"`
 		SigningKey         string   `json:"signing_key" yaml:"signing_key"`
 		PublicKeyPath      string   `json:"public_key_path" yaml:"public_key_path"`
 		RevokedIDs         []string `json:"revoked_ids" yaml:"revoked_ids"`
@@ -219,6 +220,7 @@ type Config struct {
 	} `json:"license" yaml:"license"`
 
 	Upgrade struct {
+		ManifestURL     string `json:"manifest_url" yaml:"manifest_url"`
 		DownloadURL     string `json:"download_url" yaml:"download_url"`
 		PackagePath     string `json:"package_path" yaml:"package_path"`
 		ExpectedSHA256  string `json:"expected_sha256" yaml:"expected_sha256"`
@@ -723,6 +725,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
 	overrideString(&cfg.Notify.ServiceNowTable, "PROVIDAPT_NOTIFY_SERVICENOW_TABLE")
 	overrideString(&cfg.License.Path, "PROVIDAPT_LICENSE_PATH")
+	overrideString(&cfg.License.ActivationURL, "PROVIDAPT_LICENSE_ACTIVATION_URL")
 	overrideString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
 	overrideString(&cfg.License.PublicKeyPath, "PROVIDAPT_LICENSE_PUBLIC_KEY_PATH")
 	overrideStringSlice(&cfg.License.RevokedIDs, "PROVIDAPT_LICENSE_REVOKED_IDS")
@@ -730,6 +733,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.License.RevocationCache, "PROVIDAPT_LICENSE_REVOCATION_CACHE")
 	overrideString(&cfg.License.RevocationSigURL, "PROVIDAPT_LICENSE_REVOCATION_SIG_URL")
 	overrideString(&cfg.License.RevocationSigCache, "PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE")
+	overrideString(&cfg.Upgrade.ManifestURL, "PROVIDAPT_UPGRADE_MANIFEST_URL")
 	overrideString(&cfg.Upgrade.DownloadURL, "PROVIDAPT_UPGRADE_DOWNLOAD_URL")
 	overrideString(&cfg.Upgrade.PackagePath, "PROVIDAPT_UPGRADE_PACKAGE_PATH")
 	overrideString(&cfg.Upgrade.ExpectedSHA256, "PROVIDAPT_UPGRADE_EXPECTED_SHA256")

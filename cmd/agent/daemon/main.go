@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/hmac"
@@ -225,6 +226,32 @@ type licenseDocument struct {
 
 type revocationPayload struct {
 	RevokedIDs []string `json:"revoked_ids" yaml:"revoked_ids"`
+}
+
+type activationServerRequest struct {
+	ActivationCode     string `json:"activation_code"`
+	Customer           string `json:"customer,omitempty"`
+	Edition            string `json:"edition,omitempty"`
+	MaxAgents          int    `json:"max_agents,omitempty"`
+	MachineFingerprint string `json:"machine_fingerprint"`
+	ValidDays          int    `json:"valid_days,omitempty"`
+}
+
+type activationServerResponse struct {
+	Status      string          `json:"status"`
+	Message     string          `json:"message"`
+	LicenseData string          `json:"license_data"`
+	License     licenseDocument `json:"license"`
+}
+
+type upgradeManifestDocument struct {
+	Version        string `json:"version"`
+	DownloadURL    string `json:"download_url"`
+	ExpectedSHA256 string `json:"expected_sha256"`
+	SignatureURL   string `json:"signature_url"`
+	ReleaseNotes   string `json:"release_notes"`
+	PublishedAt    string `json:"published_at"`
+	MinimumVersion string `json:"minimum_version"`
 }
 
 func newControlActionAuditStore(limit int) *controlActionAuditStore {
@@ -662,6 +689,66 @@ func verifyLicenseSignature(doc licenseDocument, signingKey string) bool {
 	_, _ = mac.Write([]byte(licenseSignaturePayload(doc)))
 	expected := hex.EncodeToString(mac.Sum(nil))
 	return hmac.Equal([]byte(strings.ToLower(strings.TrimSpace(doc.Signature))), []byte(expected))
+}
+
+func requestLicenseActivation(endpoint string, req activationServerRequest) (activationServerResponse, error) {
+	var result activationServerResponse
+	trimmedEndpoint := strings.TrimSpace(endpoint)
+	if trimmedEndpoint == "" {
+		return result, fmt.Errorf("license activation_url not configured")
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return result, err
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Post(trimmedEndpoint, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return result, fmt.Errorf("activate license: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return result, fmt.Errorf("read activation response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return result, fmt.Errorf("activation server returned %s: %s", resp.Status, strings.TrimSpace(string(data)))
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return result, fmt.Errorf("decode activation response: %w", err)
+	}
+	if strings.TrimSpace(result.LicenseData) == "" {
+		return result, fmt.Errorf("activation response missing license_data")
+	}
+	return result, nil
+}
+
+func fetchUpgradeManifest(endpoint string) (upgradeManifestDocument, error) {
+	var manifest upgradeManifestDocument
+	trimmedEndpoint := strings.TrimSpace(endpoint)
+	if trimmedEndpoint == "" {
+		return manifest, fmt.Errorf("upgrade manifest_url not configured")
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(trimmedEndpoint)
+	if err != nil {
+		return manifest, fmt.Errorf("fetch upgrade manifest: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return manifest, fmt.Errorf("read upgrade manifest: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return manifest, fmt.Errorf("upgrade manifest returned %s: %s", resp.Status, strings.TrimSpace(string(data)))
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return manifest, fmt.Errorf("decode upgrade manifest: %w", err)
+	}
+	if strings.TrimSpace(manifest.DownloadURL) == "" {
+		return manifest, fmt.Errorf("upgrade manifest missing download_url")
+	}
+	return manifest, nil
 }
 
 func machineFingerprint() string {
@@ -2421,6 +2508,7 @@ func main() {
 			ReportingAgents:    reportingAgentCount(),
 			SignaturePresent:   false,
 			SignatureVerified:  false,
+			ActivationURL:      strings.TrimSpace(cfg.License.ActivationURL),
 		}
 		if cached := licenseSummaryState.snapshot(); cached.LastValidatedAt != "" {
 			summary.LastValidatedAt = cached.LastValidatedAt
@@ -2532,6 +2620,27 @@ func main() {
 		if action == "" {
 			action = "validate"
 		}
+		activatedOnline := false
+		if action == "activate" || action == "activate_online" {
+			activationURL := firstNonEmpty(strings.TrimSpace(req.ActivationURL), strings.TrimSpace(cfg.License.ActivationURL))
+			activation, err := requestLicenseActivation(activationURL, activationServerRequest{
+				ActivationCode:     strings.TrimSpace(req.ActivationCode),
+				Customer:           strings.TrimSpace(req.Customer),
+				Edition:            strings.TrimSpace(req.Edition),
+				MaxAgents:          req.MaxAgents,
+				MachineFingerprint: machineFingerprint(),
+				ValidDays:          req.ValidityDays,
+			})
+			if err != nil {
+				licenseAudit.record("license_activate", req.Actor, req.Role, activationURL, req.Note, "failed", err.Error())
+				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
+			}
+			req.LicenseData = activation.LicenseData
+			licenseAudit.record("license_activate", req.Actor, req.Role, activation.License.ID, req.Note, "issued", firstNonEmpty(activation.Message, "license issued"))
+			logControlAudit(auditStore, "license", "license_activate", req.Actor, req.Role, activation.License.ID, req.Note, "issued", firstNonEmpty(activation.Message, "license issued"))
+			action = "import"
+			activatedOnline = true
+		}
 		if action == "import" || action == "renew" || action == "activate_offline" {
 			targetPath := strings.TrimSpace(req.LicensePath)
 			if targetPath == "" {
@@ -2561,8 +2670,12 @@ func main() {
 				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
 			}
 			cfg.License.Path = targetPath
-			licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "imported", "offline license imported")
-			logControlAudit(auditStore, "license", "license_import", req.Actor, req.Role, targetPath, req.Note, "imported", "offline license imported")
+			importMessage := "offline license imported"
+			if activatedOnline {
+				importMessage = "online license activated and imported"
+			}
+			licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "imported", importMessage)
+			logControlAudit(auditStore, "license", "license_import", req.Actor, req.Role, targetPath, req.Note, "imported", importMessage)
 			action = "validate"
 		}
 		if action != "validate" && action != "refresh" {
@@ -2656,6 +2769,7 @@ func main() {
 			strings.TrimSpace(cfg.Upgrade.PublicKeyPath),
 			firstNonEmpty(strings.TrimSpace(cached.RollbackPlan), strings.TrimSpace(cfg.Upgrade.RollbackPlan)),
 		)
+		summary.ManifestURL = firstNonEmpty(strings.TrimSpace(cached.ManifestURL), strings.TrimSpace(cfg.Upgrade.ManifestURL))
 		summary.DownloadURL = firstNonEmpty(strings.TrimSpace(cached.DownloadURL), strings.TrimSpace(cfg.Upgrade.DownloadURL))
 		summary.ApplyCommand = firstNonEmpty(strings.TrimSpace(cached.ApplyCommand), strings.TrimSpace(cfg.Upgrade.ApplyCommand))
 		summary.RollbackCommand = firstNonEmpty(strings.TrimSpace(cached.RollbackCommand), strings.TrimSpace(cfg.Upgrade.RollbackCommand))
@@ -2676,7 +2790,7 @@ func main() {
 		if action == "" {
 			action = "check"
 		}
-		if action != "check" && action != "record" && action != "preflight" && action != "download" && action != "apply" && action != "rollback" {
+		if action != "check" && action != "record" && action != "discover" && action != "preflight" && action != "download" && action != "apply" && action != "rollback" {
 			err := fmt.Errorf("unsupported upgrade action: %s", req.Action)
 			upgradeAudit.record("upgrade_action", req.Actor, req.Role, version.String(), req.Note, "failed", err.Error())
 			return api.UpgradeActionResult{
@@ -2701,6 +2815,7 @@ func main() {
 			return api.UpgradeActionResult{Status: "failed", Message: err.Error(), PerformedAt: time.Now().UTC().Format(time.RFC3339)}, err
 		}
 		cached := upgradeSummaryState.snapshot()
+		manifestURL := firstNonEmpty(strings.TrimSpace(req.ManifestURL), strings.TrimSpace(cached.ManifestURL), strings.TrimSpace(cfg.Upgrade.ManifestURL))
 		downloadURL := firstNonEmpty(strings.TrimSpace(req.DownloadURL), strings.TrimSpace(cached.DownloadURL), strings.TrimSpace(cfg.Upgrade.DownloadURL))
 		packagePath := firstNonEmpty(strings.TrimSpace(req.PackagePath), strings.TrimSpace(cached.PackagePath), strings.TrimSpace(cfg.Upgrade.PackagePath))
 		expectedSHA256 := firstNonEmpty(strings.TrimSpace(req.ExpectedSHA256), strings.TrimSpace(cached.ExpectedSHA256), strings.TrimSpace(cfg.Upgrade.ExpectedSHA256))
@@ -2709,6 +2824,29 @@ func main() {
 		performedAt := time.Now().UTC().Format(time.RFC3339)
 		message := "upgrade readiness check recorded"
 		status := "recorded"
+		if action == "discover" || (downloadURL == "" && manifestURL != "") {
+			manifest, err := fetchUpgradeManifest(manifestURL)
+			if err != nil {
+				upgradeAudit.record("upgrade_"+action, req.Actor, req.Role, version.String(), req.Note, "failed", err.Error())
+				return api.UpgradeActionResult{
+					Status:      "failed",
+					Message:     err.Error(),
+					ManifestURL: manifestURL,
+					PerformedAt: performedAt,
+				}, err
+			}
+			downloadURL = firstNonEmpty(downloadURL, strings.TrimSpace(manifest.DownloadURL))
+			expectedSHA256 = firstNonEmpty(expectedSHA256, strings.TrimSpace(manifest.ExpectedSHA256))
+			if signaturePath == "" && strings.TrimSpace(manifest.SignatureURL) != "" && packagePath != "" {
+				signaturePath = packagePath + ".sig"
+			}
+			if strings.TrimSpace(manifest.Version) != "" {
+				message = "upgrade manifest discovered: " + strings.TrimSpace(manifest.Version)
+			} else {
+				message = "upgrade manifest discovered"
+			}
+			status = "discovered"
+		}
 		if action == "download" || action == "preflight" || action == "apply" {
 			if downloadURL != "" && packagePath != "" {
 				if err := downloadToPath(downloadURL, packagePath); err != nil {
@@ -2732,6 +2870,9 @@ func main() {
 		summary.RolledBackAt = cached.RolledBackAt
 		if action == "record" {
 			message = "upgrade plan note recorded"
+		} else if action == "discover" {
+			message = firstNonEmpty(message, "upgrade manifest discovered")
+			status = "discovered"
 		} else if action == "download" {
 			message = "upgrade artifact downloaded"
 			status = "downloaded"
@@ -2822,6 +2963,7 @@ func main() {
 					"role":            req.Role,
 					"note":            req.Note,
 					"current_version": version.String(),
+					"manifest_url":    manifestURL,
 					"package_path":    packagePath,
 					"expected_sha256": expectedSHA256,
 					"package_sha256":  summary.PackageSHA256,
@@ -2836,6 +2978,7 @@ func main() {
 		summary.CurrentVersion = version.String()
 		summary.GuidePath = "docs/developer/testing.md"
 		summary.PackagePath = packagePath
+		summary.ManifestURL = manifestURL
 		summary.DownloadURL = downloadURL
 		summary.ExpectedSHA256 = expectedSHA256
 		summary.SignaturePath = signaturePath
@@ -2852,6 +2995,7 @@ func main() {
 		return api.UpgradeActionResult{
 			Status:            status,
 			Message:           message,
+			ManifestURL:       summary.ManifestURL,
 			PackagePath:       summary.PackagePath,
 			DownloadURL:       summary.DownloadURL,
 			PackageSHA256:     summary.PackageSHA256,

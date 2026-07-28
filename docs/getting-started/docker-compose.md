@@ -21,6 +21,17 @@ docker compose up -d providapt
 
 The root `docker-compose.yml` remains useful for local build, shell, and test workflows.
 
+## Start Activation and Upgrade Services
+
+The root compose file also includes the Docker-based activation server used by the dashboard for online activation, revocation checks, and upgrade manifest discovery:
+
+```bash
+docker compose up -d auth-server
+docker compose up -d postgres providapt
+```
+
+See [license-activation-server.md](license-activation-server.md) for signing keys, activation codes, revocation IDs, and release manifest settings.
+
 ## Required Environment
 
 ```bash

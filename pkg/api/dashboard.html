@@ -46,7 +46,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .license-pill:hover .value { color:#58a6ff; }
 .license-pill.activation .value { color:#3fb950; }
 .header-refresh { white-space:nowrap; }
-#licenseUpgradeStatus { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#licenseUpgradeStatus { display:none; }
 .platform-action-status { color:#8b949e; font-size:10px; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .platform-action-status.active { color:#58a6ff; }
 .platform-action-status.error { color:#f85149; }
@@ -198,7 +198,7 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .ticket-link { color: #58a6ff; text-decoration: none; }
 .ticket-link:hover { text-decoration: underline; }
 .delivery-inline-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-.delivery-inline-actions button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
+.delivery-inline-actions button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 0 10px; min-width: 104px; height: 30px; cursor: pointer; font-size: 11px; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; }
 .delivery-inline-actions button.secondary { background: #30363d; }
 .ground-truth-toolbar { display:grid; grid-template-columns: repeat(auto-fit, minmax(118px, max-content)); gap: 6px; margin: 8px 0; align-items:center; min-width:0; }
 .ground-truth-toolbar input[type="file"] { min-width:0; color:#8b949e; font-size:11px; }
@@ -2046,12 +2046,14 @@ function renderLicenseUpgradePage(scope) {
   const isActivation = scope === 'activation';
   const title = isActivation ? 'License Activation' : 'Version Update';
   const actionHTML = isActivation
-    ? `<span class="delivery-inline-actions"><button id="validateLicenseBtn" onclick="prepareLicenseAction()">Validate Activation</button><button class="secondary" onclick="showLicenseUpgradeDetails('license')">View Evidence</button></span>`
-    : `<span class="delivery-inline-actions"><button id="checkUpgradeBtn" onclick="prepareUpgradeAction('check')">Record Check</button><button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Run Preflight</button><button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download</button><button class="secondary" onclick="prepareUpgradeAction('apply')">Apply</button><button class="secondary" onclick="prepareUpgradeAction('rollback')">Rollback</button><button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Note</button></span>`;
+    ? `<span class="delivery-inline-actions"><button id="activateLicenseBtn" onclick="prepareLicenseAction('activate_online')">Activate Online</button><button id="validateLicenseBtn" class="secondary" onclick="prepareLicenseAction('validate')">Validate</button><button class="secondary" onclick="showLicenseUpgradeDetails('license')">Evidence</button></span>`
+    : `<span class="delivery-inline-actions"><button id="discoverUpgradeBtn" onclick="prepareUpgradeAction('discover')">Discover</button><button id="checkUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('check')">Record Check</button><button id="preflightUpgradeBtn" onclick="prepareUpgradeAction('preflight')">Preflight</button><button id="downloadUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('download')">Download</button><button class="secondary" onclick="prepareUpgradeAction('apply')">Apply</button><button class="secondary" onclick="prepareUpgradeAction('rollback')">Rollback</button><button id="recordUpgradeBtn" class="secondary" onclick="prepareUpgradeAction('record')">Record Note</button></span>`;
   const items = isActivation ? [
     renderKVItem('page', title, 'activation'),
     renderKVItem('state', license.present ? (license.expired ? 'expired' : 'active') : 'inactive', license.license_id || ''),
     renderKVItem('customer', (license.customer || '--') + ' · ' + (license.edition || '--'), license.path || 'path not configured'),
+    renderKVItem('activation server', license.activation_url || '--', 'online activation endpoint'),
+    '<div class="alert-item"><span class="alert-sev sev-low">input</span><span class="alert-msg"><span class="compact-input-grid"><input id="licenseActivationURL" value="' + escapeHTML(license.activation_url || '') + '" aria-label="Activation server URL"><input id="licenseActivationCode" type="password" placeholder="Activation code optional" aria-label="Activation code"></span></span><span class="alert-time">config</span></div>',
     renderKVItem('seats', (license.reporting_agents || 0) + '/' + (license.max_agents || 'unlimited'), license.seat_limit_exceeded ? 'seat limit exceeded' : ((license.seats_available || 0) + ' available')),
     renderKVItem('expiry', license.expires_at ? (license.expires_at + ' · ' + (license.days_remaining || 0) + ' day(s) left') : '--', license.in_grace_period ? 'grace period' : ''),
     renderKVItem('signature', license.signature_present ? (license.signature_verified ? 'verified' : 'mismatch') : 'not present', license.revoked ? 'revoked' : 'not revoked'),
@@ -2059,6 +2061,8 @@ function renderLicenseUpgradePage(scope) {
   ] : [
     renderKVItem('page', title, 'upgrade'),
     renderKVItem('version', upgrade.current_version || '--', 'current'),
+    renderKVItem('manifest', upgrade.manifest_url || '--', upgrade.download_url ? ('download ' + upgrade.download_url) : 'release discovery endpoint'),
+    '<div class="alert-item"><span class="alert-sev sev-low">input</span><span class="alert-msg"><span class="compact-input-grid"><input id="upgradeManifestURL" value="' + escapeHTML(upgrade.manifest_url || '') + '" aria-label="Release manifest URL"></span></span><span class="alert-time">config</span></div>',
     renderKVItem('status', upgrade.preflight_ready ? 'ready to upgrade' : 'preflight required', upgrade.package_verified ? 'package verified' : 'package pending'),
     renderKVItem('execution', 'canary ' + (upgrade.canary_percent || 0) + '%', (upgrade.applied_at ? ('applied ' + formatTime(upgrade.applied_at)) : '') + (upgrade.rolled_back_at ? (' · rolled back ' + formatTime(upgrade.rolled_back_at)) : '')),
     '<div class="alert-item"><span class="alert-sev sev-medium">actions</span><span class="alert-msg">' + actionHTML + '</span><span class="alert-time">admin</span></div>',
@@ -2074,6 +2078,7 @@ function showLicenseUpgradeDetails(scope) {
     items = [
       renderKVItem('license', (license.present ? 'present' : 'missing') + ' · ' + (license.path || 'path not configured'), formatTime(license.modified_at || license.updated_at)),
       renderKVItem('customer', (license.customer || '--') + ' · ' + (license.edition || '--'), license.license_id || ''),
+      renderKVItem('activation server', license.activation_url || '--', 'online activation endpoint'),
       renderKVItem('seats', (license.reporting_agents || 0) + '/' + (license.max_agents || 'unlimited'), license.seat_limit_exceeded ? 'seat limit exceeded' : ((license.seats_available || 0) + ' available')),
       renderKVItem('expiry', license.expires_at ? ((license.expired ? 'expired' : 'valid') + ' · ' + license.expires_at + ' · ' + (license.days_remaining || 0) + ' day(s) left') : '--', license.in_grace_period ? 'grace' : ''),
       renderKVItem('signature', license.signature_present ? (license.signature_verified ? 'verified' : 'mismatch') : 'not present', license.revoked ? 'revoked' : 'not revoked'),
@@ -2082,6 +2087,7 @@ function showLicenseUpgradeDetails(scope) {
   } else {
     items = [
       renderKVItem('version', upgrade.current_version || '--', 'current'),
+      renderKVItem('manifest', upgrade.manifest_url || '--', upgrade.download_url ? ('download ' + upgrade.download_url) : 'release discovery endpoint'),
       renderKVItem('package', (upgrade.package_path || '--') + ' · ' + (upgrade.package_verified ? 'verified' : 'not verified'), upgrade.package_sha256 ? upgrade.package_sha256.slice(0, 12) : ''),
       renderKVItem('signature', upgrade.signature_path || '--', upgrade.signature_verified ? 'verified' : (upgrade.signature_present ? 'mismatch' : 'not present')),
       renderKVItem('preflight', upgrade.preflight_ready ? 'ready' : 'not ready', upgrade.rollback_ready ? 'rollback ready' : 'rollback not ready'),
@@ -2110,11 +2116,25 @@ async function runLicenseAction(payload) {
   }
 }
 
-function prepareLicenseAction() {
-  if (!requireAdminAction('License validation')) {
+function prepareLicenseAction(action) {
+  const selectedAction = action || 'validate';
+  if (!requireAdminAction(selectedAction === 'activate_online' ? 'Online license activation' : 'License validation')) {
     return;
   }
-  runLicenseAction({ action: 'validate', note: 'dashboard validation' });
+  const payload = { action: selectedAction, note: 'dashboard ' + selectedAction };
+  if (selectedAction === 'activate_online') {
+    const urlInput = document.getElementById('licenseActivationURL');
+    const codeInput = document.getElementById('licenseActivationCode');
+    const activationURL = (urlInput && urlInput.value ? urlInput.value.trim() : '') || (latestLicense && latestLicense.activation_url) || '';
+    const activationCode = codeInput && codeInput.value ? codeInput.value.trim() : '';
+    if (!activationURL) {
+      setInvestigationItems([renderKVItem('activation required', 'Set the activation server URL before activating online', 'License Activation')], 'Activation URL required');
+      return;
+    }
+    payload.activation_url = activationURL;
+    payload.activation_code = activationCode;
+  }
+  runLicenseAction(payload);
 }
 
 async function runUpgradeAction(payload) {
@@ -2140,6 +2160,15 @@ function prepareUpgradeAction(action) {
     return;
   }
   const payload = { action: action, note: 'dashboard ' + action };
+  if (action === 'discover') {
+    const manifestInput = document.getElementById('upgradeManifestURL');
+    const manifestURL = (manifestInput && manifestInput.value ? manifestInput.value.trim() : '') || (latestUpgrade && latestUpgrade.manifest_url) || '';
+    if (!manifestURL) {
+      setInvestigationItems([renderKVItem('manifest required', 'Set the release manifest URL before discovery', 'Version Update')], 'Manifest URL required');
+      return;
+    }
+    payload.manifest_url = manifestURL;
+  }
   runUpgradeAction(payload);
 }
 

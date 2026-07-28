@@ -1,10 +1,10 @@
-.PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
+.PHONY: all build build-core build-ebpf build-userspace build-auth-server generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-auth-server docker-run help
 .PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
@@ -80,7 +80,13 @@ build-userspace:
 	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-deanon ./cmd/cli/providapt-deanon
 	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-heal ./cmd/cli/providapt-heal
 	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-sign ./cmd/cli/providapt-sign
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-auth-server ./cmd/authserver
 	@echo "Built userspace binaries into $(BIN_OUT)"
+
+build-auth-server:
+	@mkdir -p $(BIN_OUT)
+	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-auth-server ./cmd/authserver
+	@echo "Built auth server into $(BIN_OUT)"
 
 install-local: create-user build-core
 	install -d $(CONFIG)
@@ -443,6 +449,9 @@ loader-smoke:
 
 docker-build:
 	docker build -t providapt:latest -f build/docker/Dockerfile.ubuntu .
+
+docker-auth-server:
+	docker compose up -d auth-server
 
 docker-run: docker-build
 	docker run --rm -it --privileged -v /sys/kernel/btf:/sys/kernel/btf:ro providapt:latest

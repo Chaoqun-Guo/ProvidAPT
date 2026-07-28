@@ -431,6 +431,7 @@ type LicenseStatus struct {
 	SignaturePresent    bool                 `json:"signature_present"`
 	SignatureVerified   bool                 `json:"signature_verified"`
 	CurrentVersion      string               `json:"current_version,omitempty"`
+	ActivationURL       string               `json:"activation_url,omitempty"`
 	LastValidatedAt     string               `json:"last_validated_at,omitempty"`
 	LastError           string               `json:"last_error,omitempty"`
 	History             []ControlActionAudit `json:"history,omitempty"`
@@ -439,12 +440,18 @@ type LicenseStatus struct {
 type LicenseStatusFunc func() LicenseStatus
 
 type LicenseActionRequest struct {
-	Action      string `json:"action"`
-	LicenseData string `json:"license_data,omitempty"`
-	LicensePath string `json:"license_path,omitempty"`
-	Note        string `json:"note,omitempty"`
-	Actor       string `json:"actor,omitempty"`
-	Role        string `json:"role,omitempty"`
+	Action         string `json:"action"`
+	LicenseData    string `json:"license_data,omitempty"`
+	LicensePath    string `json:"license_path,omitempty"`
+	ActivationCode string `json:"activation_code,omitempty"`
+	ActivationURL  string `json:"activation_url,omitempty"`
+	Customer       string `json:"customer,omitempty"`
+	Edition        string `json:"edition,omitempty"`
+	MaxAgents      int    `json:"max_agents,omitempty"`
+	ValidityDays   int    `json:"validity_days,omitempty"`
+	Note           string `json:"note,omitempty"`
+	Actor          string `json:"actor,omitempty"`
+	Role           string `json:"role,omitempty"`
 }
 
 type LicenseActionResult struct {
@@ -465,6 +472,7 @@ type UpgradeReadiness struct {
 	UpdatedAt         string               `json:"updated_at"`
 	CurrentVersion    string               `json:"current_version,omitempty"`
 	GuidePath         string               `json:"guide_path,omitempty"`
+	ManifestURL       string               `json:"manifest_url,omitempty"`
 	PackagePath       string               `json:"package_path,omitempty"`
 	DownloadURL       string               `json:"download_url,omitempty"`
 	PackagePresent    bool                 `json:"package_present"`
@@ -496,6 +504,7 @@ type UpgradeReadinessFunc func() UpgradeReadiness
 type UpgradeActionRequest struct {
 	Action         string `json:"action"`
 	Note           string `json:"note,omitempty"`
+	ManifestURL    string `json:"manifest_url,omitempty"`
 	PackagePath    string `json:"package_path,omitempty"`
 	DownloadURL    string `json:"download_url,omitempty"`
 	ExpectedSHA256 string `json:"expected_sha256,omitempty"`
@@ -508,6 +517,7 @@ type UpgradeActionRequest struct {
 type UpgradeActionResult struct {
 	Status            string `json:"status"`
 	Message           string `json:"message,omitempty"`
+	ManifestURL       string `json:"manifest_url,omitempty"`
 	PackagePath       string `json:"package_path,omitempty"`
 	DownloadURL       string `json:"download_url,omitempty"`
 	PackageSHA256     string `json:"package_sha256,omitempty"`
