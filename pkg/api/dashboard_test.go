@@ -428,6 +428,29 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 	}
 }
 
+func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
+	expected := []string{
+		"dashboard-shell",
+		"dashboard-sidebar",
+		"Security operations navigation",
+		"Detection Console",
+		"Structured IDS workspace",
+		"IDS Posture",
+		"sidebarAgents",
+		"sidebarOpenAlerts",
+		"sidebarDeadLetters",
+		"sidebarReadiness",
+		"Severity Model",
+		"dashboard-main",
+		"updateSidebarPosture",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing structured IDS console content %q", item)
+		}
+	}
+}
+
 func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	expected := []string{
 		"postJSONWithLeaderRetry",

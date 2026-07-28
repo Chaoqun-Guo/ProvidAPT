@@ -37,7 +37,30 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .top-upgrade-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:4px 7px; cursor:pointer; font-size:10px; }
 .top-upgrade-actions button:first-child { background:#1f6feb; color:white; border-color:#1f6feb; }
 .top-upgrade-actions button:disabled { opacity:0.5; cursor:not-allowed; }
-.metrics { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; padding: 12px 18px; min-width:0; }
+.dashboard-shell { display:grid; grid-template-columns: 230px minmax(0, 1fr); gap:14px; padding:12px 18px 18px; align-items:start; min-width:0; }
+.dashboard-main { min-width:0; display:grid; gap:12px; }
+.dashboard-sidebar { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px; min-width:0; }
+.sidebar-title { color:#58a6ff; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; }
+.sidebar-subtitle { color:#8b949e; font-size:11px; margin:4px 0 12px; line-height:1.35; }
+.sidebar-section { color:#484f58; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin:12px 0 6px; }
+.sidebar-nav { display:grid; gap:6px; }
+.sidebar-button { width:100%; text-align:left; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:8px; padding:8px 9px; cursor:pointer; font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.sidebar-button:hover { border-color:#58a6ff; color:#58a6ff; }
+.sidebar-button.active { background:#1f6feb; color:#fff; border-color:#1f6feb; }
+.sidebar-button span:last-child { color:#8b949e; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; }
+.sidebar-button.active span:last-child { color:#dbeafe; }
+.sidebar-status-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; }
+.sidebar-status { background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:8px; min-width:0; }
+.sidebar-status .value { color:#58a6ff; font-weight:700; font-size:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sidebar-status .label { color:#8b949e; font-size:10px; margin-top:3px; text-transform:uppercase; letter-spacing:0.5px; }
+.sidebar-legend { display:grid; gap:5px; font-size:11px; color:#8b949e; }
+.legend-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.legend-chip { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px; }
+.legend-critical { background:#f85149; }
+.legend-high { background:#d29922; }
+.legend-medium { background:#58a6ff; }
+.legend-low { background:#8b949e; }
+.metrics { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; padding: 0; min-width:0; }
 .workspace-nav { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px 0; min-width:0; flex-wrap:wrap; }
 .workspace-tabs { display:flex; gap:6px; flex-wrap:wrap; min-width:0; }
 .workspace-tabs button, .workspace-tools button { background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:999px; padding:6px 10px; cursor:pointer; font-size:12px; }
@@ -61,9 +84,10 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .card .label { font-size: 11px; color: #8b949e; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .card .sub { font-size: 11px; color: #484f58; margin-top: 2px; }
 
-.content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 18px 18px; align-items:stretch; grid-auto-rows: minmax(360px, auto); min-width:0; }
+.content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0; align-items:stretch; grid-auto-rows: minmax(360px, auto); min-width:0; }
 @media (max-width: 1200px) { .metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
-@media (max-width: 760px) { header { align-items:flex-start; flex-direction:column; } .header-right { justify-content:flex-start; width:100%; } .content, .metrics { grid-template-columns: 1fr; } .workspace-nav { align-items:flex-start; flex-direction:column; } .workspace-tools { justify-content:flex-start; } .top-license { grid-template-columns: repeat(2, minmax(74px, auto)); } .ground-truth-toolbar, .policy-editor.wide { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .dashboard-shell { grid-template-columns: 1fr; } .dashboard-sidebar { position:relative; top:auto; max-height:none; } .sidebar-nav { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
+@media (max-width: 760px) { header { align-items:flex-start; flex-direction:column; } .header-right { justify-content:flex-start; width:100%; } .content, .metrics { grid-template-columns: 1fr; } .workspace-nav { align-items:flex-start; flex-direction:column; } .workspace-tools { justify-content:flex-start; } .top-license { grid-template-columns: repeat(2, minmax(74px, auto)); } .ground-truth-toolbar, .policy-editor.wide { grid-template-columns: 1fr; } .dashboard-shell { padding:10px 12px 14px; } .sidebar-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .overview-grid { display: contents; }
 
 .panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; min-height: 360px; height: 100%; display: flex; flex-direction: column; min-width:0; }
@@ -236,6 +260,34 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
   </div>
 </nav>
 
+<div class="dashboard-shell">
+<aside class="dashboard-sidebar" aria-label="Security operations navigation">
+  <div class="sidebar-title">Detection Console</div>
+  <div class="sidebar-subtitle">Structured IDS workspace for fleet posture, rules, alerts, evidence, and commercial readiness.</div>
+  <div class="sidebar-section">Workspaces</div>
+  <div class="sidebar-nav" role="tablist" aria-label="Structured dashboard sections">
+    <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Overview</span><span>All</span></button>
+    <button class="sidebar-button" data-dashboard-section="operations" onclick="switchDashboardSection('operations')"><span>Operations</span><span>Fleet</span></button>
+    <button class="sidebar-button" data-dashboard-section="detection" onclick="switchDashboardSection('detection')"><span>Detection</span><span>Rules</span></button>
+    <button class="sidebar-button" data-dashboard-section="evidence" onclick="switchDashboardSection('evidence')"><span>Evidence</span><span>Trace</span></button>
+    <button class="sidebar-button" data-dashboard-section="commercial" onclick="switchDashboardSection('commercial')"><span>Commercial</span><span>Release</span></button>
+  </div>
+  <div class="sidebar-section">IDS Posture</div>
+  <div class="sidebar-status-grid">
+    <div class="sidebar-status"><div class="value" id="sidebarAgents">--</div><div class="label">Agents</div></div>
+    <div class="sidebar-status"><div class="value" id="sidebarOpenAlerts">--</div><div class="label">Open Alerts</div></div>
+    <div class="sidebar-status"><div class="value" id="sidebarDeadLetters">--</div><div class="label">Dead Letters</div></div>
+    <div class="sidebar-status"><div class="value" id="sidebarReadiness">--</div><div class="label">Readiness</div></div>
+  </div>
+  <div class="sidebar-section">Severity Model</div>
+  <div class="sidebar-legend" aria-label="Alert severity legend">
+    <div class="legend-row"><span><span class="legend-chip legend-critical"></span>Critical</span><span>contain</span></div>
+    <div class="legend-row"><span><span class="legend-chip legend-high"></span>High</span><span>triage</span></div>
+    <div class="legend-row"><span><span class="legend-chip legend-medium"></span>Medium</span><span>review</span></div>
+    <div class="legend-row"><span><span class="legend-chip legend-low"></span>Low</span><span>observe</span></div>
+  </div>
+</aside>
+<main class="dashboard-main" aria-label="ProvidAPT dashboard workspace">
 <div class="metrics" id="metrics">
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div><div class="sub">Click to inspect node types</div></div>
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('edges')" onkeydown="handleCardKey(event, () => showGraphSummary('edges'))"><div class="value" id="mEdges">--</div><div class="label">Graph Edges</div><div class="sub">Click to inspect edge types</div></div>
@@ -543,6 +595,8 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
       </div>
     </div>
   </div>
+</div>
+</main>
 </div>
 
 <script>
@@ -3309,6 +3363,7 @@ function loadOperationsSummary() {
   const deadLetters = deliverySummary.dead_letter || 0;
   const evidenceReady = support.last_status === 'success' || support.last_archive_path || support.last_bundle_path;
   updateFleetAggregateMetrics(fleet.agents || overview.agents || []);
+  updateSidebarPosture();
 
   document.getElementById('opFleet').textContent = totalAgents ? healthyAgents + '/' + totalAgents : '--';
   document.getElementById('opWorkflow').textContent = openWorkflow;
@@ -3322,6 +3377,20 @@ function loadOperationsSummary() {
     '<div class="alert-item"><span class="alert-sev ' + (evidenceReady ? 'sev-low' : 'sev-medium') + '">evidence</span><span class="alert-msg">support bundle ' + (support.last_status || 'pending') + ' · license ' + (license.present ? 'present' : 'missing') + ' · upgrade ' + (upgrade.preflight_ready ? 'preflight ready' : 'not ready') + '</span><span class="alert-time">readiness</span></div>',
   ];
   document.getElementById('operationsSummaryList').innerHTML = items.join('');
+}
+
+function updateSidebarPosture() {
+  const overview = latestOverview || {};
+  const workflowSummary = (latestWorkflow || {}).summary || {};
+  const deliverySummary = (latestDeliveries || {}).summary || {};
+  const compliance = latestCompliance || {};
+  const totalAgents = overview.total_agents || (overview.agents || []).length || (latestFleet.agents || []).length || 0;
+  const readinessRaw = compliance.readiness_score ?? compliance.release_score ?? compliance.score;
+  const readiness = readinessRaw == null ? '--' : (String(readinessRaw).includes('%') ? readinessRaw : readinessRaw + '%');
+  setText('sidebarAgents', totalAgents || '--');
+  setText('sidebarOpenAlerts', workflowSummary.open || 0);
+  setText('sidebarDeadLetters', deliverySummary.dead_letter || 0);
+  setText('sidebarReadiness', readiness);
 }
 
 function panelID(panel) {
