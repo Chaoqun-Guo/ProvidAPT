@@ -451,6 +451,28 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 	}
 }
 
+func TestDashboardCompactPlatformHeader(t *testing.T) {
+	expected := []string{
+		"platform-header",
+		"platform-brand",
+		"platform-meta",
+		"license-pill activation",
+		"license-pill version",
+		"Open license activation",
+		"Open version update",
+		"header-refresh",
+		"licenseUpgradeStatus",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing compact platform header content %q", item)
+		}
+	}
+	if strings.Contains(dashboardHTML, "top-upgrade-actions") {
+		t.Fatalf("dashboard should not render the old large upgrade action area")
+	}
+}
+
 func TestDashboardCommercialWorkbenchInteractions(t *testing.T) {
 	expected := []string{
 		"workflow-filter-bar",
