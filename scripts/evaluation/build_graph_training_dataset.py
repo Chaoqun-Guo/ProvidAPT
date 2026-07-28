@@ -114,15 +114,29 @@ def truth_timestamp_ns(record: dict[str, Any]) -> int:
 
 def normalize_type(record: dict[str, Any]) -> str:
     event_type = str(event_value(record, "event_type", "type_name", "hook", default="")).lower()
+    normalized_type = str(first(record, "type", default="")).lower()
+    if normalized_type and not normalized_type.isdigit():
+        return normalized_type
     numeric = str(event_value(record, "type", "Type", default="")).strip()
     if event_type:
         return event_type
     return {
-        "1": "exec",
-        "2": "file_open",
-        "3": "network_connect",
-        "4": "file_write",
-        "5": "fork",
+        "1": "proc_fork",
+        "2": "proc_exec",
+        "3": "proc_exit",
+        "10": "file_open",
+        "11": "file_create",
+        "12": "file_modify",
+        "13": "file_delete",
+        "14": "file_rename",
+        "20": "net_connect",
+        "21": "net_accept",
+        "22": "net_send",
+        "23": "net_recv",
+        "50": "memfd_create",
+        "51": "mprotect_rx",
+        "52": "pipe_write",
+        "53": "pipe_read",
     }.get(numeric, numeric or "unknown")
 
 
@@ -163,6 +177,35 @@ def edge_kind(event_type: str, path: str, network: str) -> str:
     if path:
         return "file_read"
     return "observed"
+
+
+def quality_summary(events: list[dict[str, Any]], truths: list[dict[str, Any]], matched_truth_count: int, fallback_truth_count: int) -> dict[str, Any]:
+    total = len(events)
+
+    def present_count(func: Any) -> int:
+        return sum(1 for event in events if str(func(event) or "").strip())
+
+    cmdline_count = present_count(event_command)
+    procfs_cmdline_count = sum(1 for event in events if str(event_value(event, "cmdline_source", default="")).strip() == "procfs")
+    cwd_count = sum(1 for event in events if str(event_value(event, "cwd", default="")).strip())
+    exe_count = sum(1 for event in events if str(event_value(event, "exe_path", "ExePath", default="")).strip())
+    paths = [event_path(event) for event in events if event_path(event)]
+    absolute_paths = [path for path in paths if path.startswith("/")]
+    event_types = Counter(normalize_type(event) for event in events)
+    return {
+        "event_count": total,
+        "ground_truth_count": len(truths),
+        "truth_matched_count": matched_truth_count,
+        "truth_fallback_count": fallback_truth_count,
+        "truth_match_rate_percent": round((matched_truth_count / max(1, len(truths))) * 100.0, 2),
+        "cmdline_present_percent": round((cmdline_count / max(1, total)) * 100.0, 2),
+        "cmdline_procfs_percent": round((procfs_cmdline_count / max(1, total)) * 100.0, 2),
+        "cwd_present_percent": round((cwd_count / max(1, total)) * 100.0, 2),
+        "exe_path_present_percent": round((exe_count / max(1, total)) * 100.0, 2),
+        "path_present_percent": round((len(paths) / max(1, total)) * 100.0, 2),
+        "absolute_path_percent": round((len(absolute_paths) / max(1, len(paths))) * 100.0, 2),
+        "event_type_summary": dict(event_types.most_common()),
+    }
 
 
 def split_for(graph_id: str, seed: str) -> str:
@@ -336,6 +379,8 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
     window_ns = int(args.window_seconds * 1_000_000_000)
     graphs: list[dict[str, Any]] = []
     matched_event_indexes: set[int] = set()
+    matched_truth_count = 0
+    fallback_truth_count = 0
     for truth_index, truth in enumerate(truths):
         matched = []
         for event_index, event in enumerate(events):
@@ -343,6 +388,7 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
                 matched.append(event)
                 matched_event_indexes.add(event_index)
         if not matched:
+            fallback_truth_count += 1
             matched = [{
                 "Type": 0,
                 "TimestampNS": truth_timestamp_ns(truth),
@@ -351,6 +397,8 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
                 "Pathname": truth.get("object", ""),
                 "command": truth.get("command", ""),
             }]
+        else:
+            matched_truth_count += 1
         graph_id = f"truth-{truth.get('run_id', 'run')}-{truth.get('step_id', truth_index)}"
         graphs.append(build_graph(matched, [truth], graph_id, args.split_seed, getattr(args, "include_truth_nodes", False)))
 
@@ -382,6 +430,7 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
         "ground_truth_count": len(truths),
         "label_summary": dict(counts),
         "split_summary": {key: dict(value) for key, value in sorted(split_counts.items())},
+        "quality": quality_summary(events + normal_events, truths, matched_truth_count, fallback_truth_count),
         "feature_schema_sha256": feature_schema["sha256"],
         "source_files": [str(path) for path in event_files + (normal_event_files or []) + truth_files],
     }

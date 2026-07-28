@@ -15,8 +15,8 @@ class BuildGraphTrainingDatasetTest(unittest.TestCase):
         events = root / "events.ndjson"
         truth = root / "ground_truth.jsonl"
         event_rows = [
-            {"Type": 1, "TimestampNS": 1_000_000_000, "PID": 10, "PPID": 1, "UID": 0, "Comm": "bash", "Pathname": "/tmp/payload.sh"},
-            {"Type": 3, "TimestampNS": 2_000_000_000, "PID": 11, "UID": 0, "Comm": "curl", "Daddr": "127.0.0.1", "Dport": 1},
+            {"Type": 2, "TimestampNS": 1_000_000_000, "PID": 10, "PPID": 1, "UID": 0, "Comm": "bash", "Pathname": "/bin/bash"},
+            {"type": "net_connect", "timestamp_ns": 2_000_000_000, "process": {"pid": 11, "uid": 0, "comm": "curl"}, "payload": {"daddr": "127.0.0.1", "dport": 1}, "enrich": {"cmdline": "curl http://127.0.0.1:1/beacon", "cmdline_source": "procfs", "cwd": "/tmp", "exe_path": "/usr/bin/curl"}},
             {"Type": 1, "TimestampNS": 3_000_000_000, "PID": 12, "UID": 1000, "Comm": "date"},
         ]
         truth_rows = [
@@ -49,9 +49,16 @@ class BuildGraphTrainingDatasetTest(unittest.TestCase):
         self.assertEqual(metadata["manifest"]["ground_truth_count"], 1)
         self.assertEqual(metadata["manifest"]["label_summary"]["malicious"], 1)
         self.assertIn("feature_schema_sha256", metadata["manifest"])
+        self.assertEqual(metadata["manifest"]["quality"]["truth_matched_count"], 1)
+        self.assertEqual(metadata["manifest"]["quality"]["truth_fallback_count"], 0)
+        self.assertGreater(metadata["manifest"]["quality"]["cmdline_present_percent"], 0)
         malicious = [graph for graph in graphs if graph["label"] == 1][0]
         self.assertIn("TA0011", malicious["tactics"])
         self.assertTrue(any(node["type"] == "network" for node in malicious["nodes"]))
+
+    def test_legacy_type_two_is_process_exec(self) -> None:
+        self.assertEqual(subject.normalize_type({"Type": 2}), "proc_exec")
+        self.assertEqual(subject.edge_kind(subject.normalize_type({"Type": 2}), "", ""), "exec")
 
 
 if __name__ == "__main__":

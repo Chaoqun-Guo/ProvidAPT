@@ -303,6 +303,60 @@ Outputs:
 Keep the gate output with the model artifact, dataset manifest, drift report,
 feature schema report, and release evidence bundle.
 
+## P2 ML Readiness Gate
+
+Before marking P2 complete, run the dataset-quality and model-quality readiness
+gate against the exact VM-captured dataset and trained model metrics:
+
+```bash
+make p2-readiness \
+  DATASET_MANIFEST=build/ml-dataset/manifest.json \
+  MODEL_METRICS=build/ml-model/metrics.json \
+  MODEL_GATE=build/evaluation/model-deploy-gate.json \
+  EVENTS=build/vm-training/attack_events.ndjson \
+  NORMAL_EVENTS=build/vm-training/normal.ndjson \
+  GROUND_TRUTH=build/vm-training/ground_truth.jsonl \
+  OUT_DIR=build/p2
+```
+
+The gate verifies:
+
+- graph count, source event count, benign graph count, and malicious graph count
+- ground-truth match rate between simulated ATT&CK steps and captured events
+- command-line, path, and enrichment-field presence in the source events
+- precision, recall, F1, ROC AUC, PR AUC, test support, and confusion matrix
+- optional deployment-gate status when `MODEL_GATE` is supplied
+
+Use stricter thresholds for release candidates and lower thresholds only for
+local smoke checks:
+
+```bash
+make p2-readiness \
+  DATASET_MANIFEST=build/ml-dataset/manifest.json \
+  MODEL_METRICS=build/ml-model/metrics.json \
+  MIN_GRAPHS=100000 \
+  MIN_SOURCE_EVENTS=1000000 \
+  MIN_MALICIOUS_GRAPHS=500 \
+  MIN_BENIGN_GRAPHS=50000 \
+  MIN_TRUTH_MATCH_RATE=90 \
+  MIN_PRECISION=80 \
+  MIN_RECALL=85 \
+  MIN_F1=80
+```
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `p2-readiness.json` | Machine-readable P2 release gate summary |
+| `p2-readiness.md` | Operator-readable readiness evidence |
+
+If the report is blocked by low truth-match or missing enrichment, fix capture
+and enrichment first, recollect the VM dataset, and retrain before approving the
+model. `EVENTS`, `NORMAL_EVENTS`, and `GROUND_TRUTH` are optional when the
+dataset manifest already contains a `quality` section; supply them for legacy
+manifests or independent capture-quality audits.
+
 Generate a concrete backlog for missed ATT&CK techniques:
 
 ```bash

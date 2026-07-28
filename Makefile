@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train p2-ml-pipeline alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train p2-ml-pipeline p2-readiness alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial release-gates package-smoke-matrix create-user docker-build docker-run help
@@ -384,6 +384,10 @@ p2-ml-pipeline:
 	$(MAKE) graph-dataset EVENTS="$(EVENTS)" GROUND_TRUTH="$(GROUND_TRUTH)" OUT_DIR="$(or $(DATASET_OUT_DIR),build/ml-dataset)" DATASET_VERSION="$(or $(DATASET_VERSION),$(MODEL_VERSION))"
 	$(MAKE) graph-train GRAPH_DATASET="$(or $(DATASET_OUT_DIR),build/ml-dataset)/graphs.jsonl" OUT_DIR="$(or $(MODEL_OUT_DIR),build/ml-model)" ARCH="$(or $(ARCH),gcn)" EPOCHS="$(or $(EPOCHS),20)"
 	$(MAKE) model-register DATASET_MANIFEST="$(or $(DATASET_OUT_DIR),build/ml-dataset)/manifest.json" MODEL_NAME="$(or $(MODEL_NAME),graph-detector)" MODEL_VERSION="$(MODEL_VERSION)" MODEL_METRICS="$(or $(MODEL_OUT_DIR),build/ml-model)/metrics.json" MODEL_ARTIFACT="$(or $(MODEL_OUT_DIR),build/ml-model)/model.pt" FEATURE_SCHEMA="$(or $(DATASET_OUT_DIR),build/ml-dataset)/feature_schema.json" MODEL_REGISTRY="$(or $(MODEL_REGISTRY),build/model-registry.json)" NOTES="P2 graph detector training pipeline"
+
+p2-readiness:
+	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_METRICS)" ]; then echo 'usage: make p2-readiness DATASET_MANIFEST=... MODEL_METRICS=... [MODEL_GATE=...]'; exit 2; fi
+	python3 scripts/evaluation/p2-readiness-report.py --dataset-manifest "$(DATASET_MANIFEST)" --metrics "$(MODEL_METRICS)" $(if $(MODEL_GATE),--model-gate "$(MODEL_GATE)") $(if $(EVENTS),--events "$(EVENTS)") $(if $(NORMAL_EVENTS),--normal-events "$(NORMAL_EVENTS)") $(if $(GROUND_TRUTH),--ground-truth "$(GROUND_TRUTH)") --window-seconds "$(or $(WINDOW_SECONDS),300)" --min-graphs "$(or $(MIN_GRAPHS),1000)" --min-source-events "$(or $(MIN_SOURCE_EVENTS),10000)" --min-malicious-graphs "$(or $(MIN_MALICIOUS_GRAPHS),100)" --min-benign-graphs "$(or $(MIN_BENIGN_GRAPHS),100)" --min-truth-match-rate "$(or $(MIN_TRUTH_MATCH_RATE),80)" --min-cmdline-rate "$(or $(MIN_CMDLINE_RATE),10)" --min-path-rate "$(or $(MIN_PATH_RATE),10)" --min-precision "$(or $(MIN_PRECISION),70)" --min-recall "$(or $(MIN_RECALL),80)" --min-f1 "$(or $(MIN_F1),70)" --min-test-support "$(or $(MIN_TEST_SUPPORT),100)" --out-json "$(or $(OUT_DIR),build/p2)/p2-readiness.json" --out-md "$(or $(OUT_DIR),build/p2)/p2-readiness.md"
 
 alert-quality:
 	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [OUT_DIR=build/evaluation]'; exit 2; fi
