@@ -38,6 +38,21 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .top-upgrade-actions button:first-child { background:#1f6feb; color:white; border-color:#1f6feb; }
 .top-upgrade-actions button:disabled { opacity:0.5; cursor:not-allowed; }
 .metrics { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; padding: 12px 18px; min-width:0; }
+.workspace-nav { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px 0; min-width:0; flex-wrap:wrap; }
+.workspace-tabs { display:flex; gap:6px; flex-wrap:wrap; min-width:0; }
+.workspace-tabs button, .workspace-tools button { background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:999px; padding:6px 10px; cursor:pointer; font-size:12px; }
+.workspace-tabs button:hover, .workspace-tools button:hover { border-color:#58a6ff; color:#58a6ff; }
+.workspace-tabs button.active { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+.workspace-tools { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.workspace-hint { color:#484f58; font-size:11px; flex:1 1 220px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dashboard-density-compact .content { grid-auto-rows: minmax(300px, auto); }
+.dashboard-density-compact .panel { min-height:300px; }
+.dashboard-density-compact .panel-body { padding:8px 10px; }
+.dashboard-density-compact .alerts-list { max-height:150px; }
+.dashboard-density-comfortable .content { grid-auto-rows: minmax(420px, auto); }
+.dashboard-density-comfortable .panel { min-height:420px; }
+.dashboard-density-comfortable .alerts-list { max-height:250px; }
+.panel.section-hidden { display:none; }
 .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 10px; min-height: 82px; min-width:0; overflow:hidden; }
 .card.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
 .card.clickable:hover { border-color: #58a6ff; transform: translateY(-1px); }
@@ -48,7 +63,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 
 .content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 18px 18px; align-items:stretch; grid-auto-rows: minmax(360px, auto); min-width:0; }
 @media (max-width: 1200px) { .metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
-@media (max-width: 760px) { header { align-items:flex-start; flex-direction:column; } .header-right { justify-content:flex-start; width:100%; } .content, .metrics { grid-template-columns: 1fr; } .top-license { grid-template-columns: repeat(2, minmax(74px, auto)); } .ground-truth-toolbar, .policy-editor.wide { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { header { align-items:flex-start; flex-direction:column; } .header-right { justify-content:flex-start; width:100%; } .content, .metrics { grid-template-columns: 1fr; } .workspace-nav { align-items:flex-start; flex-direction:column; } .workspace-tools { justify-content:flex-start; } .top-license { grid-template-columns: repeat(2, minmax(74px, auto)); } .ground-truth-toolbar, .policy-editor.wide { grid-template-columns: 1fr; } }
 .overview-grid { display: contents; }
 
 .panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; min-height: 360px; height: 100%; display: flex; flex-direction: column; min-width:0; }
@@ -203,6 +218,23 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
   <button onclick="retryLastRequest()">Retry Last Request</button>
   <button onclick="clearAPIStatus()">Dismiss</button>
 </div>
+
+<nav class="workspace-nav" aria-label="Dashboard workspace navigation">
+  <div class="workspace-tabs" role="tablist" aria-label="Dashboard sections">
+    <button data-dashboard-section="all" onclick="switchDashboardSection('all')">All</button>
+    <button data-dashboard-section="operations" onclick="switchDashboardSection('operations')">Operations</button>
+    <button data-dashboard-section="detection" onclick="switchDashboardSection('detection')">Detection</button>
+    <button data-dashboard-section="evidence" onclick="switchDashboardSection('evidence')">Evidence</button>
+    <button data-dashboard-section="commercial" onclick="switchDashboardSection('commercial')">Commercial</button>
+  </div>
+  <div class="workspace-hint" id="workspaceHint">All modules visible. Drag panels to customize the layout.</div>
+  <div class="workspace-tools" aria-label="Dashboard view controls">
+    <button onclick="setDashboardDensity('compact')">Compact</button>
+    <button onclick="setDashboardDensity('standard')">Standard</button>
+    <button onclick="setDashboardDensity('comfortable')">Comfortable</button>
+    <button onclick="resetDashboardLayout()">Reset Layout</button>
+  </div>
+</nav>
 
 <div class="metrics" id="metrics">
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div><div class="sub">Click to inspect node types</div></div>
@@ -3316,23 +3348,88 @@ function savePanelOrder() {
   localStorage.setItem('providaptDashboardPanelOrder', JSON.stringify(panels.map(panelID)));
 }
 
-function initializePanelLayout() {
-  const content = document.querySelector('.content');
-  if (!content) return;
-  const defaultOrder = [
+function dashboardPanelSection(panel) {
+  const id = panelID(panel);
+  if (['control-plane-summary', 'agent-overview', 'deployment-diagnostics', 'operations-summary'].includes(id)) return 'operations';
+  if (['policy-center', 'alert-workflow', 'evaluation-ground-truth', 'investigation-console'].includes(id)) return 'detection';
+  if (['support-bundle', 'backup-restore', 'delivery-health'].includes(id)) return 'evidence';
+  if (['compliance-siem', 'license-activation', 'version-update'].includes(id)) return 'commercial';
+  return 'operations';
+}
+
+function dashboardSectionLabel(section) {
+  return {
+    all: 'All modules visible. Drag panels to customize the layout.',
+    operations: 'Operations view: fleet health, deployment diagnostics, and posture summary.',
+    detection: 'Detection view: policy, alert workflow, ground truth, and investigation.',
+    evidence: 'Evidence view: support bundles, backup/restore, and delivery health.',
+    commercial: 'Commercial view: compliance, SIEM, license, approval, and upgrade evidence.',
+  }[section] || 'Dashboard view updated.';
+}
+
+function updateDashboardSectionTabs(section) {
+  document.querySelectorAll('[data-dashboard-section]').forEach(button => {
+    const active = button.dataset.dashboardSection === section;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  const hint = document.getElementById('workspaceHint');
+  if (hint) hint.textContent = dashboardSectionLabel(section);
+}
+
+function switchDashboardSection(section) {
+  const selected = section || 'all';
+  localStorage.setItem('providaptDashboardSection', selected);
+  document.querySelectorAll('.content .panel').forEach(panel => {
+    const visible = selected === 'all' || dashboardPanelSection(panel) === selected;
+    panel.classList.toggle('section-hidden', !visible);
+  });
+  updateDashboardSectionTabs(selected);
+}
+
+function setDashboardDensity(density) {
+  const selected = ['compact', 'comfortable'].includes(density) ? density : 'standard';
+  document.body.classList.remove('dashboard-density-compact', 'dashboard-density-comfortable');
+  if (selected !== 'standard') {
+    document.body.classList.add('dashboard-density-' + selected);
+  }
+  localStorage.setItem('providaptDashboardDensity', selected);
+  const hint = document.getElementById('workspaceHint');
+  if (hint) hint.textContent = 'Dashboard density set to ' + selected + '.';
+}
+
+function resetDashboardLayout() {
+  localStorage.removeItem('providaptDashboardPanelOrder');
+  localStorage.setItem('providaptDashboardSection', 'all');
+  applyPanelOrder(defaultDashboardPanelOrder());
+  switchDashboardSection('all');
+  setDashboardDensity('standard');
+}
+
+function defaultDashboardPanelOrder() {
+  return [
     'control-plane-summary',
     'operations-summary',
     'agent-overview',
+    'deployment-diagnostics',
     'policy-center',
     'alert-workflow',
+    'evaluation-ground-truth',
     'delivery-health',
     'compliance-siem',
     'support-bundle',
     'backup-restore',
     'investigation-console',
   ];
+}
+
+function initializePanelLayout() {
+  const content = document.querySelector('.content');
+  if (!content) return;
+  const defaultOrder = defaultDashboardPanelOrder();
   Array.from(content.querySelectorAll('.panel')).forEach(panel => {
     panel.dataset.panelId = panelID(panel);
+    panel.dataset.section = dashboardPanelSection(panel);
     panel.classList.add('dashboard-panel');
     const header = panel.querySelector('h2');
     if (!header) return;
@@ -3370,6 +3467,8 @@ function initializePanelLayout() {
   } catch (e) {
     applyPanelOrder(defaultOrder);
   }
+  setDashboardDensity(localStorage.getItem('providaptDashboardDensity') || 'standard');
+  switchDashboardSection(localStorage.getItem('providaptDashboardSection') || 'all');
 }
 
 async function refresh() {

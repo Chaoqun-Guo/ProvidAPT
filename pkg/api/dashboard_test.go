@@ -404,6 +404,30 @@ func TestDashboardCommercialWorkflowEnhancements(t *testing.T) {
 	}
 }
 
+func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
+	expected := []string{
+		"workspace-nav",
+		"data-dashboard-section=\"operations\"",
+		"data-dashboard-section=\"detection\"",
+		"data-dashboard-section=\"evidence\"",
+		"data-dashboard-section=\"commercial\"",
+		"switchDashboardSection",
+		"dashboardPanelSection",
+		"providaptDashboardSection",
+		"setDashboardDensity",
+		"providaptDashboardDensity",
+		"resetDashboardLayout",
+		"section-hidden",
+		"defaultDashboardPanelOrder",
+		"Deployment Diagnostics",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing workspace navigation refactor content %q", item)
+		}
+	}
+}
+
 func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	expected := []string{
 		"postJSONWithLeaderRetry",
