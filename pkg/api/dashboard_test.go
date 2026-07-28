@@ -476,6 +476,32 @@ func TestDashboardCommercialWorkbenchInteractions(t *testing.T) {
 	}
 }
 
+func TestDashboardUsabilityAndProfessionalViews(t *testing.T) {
+	expected := []string{
+		"data-table",
+		"renderDataTable",
+		"setDashboardTheme",
+		"saveDashboardViewProfile",
+		"loadDashboardViewProfile",
+		"providaptDashboardViewProfile",
+		"showEnvironmentOverview",
+		"Environment View",
+		"showMitreAttackMatrix",
+		"MITRE Matrix",
+		"showDetectionQualityDashboard",
+		"Detection Quality",
+		"buildExecutiveReport",
+		"downloadExecutiveReport",
+		"Executive Report",
+		"dashboard-theme-contrast",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing usability or professional view %q", item)
+		}
+	}
+}
+
 func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	expected := []string{
 		"postJSONWithLeaderRetry",

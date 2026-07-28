@@ -7,6 +7,9 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; overflow-x: hidden; }
+body.dashboard-theme-contrast { background:#05080d; color:#f0f6fc; }
+body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.dashboard-theme-contrast .dashboard-sidebar, body.dashboard-theme-contrast header { border-color:#6e7681; }
+body.dashboard-theme-contrast .alert-msg, body.dashboard-theme-contrast .card .label, body.dashboard-theme-contrast .policy-item .label { color:#d0d7de; }
 header { background: #161b22; border-bottom: 1px solid #30363d; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; min-width: 0; }
 header > div { min-width: 0; }
 header h1 { color: #58a6ff; font-size: 20px; }
@@ -208,6 +211,16 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .detail-drawer button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:5px 8px; cursor:pointer; }
 .detail-drawer-body { padding:12px; overflow:auto; display:grid; gap:8px; }
 .detail-drawer pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:10px; color:#c9d1d9; font-size:11px; }
+.data-table-wrap { overflow:auto; max-height:360px; border:1px solid #21262d; border-radius:8px; background:#0d1117; }
+.data-table { width:100%; border-collapse:collapse; font-size:11px; min-width:520px; }
+.data-table th, .data-table td { padding:7px 8px; border-bottom:1px solid #21262d; text-align:left; vertical-align:top; overflow-wrap:anywhere; word-break:break-word; }
+.data-table th { color:#8b949e; background:#161b22; position:sticky; top:0; z-index:1; text-transform:uppercase; letter-spacing:0.4px; }
+.data-table tr:hover td { background:#111827; }
+.matrix-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; }
+.matrix-card { background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:9px; min-width:0; }
+.matrix-card .label { color:#8b949e; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; }
+.matrix-card .value { color:#58a6ff; font-size:18px; font-weight:700; margin-top:3px; overflow-wrap:anywhere; }
+.matrix-card .sub { color:#8b949e; font-size:11px; margin-top:4px; overflow-wrap:anywhere; }
 .graph-cluster-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
 .graph-cluster-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:999px; padding:3px 8px; cursor:pointer; font-size:11px; }
 .graph-cluster-actions button:hover { border-color:#58a6ff; color:#58a6ff; }
@@ -272,6 +285,10 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
     <button onclick="setDashboardDensity('compact')">Compact</button>
     <button onclick="setDashboardDensity('standard')">Standard</button>
     <button onclick="setDashboardDensity('comfortable')">Comfortable</button>
+    <button onclick="setDashboardTheme('dark')">Dark</button>
+    <button onclick="setDashboardTheme('contrast')">Contrast</button>
+    <button onclick="saveDashboardViewProfile()">Save View</button>
+    <button onclick="loadDashboardViewProfile()">Load View</button>
     <button onclick="resetDashboardLayout()">Reset Layout</button>
   </div>
 </nav>
@@ -346,6 +363,7 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <input id="fleetGroup" placeholder="Filter by group" />
         <input id="fleetTag" placeholder="Filter by tag" />
         <button onclick="loadControlOverview()">Apply</button>
+        <button class="secondary" onclick="showEnvironmentOverview()">Environment View</button>
         <button onclick="bulkFleetEnrollment('approved')">Approve Filter</button>
         <button onclick="bulkFleetEnrollment('quarantined')">Quarantine Filter</button>
       </div>
@@ -532,6 +550,8 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <button class="secondary" onclick="loadGroundTruth()">Load Server</button>
         <button class="secondary" onclick="showGroundTruthCorrelation()">Correlate</button>
         <button class="secondary" onclick="showGroundTruthCoverage()">Coverage</button>
+        <button class="secondary" onclick="showMitreAttackMatrix()">MITRE Matrix</button>
+        <button class="secondary" onclick="showDetectionQualityDashboard()">Detection Quality</button>
         <button class="secondary" onclick="downloadGroundTruthDataset('labels')">Export Labels</button>
         <button class="secondary" onclick="downloadGroundTruthDataset('coverage')">Export Coverage</button>
         <button class="secondary" onclick="downloadGroundTruthDataset('manifest')">Export Manifest</button>
@@ -589,6 +609,7 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
         <button class="secondary" onclick="runComplianceAction('generate_report', 'bundle')">Generate Bundle</button>
         <button id="testSIEMBtn" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
         <button class="secondary" onclick="showReleaseReadiness()">Release Readiness</button>
+        <button class="secondary" onclick="downloadExecutiveReport()">Executive Report</button>
         <button class="secondary" onclick="showAuditSearch()">Audit Search</button>
         <button class="secondary" onclick="loadCompliance()">Refresh Compliance</button>
       </div>
@@ -1019,6 +1040,18 @@ function renderJSONBlock(value) {
   return '<pre>' + escapeHTML(JSON.stringify(value || {}, null, 2)) + '</pre>';
 }
 
+function renderDataTable(columns, rows, emptyMessage) {
+  const data = rows || [];
+  if (data.length === 0) {
+    return renderEmptyDiagnostic(emptyMessage || 'No table rows available', ['Adjust filters or refresh the source module.']);
+  }
+  return '<div class="data-table-wrap"><table class="data-table"><thead><tr>' +
+    columns.map(column => '<th>' + escapeHTML(column.label || column.key) + '</th>').join('') +
+    '</tr></thead><tbody>' +
+    data.map(row => '<tr>' + columns.map(column => '<td>' + escapeHTML(typeof column.value === 'function' ? column.value(row) : row[column.key]) + '</td>').join('') + '</tr>').join('') +
+    '</tbody></table></div>';
+}
+
 function renderEmptyDiagnostic(title, checks) {
   const rows = (checks || []).map(item => '<div>• ' + escapeHTML(item) + '</div>').join('');
   return '<div class="empty-diagnostic"><strong>' + escapeHTML(title || 'No data available') + '</strong>' + (rows ? '<div style="margin-top:6px;">' + rows + '</div>' : '') + '</div>';
@@ -1429,6 +1462,48 @@ function showAgentDetails(agentID) {
     renderKVItem('telemetry', (agent.events_ingested || 0) + ' events · ' + (agent.events_dropped || 0) + ' dropped', (agent.graph_nodes || 0) + '/' + (agent.graph_edges || 0) + ' graph'),
     renderJSONBlock(agent),
   ].join(''));
+}
+
+function showEnvironmentOverview() {
+  const agents = (latestFleet.agents || []).concat(latestOverview.agents || []);
+  const uniqueAgents = [];
+  const seen = {};
+  agents.forEach(agent => {
+    const id = agent.agent_id || agent.hostname || JSON.stringify(agent);
+    if (!seen[id]) {
+      seen[id] = true;
+      uniqueAgents.push(agent);
+    }
+  });
+  const byOS = countBy(uniqueAgents, agent => agent.os_version || agent.os || 'unknown');
+  const byGroup = countBy(uniqueAgents, agent => agent.group || 'default');
+  const byStatus = countBy(uniqueAgents, agent => agent.status || 'unknown');
+  const rows = uniqueAgents.map(agent => ({
+    agent: agent.agent_id || agent.hostname || 'unknown',
+    environment: [agent.os_version || agent.os, agent.kernel, agent.architecture].filter(Boolean).join(' · ') || '--',
+    group: agent.group || 'default',
+    tags: (agent.tags || []).join(', ') || '--',
+    status: agent.status || 'unknown',
+    telemetry: (agent.events_ingested || 0) + ' events / ' + (agent.events_dropped || 0) + ' dropped',
+  }));
+  const cards = '<div class="matrix-grid">' +
+    renderEnvironmentCards('OS', byOS) +
+    renderEnvironmentCards('Group', byGroup) +
+    renderEnvironmentCards('Status', byStatus) +
+    '</div>';
+  const table = renderDataTable([
+    { key: 'agent', label: 'Agent' },
+    { key: 'environment', label: 'Environment' },
+    { key: 'group', label: 'Group' },
+    { key: 'tags', label: 'Tags' },
+    { key: 'status', label: 'Status' },
+    { key: 'telemetry', label: 'Telemetry' },
+  ], rows, 'No agent environment records available');
+  openDetailDrawer('Environment Overview', uniqueAgents.length + ' reporting agent(s)', cards + table);
+}
+
+function renderEnvironmentCards(label, groups) {
+  return (groups || []).slice(0, 6).map(group => '<div class="matrix-card"><div class="label">' + escapeHTML(label) + '</div><div class="value">' + escapeHTML(group.key) + '</div><div class="sub">' + group.count + ' agent(s)</div></div>').join('');
 }
 
 async function updateFleetAgent(payload) {
@@ -2627,6 +2702,57 @@ function showGroundTruthCoverage() {
   }
 }
 
+function showMitreAttackMatrix() {
+  const coverage = buildGroundTruthCoverage();
+  const tactics = Object.entries(coverage.by_tactic || {}).sort((a, b) => b[1].total - a[1].total);
+  const categories = Object.entries(coverage.by_category || {}).sort((a, b) => b[1].total - a[1].total);
+  const cards = '<div class="matrix-grid">' + [
+    '<div class="matrix-card"><div class="label">Records</div><div class="value">' + coverage.total + '</div><div class="sub">' + coverage.malicious + ' malicious · ' + coverage.benign + ' benign</div></div>',
+    '<div class="matrix-card"><div class="label">Detected</div><div class="value">' + coverage.coverage_percent + '%</div><div class="sub">' + coverage.detected + ' detected · ' + (coverage.malicious - coverage.detected) + ' remaining</div></div>',
+    '<div class="matrix-card"><div class="label">Correlation</div><div class="value">' + escapeHTML(coverage.correlation_status) + '</div><div class="sub">ground truth to alerts/events</div></div>',
+  ].join('') + '</div>';
+  const tacticTable = renderDataTable([
+    { key: 'tactic', label: 'ATT&CK Tactic' },
+    { key: 'total', label: 'Records' },
+    { key: 'detected', label: 'Detected' },
+    { key: 'missed', label: 'Missed' },
+    { key: 'simulated', label: 'Simulated' },
+  ], tactics.map(([name, row]) => Object.assign({ tactic: name }, row)), 'No MITRE tactic records loaded');
+  const categoryTable = renderDataTable([
+    { key: 'category', label: 'Technique / Category' },
+    { key: 'total', label: 'Records' },
+    { key: 'malicious', label: 'Malicious' },
+    { key: 'detected', label: 'Detected' },
+    { key: 'missed', label: 'Missed' },
+  ], categories.slice(0, 40).map(([name, row]) => Object.assign({ category: name }, row)), 'No MITRE technique records loaded');
+  openDetailDrawer('MITRE ATT&CK Matrix', 'Coverage by tactic and technique/category', cards + tacticTable + categoryTable);
+  setInvestigationItems(tactics.slice(0, 12).map(([name, row]) => renderKVItem(name, row.total + ' records', row.detected + ' detected · ' + row.missed + ' missed')), 'No ATT&CK coverage loaded');
+}
+
+function showDetectionQualityDashboard() {
+  const alertMetrics = computeAlertQuality(latestWorkflow.alerts || []);
+  const coverage = buildGroundTruthCoverage();
+  const actionable = alertMetrics.true_positive + alertMetrics.false_positive + alertMetrics.benign;
+  const recall = coverage.malicious ? Number((coverage.detected * 100 / coverage.malicious).toFixed(1)) : 0;
+  const precision = alertMetrics.actionable_precision_percent || 0;
+  const f1 = precision + recall ? Number((2 * precision * recall / (precision + recall)).toFixed(1)) : 0;
+  const rows = [
+    { metric: 'Precision', value: precision + '%', detail: alertMetrics.true_positive + ' TP / ' + actionable + ' reviewed actionable alerts' },
+    { metric: 'Recall', value: recall + '%', detail: coverage.detected + ' detected / ' + coverage.malicious + ' malicious ground-truth rows' },
+    { metric: 'F1', value: f1 + '%', detail: 'harmonic mean of precision and recall' },
+    { metric: 'Review Coverage', value: alertMetrics.review_coverage_percent + '%', detail: alertMetrics.reviewed_alerts + ' reviewed / ' + alertMetrics.total_alerts + ' alerts' },
+    { metric: 'Duplicate Rate', value: alertMetrics.duplicate_percent + '%', detail: alertMetrics.duplicate + ' duplicate alerts' },
+  ];
+  const cards = '<div class="matrix-grid">' + rows.slice(0, 4).map(row => '<div class="matrix-card"><div class="label">' + escapeHTML(row.metric) + '</div><div class="value">' + escapeHTML(row.value) + '</div><div class="sub">' + escapeHTML(row.detail) + '</div></div>').join('') + '</div>';
+  const table = renderDataTable([
+    { key: 'metric', label: 'Metric' },
+    { key: 'value', label: 'Value' },
+    { key: 'detail', label: 'Evidence' },
+  ], rows, 'No quality metrics available');
+  openDetailDrawer('Detection Quality', 'Precision, recall, F1, review coverage, and duplicate rate', cards + table + renderJSONBlock({ alert_quality: alertMetrics, ground_truth_coverage: coverage }));
+  setInvestigationItems(rows.map(row => renderKVItem(row.metric, row.value, row.detail)), 'No detection quality metrics available');
+}
+
 function renderGroundTruthPhases(phases) {
   const grid = document.getElementById('groundTruthPhaseGrid');
   if (!grid) return;
@@ -2981,6 +3107,46 @@ function showReleaseReadiness() {
   ];
   const items = checks.map(item => renderKVItem(item[0], item[1], item[2] ? 'pass' : 'action required'));
   document.getElementById('complianceDetails').innerHTML = items.join('');
+}
+
+function buildExecutiveReport() {
+  const alertMetrics = computeAlertQuality(latestWorkflow.alerts || []);
+  const coverage = buildGroundTruthCoverage();
+  const overview = latestOverview || {};
+  const compliance = latestCompliance || {};
+  const deliverySummary = (latestDeliveries || {}).summary || {};
+  return {
+    schema: 'providapt.executive_report.v1',
+    generated_at: new Date().toISOString(),
+    fleet: {
+      total_agents: overview.total_agents || (overview.agents || []).length || 0,
+      healthy_agents: overview.healthy_agents || 0,
+      degraded_agents: overview.degraded_agents || 0,
+    },
+    detection: {
+      alert_quality: alertMetrics,
+      mitre_coverage: coverage,
+      open_alerts: ((latestWorkflow || {}).summary || {}).open || 0,
+    },
+    evidence: {
+      support_bundle_status: (latestSupport || {}).last_status || '',
+      backup_status: (latestBackup || {}).last_status || '',
+      delivery_dead_letters: deliverySummary.dead_letter || 0,
+    },
+    commercial_readiness: {
+      readiness_score: compliance.readiness_score || 0,
+      readiness_grade: compliance.readiness_grade || '',
+      siem_enabled: Boolean((compliance.siem || {}).enabled),
+      pending_approvals: (((compliance.approvals || {}).pending) || []).length,
+      license_present: Boolean((latestLicense || {}).present),
+    },
+  };
+}
+
+function downloadExecutiveReport() {
+  const report = buildExecutiveReport();
+  downloadTextFile('providapt-executive-report.json', JSON.stringify(report, null, 2) + '\n');
+  openDetailDrawer('Executive Report', 'Commercial readiness, detection quality, fleet, and evidence summary', renderJSONBlock(report));
 }
 
 async function showAuditSearch() {
@@ -3474,6 +3640,25 @@ function eventDetailRows(event) {
   ];
 }
 
+function renderEventTable(events) {
+  return renderDataTable([
+    { key: 'time', label: 'Time' },
+    { key: 'type', label: 'Type' },
+    { key: 'process', label: 'Process' },
+    { key: 'target', label: 'Target' },
+  ], (events || []).map(event => {
+    const raw = event.raw || {};
+    const process = raw.process || {};
+    const payload = raw.payload || {};
+    return {
+      time: formatTime(event.timestamp || event.time || event.detected_at || event.last_seen),
+      type: event.type || raw.type || 'event',
+      process: (event.comm || process.comm || raw.comm || '--') + ' pid ' + (event.pid || process.pid || raw.pid || '--'),
+      target: event.label || payload.pathname || payload.exe_path || payload.cmdline || raw.message || raw.pattern || raw.path || raw.pathname || raw.rule_id || raw.alert_id || event.id || '--',
+    };
+  }), 'No events available for table view');
+}
+
 function showEventDetailsJSON(encoded) {
   try {
     const event = JSON.parse(encoded || '{}');
@@ -3523,6 +3708,7 @@ async function showAlertEvents(pattern) {
     const data = await fetchJSON('/api/v1/events/search?pattern=' + encodeURIComponent(pattern || '') + '&limit=50');
     const events = data.results || data.events || data.items || [];
     setInvestigationItems(events.slice(0, 20).map(event => renderEventItem(event, 'related')), 'No related events found for this alert');
+    openDetailDrawer('Related Events', pattern || 'alert pattern', renderEventTable(events) + renderJSONBlock({ count: events.length, pattern: pattern || '' }));
   } catch (e) {
     setInvestigationLoading('Related event search failed: ' + e.message);
   }
@@ -3534,6 +3720,7 @@ async function showRecentEvents() {
     const data = await fetchJSON('/api/v1/events/recent?limit=50');
     const events = data.results || data.events || data.items || [];
     setInvestigationItems(events.slice(0, 20).map(event => renderEventItem(event, 'event')), 'No recent events found');
+    openDetailDrawer('Recent Events', events.length + ' event(s)', renderEventTable(events));
   } catch (e) {
     setInvestigationLoading('Recent events unavailable: ' + e.message);
   }
@@ -3720,6 +3907,52 @@ function setDashboardDensity(density) {
   if (hint) hint.textContent = 'Dashboard density set to ' + selected + '.';
 }
 
+function setDashboardTheme(theme) {
+  const selected = theme === 'contrast' ? 'contrast' : 'dark';
+  document.body.classList.toggle('dashboard-theme-contrast', selected === 'contrast');
+  localStorage.setItem('providaptDashboardTheme', selected);
+  const hint = document.getElementById('workspaceHint');
+  if (hint) hint.textContent = 'Dashboard theme set to ' + selected + '.';
+}
+
+function saveDashboardViewProfile() {
+  const profile = {
+    schema: 'providapt.dashboard_view_profile.v1',
+    saved_at: new Date().toISOString(),
+    section: localStorage.getItem('providaptDashboardSection') || 'all',
+    density: localStorage.getItem('providaptDashboardDensity') || 'standard',
+    theme: localStorage.getItem('providaptDashboardTheme') || 'dark',
+    panel_order: JSON.parse(localStorage.getItem('providaptDashboardPanelOrder') || '[]'),
+    workflow_filters: collectAlertWorkflowFilters(),
+  };
+  localStorage.setItem('providaptDashboardViewProfile', JSON.stringify(profile));
+  openDetailDrawer('Dashboard View Saved', 'User-specific layout, density, theme, and filters', renderJSONBlock(profile));
+}
+
+function loadDashboardViewProfile() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('providaptDashboardViewProfile') || '{}');
+    if (!profile || !profile.schema) {
+      openDetailDrawer('Dashboard View Profile', 'No saved profile found', renderEmptyDiagnostic('No saved view profile', ['Use Save View after arranging panels and filters.']));
+      return;
+    }
+    if (profile.panel_order && profile.panel_order.length) applyPanelOrder(profile.panel_order);
+    setDashboardDensity(profile.density || 'standard');
+    setDashboardTheme(profile.theme || 'dark');
+    switchDashboardSection(profile.section || 'all');
+    const filters = profile.workflow_filters || {};
+    Object.keys(filters).forEach(key => {
+      const id = 'workflowFilter' + key.charAt(0).toUpperCase() + key.slice(1);
+      const element = document.getElementById(id);
+      if (element) element.value = filters[key] || '';
+    });
+    applyAlertWorkflowFilters();
+    openDetailDrawer('Dashboard View Loaded', 'Restored saved analyst workspace profile', renderJSONBlock(profile));
+  } catch (e) {
+    setInvestigationLoading('Dashboard view profile load failed: ' + e.message);
+  }
+}
+
 function resetDashboardLayout() {
   localStorage.removeItem('providaptDashboardPanelOrder');
   localStorage.setItem('providaptDashboardSection', 'all');
@@ -3790,6 +4023,7 @@ function initializePanelLayout() {
     applyPanelOrder(defaultOrder);
   }
   setDashboardDensity(localStorage.getItem('providaptDashboardDensity') || 'standard');
+  setDashboardTheme(localStorage.getItem('providaptDashboardTheme') || 'dark');
   switchDashboardSection(localStorage.getItem('providaptDashboardSection') || 'all');
 }
 
