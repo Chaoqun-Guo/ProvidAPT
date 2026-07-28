@@ -502,6 +502,27 @@ func TestDashboardUsabilityAndProfessionalViews(t *testing.T) {
 	}
 }
 
+func TestDashboardPanelResizeInteractions(t *testing.T) {
+	expected := []string{
+		"panel-resize-handle",
+		"panel-size-badge",
+		"providaptDashboardPanelSizes",
+		"installPanelResize",
+		"applyPanelSize",
+		"savePanelSizes",
+		"applyPanelSizes",
+		"panel_sizes",
+		"mousemove",
+		"mouseup",
+		"drag · resize",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing panel resize interaction %q", item)
+		}
+	}
+}
+
 func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	expected := []string{
 		"postJSONWithLeaderRetry",

@@ -93,12 +93,18 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 @media (max-width: 760px) { header { align-items:flex-start; flex-direction:column; } .header-right { justify-content:flex-start; width:100%; } .content, .metrics { grid-template-columns: 1fr; } .workspace-nav { align-items:flex-start; flex-direction:column; } .workspace-tools { justify-content:flex-start; } .top-license { grid-template-columns: repeat(2, minmax(74px, auto)); } .ground-truth-toolbar, .policy-editor.wide { grid-template-columns: 1fr; } .dashboard-shell { padding:10px 12px 14px; } .sidebar-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .overview-grid { display: contents; }
 
-.panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; min-height: 360px; height: 100%; display: flex; flex-direction: column; min-width:0; }
+.panel { position:relative; background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; min-height: 360px; height: 100%; display: flex; flex-direction: column; min-width:0; }
 .panel h2 { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 12px; border-bottom: 1px solid #21262d; }
 .dashboard-panel h2 { cursor: move; user-select: none; display:flex; justify-content:space-between; align-items:center; }
-.dashboard-panel h2::after { content: 'drag'; color:#484f58; font-size:9px; letter-spacing:0.8px; text-transform:uppercase; }
+.dashboard-panel h2::after { content: 'drag · resize'; color:#484f58; font-size:9px; letter-spacing:0.8px; text-transform:uppercase; }
 .dashboard-panel.dragging { opacity:0.55; border-color:#58a6ff; }
 .dashboard-panel.drag-over { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
+.dashboard-panel.resizing { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset, 0 16px 36px rgba(1,4,9,0.28); }
+.panel-resize-handle { position:absolute; right:7px; bottom:7px; width:16px; height:16px; cursor:nwse-resize; opacity:0.72; border-right:2px solid #484f58; border-bottom:2px solid #484f58; border-radius:0 0 4px 0; }
+.panel-resize-handle:hover, .dashboard-panel.resizing .panel-resize-handle { opacity:1; border-color:#58a6ff; }
+.panel-resize-handle:focus { outline:2px solid #58a6ff; outline-offset:2px; }
+.panel-size-badge { position:absolute; right:28px; bottom:6px; color:#8b949e; background:#0d1117; border:1px solid #30363d; border-radius:999px; padding:2px 7px; font-size:10px; opacity:0; pointer-events:none; transition:opacity 0.15s ease; }
+.dashboard-panel:hover .panel-size-badge, .dashboard-panel.resizing .panel-size-badge { opacity:1; }
 .panel-body { padding: 10px 12px; flex: 1; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
 .span-2 { grid-column: auto; }
 .span-4 { grid-column: 1 / -1; }
@@ -3857,6 +3863,92 @@ function savePanelOrder() {
   localStorage.setItem('providaptDashboardPanelOrder', JSON.stringify(panels.map(panelID)));
 }
 
+function panelSizeConfig(panel) {
+  return {
+    columns: Number(panel.dataset.resizeColumns || 1),
+    minHeight: Number(panel.dataset.resizeMinHeight || 360),
+  };
+}
+
+function applyPanelSize(panel, size) {
+  if (!panel || !size) return;
+  const columns = Math.max(1, Math.min(2, Number(size.columns || 1)));
+  const minHeight = Math.max(300, Math.min(900, Number(size.minHeight || 360)));
+  panel.dataset.resizeColumns = String(columns);
+  panel.dataset.resizeMinHeight = String(minHeight);
+  panel.style.gridColumn = columns > 1 ? 'span 2' : '';
+  panel.style.minHeight = minHeight + 'px';
+  const badge = panel.querySelector('.panel-size-badge');
+  if (badge) badge.textContent = columns + ' col · ' + minHeight + 'px';
+}
+
+function savedPanelSizes() {
+  try {
+    return JSON.parse(localStorage.getItem('providaptDashboardPanelSizes') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function savePanelSizes() {
+  const sizes = {};
+  document.querySelectorAll('.content .panel').forEach(panel => {
+    sizes[panelID(panel)] = panelSizeConfig(panel);
+  });
+  localStorage.setItem('providaptDashboardPanelSizes', JSON.stringify(sizes));
+}
+
+function applyPanelSizes(sizes) {
+  const allSizes = sizes || savedPanelSizes();
+  document.querySelectorAll('.content .panel').forEach(panel => {
+    applyPanelSize(panel, allSizes[panelID(panel)] || { columns: panel.classList.contains('span-2') || panel.classList.contains('span-4') ? 2 : 1, minHeight: 360 });
+  });
+}
+
+function installPanelResize(panel) {
+  if (!panel || panel.querySelector('.panel-resize-handle')) return;
+  const handle = document.createElement('button');
+  handle.type = 'button';
+  handle.className = 'panel-resize-handle';
+  handle.setAttribute('aria-label', 'Resize panel');
+  handle.title = 'Drag to resize panel';
+  const badge = document.createElement('span');
+  badge.className = 'panel-size-badge';
+  panel.appendChild(handle);
+  panel.appendChild(badge);
+  handle.addEventListener('mousedown', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const content = document.querySelector('.content');
+    const start = panelSizeConfig(panel);
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const columnWidth = content ? Math.max(260, content.getBoundingClientRect().width / 2) : 420;
+    panel.classList.add('resizing');
+    const onMove = moveEvent => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      const columns = start.columns === 1 && deltaX > columnWidth * 0.35 ? 2 : (start.columns === 2 && deltaX < -columnWidth * 0.25 ? 1 : start.columns);
+      const minHeight = Math.max(300, Math.min(900, start.minHeight + deltaY));
+      applyPanelSize(panel, { columns: columns, minHeight: minHeight });
+    };
+    const onUp = () => {
+      panel.classList.remove('resizing');
+      savePanelSizes();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  handle.addEventListener('dblclick', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    applyPanelSize(panel, { columns: 2, minHeight: 560 });
+    savePanelSizes();
+  });
+}
+
 function dashboardPanelSection(panel) {
   const id = panelID(panel);
   if (['control-plane-summary', 'agent-overview', 'deployment-diagnostics', 'operations-summary'].includes(id)) return 'operations';
@@ -3923,6 +4015,7 @@ function saveDashboardViewProfile() {
     density: localStorage.getItem('providaptDashboardDensity') || 'standard',
     theme: localStorage.getItem('providaptDashboardTheme') || 'dark',
     panel_order: JSON.parse(localStorage.getItem('providaptDashboardPanelOrder') || '[]'),
+    panel_sizes: savedPanelSizes(),
     workflow_filters: collectAlertWorkflowFilters(),
   };
   localStorage.setItem('providaptDashboardViewProfile', JSON.stringify(profile));
@@ -3937,6 +4030,7 @@ function loadDashboardViewProfile() {
       return;
     }
     if (profile.panel_order && profile.panel_order.length) applyPanelOrder(profile.panel_order);
+    if (profile.panel_sizes) applyPanelSizes(profile.panel_sizes);
     setDashboardDensity(profile.density || 'standard');
     setDashboardTheme(profile.theme || 'dark');
     switchDashboardSection(profile.section || 'all');
@@ -3955,8 +4049,10 @@ function loadDashboardViewProfile() {
 
 function resetDashboardLayout() {
   localStorage.removeItem('providaptDashboardPanelOrder');
+  localStorage.removeItem('providaptDashboardPanelSizes');
   localStorage.setItem('providaptDashboardSection', 'all');
   applyPanelOrder(defaultDashboardPanelOrder());
+  applyPanelSizes({});
   switchDashboardSection('all');
   setDashboardDensity('standard');
 }
@@ -3986,6 +4082,7 @@ function initializePanelLayout() {
     panel.dataset.panelId = panelID(panel);
     panel.dataset.section = dashboardPanelSection(panel);
     panel.classList.add('dashboard-panel');
+    installPanelResize(panel);
     const header = panel.querySelector('h2');
     if (!header) return;
     header.setAttribute('draggable', 'true');
@@ -4022,6 +4119,7 @@ function initializePanelLayout() {
   } catch (e) {
     applyPanelOrder(defaultOrder);
   }
+  applyPanelSizes();
   setDashboardDensity(localStorage.getItem('providaptDashboardDensity') || 'standard');
   setDashboardTheme(localStorage.getItem('providaptDashboardTheme') || 'dark');
   switchDashboardSection(localStorage.getItem('providaptDashboardSection') || 'all');
