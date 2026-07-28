@@ -456,6 +456,9 @@ func TestDashboardCompactPlatformHeader(t *testing.T) {
 		"platform-header",
 		"platform-brand",
 		"platform-meta",
+		"platform-button",
+		"platform-action-status",
+		"actionStatus",
 		"license-pill activation",
 		"license-pill version",
 		"Open license activation",
@@ -470,6 +473,12 @@ func TestDashboardCompactPlatformHeader(t *testing.T) {
 	}
 	if strings.Contains(dashboardHTML, "top-upgrade-actions") {
 		t.Fatalf("dashboard should not render the old large upgrade action area")
+	}
+	if strings.Contains(dashboardHTML, "Clicked: ") {
+		t.Fatalf("dashboard should not show verbose click feedback in the header")
+	}
+	if strings.Contains(dashboardHTML, "document.getElementById('refreshInfo');\n  if (info)") {
+		t.Fatalf("interaction feedback should not write into the refresh timestamp")
 	}
 }
 
