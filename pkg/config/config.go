@@ -868,7 +868,7 @@ func setTOMLValue(cfg *Config, section, key, raw string) error {
 }
 
 func fieldByYAMLTag(value reflect.Value, tag string) (reflect.Value, bool) {
-	if value.Kind() == reflect.Ptr {
+	if value.Kind() == reflect.Pointer {
 		value = value.Elem()
 	}
 	if value.Kind() != reflect.Struct {

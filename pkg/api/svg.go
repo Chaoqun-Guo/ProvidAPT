@@ -338,34 +338,6 @@ func findRoots(nodes []*provenance.Node, edges []*provenance.Edge) []string {
 	return roots
 }
 
-func bfsLayers(roots []string, edges []*provenance.Edge) [][]string {
-	adj := make(map[string][]string)
-	for _, e := range edges {
-		adj[e.Source] = append(adj[e.Source], e.Target)
-	}
-	for src := range adj {
-		sort.Strings(adj[src])
-	}
-	var layers [][]string
-	seen := make(map[string]bool)
-	queue := roots
-	for len(queue) > 0 {
-		layers = append(layers, queue)
-		var next []string
-		for _, id := range queue {
-			seen[id] = true
-			for _, tgt := range adj[id] {
-				if !seen[tgt] {
-					next = append(next, tgt)
-					seen[tgt] = true
-				}
-			}
-		}
-		queue = next
-	}
-	return layers
-}
-
 func treeLayoutOrder(nodes []*provenance.Node, edges []*provenance.Edge, roots []string) (map[string]int, map[string]string, []string) {
 	nodeIDs := make([]string, 0, len(nodes))
 	nodeSet := make(map[string]bool, len(nodes))
@@ -634,12 +606,12 @@ func renderEventTable(b *strings.Builder, lay *svgLayout) {
 				rowY += eventRowHeight(group.edges[j])
 			}
 			summary := fmt.Sprintf("#%02d %-14s %s", i+1, e.event, e.summary)
-			for lineIndex, line := range wrapText(summary, 132, 0) {
+			for lineIndex, line := range wrapText(summary, 132) {
 				fmt.Fprintf(b, `  <text x="52" y="%d">%s</text>
 `, rowY+lineIndex*12, escapeXML(line))
 			}
-			detailStartY := rowY + len(wrapText(summary, 132, 0))*12
-			for lineIndex, line := range wrapText(e.detail, 132, 0) {
+			detailStartY := rowY + len(wrapText(summary, 132))*12
+			for lineIndex, line := range wrapText(e.detail, 132) {
 				fmt.Fprintf(b, `  <text class="group-meta" x="52" y="%d">%s</text>
 `, detailStartY+lineIndex*12, escapeXML(line))
 			}
@@ -676,7 +648,7 @@ func eventTableHeight(edges []svgEdge) int {
 
 func eventRowHeight(edge svgEdge) int {
 	summary := fmt.Sprintf("%-14s %s", edge.event, edge.summary)
-	return 10 + len(wrapText(summary, 132, 0))*12 + len(wrapText(edge.detail, 132, 0))*12
+	return 10 + len(wrapText(summary, 132))*12 + len(wrapText(edge.detail, 132))*12
 }
 
 func groupedSVGEvents(edges []svgEdge) []svgEventGroup {
@@ -849,7 +821,7 @@ func nodeTextLines(n svgNode) []struct {
 		text  string
 	}
 	for _, group := range raw {
-		for _, line := range wrapText(group.text, widthChars, 0) {
+		for _, line := range wrapText(group.text, widthChars) {
 			out = append(out, struct {
 				class string
 				text  string
@@ -870,13 +842,13 @@ func renderNodeText(n svgNode) string {
 	return b.String()
 }
 
-func wrapText(text string, width, maxLines int) []string {
+func wrapText(text string, width int) []string {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return nil
 	}
 	var lines []string
-	for len(text) > width && (maxLines <= 0 || len(lines) < maxLines-1) {
+	for len(text) > width {
 		cut := width
 		if idx := strings.LastIndexAny(text[:width], "/ :-_=."); idx > 10 {
 			cut = idx + 1

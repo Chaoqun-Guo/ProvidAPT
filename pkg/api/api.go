@@ -3100,8 +3100,8 @@ func tailEventFileWindow(path string, limit int, maxBytes int64) ([]EventRecord,
 	}
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 64*1024), 256*1024)
-	if offset > 0 && scanner.Scan() {
-		// Drop the first partial line from the bounded tail window.
+	if offset > 0 {
+		_ = scanner.Scan()
 	}
 	var records []EventRecord
 	for scanner.Scan() {

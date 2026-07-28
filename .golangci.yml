@@ -1,4 +1,4 @@
-# ── Golangci-lint Configuration ───────────────────────────────
+# Golangci-lint configuration
 # https://golangci-lint.run/usage/configuration/
 #
 # Usage:
@@ -75,6 +75,9 @@ linters:
       check-blank: false
     misspell:
       locale: US
+      ignore-rules:
+        - MITRE
+        - mitre
     nakedret:
       max-func-lines: 30
 
