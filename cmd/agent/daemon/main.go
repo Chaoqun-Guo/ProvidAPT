@@ -879,10 +879,10 @@ func loadRevokedIDs(cfg *config.Config) ([]string, string, bool, error) {
 
 	parsePayload := func(data []byte) ([]string, error) {
 		var payload revocationPayload
-		if err := json.Unmarshal(data, &payload); err == nil && len(payload.RevokedIDs) > 0 {
+		if err := json.Unmarshal(data, &payload); err == nil {
 			return payload.RevokedIDs, nil
 		}
-		if err := yaml.Unmarshal(data, &payload); err == nil && len(payload.RevokedIDs) > 0 {
+		if err := yaml.Unmarshal(data, &payload); err == nil {
 			return payload.RevokedIDs, nil
 		}
 		var direct []string
