@@ -28,10 +28,23 @@ def iter_input_files(values: list[str]) -> list[Path]:
     return files
 
 
+def iter_feedback_files(values: list[str]) -> list[Path]:
+    files: list[Path] = []
+    for value in values:
+        path = Path(value)
+        if path.is_dir():
+            files.extend(sorted(path.glob("alert-feedback*.ndjson")))
+        elif path.is_file():
+            files.append(path)
+        else:
+            raise SystemExit(f"feedback input not found: {value}")
+    return sorted(dict.fromkeys(files))
+
+
 def load_alerts(paths: list[Path]) -> list[dict[str, Any]]:
     alerts: list[dict[str, Any]] = []
     for path in paths:
-        with path.open("r", encoding="utf-8") as handle:
+        with path.open("r", encoding="utf-8-sig") as handle:
             for line_no, line in enumerate(handle, 1):
                 line = line.strip()
                 if not line:
@@ -43,6 +56,24 @@ def load_alerts(paths: list[Path]) -> list[dict[str, Any]]:
                 record.setdefault("source_file", str(path))
                 alerts.append(record)
     return alerts
+
+
+def load_feedback(paths: list[Path]) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for path in paths:
+        with path.open("r", encoding="utf-8-sig") as handle:
+            for line_no, line in enumerate(handle, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise SystemExit(f"{path}:{line_no}: invalid JSON: {exc}") from exc
+                if isinstance(record, dict):
+                    record.setdefault("source_file", str(path))
+                    entries.append(record)
+    return entries
 
 
 def details(record: dict[str, Any]) -> dict[str, Any]:
@@ -69,15 +100,89 @@ def classification(record: dict[str, Any]) -> str:
     return "needs_review"
 
 
+def normalize_classification(value: Any) -> str:
+    normalized = str(value or "").lower().strip().replace("-", "_").replace(" ", "_")
+    if normalized == "tp":
+        return "true_positive"
+    if normalized == "fp":
+        return "false_positive"
+    if normalized in {"true_positive", "false_positive", "benign", "duplicate", "needs_review"}:
+        return normalized
+    return ""
+
+
 def alert_key(record: dict[str, Any]) -> str:
     return field(record, "id", "alert_id", "dedup_key", default=json.dumps(record, sort_keys=True))
+
+
+def feedback_alert_key(record: dict[str, Any]) -> str:
+    return str(record.get("alert_id") or record.get("alertID") or record.get("id") or "").strip()
+
+
+def feedback_created_at(record: dict[str, Any]) -> str:
+    return str(record.get("created_at") or record.get("createdAt") or record.get("timestamp") or "")
+
+
+def merge_feedback(alerts: list[dict[str, Any]], feedback: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    latest: dict[str, dict[str, Any]] = {}
+    for entry in feedback:
+        key = feedback_alert_key(entry)
+        if not key:
+            continue
+        current = latest.get(key)
+        if current is None or feedback_created_at(entry) >= feedback_created_at(current):
+            latest[key] = entry
+
+    merged: list[dict[str, Any]] = []
+    matched = 0
+    by_classification: Counter[str] = Counter()
+    for record in alerts:
+        key = alert_key(record)
+        updated = dict(record)
+        details_map = dict(details(updated))
+        entry = latest.get(key)
+        if entry:
+            matched += 1
+            cls = normalize_classification(entry.get("classification"))
+            if cls:
+                details_map["classification"] = cls
+                updated["classification"] = cls
+                by_classification[cls] += 1
+            if entry.get("created_at"):
+                details_map["classification_updated_at"] = str(entry["created_at"])
+            if entry.get("action"):
+                details_map["last_feedback_action"] = str(entry["action"])
+            if entry.get("actor"):
+                details_map["last_feedback_actor"] = str(entry["actor"])
+            if entry.get("note"):
+                updated["note"] = str(entry["note"])
+            updated["details"] = details_map
+        merged.append(updated)
+
+    summary = {
+        "feedback_entries": len(feedback),
+        "feedback_latest_alerts": len(latest),
+        "feedback_matched_alerts": matched,
+        "feedback_unmatched_alerts": max(len(latest) - matched, 0),
+        "feedback_by_classification": dict(sorted(by_classification.items())),
+    }
+    return merged, summary
 
 
 def pct(numerator: int, denominator: int) -> float:
     return round((numerator / denominator * 100.0), 2) if denominator else 0.0
 
 
-def build_report(alerts: list[dict[str, Any]], inputs: list[Path]) -> dict[str, Any]:
+def build_report(alerts: list[dict[str, Any]], inputs: list[Path], feedback: list[dict[str, Any]] | None = None, feedback_inputs: list[Path] | None = None) -> dict[str, Any]:
+    feedback_summary = {
+        "feedback_entries": 0,
+        "feedback_latest_alerts": 0,
+        "feedback_matched_alerts": 0,
+        "feedback_unmatched_alerts": 0,
+        "feedback_by_classification": {},
+    }
+    if feedback:
+        alerts, feedback_summary = merge_feedback(alerts, feedback)
     unique: dict[str, dict[str, Any]] = {}
     for record in alerts:
         unique[alert_key(record)] = record
@@ -119,6 +224,8 @@ def build_report(alerts: list[dict[str, Any]], inputs: list[Path]) -> dict[str, 
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "inputs": [str(path) for path in inputs],
+        "feedback_inputs": [str(path) for path in (feedback_inputs or [])],
+        "feedback": feedback_summary,
         "total_alerts": total,
         "reviewed_alerts": reviewed,
         "unreviewed_alerts": max(total - reviewed, 0),
@@ -144,6 +251,8 @@ def write_markdown(path: Path, report: dict[str, Any]) -> None:
         f"- Reviewed alerts: `{report['reviewed_alerts']}`",
         f"- Review coverage: `{report['review_coverage_percent']}%`",
         f"- Actionable precision: `{report['actionable_precision_percent']}%`",
+        f"- Feedback entries: `{report.get('feedback', {}).get('feedback_entries', 0)}`",
+        f"- Feedback matched alerts: `{report.get('feedback', {}).get('feedback_matched_alerts', 0)}`",
         "",
         "## By Classification",
         "",
@@ -171,12 +280,14 @@ def write_markdown(path: Path, report: dict[str, Any]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate alert quality metrics from annotated ProvidAPT alert workflow records.")
     parser.add_argument("inputs", nargs="+", help="alerts.ndjson file, alerts archive, or directory")
+    parser.add_argument("--feedback", nargs="*", default=[], help="alert-feedback.ndjson file or directory")
     parser.add_argument("--out-json", default="build/evaluation/alert-quality.json")
     parser.add_argument("--out-md", default="build/evaluation/alert-quality.md")
     args = parser.parse_args()
 
     files = iter_input_files(args.inputs)
-    report = build_report(load_alerts(files), files)
+    feedback_files = iter_feedback_files(args.feedback) if args.feedback else []
+    report = build_report(load_alerts(files), files, load_feedback(feedback_files), feedback_files)
     out_json = Path(args.out_json)
     out_md = Path(args.out_md)
     out_json.parent.mkdir(parents=True, exist_ok=True)

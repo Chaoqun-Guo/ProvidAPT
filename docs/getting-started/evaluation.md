@@ -184,7 +184,10 @@ After analysts mark alerts as `true_positive`, `false_positive`, `benign`, or
 `duplicate`, export review metrics:
 
 ```bash
-make alert-quality ALERTS=/var/log/providapt OUT_DIR=build/evaluation
+make alert-quality \
+  ALERTS=/var/log/providapt \
+  ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson \
+  OUT_DIR=build/evaluation
 ```
 
 Use `alert-quality.json` as machine-readable detector quality evidence and
@@ -196,6 +199,9 @@ alerts. Use the `Quality` action for analyst triage, `Export Quality Summary` to
 download a JSON snapshot from the browser, and `Feedback Ledger` to export the
 persistent append-only analyst feedback CSV from
 `/api/v1/control/alerts/feedback?format=csv`.
+
+When `ALERT_FEEDBACK` is supplied, the report applies the latest ledger entry
+per alert before computing review coverage and actionable precision.
 
 ## Model Registry and Drift
 
@@ -259,6 +265,20 @@ make detection-quality \
 `detection-quality.json` is the ML release evidence artifact for recall,
 precision, F1, missed tactics, missed techniques, and rule-tuning
 recommendations.
+
+Graph training manifests can reference the same feedback ledger:
+
+```bash
+make graph-dataset \
+  EVENTS=/var/log/providapt \
+  GROUND_TRUTH=/var/log/providapt/ground-truth \
+  ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson \
+  OUT_DIR=build/ml-dataset
+```
+
+The generated `manifest.json` includes `alert_feedback` counts and
+classification distribution so model runs can be traced back to analyst review
+evidence.
 
 ## Model Deployment Gate
 

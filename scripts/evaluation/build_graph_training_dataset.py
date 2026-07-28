@@ -53,6 +53,13 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return records
 
 
+def load_optional_jsonl(paths: list[Path]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for path in paths:
+        records.extend(load_jsonl(path))
+    return records
+
+
 def iter_files(inputs: list[str], suffixes: tuple[str, ...]) -> list[Path]:
     files: list[Path] = []
     for value in inputs:
@@ -205,6 +212,32 @@ def quality_summary(events: list[dict[str, Any]], truths: list[dict[str, Any]], 
         "path_present_percent": round((len(paths) / max(1, total)) * 100.0, 2),
         "absolute_path_percent": round((len(absolute_paths) / max(1, len(paths))) * 100.0, 2),
         "event_type_summary": dict(event_types.most_common()),
+    }
+
+
+def normalize_feedback_classification(value: Any) -> str:
+    normalized = str(value or "").lower().strip().replace("-", "_").replace(" ", "_")
+    if normalized == "tp":
+        return "true_positive"
+    if normalized == "fp":
+        return "false_positive"
+    if normalized in {"true_positive", "false_positive", "benign", "duplicate", "needs_review"}:
+        return normalized
+    return "needs_review"
+
+
+def feedback_summary(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    by_classification = Counter(normalize_feedback_classification(entry.get("classification")) for entry in entries)
+    by_action = Counter(str(entry.get("action") or "unknown").strip() or "unknown" for entry in entries)
+    alert_ids = {str(entry.get("alert_id") or "").strip() for entry in entries if str(entry.get("alert_id") or "").strip()}
+    reviewed = sum(by_classification[key] for key in ("true_positive", "false_positive", "benign", "duplicate"))
+    return {
+        "feedback_entry_count": len(entries),
+        "feedback_alert_count": len(alert_ids),
+        "feedback_reviewed_count": reviewed,
+        "feedback_needs_review_count": by_classification["needs_review"],
+        "feedback_by_classification": dict(sorted(by_classification.items())),
+        "feedback_by_action": dict(sorted(by_action.items())),
     }
 
 
@@ -376,6 +409,8 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
     events = [event for path in event_files for event in load_jsonl(path)]
     normal_events = [event for path in (normal_event_files or []) for event in load_jsonl(path)]
     truths = [truth for path in truth_files for truth in load_jsonl(path)]
+    feedback_files = iter_files(getattr(args, "alert_feedback", []) or [], (".ndjson", ".jsonl")) if getattr(args, "alert_feedback", None) else []
+    feedback_entries = load_optional_jsonl(feedback_files)
     window_ns = int(args.window_seconds * 1_000_000_000)
     graphs: list[dict[str, Any]] = []
     matched_event_indexes: set[int] = set()
@@ -431,8 +466,9 @@ def build_dataset(event_files: list[Path], truth_files: list[Path], args: argpar
         "label_summary": dict(counts),
         "split_summary": {key: dict(value) for key, value in sorted(split_counts.items())},
         "quality": quality_summary(events + normal_events, truths, matched_truth_count, fallback_truth_count),
+        "alert_feedback": feedback_summary(feedback_entries),
         "feature_schema_sha256": feature_schema["sha256"],
-        "source_files": [str(path) for path in event_files + (normal_event_files or []) + truth_files],
+        "source_files": [str(path) for path in event_files + (normal_event_files or []) + truth_files + feedback_files],
     }
     return graphs, {"manifest": manifest, "feature_schema": feature_schema}
 
@@ -448,6 +484,7 @@ def main() -> int:
     parser.add_argument("--events", nargs="+", required=True, help="NDJSON event files or directories")
     parser.add_argument("--normal-events", nargs="*", default=[], help="Benign NDJSON event files or directories used only as negative training windows")
     parser.add_argument("--ground-truth", nargs="+", required=True, help="Ground-truth JSONL files or directories")
+    parser.add_argument("--alert-feedback", nargs="*", default=[], help="Optional alert-feedback.ndjson files or directories for dataset provenance")
     parser.add_argument("--out-dir", default="build/ml-dataset")
     parser.add_argument("--dataset-version", default="dev")
     parser.add_argument("--window-seconds", type=float, default=300.0)

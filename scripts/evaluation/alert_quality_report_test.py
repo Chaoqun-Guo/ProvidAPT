@@ -48,6 +48,51 @@ class AlertQualityReportTest(unittest.TestCase):
         self.assertEqual(report["total_alerts"], 1)
         self.assertEqual(report["true_positive"], 1)
 
+    def test_feedback_ledger_overrides_alert_classification(self):
+        alerts = self.tmp / "alerts.ndjson"
+        feedback = self.tmp / "alert-feedback.ndjson"
+        alerts.write_text(
+            json.dumps({"id": "a1", "pattern": "curl-egress", "details": {"classification": "needs_review"}})
+            + "\n"
+            + json.dumps({"id": "a2", "pattern": "backup-shell"})
+            + "\n",
+            encoding="utf-8",
+        )
+        feedback.write_text(
+            json.dumps({
+                "schema": "providapt.alert_feedback.v1",
+                "alert_id": "a1",
+                "action": "annotate",
+                "classification": "true_positive",
+                "actor": "soc",
+                "created_at": "2026-07-28T00:00:00Z",
+            })
+            + "\n"
+            + json.dumps({
+                "schema": "providapt.alert_feedback.v1",
+                "alert_id": "missing",
+                "action": "annotate",
+                "classification": "false_positive",
+                "created_at": "2026-07-28T00:01:00Z",
+            })
+            + "\n",
+            encoding="utf-8",
+        )
+
+        report = quality.build_report(
+            quality.load_alerts([alerts]),
+            [alerts],
+            quality.load_feedback([feedback]),
+            [feedback],
+        )
+
+        self.assertEqual(report["total_alerts"], 2)
+        self.assertEqual(report["true_positive"], 1)
+        self.assertEqual(report["reviewed_alerts"], 1)
+        self.assertEqual(report["feedback"]["feedback_entries"], 2)
+        self.assertEqual(report["feedback"]["feedback_matched_alerts"], 1)
+        self.assertEqual(report["feedback"]["feedback_unmatched_alerts"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

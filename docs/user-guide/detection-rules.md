@@ -207,7 +207,10 @@ curl "http://<server>:18080/api/v1/control/alerts/feedback?format=csv" \
 Generate an offline quality report from active or archived alert workflow files:
 
 ```bash
-make alert-quality ALERTS=/var/log/providapt OUT_DIR=build/evaluation
+make alert-quality \
+  ALERTS=/var/log/providapt \
+  ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson \
+  OUT_DIR=build/evaluation
 ```
 
 The report writes `alert-quality.json` and `alert-quality.md` with review

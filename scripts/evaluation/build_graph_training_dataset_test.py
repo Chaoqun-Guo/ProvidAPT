@@ -14,6 +14,7 @@ class BuildGraphTrainingDatasetTest(unittest.TestCase):
         root.mkdir(parents=True, exist_ok=True)
         events = root / "events.ndjson"
         truth = root / "ground_truth.jsonl"
+        feedback = root / "alert-feedback.ndjson"
         event_rows = [
             {"Type": 2, "TimestampNS": 1_000_000_000, "PID": 10, "PPID": 1, "UID": 0, "Comm": "bash", "Pathname": "/bin/bash"},
             {"type": "net_connect", "timestamp_ns": 2_000_000_000, "process": {"pid": 11, "uid": 0, "comm": "curl"}, "payload": {"daddr": "127.0.0.1", "dport": 1}, "enrich": {"cmdline": "curl http://127.0.0.1:1/beacon", "cmdline_source": "procfs", "cwd": "/tmp", "exe_path": "/usr/bin/curl"}},
@@ -35,12 +36,24 @@ class BuildGraphTrainingDatasetTest(unittest.TestCase):
         ]
         events.write_text("\n".join(json.dumps(row) for row in event_rows) + "\n", encoding="utf-8")
         truth.write_text("\n".join(json.dumps(row) for row in truth_rows) + "\n", encoding="utf-8")
+        feedback.write_text(
+            json.dumps({
+                "schema": "providapt.alert_feedback.v1",
+                "alert_id": "alert-1",
+                "action": "annotate",
+                "classification": "true_positive",
+                "created_at": "2026-07-28T00:00:00Z",
+            })
+            + "\n",
+            encoding="utf-8",
+        )
         args = argparse.Namespace(
             window_seconds=5.0,
             negative_ratio=1.0,
             normal_window_events=2,
             split_seed="test",
             dataset_version="test",
+            alert_feedback=[str(feedback)],
         )
 
         graphs, metadata = subject.build_dataset([events], [truth], args)
@@ -51,6 +64,8 @@ class BuildGraphTrainingDatasetTest(unittest.TestCase):
         self.assertIn("feature_schema_sha256", metadata["manifest"])
         self.assertEqual(metadata["manifest"]["quality"]["truth_matched_count"], 1)
         self.assertEqual(metadata["manifest"]["quality"]["truth_fallback_count"], 0)
+        self.assertEqual(metadata["manifest"]["alert_feedback"]["feedback_entry_count"], 1)
+        self.assertEqual(metadata["manifest"]["alert_feedback"]["feedback_by_classification"]["true_positive"], 1)
         self.assertGreater(metadata["manifest"]["quality"]["cmdline_present_percent"], 0)
         malicious = [graph for graph in graphs if graph["label"] == 1][0]
         self.assertIn("TA0011", malicious["tactics"])

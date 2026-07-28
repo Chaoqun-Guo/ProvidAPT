@@ -384,8 +384,8 @@ export-ground-truth:
 	python3 scripts/evaluation/export_ground_truth_dataset.py "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/evaluation-dataset)" $(if $(CORRELATION_JSON),--correlation-json "$(CORRELATION_JSON)") $(if $(DATASET_VERSION),--dataset-version "$(DATASET_VERSION)")
 
 graph-dataset:
-	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make graph-dataset EVENTS=/var/log/providapt GROUND_TRUTH=/var/log/providapt/ground-truth [OUT_DIR=build/ml-dataset]'; exit 2; fi
-	python3 scripts/evaluation/build_graph_training_dataset.py --events "$(EVENTS)" $(if $(NORMAL_EVENTS),--normal-events "$(NORMAL_EVENTS)") --ground-truth "$(GROUND_TRUTH)" --out-dir "$(or $(OUT_DIR),build/ml-dataset)" --dataset-version "$(or $(DATASET_VERSION),dev)" --window-seconds "$(or $(WINDOW_SECONDS),300)" --negative-ratio "$(or $(NEGATIVE_RATIO),1)" --normal-window-events "$(or $(NORMAL_WINDOW_EVENTS),64)"
+	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make graph-dataset EVENTS=/var/log/providapt GROUND_TRUTH=/var/log/providapt/ground-truth [ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson] [OUT_DIR=build/ml-dataset]'; exit 2; fi
+	python3 scripts/evaluation/build_graph_training_dataset.py --events "$(EVENTS)" $(if $(NORMAL_EVENTS),--normal-events "$(NORMAL_EVENTS)") --ground-truth "$(GROUND_TRUTH)" $(if $(ALERT_FEEDBACK),--alert-feedback "$(ALERT_FEEDBACK)") --out-dir "$(or $(OUT_DIR),build/ml-dataset)" --dataset-version "$(or $(DATASET_VERSION),dev)" --window-seconds "$(or $(WINDOW_SECONDS),300)" --negative-ratio "$(or $(NEGATIVE_RATIO),1)" --normal-window-events "$(or $(NORMAL_WINDOW_EVENTS),64)"
 
 graph-augment:
 	@if [ -z "$(GRAPH_DATASET)" ]; then echo 'usage: make graph-augment GRAPH_DATASET=build/ml-dataset/graphs.jsonl [OUT_DIR=build/ml-dataset-large] [RECORDS=200000]'; exit 2; fi
@@ -396,7 +396,7 @@ graph-train:
 
 ml-training-pipeline:
 	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make ml-training-pipeline EVENTS=... GROUND_TRUTH=... MODEL_VERSION=... [MODEL_NAME=graph-detector]'; exit 2; fi
-	$(MAKE) graph-dataset EVENTS="$(EVENTS)" GROUND_TRUTH="$(GROUND_TRUTH)" OUT_DIR="$(or $(DATASET_OUT_DIR),build/ml-dataset)" DATASET_VERSION="$(or $(DATASET_VERSION),$(MODEL_VERSION))"
+	$(MAKE) graph-dataset EVENTS="$(EVENTS)" GROUND_TRUTH="$(GROUND_TRUTH)" $(if $(ALERT_FEEDBACK),ALERT_FEEDBACK="$(ALERT_FEEDBACK)") OUT_DIR="$(or $(DATASET_OUT_DIR),build/ml-dataset)" DATASET_VERSION="$(or $(DATASET_VERSION),$(MODEL_VERSION))"
 	$(MAKE) graph-train GRAPH_DATASET="$(or $(DATASET_OUT_DIR),build/ml-dataset)/graphs.jsonl" OUT_DIR="$(or $(MODEL_OUT_DIR),build/ml-model)" ARCH="$(or $(ARCH),gcn)" EPOCHS="$(or $(EPOCHS),20)"
 	$(MAKE) model-register DATASET_MANIFEST="$(or $(DATASET_OUT_DIR),build/ml-dataset)/manifest.json" MODEL_NAME="$(or $(MODEL_NAME),graph-detector)" MODEL_VERSION="$(MODEL_VERSION)" MODEL_METRICS="$(or $(MODEL_OUT_DIR),build/ml-model)/metrics.json" MODEL_ARTIFACT="$(or $(MODEL_OUT_DIR),build/ml-model)/model.pt" FEATURE_SCHEMA="$(or $(DATASET_OUT_DIR),build/ml-dataset)/feature_schema.json" MODEL_REGISTRY="$(or $(MODEL_REGISTRY),build/model-registry.json)" NOTES="Graph detector training pipeline"
 
@@ -405,8 +405,8 @@ ml-readiness-gate:
 	python3 scripts/evaluation/ml-readiness-gate.py --dataset-manifest "$(DATASET_MANIFEST)" --metrics "$(MODEL_METRICS)" $(if $(MODEL_GATE),--model-gate "$(MODEL_GATE)") $(if $(EVENTS),--events "$(EVENTS)") $(if $(NORMAL_EVENTS),--normal-events "$(NORMAL_EVENTS)") $(if $(GROUND_TRUTH),--ground-truth "$(GROUND_TRUTH)") --window-seconds "$(or $(WINDOW_SECONDS),300)" --min-graphs "$(or $(MIN_GRAPHS),1000)" --min-source-events "$(or $(MIN_SOURCE_EVENTS),10000)" --min-malicious-graphs "$(or $(MIN_MALICIOUS_GRAPHS),100)" --min-benign-graphs "$(or $(MIN_BENIGN_GRAPHS),100)" --min-truth-match-rate "$(or $(MIN_TRUTH_MATCH_RATE),80)" --min-cmdline-rate "$(or $(MIN_CMDLINE_RATE),10)" --min-path-rate "$(or $(MIN_PATH_RATE),10)" --min-precision "$(or $(MIN_PRECISION),70)" --min-recall "$(or $(MIN_RECALL),80)" --min-f1 "$(or $(MIN_F1),70)" --min-test-support "$(or $(MIN_TEST_SUPPORT),100)" --out-json "$(or $(OUT_DIR),build/ml-readiness)/ml-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/ml-readiness)/ml-readiness-gate.md"
 
 alert-quality:
-	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [OUT_DIR=build/evaluation]'; exit 2; fi
-	python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md"
+	@if [ -z "$(ALERTS)" ]; then echo 'usage: make alert-quality ALERTS=/var/log/providapt/alerts.ndjson [ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson] [OUT_DIR=build/evaluation]'; exit 2; fi
+	python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" $(if $(ALERT_FEEDBACK),--feedback "$(ALERT_FEEDBACK)") --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md"
 
 detection-quality:
 	@if [ -z "$(COVERAGE_JSON)" ] || [ -z "$(ALERT_QUALITY_JSON)" ]; then echo 'usage: make detection-quality COVERAGE_JSON=build/evaluation-dataset/coverage.json ALERT_QUALITY_JSON=build/evaluation/alert-quality.json [OUT_DIR=build/evaluation]'; exit 2; fi

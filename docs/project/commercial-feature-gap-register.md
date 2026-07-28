@@ -59,7 +59,7 @@ Current closure progress:
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
-- Alert workflow feedback is persisted to an append-only `alert-feedback.ndjson` ledger, merged back into dashboard alert views after restart, and exported through `/api/v1/control/alerts/feedback`.
+- Alert workflow feedback is persisted to an append-only `alert-feedback.ndjson` ledger, merged back into dashboard alert views after restart, exported through `/api/v1/control/alerts/feedback`, consumed by `make alert-quality ALERT_FEEDBACK=...`, and recorded in graph dataset manifests through `make graph-dataset ALERT_FEEDBACK=...`.
 
 ## Enterprise Integration
 
