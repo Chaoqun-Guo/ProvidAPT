@@ -14,7 +14,7 @@ SPEC.loader.exec_module(subject)
 
 class GitHubActionsEvidenceTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / "build" / "unit-tmp" / "github-actions-evidence"
+        self.tmp = Path.cwd() / ".tmp-github-actions-evidence-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir(parents=True)

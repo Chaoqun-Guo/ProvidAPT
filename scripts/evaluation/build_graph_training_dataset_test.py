@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import unittest
 from pathlib import Path
 
@@ -9,12 +10,20 @@ from scripts.evaluation import build_graph_training_dataset as subject
 
 
 class BuildGraphTrainingDatasetTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path.cwd() / ".tmp-graph-dataset-test"
+        if self.tmp.exists():
+            shutil.rmtree(self.tmp)
+        self.tmp.mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        if self.tmp.exists():
+            shutil.rmtree(self.tmp)
+
     def test_builds_labeled_graphs_from_events_and_truth(self) -> None:
-        root = Path.cwd() / "build" / "unit-tmp" / "graph-dataset"
-        root.mkdir(parents=True, exist_ok=True)
-        events = root / "events.ndjson"
-        truth = root / "ground_truth.jsonl"
-        feedback = root / "alert-feedback.ndjson"
+        events = self.tmp / "events.ndjson"
+        truth = self.tmp / "ground_truth.jsonl"
+        feedback = self.tmp / "alert-feedback.ndjson"
         event_rows = [
             {"Type": 2, "TimestampNS": 1_000_000_000, "PID": 10, "PPID": 1, "UID": 0, "Comm": "bash", "Pathname": "/bin/bash"},
             {"type": "net_connect", "timestamp_ns": 2_000_000_000, "process": {"pid": 11, "uid": 0, "comm": "curl"}, "payload": {"daddr": "127.0.0.1", "dport": 1}, "enrich": {"cmdline": "curl http://127.0.0.1:1/beacon", "cmdline_source": "procfs", "cwd": "/tmp", "exe_path": "/usr/bin/curl"}},

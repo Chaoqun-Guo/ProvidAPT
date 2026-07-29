@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import unittest
 from pathlib import Path
 
@@ -8,10 +9,18 @@ from scripts.evaluation import train_graph_detector as subject
 
 
 class TrainGraphDetectorTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path.cwd() / ".tmp-graph-train-test"
+        if self.tmp.exists():
+            shutil.rmtree(self.tmp)
+        self.tmp.mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        if self.tmp.exists():
+            shutil.rmtree(self.tmp)
+
     def test_loads_graphs_and_splits_fallbacks(self) -> None:
-        root = Path.cwd() / "build" / "unit-tmp" / "graph-train"
-        root.mkdir(parents=True, exist_ok=True)
-        path = root / "graphs.jsonl"
+        path = self.tmp / "graphs.jsonl"
         rows = [
             {"graph_id": "g1", "split": "train", "label": 0, "nodes": [{"id": "process:1", "features": [1, 0, 0, 0, 0, 0, 1, 1]}], "edges": []},
             {"graph_id": "g2", "split": "test", "label": 1, "nodes": [{"id": "process:2", "features": [1, 0, 0, 0, 0, 0, 1, 1]}], "edges": []},

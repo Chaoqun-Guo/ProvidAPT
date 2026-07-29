@@ -15,7 +15,7 @@ SPEC.loader.exec_module(subject)
 
 class CustomerReleaseGateTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / "build" / "unit-tmp" / "customer-release-gate"
+        self.tmp = Path.cwd() / ".tmp-customer-release-gate-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir(parents=True)

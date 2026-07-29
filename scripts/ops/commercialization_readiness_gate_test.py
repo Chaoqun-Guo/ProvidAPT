@@ -15,7 +15,7 @@ SPEC.loader.exec_module(subject)
 
 class CommercializationReadinessGateTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / "build" / "unit-tmp" / "commercialization-readiness-gate"
+        self.tmp = Path.cwd() / ".tmp-commercialization-readiness-gate-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir(parents=True)
