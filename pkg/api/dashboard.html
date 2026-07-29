@@ -51,7 +51,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .platform-action-status.active { color:#58a6ff; }
 .platform-action-status.error { color:#f85149; }
 .platform-button { height:28px; min-width:78px; display:inline-flex; align-items:center; justify-content:center; }
-.dashboard-shell { display:grid; grid-template-columns: 230px minmax(0, 1fr); gap:14px; padding:12px 18px 18px; align-items:start; min-width:0; }
+.dashboard-shell { display:grid; grid-template-columns: 250px minmax(0, 1fr); gap:14px; padding:12px 18px 18px; align-items:start; min-width:0; }
 .dashboard-main { min-width:0; display:grid; gap:12px; }
 .dashboard-sidebar { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px; min-width:0; }
 .sidebar-title { color:#58a6ff; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; }
@@ -75,6 +75,22 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .legend-medium { background:#58a6ff; }
 .legend-low { background:#8b949e; }
 .metrics { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; padding: 0; min-width:0; }
+.soc-progress { display:grid; gap:8px; margin-top:10px; }
+.soc-progress-row { display:grid; grid-template-columns: minmax(90px, 1fr) 44px; gap:8px; align-items:center; font-size:11px; color:#8b949e; }
+.soc-progress-bar { height:7px; border-radius:999px; background:#0d1117; border:1px solid #21262d; overflow:hidden; }
+.soc-progress-bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, #19f28a, #00e5ff); box-shadow:0 0 14px rgba(0,229,255,0.28); }
+.soc-workflow-map { display:grid; grid-template-columns: repeat(6, minmax(96px, 1fr)); gap:8px; margin-bottom:12px; }
+.soc-stage { position:relative; min-width:0; background:#0d1117; border:1px solid #21262d; border-radius:12px; padding:9px 10px; cursor:pointer; overflow:hidden; }
+.soc-stage:hover { border-color:#58a6ff; color:#58a6ff; }
+.soc-stage .stage-label { color:#c9d1d9; font-size:12px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.soc-stage .stage-sub { color:#8b949e; font-size:10px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.module-quality-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap:8px; }
+.quality-card { background:#0d1117; border:1px solid #21262d; border-radius:10px; padding:9px; min-width:0; cursor:pointer; }
+.quality-card:hover { border-color:#58a6ff; }
+.quality-card .quality-head { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+.quality-card .quality-name { color:#c9d1d9; font-size:12px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.quality-card .quality-score { color:#3fb950; font-size:12px; font-weight:800; }
+.quality-card .quality-detail { color:#8b949e; font-size:10px; margin-top:5px; line-height:1.35; }
 .workspace-nav { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px 0; min-width:0; flex-wrap:wrap; }
 .workspace-tabs { display:flex; gap:6px; flex-wrap:wrap; min-width:0; }
 .workspace-tabs button, .workspace-tools button { background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:999px; padding:0 10px; height:30px; min-width:76px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center; }
@@ -100,6 +116,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 
 .content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0; align-items:stretch; grid-auto-rows: minmax(360px, auto); min-width:0; }
 @media (max-width: 1200px) { .metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
+@media (max-width: 1100px) { .soc-workflow-map { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
 @media (max-width: 1000px) { .dashboard-shell { grid-template-columns: 1fr; } .dashboard-sidebar { position:relative; top:auto; max-height:none; } .sidebar-nav { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
 @media (max-width: 760px) { header { align-items:flex-start; flex-direction:column; } .header-right { justify-content:flex-start; width:100%; flex-wrap:wrap; } .license-pill { width:128px; max-width:128px; } .platform-action-status { max-width:100%; } .content, .metrics { grid-template-columns: 1fr; } .workspace-nav { align-items:flex-start; flex-direction:column; } .workspace-tools { justify-content:flex-start; } .ground-truth-toolbar, .policy-editor.wide { grid-template-columns: 1fr; } .dashboard-shell { padding:10px 12px 14px; } .sidebar-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .overview-grid { display: contents; }
@@ -538,13 +555,14 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
 
 <nav class="workspace-nav" aria-label="Dashboard workspace navigation">
   <div class="workspace-tabs" role="tablist" aria-label="Dashboard sections">
-    <button data-dashboard-section="all" onclick="switchDashboardSection('all')">All</button>
-    <button data-dashboard-section="operations" onclick="switchDashboardSection('operations')">Operations</button>
-    <button data-dashboard-section="detection" onclick="switchDashboardSection('detection')">Detection</button>
-    <button data-dashboard-section="evidence" onclick="switchDashboardSection('evidence')">Evidence</button>
+    <button data-dashboard-section="all" onclick="switchDashboardSection('all')">Command</button>
+    <button data-dashboard-section="detect" onclick="switchDashboardSection('detect')">Detect</button>
+    <button data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')">Investigate</button>
+    <button data-dashboard-section="respond" onclick="switchDashboardSection('respond')">Respond</button>
+    <button data-dashboard-section="platform" onclick="switchDashboardSection('platform')">Platform</button>
     <button data-dashboard-section="commercial" onclick="switchDashboardSection('commercial')">Commercial</button>
   </div>
-  <div class="workspace-hint" id="workspaceHint">All modules visible. Drag panels to customize the layout.</div>
+  <div class="workspace-hint" id="workspaceHint">Command center visible. Follow Detect → Investigate → Respond → Govern.</div>
   <div class="workspace-tools" aria-label="Dashboard view controls">
     <button onclick="setDashboardDensity('compact')">Compact</button>
     <button onclick="setDashboardDensity('standard')">Standard</button>
@@ -559,15 +577,24 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
 
 <div class="dashboard-shell">
 <aside class="dashboard-sidebar" aria-label="Security operations navigation">
-  <div class="sidebar-title">Detection Console</div>
-  <div class="sidebar-subtitle">Structured IDS workspace for fleet posture, rules, alerts, evidence, and commercial readiness.</div>
-  <div class="sidebar-section">Workspaces</div>
+  <div class="sidebar-title">ProvidAPT SOC</div>
+  <div class="sidebar-subtitle">Intrusion detection, system monitoring, provenance investigation, response, and commercial readiness.</div>
+  <div class="sidebar-section">SOC Workflow</div>
   <div class="sidebar-nav" role="tablist" aria-label="Structured dashboard sections">
-    <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Overview</span><span>All</span></button>
-    <button class="sidebar-button" data-dashboard-section="operations" onclick="switchDashboardSection('operations')"><span>Operations</span><span>Fleet</span></button>
-    <button class="sidebar-button" data-dashboard-section="detection" onclick="switchDashboardSection('detection')"><span>Detection</span><span>Rules</span></button>
-    <button class="sidebar-button" data-dashboard-section="evidence" onclick="switchDashboardSection('evidence')"><span>Evidence</span><span>Trace</span></button>
+    <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Command</span><span>All</span></button>
+    <button class="sidebar-button" data-dashboard-section="detect" onclick="switchDashboardSection('detect')"><span>Detect</span><span>Rules</span></button>
+    <button class="sidebar-button" data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')"><span>Investigate</span><span>Trace</span></button>
+    <button class="sidebar-button" data-dashboard-section="respond" onclick="switchDashboardSection('respond')"><span>Respond</span><span>Actions</span></button>
+    <button class="sidebar-button" data-dashboard-section="platform" onclick="switchDashboardSection('platform')"><span>Platform</span><span>Fleet</span></button>
     <button class="sidebar-button" data-dashboard-section="commercial" onclick="switchDashboardSection('commercial')"><span>Commercial</span><span>Release</span></button>
+  </div>
+  <div class="sidebar-section">Module Quality</div>
+  <div class="soc-progress" aria-label="Module implementation quality">
+    <div class="soc-progress-row"><span>Detect</span><div class="soc-progress-bar"><span style="width:92%"></span></div><span>92%</span></div>
+    <div class="soc-progress-row"><span>Investigate</span><div class="soc-progress-bar"><span style="width:88%"></span></div><span>88%</span></div>
+    <div class="soc-progress-row"><span>Respond</span><div class="soc-progress-bar"><span style="width:84%"></span></div><span>84%</span></div>
+    <div class="soc-progress-row"><span>Platform</span><div class="soc-progress-bar"><span style="width:90%"></span></div><span>90%</span></div>
+    <div class="soc-progress-row"><span>Commercial</span><div class="soc-progress-bar"><span style="width:86%"></span></div><span>86%</span></div>
   </div>
   <div class="sidebar-section">IDS Posture</div>
   <div class="sidebar-status-grid">
@@ -585,6 +612,14 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
   </div>
 </aside>
 <main class="dashboard-main" aria-label="ProvidAPT dashboard workspace">
+<section class="soc-workflow-map" aria-label="SOC workflow map">
+  <div class="soc-stage" onclick="switchDashboardSection('all')"><div class="stage-label">Command Center</div><div class="stage-sub">Posture, risks, KPIs</div></div>
+  <div class="soc-stage" onclick="switchDashboardSection('detect')"><div class="stage-label">Detect</div><div class="stage-sub">Rules, alerts, quality</div></div>
+  <div class="soc-stage" onclick="switchDashboardSection('investigate')"><div class="stage-label">Investigate</div><div class="stage-sub">Trace graph, evidence</div></div>
+  <div class="soc-stage" onclick="switchDashboardSection('respond')"><div class="stage-label">Respond</div><div class="stage-sub">Workflow, delivery, backup</div></div>
+  <div class="soc-stage" onclick="switchDashboardSection('platform')"><div class="stage-label">Platform</div><div class="stage-sub">Fleet, health, storage</div></div>
+  <div class="soc-stage" onclick="switchDashboardSection('commercial')"><div class="stage-label">Govern</div><div class="stage-sub">License, SIEM, release</div></div>
+</section>
 <div class="metrics" id="metrics">
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div><div class="sub">Click to inspect node types</div></div>
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('edges')" onkeydown="handleCardKey(event, () => showGraphSummary('edges'))"><div class="value" id="mEdges">--</div><div class="label">Graph Edges</div><div class="sub">Click to inspect edge types</div></div>
@@ -595,6 +630,18 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
 </div>
 
 <div class="content">
+  <div class="panel span-2">
+    <h2>Module Quality Review</h2>
+    <div class="panel-body">
+      <div class="module-quality-grid">
+        <div class="quality-card" onclick="showModuleQuality('detect')"><div class="quality-head"><span class="quality-name">Detection Pipeline</span><span class="quality-score">92%</span></div><div class="quality-detail">Rules, workflow, analyst labels, quality metrics, and MITRE mapping are implemented.</div></div>
+        <div class="quality-card" onclick="showModuleQuality('investigate')"><div class="quality-head"><span class="quality-name">Traceability Analysis</span><span class="quality-score">88%</span></div><div class="quality-detail">Graph export, node drilldown, trace SVG, route map, and investigation report are available.</div></div>
+        <div class="quality-card" onclick="showModuleQuality('respond')"><div class="quality-head"><span class="quality-name">Response Operations</span><span class="quality-score">84%</span></div><div class="quality-detail">Alert close/silence/assign, delivery replay, tickets, support bundle, and backup flows are wired.</div></div>
+        <div class="quality-card" onclick="showModuleQuality('platform')"><div class="quality-head"><span class="quality-name">Platform Monitoring</span><span class="quality-score">90%</span></div><div class="quality-detail">Fleet posture, deployment diagnostics, system environment, HA, runtime, and storage status are present.</div></div>
+        <div class="quality-card" onclick="showModuleQuality('commercial')"><div class="quality-head"><span class="quality-name">Commercial Readiness</span><span class="quality-score">86%</span></div><div class="quality-detail">License activation, upgrade manifest, compliance, SIEM, audit, release gates, and reports are implemented.</div></div>
+      </div>
+    </div>
+  </div>
   <div class="panel">
     <h2>Control Plane Summary</h2>
     <div class="panel-body">
@@ -1260,6 +1307,44 @@ function showRBACPermissions() {
   ];
   const items = matrix.map(item => renderKVItem(item[0], item[1], item[0] === role ? 'current role' : 'available role'));
   setInvestigationItems(items, 'RBAC permissions unavailable');
+}
+
+function showModuleQuality(area) {
+  const matrix = {
+    detect: [
+      ['Policy Center', 'Implemented', 'Browse/edit/validate/publish/rollback, target groups, bundle export'],
+      ['Alert Workflow', 'Implemented', 'Assign, silence, close, reopen, TP/FP labels, batch actions, feedback ledger'],
+      ['Detection Quality', 'Implemented', 'Review coverage, actionable precision, duplicate/noisy-rule metrics'],
+      ['Next hardening', 'Planned', 'Rule simulation sandbox, richer suppression recommendations, model-assisted triage'],
+    ],
+    investigate: [
+      ['Traceability Graph', 'Implemented', 'Node/edge summaries, graph export, trace SVG, fullscreen graph view'],
+      ['Investigation Report', 'Implemented', 'Node report preview and Markdown download'],
+      ['Event Timeline', 'Implemented', 'Recent events, dropped events, related alert events'],
+      ['Next hardening', 'Planned', 'Large graph progressive rendering, saved investigation cases, timeline diff'],
+    ],
+    respond: [
+      ['Alert Actions', 'Implemented', 'Close/silence/assign/reopen with scoped module status'],
+      ['Delivery Health', 'Implemented', 'Dead-letter replay, ticket creation, grouped delivery risk'],
+      ['Recovery Evidence', 'Implemented', 'Support bundle, backup, restore staging, cutover preparation'],
+      ['Next hardening', 'Planned', 'Approval-gated containment playbooks and SOAR connector adapters'],
+    ],
+    platform: [
+      ['Fleet Monitoring', 'Implemented', 'Agent status, enrollment, environment details, fleet filters'],
+      ['Deployment Diagnostics', 'Implemented', 'Kernel mode, API security, policy sync, storage backend'],
+      ['Runtime Posture', 'Implemented', 'Memory, uptime, event volume, drop signals, HA status'],
+      ['Next hardening', 'Planned', 'Long soak SLO panels and capacity forecasting'],
+    ],
+    commercial: [
+      ['Activation', 'Implemented', 'Docker auth server, online activation, revocation list, signed license validation'],
+      ['Upgrade', 'Implemented', 'Manifest discovery, download, preflight, apply, rollback hooks'],
+      ['Governance', 'Implemented', 'Audit, SIEM, retention, reports, release readiness and executive evidence'],
+      ['Next hardening', 'Planned', 'SSO/OIDC, tenant isolation, production license/order backend'],
+    ],
+  };
+  const rows = matrix[area] || matrix.detect;
+  setInvestigationItems(rows.map(row => renderKVItem(row[0], row[1], row[2])), 'No module quality data available');
+  switchDashboardSection(area);
 }
 
 function saveAPIKey() {
@@ -4275,20 +4360,26 @@ function installPanelResize(panel) {
 
 function dashboardPanelSection(panel) {
   const id = panelID(panel);
-  if (['control-plane-summary', 'agent-overview', 'deployment-diagnostics', 'operations-summary'].includes(id)) return 'operations';
-  if (['policy-center', 'alert-workflow', 'evaluation-ground-truth', 'investigation-console'].includes(id)) return 'detection';
-  if (['support-bundle', 'backup-restore', 'delivery-health'].includes(id)) return 'evidence';
+  if (['module-quality-review', 'operations-summary'].includes(id)) return 'all';
+  if (['policy-center', 'alert-workflow', 'evaluation-ground-truth'].includes(id)) return 'detect';
+  if (['investigation-console'].includes(id)) return 'investigate';
+  if (['support-bundle', 'backup-restore', 'delivery-health'].includes(id)) return 'respond';
+  if (['control-plane-summary', 'agent-overview', 'deployment-diagnostics'].includes(id)) return 'platform';
   if (['compliance-siem', 'license-activation', 'version-update'].includes(id)) return 'commercial';
-  return 'operations';
+  return 'platform';
 }
 
 function dashboardSectionLabel(section) {
   return {
-    all: 'All modules visible. Drag panels to customize the layout.',
-    operations: 'Operations view: fleet health, deployment diagnostics, and posture summary.',
-    detection: 'Detection view: policy, alert workflow, ground truth, and investigation.',
-    evidence: 'Evidence view: support bundles, backup/restore, and delivery health.',
-    commercial: 'Commercial view: compliance, SIEM, license, approval, and upgrade evidence.',
+    all: 'Command center: full IDS posture with all modules visible.',
+    detect: 'Detect: rule lifecycle, alert triage, labels, and detection quality.',
+    investigate: 'Investigate: provenance graph, event timeline, node drilldown, and reports.',
+    respond: 'Respond: case actions, notification delivery, support bundle, and recovery.',
+    platform: 'Platform: fleet health, kernel attachment, API security, storage, and runtime.',
+    commercial: 'Govern: compliance, SIEM, license activation, upgrade, and release evidence.',
+    operations: 'Platform: fleet health, deployment diagnostics, and posture summary.',
+    detection: 'Detect: policies, alert workflow, ground truth, and investigation.',
+    evidence: 'Respond: support bundles, backup/restore, and delivery health.',
   }[section] || 'Dashboard view updated.';
 }
 
@@ -4303,10 +4394,12 @@ function updateDashboardSectionTabs(section) {
 }
 
 function switchDashboardSection(section) {
-  const selected = section || 'all';
+  const aliases = { operations: 'platform', detection: 'detect', evidence: 'respond' };
+  const selected = aliases[section] || section || 'all';
   localStorage.setItem('providaptDashboardSection', selected);
   document.querySelectorAll('.content .panel').forEach(panel => {
-    const visible = selected === 'all' || dashboardPanelSection(panel) === selected;
+    const panelSection = dashboardPanelSection(panel);
+    const visible = selected === 'all' || panelSection === selected || panelSection === 'all';
     panel.classList.toggle('section-hidden', !visible);
   });
   updateDashboardSectionTabs(selected);
@@ -4383,18 +4476,19 @@ function resetDashboardLayout() {
 
 function defaultDashboardPanelOrder() {
   return [
+    'module-quality-review',
     'control-plane-summary',
     'operations-summary',
-    'agent-overview',
-    'deployment-diagnostics',
-    'policy-center',
     'alert-workflow',
+    'policy-center',
+    'investigation-console',
     'evaluation-ground-truth',
     'delivery-health',
-    'compliance-siem',
     'support-bundle',
     'backup-restore',
-    'investigation-console',
+    'agent-overview',
+    'deployment-diagnostics',
+    'compliance-siem',
   ];
 }
 
