@@ -48,6 +48,20 @@ auth_permissions = { operator = ["*"] }
         self.assertTrue(any("auth_enabled" in item for item in report["failures"]))
         self.assertTrue(any("wildcard" in item for item in report["failures"]))
 
+    def test_reports_operator_multi_tenant_scope(self):
+        config = rbac.load_toml(self.write_config("""
+[api]
+auth_enabled = true
+auth_keys = ["operator-key"]
+auth_roles = { "operator-key" = "operator" }
+auth_identities = { "operator-key" = "managed-ops" }
+auth_tenants = { "operator-key" = "prod, staging" }
+"""))
+        report = rbac.audit_config(config, self.tmp / "providapt.toml")
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["tenant_count"], 2)
+        self.assertEqual(report["tenant_scopes"]["operator-key"], ["prod", "staging"])
+
     def write_config(self, text):
         path = self.tmp / "providapt.toml"
         path.write_text(text.strip() + "\n", encoding="utf-8")

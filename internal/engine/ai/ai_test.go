@@ -4,8 +4,12 @@
 package ai
 
 import (
+	"context"
+	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
@@ -172,6 +176,95 @@ func TestLLMClientAnalyseNoEndpoint(t *testing.T) {
 		t.Log("expected connection error (ollama not running)")
 	} else {
 		t.Logf("Expected error: %v", err)
+	}
+}
+
+type testProvider struct {
+	calls    *int32
+	lastSize *int32
+	fail     bool
+}
+
+func (p testProvider) Name() string { return "test-provider" }
+
+func (p testProvider) IsAvailable(endpoint string) bool {
+	_ = endpoint
+	return !p.fail
+}
+
+func (p testProvider) SendChat(ctx context.Context, endpoint, model, apiKey string, messages []chatMessage) (string, error) {
+	_ = ctx
+	_ = endpoint
+	_ = model
+	_ = apiKey
+	atomic.AddInt32(p.calls, 1)
+	total := 0
+	for _, msg := range messages {
+		total += len(msg.Content)
+	}
+	atomic.StoreInt32(p.lastSize, int32(total))
+	if p.fail {
+		return "", fmt.Errorf("synthetic provider failure")
+	}
+	return "ok", nil
+}
+
+func TestLLMClientRetriesLimitsPromptAndFallsBack(t *testing.T) {
+	var calls int32
+	var lastSize int32
+	providerName := "test-stability-fallback"
+	RegisterProvider(providerName, func() Provider {
+		return testProvider{calls: &calls, lastSize: &lastSize, fail: true}
+	})
+	client := NewLLMClient(&LLMConfig{
+		Provider:           providerName,
+		Endpoint:           "http://example.invalid",
+		Model:              "test",
+		Timeout:            time.Second,
+		MaxRetries:         2,
+		RetryBackoff:       time.Nanosecond,
+		MaxPromptBytes:     32,
+		FallbackWithoutLLM: true,
+	})
+
+	answer, err := client.Ask(strings.Repeat("x", 128), "what happened?")
+	if err != nil {
+		t.Fatalf("fallback should suppress provider error: %v", err)
+	}
+	if !strings.Contains(answer, "deterministic fallback") {
+		t.Fatalf("fallback answer = %q", answer)
+	}
+	if atomic.LoadInt32(&calls) != 3 {
+		t.Fatalf("calls = %d, want 3", calls)
+	}
+	if atomic.LoadInt32(&lastSize) > 64 {
+		t.Fatalf("prompt was not bounded, size=%d", lastSize)
+	}
+}
+
+func TestLLMClientCircuitBreakerReturnsFallback(t *testing.T) {
+	var calls int32
+	var lastSize int32
+	providerName := "test-stability-circuit"
+	RegisterProvider(providerName, func() Provider {
+		return testProvider{calls: &calls, lastSize: &lastSize, fail: true}
+	})
+	client := NewLLMClient(&LLMConfig{
+		Provider:                providerName,
+		Endpoint:                "http://example.invalid",
+		Model:                   "test",
+		Timeout:                 time.Second,
+		MaxRetries:              0,
+		RetryBackoff:            time.Nanosecond,
+		CircuitBreakerThreshold: 1,
+		CircuitBreakerCooldown:  time.Minute,
+		FallbackWithoutLLM:      true,
+	})
+
+	_, _ = client.Analyse(`{"nodes":[]}`)
+	_, _ = client.Analyse(`{"nodes":[]}`)
+	if atomic.LoadInt32(&calls) != 1 {
+		t.Fatalf("open circuit should skip provider, calls=%d", calls)
 	}
 }
 

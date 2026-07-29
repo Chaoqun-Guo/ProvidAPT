@@ -369,6 +369,11 @@ func TestValidateAuthRoles(t *testing.T) {
 		t.Fatalf("validate: %v", err)
 	}
 
+	cfg.API.AuthRoles["operator-key"] = "operator"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("operator role should be built in: %v", err)
+	}
+
 	cfg.API.AuthRoles["bad-key"] = "owner"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected error for invalid role")
@@ -377,12 +382,42 @@ func TestValidateAuthRoles(t *testing.T) {
 
 func TestValidateCustomAuthRolePermissions(t *testing.T) {
 	cfg := DefaultConfig()
-	cfg.API.AuthRoles = map[string]string{"ops-key": "operator"}
+	cfg.API.AuthRoles = map[string]string{"ops-key": "responder"}
 	cfg.API.AuthPermissions = map[string][]string{
-		"operator": {"GET:/api/v1/control/fleet"},
+		"responder": {"GET:/api/v1/control/fleet"},
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate custom role: %v", err)
+	}
+}
+
+func TestAIStabilityEnvOverrides(t *testing.T) {
+	t.Setenv("PROVIDAPT_AI_PROVIDER", "openai")
+	t.Setenv("PROVIDAPT_AI_ENDPOINT", "https://llm.example/v1/chat/completions")
+	t.Setenv("PROVIDAPT_AI_MODEL", "security-model")
+	t.Setenv("PROVIDAPT_AI_TIMEOUT", "15s")
+	t.Setenv("PROVIDAPT_AI_MAX_RETRIES", "3")
+	t.Setenv("PROVIDAPT_AI_RETRY_BACKOFF", "500ms")
+	t.Setenv("PROVIDAPT_AI_CIRCUIT_BREAKER_THRESHOLD", "5")
+	t.Setenv("PROVIDAPT_AI_CIRCUIT_BREAKER_COOLDOWN", "2m")
+	t.Setenv("PROVIDAPT_AI_MAX_PROMPT_BYTES", "4096")
+	t.Setenv("PROVIDAPT_AI_FALLBACK_WITHOUT_LLM", "false")
+
+	cfg, err := Load(filepath.Join(t.TempDir(), "missing.toml"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.AI.Provider != "openai" || cfg.AI.Endpoint == "" || cfg.AI.Model != "security-model" {
+		t.Fatalf("AI identity overrides not applied: %+v", cfg.AI)
+	}
+	if cfg.AI.Timeout != "15s" || cfg.AI.MaxRetries != 3 || cfg.AI.RetryBackoff != "500ms" {
+		t.Fatalf("AI retry overrides not applied: %+v", cfg.AI)
+	}
+	if cfg.AI.CircuitBreakerThreshold != 5 || cfg.AI.CircuitBreakerCooldown != "2m" || cfg.AI.MaxPromptBytes != 4096 {
+		t.Fatalf("AI stability overrides not applied: %+v", cfg.AI)
+	}
+	if cfg.AI.FallbackWithoutLLM {
+		t.Fatalf("fallback override not applied: %+v", cfg.AI)
 	}
 }
 

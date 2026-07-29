@@ -256,6 +256,83 @@ func TestTenantScopedFleetAccess(t *testing.T) {
 	}
 }
 
+func TestMultiTenantScopedFleetAccess(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"tenant-key"},
+		map[string]string{"tenant-key": RoleOperator},
+		map[string]string{"tenant-key": "Managed Operator"},
+		true,
+	)
+	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod,staging"})
+	ts.SetFleetListFunc(func(group, tag string) FleetList {
+		return FleetList{
+			UpdatedAt: "2026-06-08T01:02:03Z",
+			Group:     group,
+			Tag:       tag,
+			Agents: []ClusterAgent{
+				{AgentID: "agent-prod", Group: "prod", Status: "HEALTHY"},
+				{AgentID: "agent-staging", Group: "staging", Status: "HEALTHY"},
+				{AgentID: "agent-dev", Group: "dev", Status: "DEGRADED"},
+			},
+		}
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet", nil)
+	req.Header.Set("X-API-Key", "tenant-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
+	}
+	var resp FleetList
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Agents) != 2 {
+		t.Fatalf("agents = %#v", resp.Agents)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet?group=dev", nil)
+	req.Header.Set("X-API-Key", "tenant-key")
+	w = apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("cross tenant status code = %d", w.Code)
+	}
+}
+
+func TestOperatorCanUpdateScopedFleetOnly(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(
+		[]string{"operator-key"},
+		map[string]string{"operator-key": RoleOperator},
+		map[string]string{"operator-key": "Managed Operator"},
+		true,
+	)
+	ts.SetAPIAuthTenants(map[string]string{"operator-key": "prod"})
+	var got FleetUpdate
+	ts.SetFleetUpdateFunc(func(update FleetUpdate) error {
+		got = update
+		return nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","action":"approved"}`))
+	req.Header.Set("X-API-Key", "operator-key")
+	w := apiServe(ts, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("scoped update status = %d: %s", w.Code, w.Body.String())
+	}
+	if got.Group != "prod" || got.Role != RoleOperator {
+		t.Fatalf("update scope = %#v", got)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","group":"dev"}`))
+	req.Header.Set("X-API-Key", "operator-key")
+	w = apiServe(ts, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("cross-tenant update status = %d", w.Code)
+	}
+}
+
 func TestFleetUpdateEndpoint(t *testing.T) {
 	ts := testServer(t)
 	var got FleetUpdate
@@ -377,9 +454,9 @@ func TestRBACAnalystForbiddenFleetUpdate(t *testing.T) {
 
 func TestRBACCustomRolePermissions(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth([]string{"ops-key"}, map[string]string{"ops-key": "operator"}, nil, true)
+	ts.SetAPIAuth([]string{"ops-key"}, map[string]string{"ops-key": "responder"}, nil, true)
 	ts.SetAPIAuthPermissions(map[string][]string{
-		"operator": {"GET:/api/v1/control/fleet", "GET:/api/v1/control/ha"},
+		"responder": {"GET:/api/v1/control/fleet", "GET:/api/v1/control/ha"},
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/ha", nil)

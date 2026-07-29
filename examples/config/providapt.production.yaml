@@ -36,10 +36,28 @@ api:
     - replace-with-customer-admin-api-key
   auth_roles:
     replace-with-customer-admin-api-key: admin
+    replace-with-mssp-operator-key: operator
+  auth_identities:
+    replace-with-customer-admin-api-key: customer-admin
+    replace-with-mssp-operator-key: managed-operator
+  auth_tenants:
+    replace-with-mssp-operator-key: prod,staging
   cors_origins:
     - https://soc.example.com
   rate_limit_per_sec: 20
   rate_limit_burst: 100
+
+ai:
+  provider: ollama
+  endpoint: http://localhost:11434/api/chat
+  model: llama3
+  timeout: 60s
+  max_retries: 1
+  retry_backoff: 250ms
+  circuit_breaker_threshold: 3
+  circuit_breaker_cooldown: 30s
+  max_prompt_bytes: 131072
+  fallback_without_llm: true
 
 tls:
   enable: true

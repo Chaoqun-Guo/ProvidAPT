@@ -23,9 +23,10 @@ const apiActorContextKey contextKey = "providapt_api_actor"
 const apiTenantContextKey contextKey = "providapt_api_tenant"
 
 const (
-	RoleAdmin   = "admin"
-	RoleAnalyst = "analyst"
-	RoleAuditor = "auditor"
+	RoleAdmin    = "admin"
+	RoleAnalyst  = "analyst"
+	RoleAuditor  = "auditor"
+	RoleOperator = "operator"
 )
 
 type trustedHeaderAuthConfig struct {
@@ -184,6 +185,8 @@ func normalizeRole(role string) string {
 	switch normalized {
 	case RoleAuditor:
 		return RoleAuditor
+	case RoleOperator:
+		return RoleOperator
 	case RoleAnalyst:
 		return RoleAnalyst
 	case "", RoleAdmin:
@@ -195,7 +198,7 @@ func normalizeRole(role string) string {
 
 func allowed(role, method, path string, rolePermissions map[string][]string) bool {
 	role = normalizeRole(role)
-	if role != RoleAdmin && role != RoleAnalyst && role != RoleAuditor {
+	if role != RoleAdmin && role != RoleAnalyst && role != RoleAuditor && role != RoleOperator {
 		return allowedByCustomPermissions(role, method, path, rolePermissions)
 	}
 	switch role {
@@ -242,6 +245,32 @@ func allowed(role, method, path string, rolePermissions map[string][]string) boo
 			return false
 		}
 		return true
+	case RoleOperator:
+		if method == http.MethodGet || method == http.MethodOptions {
+			if strings.HasPrefix(path, "/api/v1/control/backup/download") ||
+				strings.HasPrefix(path, "/api/v1/control/support/download") {
+				return false
+			}
+			return strings.HasPrefix(path, "/health") ||
+				strings.HasPrefix(path, "/ready") ||
+				strings.HasPrefix(path, "/api/v1/status") ||
+				strings.HasPrefix(path, "/api/v1/control/overview") ||
+				strings.HasPrefix(path, "/api/v1/control/ha") ||
+				strings.HasPrefix(path, "/api/v1/control/fleet") ||
+				strings.HasPrefix(path, "/api/v1/control/policies") ||
+				strings.HasPrefix(path, "/api/v1/control/alerts") ||
+				strings.HasPrefix(path, "/api/v1/control/deliveries") ||
+				strings.HasPrefix(path, "/api/v1/control/upgrade") ||
+				strings.HasPrefix(path, "/api/v1/investigation/report") ||
+				strings.HasPrefix(path, "/dashboard") ||
+				path == "/"
+		}
+		if method == http.MethodPost {
+			return strings.HasPrefix(path, "/api/v1/control/fleet") ||
+				strings.HasPrefix(path, "/api/v1/control/alerts") ||
+				strings.HasPrefix(path, "/api/v1/control/upgrade")
+		}
+		return false
 	case RoleAuditor:
 		if method != http.MethodGet && method != http.MethodOptions {
 			return false

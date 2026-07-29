@@ -31,6 +31,7 @@ curl -H "Authorization: Bearer admin-key" http://localhost:18080/api/v1/status
 | Role | Intended User | Access |
 | --- | --- | --- |
 | `admin` | platform administrator | full control-plane access |
+| `operator` | managed-service operator | scoped fleet, alert, upgrade, and read-only investigation operations |
 | `analyst` | SOC analyst | read-only graph, alert, fleet, policy, delivery, license, and upgrade views |
 | `auditor` | compliance reviewer | read-only audit, status, dashboard, and compliance evidence views |
 
@@ -60,7 +61,18 @@ Tenant-scoped API keys are restricted to the matching fleet group:
 "prod-analyst-key" = "prod"
 ```
 
-Non-admin requests to fleet, audit, and compliance views are filtered by tenant where supported.
+Use comma-separated values when one managed-service operator needs access to
+multiple tenant scopes:
+
+```toml
+[api.auth_tenants]
+"mssp-operator-key" = "prod,staging"
+```
+
+Non-admin requests to fleet, audit, and compliance views are filtered by tenant
+where supported. Scoped fleet writes must target a tenant in the key scope. If a
+key has multiple tenant scopes, write requests must include an explicit
+`group`.
 
 ## Trusted-Header SSO
 

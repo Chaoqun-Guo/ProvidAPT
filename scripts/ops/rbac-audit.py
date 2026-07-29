@@ -41,6 +41,7 @@ def audit_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
     failures: list[str] = []
     warnings: list[str] = []
     role_counts: dict[str, int] = {}
+    tenant_scopes: dict[str, list[str]] = {}
 
     if not bool(api.get("auth_enabled")):
         failures.append("api.auth_enabled must be true for production")
@@ -56,6 +57,8 @@ def audit_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
             failures.append(f"auth key {key} uses unknown role {role}")
         if role != "admin" and not auth_tenants.get(key):
             warnings.append(f"non-admin key {key} has no tenant scope")
+        if auth_tenants.get(key):
+            tenant_scopes[key] = split_scope(auth_tenants[key])
         if not auth_identities.get(key):
             warnings.append(f"auth key {key} has no operator identity")
     for key in auth_roles:
@@ -90,6 +93,8 @@ def audit_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
         "auth_enabled": bool(api.get("auth_enabled")),
         "key_count": len(auth_keys),
         "tenant_scoped_keys": len(auth_tenants),
+        "tenant_count": len({tenant for scope in tenant_scopes.values() for tenant in scope}),
+        "tenant_scopes": tenant_scopes,
         "custom_role_count": len(custom_permissions),
         "role_counts": role_counts,
         "trusted_header_sso": bool(sso.get("trusted_header_auth")),
@@ -107,6 +112,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- API auth enabled: `{report['auth_enabled']}`",
         f"- API keys: `{report['key_count']}`",
         f"- Tenant-scoped keys: `{report['tenant_scoped_keys']}`",
+        f"- Tenants: `{report.get('tenant_count', 0)}`",
         f"- Custom roles: `{report['custom_role_count']}`",
         f"- Trusted-header SSO: `{report['trusted_header_sso']}`",
         "",
@@ -125,7 +131,16 @@ def render_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append("- No roles configured")
     lines.append("")
+    if report.get("tenant_scopes"):
+        lines.extend(["## Tenant Scopes", ""])
+        for key, scope in sorted(report["tenant_scopes"].items()):
+            lines.append(f"- `{key}`: {', '.join(scope)}")
+        lines.append("")
     return "\n".join(lines)
+
+
+def split_scope(value: str) -> list[str]:
+    return [item.strip() for item in re.split(r"[,;]", value) if item.strip()]
 
 
 def main() -> int:

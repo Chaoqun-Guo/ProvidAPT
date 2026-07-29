@@ -18,6 +18,22 @@
         "cors_origins": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "ai": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "provider": { "type": "string", "enum": ["ollama", "openai"] },
+        "endpoint": { "type": "string" },
+        "model": { "type": "string" },
+        "timeout": { "type": "string", "examples": ["60s"] },
+        "max_retries": { "type": "integer", "minimum": 0 },
+        "retry_backoff": { "type": "string", "examples": ["250ms"] },
+        "circuit_breaker_threshold": { "type": "integer", "minimum": 0 },
+        "circuit_breaker_cooldown": { "type": "string", "examples": ["30s"] },
+        "max_prompt_bytes": { "type": "integer", "minimum": 0 },
+        "fallback_without_llm": { "type": "boolean" }
+      }
+    },
     "capture": {
       "type": "object",
       "additionalProperties": true,

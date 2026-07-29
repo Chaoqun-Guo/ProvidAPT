@@ -4,9 +4,11 @@
 package ai
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -37,26 +39,56 @@ type LLMConfig struct {
 
 	// Ollama specific: use streaming
 	Stream bool
+
+	// MaxRetries retries transient provider failures before returning an error.
+	MaxRetries int
+
+	// RetryBackoff is the base sleep between retries.
+	RetryBackoff time.Duration
+
+	// CircuitBreakerThreshold opens the circuit after consecutive failures.
+	CircuitBreakerThreshold int
+
+	// CircuitBreakerCooldown keeps the circuit open for this duration.
+	CircuitBreakerCooldown time.Duration
+
+	// MaxPromptBytes bounds prompt size sent to external LLM services.
+	MaxPromptBytes int
+
+	// FallbackWithoutLLM returns a deterministic local answer when the LLM fails.
+	FallbackWithoutLLM bool
 }
 
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() *LLMConfig {
 	return &LLMConfig{
-		Provider: "ollama",
-		Endpoint: "http://localhost:11434/api/chat",
-		Model:    "llama3",
-		Timeout:  60 * time.Second,
+		Provider:                "ollama",
+		Endpoint:                "http://localhost:11434/api/chat",
+		Model:                   "llama3",
+		Timeout:                 60 * time.Second,
+		MaxRetries:              1,
+		RetryBackoff:            250 * time.Millisecond,
+		CircuitBreakerThreshold: 3,
+		CircuitBreakerCooldown:  30 * time.Second,
+		MaxPromptBytes:          128 * 1024,
+		FallbackWithoutLLM:      true,
 	}
 }
 
 // DefaultOpenAIConfig returns config for OpenAI.
 func DefaultOpenAIConfig(apiKey string) *LLMConfig {
 	return &LLMConfig{
-		Provider: "openai",
-		Endpoint: "https://api.openai.com/v1/chat/completions",
-		APIKey:   apiKey,
-		Model:    "gpt-4",
-		Timeout:  60 * time.Second,
+		Provider:                "openai",
+		Endpoint:                "https://api.openai.com/v1/chat/completions",
+		APIKey:                  apiKey,
+		Model:                   "gpt-4",
+		Timeout:                 60 * time.Second,
+		MaxRetries:              1,
+		RetryBackoff:            250 * time.Millisecond,
+		CircuitBreakerThreshold: 3,
+		CircuitBreakerCooldown:  30 * time.Second,
+		MaxPromptBytes:          128 * 1024,
+		FallbackWithoutLLM:      true,
 	}
 }
 
@@ -83,7 +115,8 @@ type chatResponse struct {
 
 // LLMClient sends prompts to an LLM (OpenAI or Ollama).
 type LLMClient struct {
-	cfg *LLMConfig
+	cfg     *LLMConfig
+	breaker *llmCircuitBreaker
 }
 
 // NewLLMClient creates an LLM client.
@@ -91,8 +124,10 @@ func NewLLMClient(cfg *LLMConfig) *LLMClient {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
+	normalizeLLMConfig(cfg)
 	return &LLMClient{
-		cfg: cfg,
+		cfg:     cfg,
+		breaker: &llmCircuitBreaker{},
 	}
 }
 
@@ -114,12 +149,42 @@ func (lc *LLMClient) Ask(graphJSON string, question string) (string, error) {
 
 // sendChat sends a chat completion request via the registered provider.
 func (lc *LLMClient) sendChat(messages []chatMessage) (string, error) {
+	if lc.breaker != nil && lc.breaker.open(lc.cfg.CircuitBreakerThreshold, lc.cfg.CircuitBreakerCooldown) {
+		if lc.cfg.FallbackWithoutLLM {
+			return fallbackChatAnswer(messages), nil
+		}
+		return "", fmt.Errorf("ai: provider circuit open")
+	}
 	p := resolveProvider(lc.cfg.Provider)
 	if p == nil {
 		return "", fmt.Errorf("ai: no provider available for %q (registered: %v)",
 			lc.cfg.Provider, ListProviders())
 	}
-	return p.SendChat(lc.cfg.Endpoint, lc.cfg.Model, lc.cfg.APIKey, messages)
+	prepared := limitMessages(messages, lc.cfg.MaxPromptBytes)
+	var lastErr error
+	for attempt := 0; attempt <= lc.cfg.MaxRetries; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), lc.cfg.Timeout)
+		response, err := p.SendChat(ctx, lc.cfg.Endpoint, lc.cfg.Model, lc.cfg.APIKey, prepared)
+		cancel()
+		if err == nil {
+			if lc.breaker != nil {
+				lc.breaker.recordSuccess()
+			}
+			return response, nil
+		}
+		lastErr = err
+		if attempt < lc.cfg.MaxRetries {
+			time.Sleep(lc.cfg.RetryBackoff * time.Duration(attempt+1))
+		}
+	}
+	if lc.breaker != nil {
+		lc.breaker.recordFailure()
+		lc.breaker.tripIfNeeded(lc.cfg.CircuitBreakerThreshold, lc.cfg.CircuitBreakerCooldown)
+	}
+	if lc.cfg.FallbackWithoutLLM {
+		return fallbackChatAnswer(messages), nil
+	}
+	return "", lastErr
 }
 
 // IsAvailable checks if the LLM endpoint is reachable via the registered provider.
@@ -182,4 +247,98 @@ func FormatResponse(text string) string {
 	// Ensure sections are clearly separated
 	text = strings.ReplaceAll(text, "### ", "\n### ")
 	return strings.TrimSpace(text)
+}
+
+type llmCircuitBreaker struct {
+	mu          sync.Mutex
+	failures    int
+	openedUntil time.Time
+}
+
+func (b *llmCircuitBreaker) open(threshold int, cooldown time.Duration) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if threshold <= 0 || cooldown <= 0 {
+		return false
+	}
+	if time.Now().Before(b.openedUntil) {
+		return true
+	}
+	return false
+}
+
+func (b *llmCircuitBreaker) recordSuccess() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.failures = 0
+	b.openedUntil = time.Time{}
+}
+
+func (b *llmCircuitBreaker) recordFailure() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.failures++
+}
+
+func (b *llmCircuitBreaker) tripIfNeeded(threshold int, cooldown time.Duration) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if threshold > 0 && cooldown > 0 && b.failures >= threshold {
+		b.openedUntil = time.Now().Add(cooldown)
+	}
+}
+
+func normalizeLLMConfig(cfg *LLMConfig) {
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = 60 * time.Second
+	}
+	if cfg.MaxRetries < 0 {
+		cfg.MaxRetries = 0
+	}
+	if cfg.RetryBackoff <= 0 {
+		cfg.RetryBackoff = 250 * time.Millisecond
+	}
+	if cfg.CircuitBreakerThreshold < 0 {
+		cfg.CircuitBreakerThreshold = 0
+	}
+	if cfg.CircuitBreakerCooldown <= 0 {
+		cfg.CircuitBreakerCooldown = 30 * time.Second
+	}
+	if cfg.MaxPromptBytes <= 0 {
+		cfg.MaxPromptBytes = 128 * 1024
+	}
+}
+
+func limitMessages(messages []chatMessage, maxBytes int) []chatMessage {
+	if maxBytes <= 0 {
+		return messages
+	}
+	used := 0
+	limited := make([]chatMessage, 0, len(messages))
+	for _, msg := range messages {
+		content := msg.Content
+		remaining := maxBytes - used
+		if remaining <= 0 {
+			content = ""
+		} else if len(content) > remaining {
+			content = content[:remaining] + "\n[truncated for LLM stability]"
+		}
+		used += len(content)
+		limited = append(limited, chatMessage{Role: msg.Role, Content: content})
+	}
+	return limited
+}
+
+func fallbackChatAnswer(messages []chatMessage) string {
+	question := ""
+	for i := len(messages) - 1; i >= 0; i-- {
+		if strings.TrimSpace(messages[i].Content) != "" {
+			question = strings.TrimSpace(messages[i].Content)
+			break
+		}
+	}
+	if len(question) > 240 {
+		question = question[:240] + "..."
+	}
+	return "LLM provider is unavailable. ProvidAPT used deterministic fallback analysis. Review the provenance graph, event timeline, high-risk process/file/network edges, and alert evidence manually. Context: " + question
 }

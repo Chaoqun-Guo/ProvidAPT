@@ -11,8 +11,23 @@ This reference summarizes the major ProvidAPT configuration sections. Use `provi
 | `api.auth_enabled` | enables API key or trusted-header authorization |
 | `api.auth_keys` | accepted API keys |
 | `api.auth_roles` | maps keys to roles |
-| `api.auth_tenants` | maps keys to fleet groups or tenants |
+| `api.auth_tenants` | maps keys to fleet groups or tenants; use comma-separated values for managed multi-tenant scopes |
 | `api.cors_origins` | allowed browser origins |
+
+## AI Analysis
+
+| Field | Purpose |
+| --- | --- |
+| `ai.provider` | LLM provider, usually `ollama` or `openai` |
+| `ai.endpoint` | chat completion endpoint |
+| `ai.model` | model name |
+| `ai.timeout` | per-request timeout |
+| `ai.max_retries` | transient retry count before fallback or error |
+| `ai.retry_backoff` | base retry backoff, e.g. `250ms` |
+| `ai.circuit_breaker_threshold` | consecutive failures before skipping provider calls |
+| `ai.circuit_breaker_cooldown` | how long the LLM circuit remains open |
+| `ai.max_prompt_bytes` | maximum prompt payload sent to the provider |
+| `ai.fallback_without_llm` | returns deterministic local guidance when the provider is unavailable |
 
 ## Capture
 

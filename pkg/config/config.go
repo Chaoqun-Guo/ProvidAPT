@@ -68,6 +68,19 @@ type Config struct {
 		CORSOrigins     []string            `json:"cors_origins" yaml:"cors_origins"`
 	} `json:"api" yaml:"api"`
 
+	AI struct {
+		Provider                string `json:"provider" yaml:"provider"`
+		Endpoint                string `json:"endpoint" yaml:"endpoint"`
+		Model                   string `json:"model" yaml:"model"`
+		Timeout                 string `json:"timeout" yaml:"timeout"`
+		MaxRetries              int    `json:"max_retries" yaml:"max_retries"`
+		RetryBackoff            string `json:"retry_backoff" yaml:"retry_backoff"`
+		CircuitBreakerThreshold int    `json:"circuit_breaker_threshold" yaml:"circuit_breaker_threshold"`
+		CircuitBreakerCooldown  string `json:"circuit_breaker_cooldown" yaml:"circuit_breaker_cooldown"`
+		MaxPromptBytes          int    `json:"max_prompt_bytes" yaml:"max_prompt_bytes"`
+		FallbackWithoutLLM      bool   `json:"fallback_without_llm" yaml:"fallback_without_llm"`
+	} `json:"ai" yaml:"ai"`
+
 	ControlPlane struct {
 		Mode            string   `json:"mode" yaml:"mode"`
 		NodeID          string   `json:"node_id" yaml:"node_id"`
@@ -250,8 +263,16 @@ func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
 }
 
 func (d *Duration) parse(s string) error {
-	// Support simple suffixes: s, m, h
+	// Support simple suffixes: ms, s, m, h
 	if len(s) == 0 {
+		return nil
+	}
+	if strings.HasSuffix(s, "ms") {
+		n, err := strconv.ParseInt(strings.TrimSuffix(s, "ms"), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid duration %q: %w", s, err)
+		}
+		d.Duration = n * 1e6
 		return nil
 	}
 	unit := s[len(s)-1]
@@ -316,6 +337,16 @@ func DefaultConfig() *Config {
 	c.API.RateLimitPerSec = 100
 	c.API.RateLimitBurst = 200
 	c.API.CORSOrigins = []string{"*"}
+	c.AI.Provider = "ollama"
+	c.AI.Endpoint = "http://localhost:11434/api/chat"
+	c.AI.Model = "llama3"
+	c.AI.Timeout = "60s"
+	c.AI.MaxRetries = 1
+	c.AI.RetryBackoff = "250ms"
+	c.AI.CircuitBreakerThreshold = 3
+	c.AI.CircuitBreakerCooldown = "30s"
+	c.AI.MaxPromptBytes = 128 * 1024
+	c.AI.FallbackWithoutLLM = true
 	c.ControlPlane.Mode = "standalone"
 	c.ControlPlane.Role = "leader"
 	c.ControlPlane.Heartbeat = "10s"
@@ -552,9 +583,33 @@ func (c *Config) Validate() error {
 	}
 	for key, role := range c.API.AuthRoles {
 		role = strings.ToLower(strings.TrimSpace(role))
-		if role != "admin" && role != "analyst" && role != "auditor" && len(c.API.AuthPermissions[role]) == 0 {
+		if role != "admin" && role != "analyst" && role != "auditor" && role != "operator" && len(c.API.AuthPermissions[role]) == 0 {
 			return fmt.Errorf("unsupported API auth role %q for key %q", role, key)
 		}
+	}
+	if strings.TrimSpace(c.AI.Timeout) != "" {
+		if err := validateDurationString(c.AI.Timeout); err != nil {
+			return fmt.Errorf("ai.timeout: %w", err)
+		}
+	}
+	if strings.TrimSpace(c.AI.RetryBackoff) != "" {
+		if err := validateDurationString(c.AI.RetryBackoff); err != nil {
+			return fmt.Errorf("ai.retry_backoff: %w", err)
+		}
+	}
+	if strings.TrimSpace(c.AI.CircuitBreakerCooldown) != "" {
+		if err := validateDurationString(c.AI.CircuitBreakerCooldown); err != nil {
+			return fmt.Errorf("ai.circuit_breaker_cooldown: %w", err)
+		}
+	}
+	if c.AI.MaxRetries < 0 {
+		return fmt.Errorf("ai.max_retries must be non-negative")
+	}
+	if c.AI.CircuitBreakerThreshold < 0 {
+		return fmt.Errorf("ai.circuit_breaker_threshold must be non-negative")
+	}
+	if c.AI.MaxPromptBytes < 0 {
+		return fmt.Errorf("ai.max_prompt_bytes must be non-negative")
 	}
 	if c.Storage.Encrypt && c.Storage.KeyFile == "" {
 		return fmt.Errorf("storage encryption enabled but no key_file specified")
@@ -682,6 +737,12 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Output.Format, "PROVIDAPT_OUTPUT_FORMAT")
 	overrideString(&cfg.API.GRPC, "PROVIDAPT_API_GRPC")
 	overrideString(&cfg.API.REST, "PROVIDAPT_API_REST")
+	overrideString(&cfg.AI.Provider, "PROVIDAPT_AI_PROVIDER")
+	overrideString(&cfg.AI.Endpoint, "PROVIDAPT_AI_ENDPOINT")
+	overrideString(&cfg.AI.Model, "PROVIDAPT_AI_MODEL")
+	overrideString(&cfg.AI.Timeout, "PROVIDAPT_AI_TIMEOUT")
+	overrideString(&cfg.AI.RetryBackoff, "PROVIDAPT_AI_RETRY_BACKOFF")
+	overrideString(&cfg.AI.CircuitBreakerCooldown, "PROVIDAPT_AI_CIRCUIT_BREAKER_COOLDOWN")
 	overrideString(&cfg.ControlPlane.Mode, "PROVIDAPT_CONTROL_PLANE_MODE")
 	overrideString(&cfg.ControlPlane.NodeID, "PROVIDAPT_CONTROL_PLANE_NODE_ID")
 	overrideString(&cfg.ControlPlane.Role, "PROVIDAPT_CONTROL_PLANE_ROLE")
@@ -768,6 +829,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.TLS.RotationAuto, "PROVIDAPT_TLS_ROTATION_AUTO")
 	overrideBool(&cfg.TLS.RotationRestartAfter, "PROVIDAPT_TLS_ROTATION_RESTART_AFTER")
 	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
+	overrideBool(&cfg.AI.FallbackWithoutLLM, "PROVIDAPT_AI_FALLBACK_WITHOUT_LLM")
 	overrideBool(&cfg.ControlPlane.FailoverReady, "PROVIDAPT_CONTROL_PLANE_FAILOVER_READY")
 	overrideBool(&cfg.SSO.TrustedHeaderAuth, "PROVIDAPT_SSO_TRUSTED_HEADER_AUTH")
 	overrideBool(&cfg.Telemetry.EnableTLS, "PROVIDAPT_TELEMETRY_ENABLE_TLS")
@@ -783,6 +845,9 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt(&cfg.Output.RetainFiles, "PROVIDAPT_OUTPUT_RETAIN_FILES")
 	overrideInt(&cfg.Output.AlertRetainFiles, "PROVIDAPT_OUTPUT_ALERT_RETAIN_FILES")
 	overrideInt(&cfg.API.RateLimitBurst, "PROVIDAPT_API_RATE_LIMIT_BURST")
+	overrideInt(&cfg.AI.MaxRetries, "PROVIDAPT_AI_MAX_RETRIES")
+	overrideInt(&cfg.AI.CircuitBreakerThreshold, "PROVIDAPT_AI_CIRCUIT_BREAKER_THRESHOLD")
+	overrideInt(&cfg.AI.MaxPromptBytes, "PROVIDAPT_AI_MAX_PROMPT_BYTES")
 	overrideInt(&cfg.Notify.MaxAttempts, "PROVIDAPT_NOTIFY_MAX_ATTEMPTS")
 	overrideInt(&cfg.SupportBundle.RetainArchives, "PROVIDAPT_SUPPORT_RETAIN_ARCHIVES")
 	overrideInt(&cfg.License.GracePeriodDays, "PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")

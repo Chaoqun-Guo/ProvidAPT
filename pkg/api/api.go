@@ -1625,11 +1625,14 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 		group := strings.TrimSpace(r.URL.Query().Get("group"))
 		tag := strings.TrimSpace(r.URL.Query().Get("tag"))
 		if tenant := CurrentTenant(r); tenant != "" && CurrentRole(r) != RoleAdmin {
-			if group != "" && group != tenant {
+			scope := tenantScopeList(tenant)
+			if group != "" && !tenantScopeContains(scope, group) {
 				w.WriteHeader(http.StatusForbidden)
 				return json.NewEncoder(w).Encode(map[string]string{"error": "forbidden: tenant scope mismatch"})
 			}
-			group = tenant
+			if group == "" && len(scope) == 1 {
+				group = scope[0]
+			}
 		}
 		fleet := FleetList{
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -1645,6 +1648,9 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 			if fleet.Agents == nil {
 				fleet.Agents = []ClusterAgent{}
 			}
+		}
+		if tenant := CurrentTenant(r); tenant != "" && CurrentRole(r) != RoleAdmin {
+			fleet = filterFleetForTenant(fleet, tenant)
 		}
 		return json.NewEncoder(w).Encode(fleet)
 	case http.MethodPost:
@@ -1662,6 +1668,20 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 		update.Role = CurrentRole(r)
 		if update.Actor == "" {
 			update.Actor = CurrentActor(r)
+		}
+		if tenant := CurrentTenant(r); tenant != "" && CurrentRole(r) != RoleAdmin {
+			scope := tenantScopeList(tenant)
+			if strings.TrimSpace(update.Group) != "" && !tenantScopeContains(scope, update.Group) {
+				w.WriteHeader(http.StatusForbidden)
+				return json.NewEncoder(w).Encode(map[string]string{"error": "forbidden: tenant scope mismatch"})
+			}
+			if strings.TrimSpace(update.Group) == "" && len(scope) == 1 {
+				update.Group = scope[0]
+			}
+			if strings.TrimSpace(update.Group) == "" && len(scope) > 1 {
+				w.WriteHeader(http.StatusBadRequest)
+				return json.NewEncoder(w).Encode(map[string]string{"error": "tenant-scoped fleet updates require a target group"})
+			}
 		}
 		agentIDs := normalizedFleetUpdateAgentIDs(update)
 		if len(agentIDs) == 0 {
@@ -1699,15 +1719,15 @@ func (s *Server) handleFleet(w http.ResponseWriter, r *http.Request) error {
 }
 
 func filterClusterOverviewForTenant(overview ClusterOverview, tenant string) ClusterOverview {
-	tenant = strings.TrimSpace(tenant)
+	scope := tenantScopeList(tenant)
 	filtered := overview
-	filtered.Tenant = tenant
+	filtered.Tenant = tenantScopeLabel(scope)
 	filtered.Agents = []ClusterAgent{}
 	filtered.TotalAgents = 0
 	filtered.HealthyAgents = 0
 	filtered.DegradedAgents = 0
 	for _, agent := range overview.Agents {
-		if !agentMatchesTenant(agent, tenant) {
+		if !agentMatchesTenantScope(agent, scope) {
 			continue
 		}
 		filtered.Agents = append(filtered.Agents, agent)
@@ -1719,6 +1739,20 @@ func filterClusterOverviewForTenant(overview ClusterOverview, tenant string) Clu
 	}
 	filtered.TotalAgents = len(filtered.Agents)
 	return filtered
+}
+
+func filterFleetForTenant(fleet FleetList, tenant string) FleetList {
+	scope := tenantScopeList(tenant)
+	fleet.Group = firstNonEmpty(fleet.Group, tenantScopeLabel(scope))
+	filtered := make([]ClusterAgent, 0, len(fleet.Agents))
+	for _, agent := range fleet.Agents {
+		if agentMatchesTenantScope(agent, scope) {
+			filtered = append(filtered, agent)
+		}
+	}
+	fleet.Agents = filtered
+	fleet.History = filterControlAuditForTenantScope(fleet.History, scope)
+	return fleet
 }
 
 func normalizedFleetUpdateAgentIDs(update FleetUpdate) []string {
@@ -1777,11 +1811,11 @@ func diffPolicySummaries(current, draft PolicySummary) []PolicyDiff {
 }
 
 func filterAuditFeedForTenant(feed AuditFeed, tenant string) AuditFeed {
-	tenant = strings.TrimSpace(tenant)
-	feed.Tenant = tenant
+	scope := tenantScopeList(tenant)
+	feed.Tenant = tenantScopeLabel(scope)
 	filtered := make([]AuditEntry, 0, len(feed.Entries))
 	for _, entry := range feed.Entries {
-		if auditEntryMatchesTenant(entry, tenant) {
+		if auditEntryMatchesTenantScope(entry, scope) {
 			filtered = append(filtered, entry)
 		}
 	}
@@ -1790,37 +1824,111 @@ func filterAuditFeedForTenant(feed AuditFeed, tenant string) AuditFeed {
 }
 
 func agentMatchesTenant(agent ClusterAgent, tenant string) bool {
-	if tenant == "" {
-		return true
-	}
-	if strings.EqualFold(strings.TrimSpace(agent.Group), tenant) {
-		return true
-	}
-	for _, tag := range agent.Tags {
-		if strings.EqualFold(strings.TrimSpace(tag), tenant) {
-			return true
-		}
-	}
-	return false
+	return agentMatchesTenantScope(agent, tenantScopeList(tenant))
 }
 
-func auditEntryMatchesTenant(entry AuditEntry, tenant string) bool {
-	if tenant == "" {
+func agentMatchesTenantScope(agent ClusterAgent, scope []string) bool {
+	if len(scope) == 0 {
 		return true
 	}
-	for _, key := range []string{"tenant", "group", "target_group"} {
-		if value, ok := entry.Details[key]; ok && strings.EqualFold(strings.TrimSpace(fmt.Sprint(value)), tenant) {
+	for _, tenant := range scope {
+		if strings.EqualFold(strings.TrimSpace(agent.Group), tenant) {
 			return true
 		}
-	}
-	if value, ok := entry.Details["tags"]; ok {
-		for _, tag := range strings.Split(fmt.Sprint(value), ",") {
+		for _, tag := range agent.Tags {
 			if strings.EqualFold(strings.TrimSpace(tag), tenant) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func auditEntryMatchesTenant(entry AuditEntry, tenant string) bool {
+	return auditEntryMatchesTenantScope(entry, tenantScopeList(tenant))
+}
+
+func auditEntryMatchesTenantScope(entry AuditEntry, scope []string) bool {
+	if len(scope) == 0 {
+		return true
+	}
+	for _, tenant := range scope {
+		for _, key := range []string{"tenant", "group", "target_group"} {
+			if value, ok := entry.Details[key]; ok && strings.EqualFold(strings.TrimSpace(fmt.Sprint(value)), tenant) {
+				return true
+			}
+		}
+		if value, ok := entry.Details["tags"]; ok {
+			for _, tag := range strings.Split(fmt.Sprint(value), ",") {
+				if strings.EqualFold(strings.TrimSpace(tag), tenant) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func filterControlAuditForTenantScope(history []ControlActionAudit, scope []string) []ControlActionAudit {
+	if len(scope) == 0 || len(history) == 0 {
+		return history
+	}
+	filtered := make([]ControlActionAudit, 0, len(history))
+	for _, item := range history {
+		if tenantTextMentionsScope(scope, item.TargetID) || tenantTextMentionsScope(scope, item.Note) || tenantTextMentionsScope(scope, item.Message) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func tenantScopeList(tenant string) []string {
+	var scope []string
+	for _, item := range strings.FieldsFunc(tenant, func(r rune) bool { return r == ',' || r == ';' }) {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			scope = append(scope, trimmed)
+		}
+	}
+	return scope
+}
+
+func tenantScopeLabel(scope []string) string {
+	return strings.Join(scope, ",")
+}
+
+func tenantScopeContains(scope []string, value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	for _, tenant := range scope {
+		if strings.EqualFold(value, strings.TrimSpace(tenant)) {
+			return true
+		}
+	}
+	return false
+}
+
+func tenantTextMentionsScope(scope []string, value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return false
+	}
+	for _, tenant := range scope {
+		if strings.Contains(value, strings.ToLower(strings.TrimSpace(tenant))) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (s *Server) handleSupportBundles(w http.ResponseWriter, r *http.Request) error {

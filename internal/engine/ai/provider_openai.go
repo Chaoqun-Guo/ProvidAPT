@@ -31,7 +31,7 @@ func (p *OpenAIProvider) clientInstance() *http.Client {
 	return p.client
 }
 
-func (p *OpenAIProvider) SendChat(endpoint, model, apiKey string, messages []chatMessage) (string, error) {
+func (p *OpenAIProvider) SendChat(ctx context.Context, endpoint, model, apiKey string, messages []chatMessage) (string, error) {
 	req := chatRequest{
 		Model:    model,
 		Messages: messages,
@@ -41,7 +41,7 @@ func (p *OpenAIProvider) SendChat(endpoint, model, apiKey string, messages []cha
 	if err != nil {
 		return "", fmt.Errorf("openai marshal: %w", err)
 	}
-	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(data))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {
 		return "", fmt.Errorf("openai new request: %w", err)
 	}
@@ -57,6 +57,9 @@ func (p *OpenAIProvider) SendChat(endpoint, model, apiKey string, messages []cha
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("openai read body: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("openai status %d: %s", resp.StatusCode, string(body))
 	}
 	var chatResp chatResponse
 	if err := json.Unmarshal(body, &chatResp); err != nil {

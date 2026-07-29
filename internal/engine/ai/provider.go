@@ -4,6 +4,7 @@
 package ai
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
@@ -16,7 +17,7 @@ type Provider interface {
 	Name() string
 
 	// SendChat sends a chat completion request and returns the response text.
-	SendChat(endpoint, model, apiKey string, messages []chatMessage) (string, error)
+	SendChat(ctx context.Context, endpoint, model, apiKey string, messages []chatMessage) (string, error)
 
 	// IsAvailable checks if the provider endpoint is reachable.
 	IsAvailable(endpoint string) bool

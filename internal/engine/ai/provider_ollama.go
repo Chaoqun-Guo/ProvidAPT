@@ -39,7 +39,7 @@ func (p *OllamaProvider) clientInstance() *http.Client {
 	return p.client
 }
 
-func (p *OllamaProvider) SendChat(endpoint, model, apiKey string, messages []chatMessage) (string, error) {
+func (p *OllamaProvider) SendChat(ctx context.Context, endpoint, model, apiKey string, messages []chatMessage) (string, error) {
 	req := chatRequest{
 		Model:    model,
 		Messages: messages,
@@ -50,7 +50,7 @@ func (p *OllamaProvider) SendChat(endpoint, model, apiKey string, messages []cha
 	if err != nil {
 		return "", fmt.Errorf("ollama marshal: %w", err)
 	}
-	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(data))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {
 		return "", fmt.Errorf("ollama new request: %w", err)
 	}
@@ -65,6 +65,9 @@ func (p *OllamaProvider) SendChat(endpoint, model, apiKey string, messages []cha
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("ollama read body: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("ollama status %d: %s", resp.StatusCode, string(body))
 	}
 	var ollamaResp ollamaResponse
 	if err := json.Unmarshal(body, &ollamaResp); err != nil {

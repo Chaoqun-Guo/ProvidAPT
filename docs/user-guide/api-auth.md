@@ -41,6 +41,7 @@ curl -H "Authorization: Bearer admin-key" http://localhost:8080/api/v1/status
 | Role | Permissions |
 | --- | --- |
 | `admin` | Full access to all endpoints and operational actions. |
+| `operator` | Scoped fleet, alert, upgrade, and read-only investigation operations for managed-service use. |
 | `analyst` | Read-only graph, alert, fleet, policy, delivery, license, and upgrade views; no administrative mutations. |
 | `auditor` | Read-only audit, status, dashboard, and compliance evidence views. |
 
@@ -64,7 +65,18 @@ or path only when an intentionally broad role is required. Unknown roles without
 
 ## Tenant Scoping
 
-Use `api.auth_tenants` to bind an API key to a tenant or fleet group. Non-admin requests to `/api/v1/control/fleet` are restricted to the configured tenant. If a non-admin supplies a different `group`, the API returns `403`.
+Use `api.auth_tenants` to bind an API key to a tenant or fleet group.
+Comma-separated values grant one key access to multiple managed tenants:
+
+```toml
+[api.auth_tenants]
+"mssp-operator-key" = "prod,staging"
+```
+
+Non-admin requests to `/api/v1/control/fleet` are restricted to the configured
+tenant scope. If a non-admin supplies a different `group`, the API returns
+`403`. Fleet writes with multiple tenant scopes must include an explicit
+`group`.
 
 ## Trusted-Header SSO
 
