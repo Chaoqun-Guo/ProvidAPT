@@ -193,6 +193,47 @@ The report blocks when any required secret backend artifact is missing,
 including Vault policy/loader/config outputs, TLS rotation material is
 incomplete, PostgreSQL backup evidence is missing, or fleet reports are stale.
 
+Validate install handoff assets before packaging or customer deployment:
+
+```bash
+make install-delivery-check \
+  PROVIDAPT_CONFIG=examples/config/providapt.production.yaml \
+  OUT_DIR=build/install-delivery
+```
+
+Use `STRICT_BINARIES=1` after `make build-core` or package extraction to require
+the expected binaries in `build/bin`. The report checks installer-adjacent
+binaries, production config, systemd service wiring, environment defaults, and
+required handoff documents.
+
+Validate production observability assets:
+
+```bash
+make observability-pack-check \
+  PROMETHEUS_CONFIG=scripts/docker/prometheus.yml \
+  PROMETHEUS_ALERTS=build/prometheus/providapt_alerts.yml \
+  GRAFANA_DASHBOARD=build/prometheus/providapt_dashboard.json
+```
+
+When a control plane is running, add `PROVIDAPT_SERVER_URL=http://<server>:18080`
+to verify live `/metrics` and `/api/v1/status`. The report checks Prometheus
+scrape config, critical alert rules, Grafana dashboard structure, and required
+metrics.
+
+Validate production security hardening:
+
+```bash
+make security-hardening-gate \
+  PROVIDAPT_CONFIG=examples/config/providapt.production.yaml \
+  RBAC_AUDIT=build/rbac/rbac-audit.json \
+  OUT_DIR=build/security-hardening
+```
+
+The gate verifies production config controls, systemd sandbox markers, risky
+environment bypass defaults, and optional RBAC audit evidence. eBPF-related
+systemd relaxations are reported as warnings so a release owner can explicitly
+approve them.
+
 Check certificate expiry:
 
 ```bash
@@ -323,12 +364,16 @@ make operations-readiness-gate \
   SOAK_READINESS=build/performance/soak-readiness.json \
   UPGRADE_ROLLOUT=build/upgrade/rollout-plan.json \
   SIEM_VERIFY=build/siem/siem-verification.json \
-  RBAC_AUDIT=build/rbac/rbac-audit.json
+  RBAC_AUDIT=build/rbac/rbac-audit.json \
+  INSTALL_DELIVERY_CHECK=build/install-delivery/install-delivery-check.json \
+  OBSERVABILITY_PACK_CHECK=build/observability/observability-pack-check.json \
+  SECURITY_HARDENING_GATE=build/security-hardening/security-hardening-gate.json
 ```
 
 The operations readiness gate blocks when production foundation, detection/ML evidence, fleet
-health, soak stability, upgrade rollout, SIEM/SOAR delivery, or RBAC audit
-evidence is missing or failed.
+health, soak stability, upgrade rollout, SIEM/SOAR delivery, RBAC audit,
+installation handoff, observability pack, or security hardening evidence is
+missing or failed.
 
 For large investigations, the dashboard graph summary groups nodes into
 clusters and high-degree hubs. Use `Inspect` to view a collapsed cluster,

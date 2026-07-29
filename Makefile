@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-auth-server docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit install-delivery-check observability-pack-check security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -303,6 +303,15 @@ ops-rbac-audit:
 	@if [ -z "$(PROVIDAPT_CONFIG)" ]; then echo 'usage: make ops-rbac-audit PROVIDAPT_CONFIG=/etc/providapt/providapt.toml [OUT_DIR=build/rbac]'; exit 2; fi
 	python3 scripts/ops/rbac-audit.py --config "$(PROVIDAPT_CONFIG)" --out-json "$(or $(OUT_DIR),build/rbac)/rbac-audit.json" --out-md "$(or $(OUT_DIR),build/rbac)/rbac-audit.md"
 
+install-delivery-check:
+	python3 scripts/ops/install-delivery-check.py --root "." --bin-dir "$(or $(BIN_DIR),build/bin)" --config "$(or $(PROVIDAPT_CONFIG),examples/config/providapt.production.yaml)" --service "$(or $(SERVICE_FILE),deploy/linux/providapt.service)" --env-file "$(or $(ENV_FILE),deploy/linux/providapt.env)" $(if $(STRICT_BINARIES),--strict-binaries) --out-json "$(or $(OUT_DIR),build/install-delivery)/install-delivery-check.json" --out-md "$(or $(OUT_DIR),build/install-delivery)/install-delivery-check.md"
+
+observability-pack-check:
+	python3 scripts/ops/observability-pack-check.py --prometheus "$(or $(PROMETHEUS_CONFIG),scripts/docker/prometheus.yml)" --alerts "$(or $(PROMETHEUS_ALERTS),build/prometheus/providapt_alerts.yml)" --dashboard "$(or $(GRAFANA_DASHBOARD),build/prometheus/providapt_dashboard.json)" $(if $(PROVIDAPT_SERVER_URL),--server "$(PROVIDAPT_SERVER_URL)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --out-json "$(or $(OUT_DIR),build/observability)/observability-pack-check.json" --out-md "$(or $(OUT_DIR),build/observability)/observability-pack-check.md"
+
+security-hardening-gate:
+	python3 scripts/ops/security-hardening-gate.py --config "$(or $(PROVIDAPT_CONFIG),examples/config/providapt.production.yaml)" --service "$(or $(SERVICE_FILE),deploy/linux/providapt.service)" --env-file "$(or $(ENV_FILE),deploy/linux/providapt.env)" $(if $(RBAC_AUDIT),--rbac-audit "$(RBAC_AUDIT)") --out-json "$(or $(OUT_DIR),build/security-hardening)/security-hardening-gate.json" --out-md "$(or $(OUT_DIR),build/security-hardening)/security-hardening-gate.md"
+
 scheduled-report-plan:
 	python3 scripts/ops/scheduled-report-plan.py --name "$(or $(REPORT_NAME),compliance)" --cadence "$(or $(REPORT_CADENCE),1w)" --formats "$(or $(REPORT_FORMATS),markdown,json)" --recipients "$(or $(REPORT_RECIPIENTS),)" --out-dir "$(or $(REPORT_OUT_DIR),/var/lib/providapt/reports)" --retention-days "$(or $(REPORT_RETENTION_DAYS),90)" --max-report-mb "$(or $(REPORT_MAX_MB),128)" --out-json "$(or $(OUT_DIR),build/reports)/scheduled-report-plan.json" --out-md "$(or $(OUT_DIR),build/reports)/scheduled-report-plan.md"
 
@@ -313,7 +322,7 @@ production-readiness-gate:
 	python3 scripts/ops/production-readiness-gate.py --secret-manifest "$(or $(SECRET_MANIFEST),build/secrets/secret-backend-manifest.json)" --tls-manifest "$(or $(TLS_MANIFEST),build/tls/manifest.json)" $(if $(POSTGRES_REPORT),--postgres-report "$(POSTGRES_REPORT)") $(if $(PROVIDAPT_SERVER_URL),--server "$(PROVIDAPT_SERVER_URL)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),60)" --out-json "$(or $(OUT_DIR),build/production-readiness)/production-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/production-readiness)/production-readiness-gate.md"
 
 operations-readiness-gate:
-	python3 scripts/ops/operations-readiness-gate.py --production-readiness-gate "$(or $(PRODUCTION_READINESS_GATE),build/production-readiness/production-readiness-gate.json)" --ml-readiness-gate "$(or $(ML_READINESS_GATE),build/ml-readiness/ml-readiness-gate.json)" --fleet-verification "$(or $(FLEET_VERIFICATION),build/deploy/vm-fleet-verification.json)" --soak-readiness "$(or $(SOAK_READINESS),build/performance/soak-readiness.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT),build/upgrade/rollout-plan.json)" --siem-verify "$(or $(SIEM_VERIFY),build/siem/siem-verification.json)" --rbac-audit "$(or $(RBAC_AUDIT),build/rbac/rbac-audit.json)" --out-json "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.md"
+	python3 scripts/ops/operations-readiness-gate.py --production-readiness-gate "$(or $(PRODUCTION_READINESS_GATE),build/production-readiness/production-readiness-gate.json)" --ml-readiness-gate "$(or $(ML_READINESS_GATE),build/ml-readiness/ml-readiness-gate.json)" --fleet-verification "$(or $(FLEET_VERIFICATION),build/deploy/vm-fleet-verification.json)" --soak-readiness "$(or $(SOAK_READINESS),build/performance/soak-readiness.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT),build/upgrade/rollout-plan.json)" --siem-verify "$(or $(SIEM_VERIFY),build/siem/siem-verification.json)" --rbac-audit "$(or $(RBAC_AUDIT),build/rbac/rbac-audit.json)" --install-delivery-check "$(or $(INSTALL_DELIVERY_CHECK),build/install-delivery/install-delivery-check.json)" --observability-pack-check "$(or $(OBSERVABILITY_PACK_CHECK),build/observability/observability-pack-check.json)" --security-hardening-gate "$(or $(SECURITY_HARDENING_GATE),build/security-hardening/security-hardening-gate.json)" --out-json "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.md"
 
 commercialization-readiness-gate:
 	python3 scripts/ops/commercialization-readiness-gate.py --operations-readiness-gate "$(or $(OPERATIONS_READINESS_GATE),build/operations-readiness/operations-readiness-gate.json)" --enterprise-readiness "$(or $(ENTERPRISE_READINESS),build/enterprise-readiness.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" $(if $(PLUGIN_GATE),--plugin-gate "$(PLUGIN_GATE)") --external-approval "$(or $(EXTERNAL_APPROVAL),docs/project/external-approval-request-v1.2.3-rc.1.md)" --out-json "$(or $(OUT_DIR),build/commercialization-readiness)/commercialization-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/commercialization-readiness)/commercialization-readiness-gate.md"
@@ -547,6 +556,9 @@ help:
 	@echo '  make ops-fleet-plan FLEET_OPERATION=... Generate fleet lifecycle plan'
 	@echo '  make ops-siem-verify Queue and verify SIEM test delivery'
 	@echo '  make ops-rbac-audit PROVIDAPT_CONFIG=... Audit RBAC and tenant scoping'
+	@echo '  make install-delivery-check Validate installer, config, service, and handoff docs'
+	@echo '  make observability-pack-check Validate Prometheus, alert rules, dashboard, and live metrics'
+	@echo '  make security-hardening-gate Validate production config and systemd hardening'
 	@echo '  make scheduled-report-plan Generate executive/compliance report schedule'
 	@echo '  make enterprise-readiness Aggregate release, secret, PostgreSQL, and detection evidence'
 	@echo '  make operations-readiness-gate      Aggregate production operations readiness evidence'

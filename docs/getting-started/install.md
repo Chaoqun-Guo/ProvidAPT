@@ -801,3 +801,18 @@ sudo providaptd
 # 7. Verify
 curl -s http://localhost:8080/api/v1/status
 ```
+
+## Delivery Check
+
+Before customer handoff or production installation, validate installer assets,
+production configuration, systemd service wiring, environment defaults, and
+required handoff documents:
+
+```bash
+make install-delivery-check \
+  PROVIDAPT_CONFIG=examples/config/providapt.production.yaml \
+  OUT_DIR=build/install-delivery
+```
+
+After building or extracting release binaries, add `STRICT_BINARIES=1` to require
+`providaptd`, `providaptctl`, and `providapt-verify` in `build/bin`.

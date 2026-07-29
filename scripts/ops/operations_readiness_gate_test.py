@@ -15,7 +15,7 @@ SPEC.loader.exec_module(subject)
 
 class OperationsReadinessGateTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / "build" / "unit-tmp" / "operations-readiness-gate"
+        self.tmp = Path.cwd() / ".tmp-operations-readiness-gate-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir(parents=True)
@@ -38,6 +38,9 @@ class OperationsReadinessGateTest(unittest.TestCase):
             upgrade_rollout=str(paths["upgrade"]),
             siem_verify=str(paths["siem"]),
             rbac_audit=str(paths["rbac"]),
+            install_delivery_check=str(paths["install"]),
+            observability_pack_check=str(paths["observability"]),
+            security_hardening_gate=str(paths["security"]),
         )
 
     def test_build_report_passes_when_all_evidence_passes(self):
@@ -54,6 +57,9 @@ class OperationsReadinessGateTest(unittest.TestCase):
             "upgrade": self.write_json("upgrade.json", {"status": "planned", "target_version": "v1.2.4", "fleet_size": 3, "eligible_agents": 3, "batches": [{"name": "canary"}]}),
             "siem": self.write_json("siem.json", {"status": "pass", "delivered": 3, "dead_letter": 0}),
             "rbac": self.write_json("rbac.json", {"status": "pass", "key_count": 2, "tenant_scoped_keys": 1}),
+            "install": self.write_json("install.json", {"status": "pass"}),
+            "observability": self.write_json("observability.json", {"status": "pass"}),
+            "security": self.write_json("security.json", {"status": "pass"}),
         }
         report = subject.build_report(self.args(**paths))
         self.assertEqual(report["status"], "pass")
@@ -70,6 +76,9 @@ class OperationsReadinessGateTest(unittest.TestCase):
             "upgrade": self.write_json("upgrade.json", {"status": "planned"}),
             "siem": self.write_json("siem.json", {"status": "pass"}),
             "rbac": self.write_json("rbac.json", {"status": "pass"}),
+            "install": self.write_json("install.json", {"status": "pass"}),
+            "observability": self.write_json("observability.json", {"status": "pass"}),
+            "security": self.write_json("security.json", {"status": "pass"}),
         }
         report = subject.build_report(self.args(**paths))
         self.assertEqual(report["status"], "blocked")

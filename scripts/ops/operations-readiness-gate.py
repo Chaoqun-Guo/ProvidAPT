@@ -108,6 +108,9 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "upgrade_rollout": upgrade_detail(load_json(Path(args.upgrade_rollout))),
         "siem_soar_delivery": simple_detail(load_json(Path(args.siem_verify)), delivered="delivered", dead_letter="dead_letter"),
         "rbac_audit": simple_detail(load_json(Path(args.rbac_audit)), keys="key_count", tenant_scoped_keys="tenant_scoped_keys"),
+        "install_delivery": simple_detail(load_json(Path(args.install_delivery_check))),
+        "observability_pack": simple_detail(load_json(Path(args.observability_pack_check))),
+        "security_hardening": simple_detail(load_json(Path(args.security_hardening_gate))),
     }
     return {
         "schema": SCHEMA,
@@ -151,6 +154,9 @@ def main() -> int:
     parser.add_argument("--upgrade-rollout", default="build/upgrade/rollout-plan.json")
     parser.add_argument("--siem-verify", default="build/siem/siem-verification.json")
     parser.add_argument("--rbac-audit", default="build/rbac/rbac-audit.json")
+    parser.add_argument("--install-delivery-check", default="build/install-delivery/install-delivery-check.json")
+    parser.add_argument("--observability-pack-check", default="build/observability/observability-pack-check.json")
+    parser.add_argument("--security-hardening-gate", default="build/security-hardening/security-hardening-gate.json")
     parser.add_argument("--out-json", default="build/operations-readiness/operations-readiness-gate.json")
     parser.add_argument("--out-md", default="build/operations-readiness/operations-readiness-gate.md")
     args = parser.parse_args()
