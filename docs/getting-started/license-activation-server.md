@@ -24,6 +24,9 @@ PROVIDAPT_AUTH_ADDR=:19090
 PROVIDAPT_AUTH_ARTIFACT_DIR=/var/lib/providapt-auth/artifacts
 PROVIDAPT_AUTH_LICENSE_SIGNING_KEY=<shared-license-signing-key>
 PROVIDAPT_AUTH_ACTIVATION_CODE=<optional-customer-code>
+PROVIDAPT_AUTH_CUSTOMER_REGISTRY=/etc/providapt-auth/customers.json
+PROVIDAPT_AUTH_STATE_PATH=/var/lib/providapt-auth/state/activations.jsonl
+PROVIDAPT_AUTH_REVOCATION_FILE=/etc/providapt-auth/revocations.json
 PROVIDAPT_AUTH_API_KEY=<optional-bearer-token>
 PROVIDAPT_AUTH_CUSTOMER='Example Customer'
 PROVIDAPT_AUTH_EDITION=enterprise
@@ -35,6 +38,45 @@ PROVIDAPT_AUTH_UPGRADE_SHA256=<artifact-sha256>
 PROVIDAPT_AUTH_UPGRADE_SIGNATURE_URL=https://downloads.example/providapt.tar.gz.sig
 PROVIDAPT_AUTH_REVOKED_IDS=lic-001,lic-002
 ```
+
+Use `PROVIDAPT_AUTH_ACTIVATION_CODE` only for a single evaluation code. For
+commercial staging, use a customer registry:
+
+```json
+{
+  "customers": [
+    {
+      "activation_code": "ACME-2026",
+      "customer": "Acme Corp",
+      "edition": "enterprise",
+      "license_id": "lic-acme-2026",
+      "max_agents": 250,
+      "valid_days": 730,
+      "allowed_fingerprints": ["HOST-FINGERPRINT-1"],
+      "disabled": false
+    }
+  ]
+}
+```
+
+When a registry is configured, the server issues licenses from the entitlement
+record and ignores client-supplied customer, edition, seat, and duration
+overrides. If `allowed_fingerprints` is non-empty, activation is allowed only for
+those host fingerprints.
+
+The activation server appends every issued or rejected activation to
+`PROVIDAPT_AUTH_STATE_PATH` as JSONL. Archive this file with customer support
+and release evidence. A revocation file can be used alongside the environment
+variable:
+
+```json
+{
+  "revoked_ids": ["lic-acme-2025"]
+}
+```
+
+`GET /v1/customers/status` returns registry, disabled-entitlement, and
+revocation counts for control-plane health checks.
 
 Place upgrade artifacts under `PROVIDAPT_AUTH_ARTIFACT_DIR`; the server exposes them under `/artifacts/`. For example, `/var/lib/providapt-auth/artifacts/providapt.tar.gz` is reachable as `http://127.0.0.1:19090/artifacts/providapt.tar.gz`.
 

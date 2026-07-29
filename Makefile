@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace build-auth-server generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-deploy-gate verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-auth-server docker-run help
@@ -405,6 +405,7 @@ ml-training-pipeline:
 	$(MAKE) graph-dataset EVENTS="$(EVENTS)" GROUND_TRUTH="$(GROUND_TRUTH)" $(if $(ALERT_FEEDBACK),ALERT_FEEDBACK="$(ALERT_FEEDBACK)") OUT_DIR="$(or $(DATASET_OUT_DIR),build/ml-dataset)" DATASET_VERSION="$(or $(DATASET_VERSION),$(MODEL_VERSION))"
 	$(MAKE) graph-train GRAPH_DATASET="$(or $(DATASET_OUT_DIR),build/ml-dataset)/graphs.jsonl" OUT_DIR="$(or $(MODEL_OUT_DIR),build/ml-model)" ARCH="$(or $(ARCH),gcn)" EPOCHS="$(or $(EPOCHS),20)"
 	$(MAKE) model-register DATASET_MANIFEST="$(or $(DATASET_OUT_DIR),build/ml-dataset)/manifest.json" MODEL_NAME="$(or $(MODEL_NAME),graph-detector)" MODEL_VERSION="$(MODEL_VERSION)" MODEL_METRICS="$(or $(MODEL_OUT_DIR),build/ml-model)/metrics.json" MODEL_ARTIFACT="$(or $(MODEL_OUT_DIR),build/ml-model)/model.pt" FEATURE_SCHEMA="$(or $(DATASET_OUT_DIR),build/ml-dataset)/feature_schema.json" MODEL_REGISTRY="$(or $(MODEL_REGISTRY),build/model-registry.json)" NOTES="Graph detector training pipeline"
+	$(MAKE) model-closed-loop DATASET_MANIFEST="$(or $(DATASET_OUT_DIR),build/ml-dataset)/manifest.json" MODEL_METRICS="$(or $(MODEL_OUT_DIR),build/ml-model)/metrics.json" MODEL_REGISTRY="$(or $(MODEL_REGISTRY),build/model-registry.json)" MODEL_NAME="$(or $(MODEL_NAME),graph-detector)" MODEL_VERSION="$(MODEL_VERSION)" $(if $(ALERT_FEEDBACK),ALERT_FEEDBACK="$(ALERT_FEEDBACK)")
 
 ml-readiness-gate:
 	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_METRICS)" ]; then echo 'usage: make ml-readiness-gate DATASET_MANIFEST=... MODEL_METRICS=... [MODEL_GATE=...]'; exit 2; fi
@@ -430,6 +431,10 @@ model-drift:
 	@if [ -z "$(BASELINE_MANIFEST)" ] || [ -z "$(CANDIDATE_MANIFEST)" ]; then echo 'usage: make model-drift BASELINE_MANIFEST=old/manifest.json CANDIDATE_MANIFEST=new/manifest.json [OUT_DIR=build/evaluation]'; exit 2; fi
 	python3 scripts/evaluation/model_registry.py drift --baseline "$(BASELINE_MANIFEST)" --candidate "$(CANDIDATE_MANIFEST)" --threshold-percent "$(or $(DRIFT_THRESHOLD_PERCENT),20)" --out-json "$(or $(OUT_DIR),build/evaluation)/model-drift.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-drift.md"
 
+model-closed-loop:
+	@if [ -z "$(DATASET_MANIFEST)" ] || [ -z "$(MODEL_METRICS)" ]; then echo 'usage: make model-closed-loop DATASET_MANIFEST=... MODEL_METRICS=... [MODEL_REGISTRY=build/model-registry.json]'; exit 2; fi
+	python3 scripts/evaluation/model_closed_loop.py --dataset-manifest "$(DATASET_MANIFEST)" --metrics "$(MODEL_METRICS)" --registry "$(or $(MODEL_REGISTRY),build/model-registry.json)" --model-name "$(or $(MODEL_NAME),graph-detector)" --model-version "$(MODEL_VERSION)" $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(ALERT_FEEDBACK),--feedback "$(ALERT_FEEDBACK)") $(if $(REQUIRE_FEEDBACK),--require-feedback) --min-precision "$(or $(MIN_PRECISION),70)" --min-recall "$(or $(MIN_RECALL),80)" --min-f1 "$(or $(MIN_F1),70)" --out-json "$(or $(OUT_DIR),build/evaluation)/model-closed-loop.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-closed-loop.md"
+
 model-feature-schema:
 	python3 scripts/evaluation/model_registry.py export-schema --version "$(or $(FEATURE_SCHEMA_VERSION),1)" --out "$(or $(OUT_DIR),build/evaluation)/model-feature-schema.json"
 
@@ -452,6 +457,10 @@ docker-build:
 
 docker-auth-server:
 	docker compose up -d auth-server
+
+upgrade-artifact:
+	@if [ -z "$(ARTIFACT)" ] || [ -z "$(VERSION)" ] || [ -z "$(BASE_URL)" ]; then echo 'usage: make upgrade-artifact ARTIFACT=dist/providapt.tar.gz VERSION=v1.2.4 BASE_URL=http://host:19090/artifacts [SIGNING_KEY=secret]'; exit 2; fi
+	python3 scripts/release/build_upgrade_artifact.py --artifact "$(ARTIFACT)" --version "$(VERSION)" --base-url "$(BASE_URL)" --out-dir "$(or $(OUT_DIR),build/upgrade-artifacts)" $(if $(MINIMUM_VERSION),--minimum-version "$(MINIMUM_VERSION)") $(if $(RELEASE_NOTES),--release-notes "$(RELEASE_NOTES)") $(if $(PUBLISHED_AT),--published-at "$(PUBLISHED_AT)") $(if $(SIGNING_KEY),--signing-key "$(SIGNING_KEY)")
 
 docker-run: docker-build
 	docker run --rm -it --privileged -v /sys/kernel/btf:/sys/kernel/btf:ro providapt:latest

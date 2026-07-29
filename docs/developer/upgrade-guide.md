@@ -48,6 +48,38 @@ Configure:
 - `upgrade.public_key_path` or `upgrade.signing_key`
 - `upgrade.rollback_plan`
 
+## Build Published Upgrade Artifacts
+
+Create the artifact manifest, checksum file, and optional HMAC signature before
+publishing a staged upgrade:
+
+```bash
+make upgrade-artifact \
+  ARTIFACT=dist/providapt-linux-amd64.tar.gz \
+  VERSION=v1.2.4 \
+  BASE_URL=http://auth.example.com:19090/artifacts \
+  SIGNING_KEY="$PROVIDAPT_UPGRADE_SIGNING_KEY" \
+  OUT_DIR=build/upgrade-artifacts
+```
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `build/upgrade-artifacts/<artifact>` | Artifact copied into the publish directory |
+| `build/upgrade-artifacts/<artifact>.sha256` | Package checksum evidence |
+| `build/upgrade-artifacts/<artifact>.sig` | HMAC signature over the package SHA256 when `SIGNING_KEY` is set |
+| `build/upgrade-artifacts/latest.json` | Manifest consumed by `/v1/releases/latest` and the dashboard |
+| `build/upgrade-artifacts/upgrade-artifact.md` | Operator-readable release evidence |
+
+Wire the activation server to the generated values:
+
+```bash
+export PROVIDAPT_AUTH_UPGRADE_DOWNLOAD_URL=http://auth.example.com:19090/artifacts/providapt-linux-amd64.tar.gz
+export PROVIDAPT_AUTH_UPGRADE_SHA256=<expected_sha256>
+export PROVIDAPT_AUTH_UPGRADE_SIGNATURE_URL=http://auth.example.com:19090/artifacts/providapt-linux-amd64.tar.gz.sig
+```
+
 Then run:
 
 1. control-plane `download`

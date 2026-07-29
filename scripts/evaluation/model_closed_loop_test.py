@@ -1,0 +1,75 @@
+import json
+import sys
+import unittest
+import uuid
+from pathlib import Path
+from types import SimpleNamespace
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import model_closed_loop as loop
+
+
+class ModelClosedLoopTest(unittest.TestCase):
+    def test_ready_when_metrics_registry_and_feedback_pass(self):
+        root = Path.cwd() / ".tmp-tests" / "model-closed-loop" / uuid.uuid4().hex
+        root.mkdir(parents=True, exist_ok=True)
+        manifest = root / "manifest.json"
+        metrics = root / "metrics.json"
+        registry = root / "registry.json"
+        feedback = root / "feedback.jsonl"
+        manifest.write_text(json.dumps({"dataset_id": "ds1", "dataset_version": "1", "record_count": 1000}), encoding="utf-8")
+        metrics.write_text(json.dumps({"accuracy": 0.97, "precision": 0.92, "recall": 0.91, "f1": 0.915}), encoding="utf-8")
+        registry.write_text(json.dumps({"models": [{"model_name": "graph-detector", "model_version": "1.0.0"}]}), encoding="utf-8")
+        feedback.write_text('{"label":"true_positive"}\n', encoding="utf-8")
+        args = SimpleNamespace(
+            dataset_manifest=str(manifest),
+            metrics=str(metrics),
+            registry=str(registry),
+            model_name="graph-detector",
+            model_version="1.0.0",
+            drift_report="",
+            feedback=str(feedback),
+            require_feedback=True,
+            min_precision=70.0,
+            min_recall=80.0,
+            min_f1=70.0,
+        )
+
+        report = loop.build_report(args)
+
+        self.assertEqual(report["status"], "ready")
+        self.assertEqual(report["feedback"]["records"], 1)
+        self.assertEqual(report["metrics"]["precision"], 92.0)
+
+    def test_blocks_missing_registry_and_low_recall(self):
+        root = Path.cwd() / ".tmp-tests" / "model-closed-loop" / uuid.uuid4().hex
+        root.mkdir(parents=True, exist_ok=True)
+        manifest = root / "manifest.json"
+        metrics = root / "metrics.json"
+        manifest.write_text(json.dumps({"dataset_id": "ds1", "record_count": 1000}), encoding="utf-8")
+        metrics.write_text(json.dumps({"precision": 0.9, "recall": 0.4, "f1": 0.55}), encoding="utf-8")
+        args = SimpleNamespace(
+            dataset_manifest=str(manifest),
+            metrics=str(metrics),
+            registry=str(root / "missing.json"),
+            model_name="graph-detector",
+            model_version="1.0.0",
+            drift_report="",
+            feedback="",
+            require_feedback=False,
+            min_precision=70.0,
+            min_recall=80.0,
+            min_f1=70.0,
+        )
+
+        report = loop.build_report(args)
+
+        self.assertEqual(report["status"], "review_required")
+        failed = {item["name"] for item in report["gates"] if item["status"] == "fail"}
+        self.assertIn("recall", failed)
+        self.assertIn("registered_model", failed)
+
+
+if __name__ == "__main__":
+    unittest.main()

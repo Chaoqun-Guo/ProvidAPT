@@ -325,6 +325,43 @@ Outputs:
 Keep the gate output with the model artifact, dataset manifest, drift report,
 feature schema report, and release evidence bundle.
 
+## Model Closed Loop
+
+After each training run, generate a closed-loop report that joins dataset
+identity, model metrics, registry state, optional drift, and analyst feedback:
+
+```bash
+make model-closed-loop \
+  DATASET_MANIFEST=build/ml-dataset/manifest.json \
+  MODEL_METRICS=build/ml-model/metrics.json \
+  MODEL_REGISTRY=build/model-registry.json \
+  MODEL_NAME=graph-detector \
+  MODEL_VERSION=1.0.0 \
+  MODEL_DRIFT_JSON=build/evaluation/model-drift.json \
+  ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson \
+  OUT_DIR=build/evaluation
+```
+
+The report answers whether a model is ready for deployment or needs review. It
+checks:
+
+- Dataset manifest and metrics are present.
+- Precision, recall, and F1 meet release thresholds.
+- The model artifact is registered.
+- Optional drift evidence does not require review.
+- Optional operator feedback is attached when `REQUIRE_FEEDBACK=1` is set.
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `model-closed-loop.json` | Machine-readable promotion decision and evidence |
+| `model-closed-loop.md` | Human-readable model lifecycle report |
+
+`make ml-training-pipeline` now runs this closed-loop report after model
+registration. Store it with the dataset manifest, model artifact, training
+metrics, feature schema, drift report, and alert feedback ledger.
+
 ## ML Readiness Gate
 
 Before marking ML readiness complete, run the dataset-quality and model-quality readiness
