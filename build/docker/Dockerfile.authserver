@@ -1,0 +1,21 @@
+FROM golang:1.25-bookworm AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/providapt-auth-server ./cmd/authserver
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget \
+  && rm -rf /var/lib/apt/lists/* \
+  && useradd --system --no-create-home --shell /usr/sbin/nologin providapt-auth \
+  && mkdir -p /var/lib/providapt-auth/artifacts /var/lib/providapt-auth/state \
+  && chown -R providapt-auth:providapt-auth /var/lib/providapt-auth
+
+COPY --from=builder /out/providapt-auth-server /usr/local/bin/providapt-auth-server
+
+USER providapt-auth
+EXPOSE 19090
+ENTRYPOINT ["/usr/local/bin/providapt-auth-server"]

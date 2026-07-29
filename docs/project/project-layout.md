@@ -16,6 +16,25 @@ This document defines where files belong in the ProvidAPT repository.
 | `build/` | Build-time, packaging, and container assets |
 | `examples/` | Sample configuration and usage patterns |
 
+## Build Directory Rules
+
+`build/` contains both tracked build assets and ignored generated output.
+
+Tracked assets:
+
+- `build/*.sh` for local environment checks, dependency installation, and deployment helpers
+- `build/*.toml` for default local development configuration
+- `build/docker/` for Docker build definitions
+- `build/packages/` for Debian, RPM, and tarball packaging helpers
+
+Ignored generated output:
+
+- `build/bin/` for compiled userspace binaries
+- `build/ebpf/` for compiled eBPF objects
+- `build/coverage/`, evaluation datasets, release reports, and temporary validation evidence
+
+Use `.tmp-*` for short-lived test scratch directories.
+
 ## Documentation Placement Rules
 
 | Path | Content Type |

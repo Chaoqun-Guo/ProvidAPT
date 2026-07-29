@@ -9,6 +9,8 @@
 *.toml text eol=lf
 *.json text eol=lf
 *.proto text eol=lf
+Dockerfile text eol=lf
+*.service text eol=lf
 *.c text eol=lf
 *.h text eol=lf
 

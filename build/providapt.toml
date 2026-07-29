@@ -1,0 +1,43 @@
+# ProvidAPT default local development configuration.
+
+[output]
+dir = "/var/log/providapt"
+
+[log]
+level = "info"
+
+[api]
+rest = ":18080"
+grpc = ":50051"
+
+[control_plane]
+mode = "standalone"
+node_id = "local-dev"
+role = "leader"
+state_backend = "file:///var/lib/providapt/state.json"
+
+[secrets]
+provider = "file"
+base_dir = "/etc/providapt/secrets"
+
+[tls]
+enable = false
+rotation_check = "24h"
+rotation_renew_before = "720h"
+rotation_auto = false
+
+[capture]
+enable_net = true
+enable_file = true
+enable_proc = true
+
+[analyzer]
+scan_interval = "10s"
+
+[telemetry]
+endpoint = "127.0.0.1:50051"
+interval = "5s"
+enable_tls = false
+
+[license]
+path = "/etc/providapt/license.lic"

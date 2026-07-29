@@ -64,6 +64,13 @@ watchdog
 
 # --- Build ---
 /build/
+!/build/
+!/build/packages/
+!/build/packages/**
+!/build/docker/
+!/build/docker/**
+!/build/*.sh
+!/build/*.toml
 /dist/
 /output/
 target/

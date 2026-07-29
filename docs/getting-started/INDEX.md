@@ -7,6 +7,7 @@ This section explains how to install, evaluate, deploy, and operate ProvidAPT in
 | Document | Description |
 | --- | --- |
 | [quick-start.md](quick-start.md) | Fast path from install to dashboard, alerts, and provenance trace |
+| [ubuntu-development.md](ubuntu-development.md) | Ubuntu development environment setup and daily workflow |
 | [install.md](install.md) | Installation guide for source and package-based installs |
 | [commercial-install.md](commercial-install.md) | Commercial Linux installation, removal, upgrade, and preflight checks |
 | [secret-management.md](secret-management.md) | Production secret injection and validation |

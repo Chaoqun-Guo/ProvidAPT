@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -14,6 +13,7 @@ from typing import Any
 SCHEMA = "providapt.observability_pack_check.v1"
 REQUIRED_ALERTS = ["ProvidaptNoEvents", "ProvidaptBackpressure", "ProvidaptCriticalAlert"]
 REQUIRED_METRICS = ["providapt_events_ingested_total", "providapt_graph_nodes", "providapt_alerts_triggered_total"]
+MOJIBAKE_MARKERS = ("\u95c1", "\u95b3", "\u9225", "\u951f", "\ufffd")
 
 
 def utc_now() -> str:
@@ -24,6 +24,10 @@ def text(path: Path) -> str:
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8-sig", errors="replace")
+
+
+def has_mojibake(data: str) -> bool:
+    return any(marker in data for marker in MOJIBAKE_MARKERS)
 
 
 def check_prometheus(path: Path) -> dict[str, Any]:
@@ -45,7 +49,7 @@ def check_alerts(path: Path) -> dict[str, Any]:
     for alert in REQUIRED_ALERTS:
         if alert not in data:
             failures.append(f"required alert rule missing: {alert}")
-    if "鈹" in data or "鈥" in data:
+    if has_mojibake(data):
         warnings.append("alert rule file contains mojibake characters")
     if "severity: critical" not in data:
         warnings.append("no critical severity alert rule found")
@@ -73,7 +77,7 @@ def check_dashboard(path: Path) -> dict[str, Any]:
             for metric in REQUIRED_METRICS[:2]:
                 if metric not in dumped:
                     warnings.append(f"dashboard does not reference metric {metric}")
-            if "鈹" in data or "鈥" in data:
+            if has_mojibake(data):
                 warnings.append("dashboard JSON contains mojibake characters")
         except json.JSONDecodeError as exc:
             failures.append(f"dashboard JSON parse failed: {exc}")

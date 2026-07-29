@@ -1,6 +1,9 @@
 # ProvidAPT
 
-ProvidAPT is a Linux provenance-based threat detection platform built on eBPF and BPF LSM. It captures kernel-level activity, builds a provenance graph, and supports detection, investigation, audit, support, ticketing, license, and upgrade workflows for production operations.
+ProvidAPT is a Linux provenance-based threat detection platform built on eBPF and
+BPF LSM. It captures kernel-level activity, builds a provenance graph, and
+supports detection, investigation, audit, support, ticketing, license, and
+upgrade workflows for production operations.
 
 [![Go Version](https://img.shields.io/badge/Go-1.25+-blue)](https://golang.org)
 [![Release](https://img.shields.io/badge/Release-v1.2.3--rc.1-orange)](CHANGELOG.md)
@@ -27,24 +30,27 @@ ProvidAPT/
 ├── deploy/             # Helm, Terraform, Ansible, and deployment assets
 ├── scripts/            # operational helper scripts
 ├── test/               # integration, benchmark, and validation assets
-├── build/              # packaging, docker, and build-time assets
+├── build/              # packaging, Docker, and build-time assets
 └── examples/           # example configurations and usage samples
 ```
 
-Detailed documentation for the repository layout is available in `docs/project/project-layout.md`.
+Detailed documentation for the repository layout is available in
+`docs/project/project-layout.md`.
 
-## Quick Start
+## Ubuntu Development Quick Start
 
 ```bash
-# Build the full product
+make verify-env
+sudo make install-deps
+make verify-env
+
 make build-core
-
-# Run core tests
 make test-core
-
-# Run Linux loader smoke validation on a suitable host
 sudo make loader-smoke
 ```
+
+See `docs/getting-started/ubuntu-development.md` for the full Ubuntu workflow,
+BPF LSM setup, and Docker development shell.
 
 ## eBPF Loader Notes
 
@@ -86,10 +92,9 @@ build/ebpf/*.bpf.o            # Compiled eBPF programs
 
 ## Requirements
 
-- Linux kernel 5.8+ (5.11+ recommended for BPF LSM)
-- BTF support (`CONFIG_DEBUG_INFO_BTF=y`)
-- clang 12+, llvm-strip
-- libbpf 1.0+
+- Linux kernel 5.8+; 5.11+ is recommended for BPF LSM
+- BTF support through `CONFIG_DEBUG_INFO_BTF=y`
+- `clang` 12+, `llvm-strip`, and `libbpf` 1.0+
 - Go 1.25+
 
 ## License
