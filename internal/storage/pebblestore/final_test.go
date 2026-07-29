@@ -18,13 +18,13 @@ import (
 // ─── Proto event parsing tests ──────────────────────────────
 
 func TestRawEventToProto(t *testing.T) {
-	raw := make([]byte, 332)
-	raw[0] = 10                            // type=file_open
-	raw[16] = 100                          // pid=100
-	raw[28] = 0xE8                         // uid=1000 (LSB)
-	raw[29] = 0x03                         // uid=1000 (MSB)
-	copy(raw[60:], []byte("bash\x00"))     // comm
-	copy(raw[76:], []byte("/etc/shadow\x00")) // pathname
+	raw := make([]byte, 340)
+	raw[0] = 10                               // type=file_open
+	raw[16] = 100                             // pid=100
+	raw[28] = 0xE8                            // uid=1000 (LSB)
+	raw[29] = 0x03                            // uid=1000 (MSB)
+	copy(raw[68:], []byte("bash\x00"))        // comm
+	copy(raw[84:], []byte("/etc/shadow\x00")) // pathname
 
 	evt := RawEventToProto(raw)
 	if evt == nil {
@@ -45,7 +45,7 @@ func TestRawEventToProto(t *testing.T) {
 }
 
 func TestRawEventToProtoUid(t *testing.T) {
-	raw := make([]byte, 332)
+	raw := make([]byte, 340)
 	raw[28] = 42 // uid at offset 28
 	evt := RawEventToProto(raw)
 	if evt.Uid != 42 {

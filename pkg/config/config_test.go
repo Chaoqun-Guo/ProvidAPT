@@ -292,6 +292,29 @@ scan_interval = "5s"
 	}
 }
 
+func TestLoadTOMLWithLeadingComments(t *testing.T) {
+	toml := `
+# local development config
+
+[output]
+dir = "/tmp/providapt-commented-toml"
+
+[api]
+rest = ":18080"
+`
+	path := writeTempFile(t, "config.*.toml", toml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load TOML with comments: %v", err)
+	}
+	if cfg.Output.Dir != "/tmp/providapt-commented-toml" {
+		t.Fatalf("output dir = %q", cfg.Output.Dir)
+	}
+	if cfg.API.REST != ":18080" {
+		t.Fatalf("api rest = %q", cfg.API.REST)
+	}
+}
+
 func TestCommAllowedNormalizesCommandNames(t *testing.T) {
 	include := []string{"/usr/bin/Curl", "bash"}
 	if !CommAllowed("curl", include) {

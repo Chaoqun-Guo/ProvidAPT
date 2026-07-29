@@ -13,7 +13,7 @@ import (
 )
 
 func newRawBuffer() []byte {
-	buf := make([]byte, 332)
+	buf := make([]byte, 340)
 	le := binary.LittleEndian
 	le.PutUint32(buf[0:4], uint32(syscall.EventFileOpen))
 	le.PutUint32(buf[4:8], 0)
@@ -28,8 +28,8 @@ func newRawBuffer() []byte {
 	le.PutUint32(buf[48:52], 3)
 	le.PutUint32(buf[52:56], 0o644)
 	le.PutUint32(buf[56:60], 0)
-	copy(buf[60:76], "test\x00")
-	copy(buf[76:], "/etc/passwd\x00")
+	copy(buf[68:84], "test\x00")
+	copy(buf[84:], "/etc/passwd\x00")
 	return buf
 }
 
@@ -41,8 +41,8 @@ func rawFork(pid, ppid, childPid uint32, comm string, ts uint64) []byte {
 	le.PutUint32(buf[16:20], pid)
 	le.PutUint32(buf[24:28], ppid)
 	le.PutUint32(buf[36:40], childPid)
-	copy(buf[60:76], []byte(comm+"\x00"))
-	copy(buf[76:], "\x00")
+	copy(buf[68:84], []byte(comm+"\x00"))
+	copy(buf[84:], "\x00")
 	return buf
 }
 
@@ -52,8 +52,8 @@ func rawExec(pid uint32, comm, pathname string, ts uint64) []byte {
 	le.PutUint32(buf[0:4], uint32(syscall.EventProcessExec))
 	le.PutUint64(buf[8:16], ts)
 	le.PutUint32(buf[16:20], pid)
-	copy(buf[60:76], []byte(comm+"\x00"))
-	copy(buf[76:], []byte(pathname+"\x00"))
+	copy(buf[68:84], []byte(comm+"\x00"))
+	copy(buf[84:], []byte(pathname+"\x00"))
 	return buf
 }
 
@@ -64,8 +64,8 @@ func rawFileOpen(pid uint32, inode uint64, pathname, comm string, ts uint64) []b
 	le.PutUint64(buf[8:16], ts)
 	le.PutUint32(buf[16:20], pid)
 	le.PutUint64(buf[36:44], inode)
-	copy(buf[60:76], []byte(comm+"\x00"))
-	copy(buf[76:], []byte(pathname+"\x00"))
+	copy(buf[68:84], []byte(comm+"\x00"))
+	copy(buf[84:], []byte(pathname+"\x00"))
 	return buf
 }
 
@@ -75,8 +75,8 @@ func rawNetConnect(pid uint32, comm, addr string, ts uint64) []byte {
 	le.PutUint32(buf[0:4], uint32(syscall.EventNetConnect))
 	le.PutUint64(buf[8:16], ts)
 	le.PutUint32(buf[16:20], pid)
-	copy(buf[60:76], []byte(comm+"\x00"))
-	copy(buf[76:], []byte(addr+"\x00"))
+	copy(buf[68:84], []byte(comm+"\x00"))
+	copy(buf[84:], []byte(addr+"\x00"))
 	return buf
 }
 

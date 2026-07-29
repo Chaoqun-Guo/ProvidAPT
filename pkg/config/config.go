@@ -873,8 +873,13 @@ func applyEnvOverrides(cfg *Config) {
 
 func shouldParseTOML(path string, data []byte) bool {
 	if strings.EqualFold(filepath.Ext(path), ".toml") {
-		trimmed := strings.TrimSpace(string(data))
-		return strings.HasPrefix(trimmed, "[")
+		for _, line := range strings.Split(string(data), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			return strings.HasPrefix(trimmed, "[")
+		}
 	}
 	return false
 }
