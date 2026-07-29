@@ -342,7 +342,7 @@ Commercial behavior:
 - License files or `license.max_agents` may enforce reporting-agent seat limits.
 - Upgrade `apply` and `rollback` actions use `upgrade.apply_command` and `upgrade.rollback_command` after checksum/signature preflight and required approvals.
 
-P5 multi-tenant behavior:
+Managed multi-tenant behavior:
 
 - Tenant-scoped API keys from `api.auth_tenants` are restricted to their fleet group across Agent Overview, Fleet, Audit Feed, and Compliance status.
 - Tenant-filtered audit entries match `tenant`, `group`, `target_group`, or comma-separated `tags` metadata in persisted audit details.

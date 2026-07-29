@@ -205,7 +205,7 @@ func TestReplayAllDeadLetters(t *testing.T) {
 	m.AddNotifier(n)
 
 	m.Send(Alert{ID: "a-4", Severity: SeverityHigh, Pattern: "pattern-d", Headline: "replay one"})
-	m.Send(Alert{ID: "a-5", Severity: SeverityCritical, Pattern: "P5", Headline: "replay two"})
+	m.Send(Alert{ID: "a-5", Severity: SeverityCritical, Pattern: "critical-replay", Headline: "replay two"})
 
 	batch := m.ReplayAllDeadLetters()
 	if batch.Processed != 2 {
@@ -225,7 +225,7 @@ func TestSetTicketReference(t *testing.T) {
 	n := &mockNotifier{name: "dead", fail: 1}
 	m.AddNotifier(n)
 
-	m.Send(Alert{ID: "a-6", Severity: SeverityHigh, Pattern: "P6", Headline: "ticket"})
+	m.Send(Alert{ID: "a-6", Severity: SeverityHigh, Pattern: "ticket-routing", Headline: "ticket"})
 	snapshot := m.DeliverySnapshot()
 	if len(snapshot.DeadLetters) != 1 {
 		t.Fatalf("dead letters = %d", len(snapshot.DeadLetters))
