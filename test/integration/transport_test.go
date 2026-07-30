@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"testing"
+	"time"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/transport"
 )
@@ -80,7 +81,7 @@ func TestNewHeartbeat(t *testing.T) {
 func TestCleanStale(t *testing.T) {
 	hc := transport.NewHashCache()
 	hc.ShouldTransmit("known-hash")
-	n := hc.CleanStale(0)
+	n := hc.CleanStale(-1 * time.Nanosecond)
 	if n != 1 {
 		t.Errorf("cleaned = %d", n)
 	}
