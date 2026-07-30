@@ -1187,10 +1187,131 @@ body.detail-drawer-open {
   max-width: 100%;
 }
 
+.policy-center-panel {
+  min-height: 560px;
+  max-height: min(860px, calc(100vh - 118px));
+}
+
+.policy-center-panel .panel-body {
+  gap: 10px;
+}
+
+.policy-center-panel .policy-summary-grid {
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+}
+
+.policy-center-panel .policy-item {
+  min-height: 62px;
+}
+
+.policy-center-panel .policy-view-actions,
+.policy-center-panel .policy-rule-actions,
+.policy-center-panel .policy-publish-actions {
+  margin: 0;
+}
+
+.policy-center-editor {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.82fr) minmax(0, 1.45fr);
+  grid-template-areas:
+    "notes fields"
+    "yaml yaml"
+    "rule-actions rule-actions"
+    "publish-actions publish-actions";
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(88, 166, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(3, 8, 18, 0.26);
+}
+
+.policy-notes {
+  grid-area: notes;
+  min-height: 106px !important;
+}
+
+.policy-rule-fields {
+  grid-area: fields;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+}
+
+.policy-yaml {
+  grid-area: yaml;
+  min-height: 132px !important;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+.policy-rule-actions {
+  grid-area: rule-actions;
+}
+
+.policy-publish-actions {
+  grid-area: publish-actions;
+  justify-content: flex-end;
+  padding-top: 2px;
+  border-top: 1px solid rgba(88, 166, 255, 0.14);
+}
+
+#policyActionStatus {
+  min-height: 30px;
+  padding: 7px 10px;
+  text-align: left;
+  border: 1px solid rgba(88, 166, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(3, 8, 18, 0.24);
+  overflow-wrap: anywhere;
+}
+
+.detail-section {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(88, 166, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(3, 8, 18, 0.24);
+}
+
+.detail-section-title {
+  color: var(--ids-cyan);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+
+.detail-drawer-body .matrix-grid {
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+}
+
+.detail-drawer-body .matrix-card {
+  min-height: 78px;
+}
+
+.detail-drawer-body .matrix-card .value {
+  font-size: 16px;
+  line-height: 1.18;
+}
+
+.detail-drawer-body .data-table-wrap {
+  max-height: min(460px, 52vh);
+}
+
 @media (max-width: 1180px) {
   .auth-strip {
     grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(72px, max-content));
     border-radius: 18px;
+  }
+  .policy-center-panel .policy-summary-grid {
+    grid-template-columns: repeat(3, minmax(110px, 1fr));
+  }
+  .policy-center-editor {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "notes"
+      "fields"
+      "yaml"
+      "rule-actions"
+      "publish-actions";
   }
 }
 
@@ -1201,6 +1322,13 @@ body.detail-drawer-open {
   }
   .auth-strip input {
     grid-column: 1 / -1;
+  }
+  .policy-center-panel .policy-summary-grid,
+  .policy-rule-fields {
+    grid-template-columns: 1fr;
+  }
+  .policy-publish-actions {
+    justify-content: stretch;
   }
 }
 </style>
@@ -1434,17 +1562,17 @@ body.detail-drawer-open {
       </div>
     </div>
   </div>
-  <div class="panel">
+  <div class="panel span-2 policy-center-panel">
     <h2>Policy Center</h2>
     <div class="panel-body">
-      <div class="policy-grid">
+      <div class="policy-grid policy-summary-grid">
         <div class="policy-item clickable" onclick="showPolicyDetails('current')"><div class="value" id="pCurrentVersion">--</div><div class="label">Current Version</div></div>
         <div class="policy-item clickable" onclick="showPolicyDetails('draft')"><div class="value" id="pDraftState">--</div><div class="label">Draft State</div></div>
         <div class="policy-item clickable" onclick="showPolicyDetails('rules')"><div class="value" id="pActiveRules">--</div><div class="label">Active Rules</div></div>
         <div class="policy-item clickable" onclick="showPolicyDetails('history')"><div class="value" id="pHistoryCount">--</div><div class="label">History</div></div>
         <div class="policy-item clickable" onclick="showPolicyDetails('deployment')"><div class="value" id="pDeploymentStatus">--</div><div class="label">Deployment</div></div>
       </div>
-      <div class="action-row">
+      <div class="action-row policy-view-actions">
         <button data-module="policy-center" data-module-action="browse-current" onclick="showPolicyDetails('current')">Browse Current</button>
         <button data-module="policy-center" data-module-action="browse-draft" class="secondary" onclick="showPolicyDetails('draft')">Browse Draft</button>
         <button data-module="policy-center" data-module-action="browse-rules" class="secondary" onclick="showPolicyDetails('rules')">Browse Rules</button>
@@ -1453,9 +1581,9 @@ body.detail-drawer-open {
         <button data-module="policy-center" data-module-action="diff" class="secondary" onclick="showPolicyDetails('diff')">Show Diff</button>
         <button id="downloadPolicyBundleBtn" data-module="policy-center" data-module-action="download" class="secondary" onclick="downloadPolicyBundle()">Download Bundle</button>
       </div>
-      <div class="policy-editor">
-        <textarea id="policyEditNotes" placeholder="Edit policy release notes, rule change reason, or deployment instruction"></textarea>
-        <div class="policy-grid">
+      <div class="policy-editor policy-center-editor">
+        <textarea id="policyEditNotes" class="policy-notes" placeholder="Edit policy release notes, rule change reason, or deployment instruction"></textarea>
+        <div class="policy-grid policy-rule-fields">
           <input id="policyTargetGroup" placeholder="Target group (optional)">
           <input id="policyTargetTag" placeholder="Target tag (optional)">
           <input id="policyRuleID" placeholder="Sigma rule ID">
@@ -1464,8 +1592,8 @@ body.detail-drawer-open {
           <input id="policyTaintPrefix" placeholder="Taint IP prefix or source">
           <input id="policyTaintLabel" placeholder="Taint label">
         </div>
-        <textarea id="policyRuleYAML" placeholder="Sigma rule YAML for add/update"></textarea>
-        <div class="action-row" style="margin:0;align-content:start;">
+        <textarea id="policyRuleYAML" class="policy-yaml" placeholder="Sigma rule YAML for add/update"></textarea>
+        <div class="action-row policy-rule-actions" style="margin:0;align-content:start;">
           <button data-module="policy-center" data-module-action="add-sigma" class="secondary" onclick="preparePolicyMutation('add_sigma')">Add Sigma</button>
           <button data-module="policy-center" data-module-action="validate-sigma" class="secondary" onclick="preparePolicyMutation('validate_sigma')">Validate Sigma</button>
           <button data-module="policy-center" data-module-action="update-sigma" class="secondary" onclick="preparePolicyMutation('update_sigma')">Update Sigma</button>
@@ -1476,7 +1604,7 @@ body.detail-drawer-open {
           <button data-module="policy-center" data-module-action="remove-taint" class="secondary" onclick="preparePolicyMutation('remove_taint')">Remove Taint</button>
           <button data-module="policy-center" data-module-action="load-example" class="secondary" onclick="loadExamplePolicyRule()">Load Example Rule</button>
         </div>
-        <div class="action-row" style="margin:0;align-content:start;">
+        <div class="action-row policy-publish-actions" style="margin:0;align-content:start;">
           <button id="publishPolicyBtn" data-module="policy-center" data-module-action="publish" onclick="preparePolicyAction('publish')">Publish Draft</button>
           <button id="rollbackPolicyBtn" data-module="policy-center" data-module-action="rollback" class="secondary" onclick="preparePolicyAction('rollback')">Rollback</button>
         </div>
@@ -2167,6 +2295,27 @@ function renderDataTable(columns, rows, emptyMessage) {
     '</tbody></table></div>';
 }
 
+function renderDetailSection(title, bodyHTML) {
+  return '<section class="detail-section">' +
+    '<div class="detail-section-title">' + escapeHTML(title || 'Details') + '</div>' +
+    (bodyHTML || renderEmptyDiagnostic('No details available', ['Refresh the module or adjust filters.'])) +
+    '</section>';
+}
+
+function renderMetricCards(cards) {
+  const items = cards || [];
+  if (items.length === 0) {
+    return renderEmptyDiagnostic('No summary metrics available', ['Refresh the module state.']);
+  }
+  return '<div class="matrix-grid">' + items.map(card =>
+    '<div class="matrix-card">' +
+    '<div class="label">' + escapeHTML(card.label || '') + '</div>' +
+    '<div class="value">' + escapeHTML(card.value == null || card.value === '' ? '--' : card.value) + '</div>' +
+    '<div class="sub">' + escapeHTML(card.sub || '') + '</div>' +
+    '</div>'
+  ).join('') + '</div>';
+}
+
 function renderEmptyDiagnostic(title, checks) {
   const rows = (checks || []).map(item => '<div>• ' + escapeHTML(item) + '</div>').join('');
   return '<div class="empty-diagnostic"><strong>' + escapeHTML(title || 'No data available') + '</strong>' + (rows ? '<div style="margin-top:6px;">' + rows + '</div>' : '') + '</div>';
@@ -2754,41 +2903,71 @@ function showPolicyDetails(scope) {
   const draft = data.draft || {};
   const history = data.history || [];
   const actions = data.actions || [];
-  let items = [];
+  let rows = [];
+  let tableColumns = [
+    { key: 'name', label: 'Item' },
+    { key: 'value', label: 'Value' },
+    { key: 'detail', label: 'Detail' },
+  ];
   if (scope === 'current') {
-    items = [
-      renderKVItem('current', 'version ' + (current.version || '--') + ' · state ' + (current.state || '--') + ' · rules ' + (current.active_rules || 0), formatTime(current.published_at || current.updated_at)),
-      renderKVItem('sigma', (current.sigma_rule_ids || []).join(', ') || '--', 'rules'),
-      renderKVItem('bundle sha256', current.bundle_sha256 || '--', 'integrity'),
-      renderKVItem('bundle path', current.bundle_path || '--', 'local'),
+    rows = [
+      { name: 'current', value: 'version ' + (current.version || '--') + ' · state ' + (current.state || '--') + ' · rules ' + (current.active_rules || 0), detail: formatTime(current.published_at || current.updated_at) },
+      { name: 'sigma', value: (current.sigma_rule_ids || []).join(', ') || '--', detail: 'rules' },
+      { name: 'bundle sha256', value: current.bundle_sha256 || '--', detail: 'integrity' },
+      { name: 'bundle path', value: current.bundle_path || '--', detail: 'local' },
     ];
   } else if (scope === 'draft') {
-    items = [renderKVItem('draft', 'version ' + (draft.version || '--') + ' · state ' + (draft.state || '--') + ' · rules ' + (draft.active_rules || 0), formatTime(draft.updated_at))];
+    rows = [{ name: 'draft', value: 'version ' + (draft.version || '--') + ' · state ' + (draft.state || '--') + ' · rules ' + (draft.active_rules || 0), detail: formatTime(draft.updated_at) }];
   } else if (scope === 'rules') {
-    items = [
-      renderKVItem('active', current.active_rules || 0, 'rules'),
-      renderKVItem('whitelist', current.whitelist_count || 0, 'entries'),
-      renderKVItem('taint sources', current.taint_source_count || 0, 'entries'),
+    rows = [
+      { name: 'active', value: current.active_rules || 0, detail: 'rules' },
+      { name: 'whitelist', value: current.whitelist_count || 0, detail: 'entries' },
+      { name: 'taint sources', value: current.taint_source_count || 0, detail: 'entries' },
     ];
   } else if (scope === 'deployment') {
-    items = [
-      renderKVItem('status', current.deployment_status || '--', 'current'),
-      renderKVItem('target scope', (current.target_group || 'all groups') + ' · ' + (current.target_tag || 'all tags'), 'filter'),
-      renderKVItem('target agents', current.target_agents || 0, 'agents'),
-      renderKVItem('acknowledged', current.acked_agents || 0, 'agents'),
-      renderKVItem('pending', current.pending_agents || 0, 'agents'),
-      renderKVItem('bundle', current.bundle_sha256 || '--', 'sha256'),
-      renderKVItem('note', 'queued means rollout is waiting for agent telemetry acknowledgement; applied means all targeted agents reported the policy version', 'state'),
+    rows = [
+      { name: 'status', value: current.deployment_status || '--', detail: 'current' },
+      { name: 'target scope', value: (current.target_group || 'all groups') + ' · ' + (current.target_tag || 'all tags'), detail: 'filter' },
+      { name: 'target agents', value: current.target_agents || 0, detail: 'agents' },
+      { name: 'acknowledged', value: current.acked_agents || 0, detail: 'agents' },
+      { name: 'pending', value: current.pending_agents || 0, detail: 'agents' },
+      { name: 'bundle', value: current.bundle_sha256 || '--', detail: 'sha256' },
+      { name: 'note', value: 'queued means rollout is waiting for agent telemetry acknowledgement; applied means all targeted agents reported the policy version', detail: 'state' },
     ];
   } else if (scope === 'diff') {
     const diff = data.diff || [];
-    items = diff.map(item => renderPolicyDiffItem(item));
+    tableColumns = [
+      { key: 'field', label: 'Field' },
+      { key: 'before', label: 'Before' },
+      { key: 'after', label: 'After' },
+      { key: 'status', label: 'Status' },
+    ];
+    rows = diff.map(item => ({
+      field: item.field || 'policy',
+      before: item.before == null || item.before === '' ? '--' : JSON.stringify(item.before),
+      after: item.after == null || item.after === '' ? '--' : JSON.stringify(item.after),
+      status: item.status || 'changed',
+    }));
   } else {
-    items = history.slice(0, 10).map(item => renderKVItem('v' + (item.version || '--'), (item.state || '--') + ' · rules ' + (item.active_rules || 0) + (item.notes ? (' · ' + item.notes) : ''), formatTime(item.published_at || item.updated_at)));
-    items = items.concat(actions.slice(0, 5).map(item => renderKVItem(item.action || 'action', (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : ''), formatTime(item.performed_at))));
+    rows = history.slice(0, 10).map(item => ({ name: 'v' + (item.version || '--'), value: (item.state || '--') + ' · rules ' + (item.active_rules || 0) + (item.notes ? (' · ' + item.notes) : ''), detail: formatTime(item.published_at || item.updated_at) }));
+    rows = rows.concat(actions.slice(0, 5).map(item => ({ name: item.action || 'action', value: (item.message || item.status || 'done') + (item.actor ? (' · ' + item.actor) : ''), detail: formatTime(item.performed_at) })));
   }
-  setInvestigationItems(items, 'No policy details available');
-  openDetailDrawer('Policy Center · ' + (scope || 'history'), 'Current policy, draft, rollout, rules, and audit evidence', items.join('') + renderJSONBlock({ current: current, draft: draft, history_count: history.length, action_count: actions.length }));
+  const listItems = scope === 'diff'
+    ? rows.map(row => renderKVItem(row.field, 'Before: ' + row.before + ' · After: ' + row.after, row.status))
+    : rows.map(row => renderKVItem(row.name, row.value, row.detail));
+  const cards = renderMetricCards([
+    { label: 'Current', value: current.version || '--', sub: current.state || 'state unknown' },
+    { label: 'Draft', value: draft.version || '--', sub: draft.state || 'state unknown' },
+    { label: 'Rules', value: current.active_rules || 0, sub: 'active sigma rules' },
+    { label: 'Actions', value: actions.length, sub: 'audit records' },
+  ]);
+  const body = [
+    renderDetailSection('Policy Summary', cards),
+    renderDetailSection('Selected View', renderDataTable(tableColumns, rows, 'No policy details available')),
+    renderDetailSection('Raw Evidence', renderJSONBlock({ current: current, draft: draft, history_count: history.length, action_count: actions.length })),
+  ].join('');
+  setInvestigationItems(listItems, 'No policy details available');
+  openDetailDrawer('Policy Center · ' + (scope || 'history'), 'Current policy, draft, rollout, rules, and audit evidence', body);
 }
 
 function showPolicyActionDetails(encoded) {

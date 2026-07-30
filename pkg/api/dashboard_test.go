@@ -252,6 +252,30 @@ func TestDashboardDetailDrawerIsolation(t *testing.T) {
 	}
 }
 
+func TestDashboardPolicyCenterWorkbenchLayout(t *testing.T) {
+	expected := []string{
+		"policy-center-panel",
+		"policy-summary-grid",
+		"policy-view-actions",
+		"policy-center-editor",
+		"policy-notes",
+		"policy-rule-fields",
+		"policy-yaml",
+		"policy-rule-actions",
+		"policy-publish-actions",
+		"grid-template-areas:",
+		"renderDetailSection('Policy Summary'",
+		"renderDetailSection('Selected View'",
+		"renderDetailSection('Raw Evidence'",
+		"renderMetricCards",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing policy center workbench layout content %q", item)
+		}
+	}
+}
+
 func TestDashboardSemanticButtonClasses(t *testing.T) {
 	expected := []string{
 		"function classifyDashboardButtons",
