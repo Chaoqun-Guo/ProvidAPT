@@ -370,6 +370,10 @@ func TestDashboardGroundTruthPanel(t *testing.T) {
 		"gtMalicious",
 		"gtBenign",
 		"groundTruthPhaseGrid",
+		"file-picker",
+		"groundTruthFileName",
+		"updateGroundTruthFileName",
+		"onchange=\"updateGroundTruthFileName()\"",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
@@ -572,6 +576,26 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 			t.Fatalf("dashboard missing structured IDS console content %q", item)
 		}
 	}
+	panels := []string{
+		"Module Quality Review",
+		"Control Plane Summary",
+		"Deployment Diagnostics",
+		"Agent Overview",
+		"Support Bundle",
+		"Backup & Restore",
+		"Policy Center",
+		"Alert Workflow",
+		"Evaluation Ground Truth",
+		"Delivery Health",
+		"Compliance & SIEM",
+		"Investigation Console",
+		"Operations Summary",
+	}
+	for _, panel := range panels {
+		if !strings.Contains(dashboardHTML, "<h2>"+panel+"</h2>") {
+			t.Fatalf("dashboard missing panel %q", panel)
+		}
+	}
 }
 
 func TestDashboardCompactPlatformHeader(t *testing.T) {
@@ -685,6 +709,9 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 		"window.innerHeight - 132",
 		"window.requestAnimationFrame",
 		"applyAdaptivePanelSize(panel)",
+		"function panelAdaptiveMinimumHeight",
+		"panelAdaptiveMinimumHeight(panel)",
+		"function panelAdaptiveMaximumHeight",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
@@ -693,6 +720,9 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 	}
 	if strings.Contains(dashboardHTML, "minHeight: 560") {
 		t.Fatal("dashboard panel double-click resize should use adaptive content height, not fixed 560px")
+	}
+	if strings.Contains(dashboardHTML, "Math.max(300") {
+		t.Fatal("dashboard panel drag resize should use adaptive minimum height, not fixed 300px")
 	}
 }
 

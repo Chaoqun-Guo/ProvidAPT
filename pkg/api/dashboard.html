@@ -217,8 +217,12 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .delivery-inline-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .delivery-inline-actions button { background: #1f6feb; color: white; border: none; border-radius: 6px; padding: 0 10px; min-width: 104px; height: 30px; cursor: pointer; font-size: 11px; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; }
 .delivery-inline-actions button.secondary { background: #30363d; }
-.ground-truth-toolbar { display:grid; grid-template-columns: repeat(auto-fit, minmax(118px, max-content)); gap: 6px; margin: 8px 0; align-items:center; min-width:0; }
+.ground-truth-toolbar { display:grid; grid-template-columns: minmax(180px, 1fr) repeat(auto-fit, minmax(118px, max-content)); gap: 6px; margin: 8px 0; align-items:center; min-width:0; }
 .ground-truth-toolbar input[type="file"] { min-width:0; color:#8b949e; font-size:11px; }
+.file-picker { display:flex; align-items:center; gap:8px; min-width:0; width:100%; height:32px; border:1px dashed rgba(88,166,255,0.28); border-radius:12px; padding:0 9px; background:rgba(3,8,18,0.42); overflow:hidden; }
+.file-picker input[type="file"] { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; opacity:0; }
+.file-picker-label { flex:0 0 auto; color:#cdefff; font-size:11px; font-weight:700; cursor:pointer; }
+.file-picker-name { flex:1 1 auto; min-width:0; color:#8b949e; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .truth-phase-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; margin: 8px 0; }
 .truth-record { align-items:flex-start; }
 .truth-record .alert-msg { display:block; line-height:1.35; }
@@ -1695,7 +1699,11 @@ body.detail-drawer-open {
         <div class="policy-item clickable" onclick="showGroundTruthCorrelation()"><div class="value" id="gtRunID">--</div><div class="label">Run ID</div></div>
       </div>
       <div class="ground-truth-toolbar">
-        <input id="groundTruthFile" type="file" accept=".jsonl,.json,application/json">
+        <div class="file-picker">
+          <label class="file-picker-label" for="groundTruthFile">Choose JSONL</label>
+          <span class="file-picker-name" id="groundTruthFileName">No local file selected</span>
+          <input id="groundTruthFile" type="file" accept=".jsonl,.json,application/json" onchange="updateGroundTruthFileName()">
+        </div>
         <button class="secondary" onclick="loadGroundTruthFromFile()">Load Local JSONL</button>
         <button class="secondary" onclick="loadGroundTruth()">Load Server</button>
         <button class="secondary" onclick="showGroundTruthCorrelation()">Correlate</button>
@@ -3812,6 +3820,15 @@ async function loadGroundTruth() {
   }
 }
 
+function updateGroundTruthFileName() {
+  const input = document.getElementById('groundTruthFile');
+  const name = document.getElementById('groundTruthFileName');
+  const file = input && input.files && input.files[0];
+  if (name) {
+    name.textContent = file ? (file.name + ' · ' + formatBytes(file.size || 0)) : 'No local file selected';
+  }
+}
+
 async function loadGroundTruthFromFile() {
   const input = document.getElementById('groundTruthFile');
   const file = input && input.files && input.files[0];
@@ -3819,6 +3836,7 @@ async function loadGroundTruthFromFile() {
     renderGroundTruth('Choose a .jsonl ground truth file first.');
     return;
   }
+  updateGroundTruthFileName();
   const text = await file.text();
   const records = parseGroundTruthJSONL(text, file.name);
   latestGroundTruth = summarizeGroundTruthRecords(records, [file.name]);
@@ -5205,10 +5223,38 @@ function panelSizeConfig(panel) {
   };
 }
 
+function panelVisibleHeight(element) {
+  if (!element) return 0;
+  const rect = element.getBoundingClientRect();
+  return Math.ceil(rect.height || element.scrollHeight || 0);
+}
+
+function panelAdaptiveMinimumHeight(panel) {
+  if (!panel) return Math.max(180, Math.round(window.innerHeight * 0.2));
+  const header = panel.querySelector('h2');
+  const body = panel.querySelector('.panel-body');
+  const headerHeight = panelVisibleHeight(header) || 38;
+  if (!body) return headerHeight + Math.max(120, Math.round(window.innerHeight * 0.14));
+  const children = Array.from(body.children).filter(child => {
+    const style = window.getComputedStyle ? window.getComputedStyle(child) : null;
+    return !style || style.display !== 'none';
+  });
+  const essentialChildren = children.slice(0, Math.min(children.length, 3));
+  const essentialHeight = essentialChildren.reduce((total, child) => total + panelVisibleHeight(child), 0);
+  const scrollReserve = body.querySelector('.alerts-list, .agents-list, .data-table-wrap') ? Math.max(84, Math.round(window.innerHeight * 0.1)) : 0;
+  const viewportFloor = Math.max(180, Math.round(window.innerHeight * 0.18));
+  return Math.ceil(Math.max(viewportFloor, headerHeight + essentialHeight + scrollReserve + 28));
+}
+
+function panelAdaptiveMaximumHeight(panel) {
+  const floor = panelAdaptiveMinimumHeight(panel);
+  return Math.max(floor, Math.min(900, window.innerHeight - 132));
+}
+
 function applyPanelSize(panel, size) {
   if (!panel || !size) return;
   const columns = Math.max(1, Math.min(2, Number(size.columns || 1)));
-  const minHeight = Math.max(300, Math.min(900, Number(size.minHeight || 360)));
+  const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), Number(size.minHeight || 360)));
   panel.dataset.resizeColumns = String(columns);
   panel.dataset.resizeMinHeight = String(minHeight);
   panel.style.gridColumn = columns > 1 ? 'span 2' : '';
@@ -5223,9 +5269,9 @@ function adaptivePanelHeight(panel) {
   const body = panel.querySelector('.panel-body');
   const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 38;
   const bodyContentHeight = body ? Math.ceil(body.scrollHeight) : Math.ceil(panel.scrollHeight - headerHeight);
-  const viewportLimit = Math.max(360, Math.min(900, window.innerHeight - 132));
+  const viewportLimit = panelAdaptiveMaximumHeight(panel);
   const naturalHeight = headerHeight + bodyContentHeight + 28;
-  return Math.max(300, Math.min(viewportLimit, naturalHeight));
+  return Math.max(panelAdaptiveMinimumHeight(panel), Math.min(viewportLimit, naturalHeight));
 }
 
 function applyAdaptivePanelSize(panel) {
@@ -5289,7 +5335,7 @@ function installPanelResize(panel) {
       const deltaX = moveEvent.clientX - startX;
       const deltaY = moveEvent.clientY - startY;
       const columns = start.columns === 1 && deltaX > columnWidth * 0.35 ? 2 : (start.columns === 2 && deltaX < -columnWidth * 0.25 ? 1 : start.columns);
-      const minHeight = Math.max(300, Math.min(900, start.minHeight + deltaY));
+      const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), start.minHeight + deltaY));
       applyPanelSize(panel, { columns: columns, minHeight: minHeight });
     };
     const onUp = () => {
