@@ -1,7 +1,7 @@
 # Local evaluation configuration for ProvidAPT
 
 output_dir = "/var/log/providapt"
-api_rest = ":8080"
+api_rest = ":18080"
 log_level = "info"
 
 [storage]

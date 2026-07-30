@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import annotations
 
 from pathlib import Path
 import sys
@@ -62,8 +61,8 @@ def iter_targets(root: Path):
 
 def main() -> int:
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
-    invalid_utf8: list[str] = []
-    suspicious_text: list[str] = []
+    invalid_utf8 = []
+    suspicious_text = []
 
     for path in iter_targets(root):
         try:

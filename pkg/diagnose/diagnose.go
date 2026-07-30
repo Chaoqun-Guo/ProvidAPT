@@ -162,7 +162,7 @@ func readConfig() string {
 }
 
 func collectMetrics() string {
-	return runCommand("curl", "-s", "--max-time", "5", "http://localhost:8080/metrics")
+	return runCommand("curl", "-s", "--max-time", "5", "http://localhost:18080/metrics")
 }
 
 func collectBuildInfo() string {

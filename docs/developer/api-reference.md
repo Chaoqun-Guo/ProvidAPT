@@ -1,4 +1,4 @@
-﻿# Developer API Reference
+# Developer API Reference
 
 **gRPC Interface** | Plugin Development | External System Integration
 

@@ -1,0 +1,36 @@
+groups:
+  - name: providapt.alerts
+    interval: 30s
+    rules:
+      - alert: ProvidaptNoEvents
+        expr: rate(providapt_events_ingested_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: No ProvidAPT events ingested
+          description: ProvidAPT has not ingested events for five minutes.
+      - alert: ProvidaptBackpressure
+        expr: rate(providapt_pipeline_backpressure_events_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: ProvidAPT pipeline backpressure detected
+          description: The ingestion pipeline is applying backpressure.
+      - alert: ProvidaptCriticalAlert
+        expr: rate(providapt_alerts_triggered_total{severity="CRITICAL"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Critical ProvidAPT alert triggered
+          description: A critical security alert was triggered.
+      - alert: ProvidaptDroppedEvents
+        expr: rate(providapt_events_dropped_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: ProvidAPT events are being dropped
+          description: Event loss may reduce investigation fidelity.

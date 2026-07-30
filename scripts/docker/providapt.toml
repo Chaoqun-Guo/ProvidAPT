@@ -6,7 +6,7 @@ dir = "/var/log/providapt"
 level = "info"
 
 [api]
-rest = ":8080"
+rest = ":18080"
 grpc = ":50051"
 
 [control_plane]

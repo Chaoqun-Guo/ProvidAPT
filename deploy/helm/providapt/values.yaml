@@ -44,7 +44,7 @@ config:
     sensitive_dir: false
   api:
     grpc: ":50051"
-    rest: ":8080"
+    rest: ":18080"
 
   # -- TLS configuration for gRPC mTLS
   tls:

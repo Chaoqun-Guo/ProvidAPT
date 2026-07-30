@@ -6,6 +6,7 @@
 package loader
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -112,6 +113,24 @@ func TestNewFailsWithoutBPFObjects(t *testing.T) {
 		// Expected on systems without eBPF support.
 		// The exact error depends on the runtime environment.
 		t.Logf("New() returned expected error: %v", err)
+	}
+}
+
+func TestLSMLoadFallbackCandidates(t *testing.T) {
+	tests := []struct {
+		err  error
+		want bool
+	}{
+		{errors.New("load eBPF objects: loadBpf: all paths failed: program probe_file_open: load program: invalid argument: Sleepable programs can only use array and hash maps"), true},
+		{errors.New("load eBPF objects: program type LSM not supported"), true},
+		{errors.New("load eBPF objects: invalid argument"), true},
+		{errors.New("load eBPF objects: no precompiled eBPF object found"), false},
+		{nil, false},
+	}
+	for _, tt := range tests {
+		if got := isLSMLoadFallbackCandidate(tt.err); got != tt.want {
+			t.Fatalf("isLSMLoadFallbackCandidate(%v) = %v, want %v", tt.err, got, tt.want)
+		}
 	}
 }
 

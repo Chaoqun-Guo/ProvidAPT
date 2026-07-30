@@ -57,7 +57,7 @@ func CaptureTo(rootDir, reason string) (string, error) {
 	tryWriteFile(filepath.Join(dir, "config.json"), readConfig())
 	tryWriteFile(filepath.Join(dir, "daemon.log"), runCommand("journalctl", "-u", "providapt", "-n", "500", "--no-pager"))
 	tryWriteFile(filepath.Join(dir, "system-info.txt"), collectSystemInfo())
-	tryWriteFile(filepath.Join(dir, "metrics.txt"), runCommand("curl", "-s", "http://localhost:8080/metrics"))
+	tryWriteFile(filepath.Join(dir, "metrics.txt"), runCommand("curl", "-s", "http://localhost:18080/metrics"))
 
 	return dir, nil
 }

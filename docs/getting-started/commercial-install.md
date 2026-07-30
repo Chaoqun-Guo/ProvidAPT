@@ -182,7 +182,7 @@ policy:
   bundle_dir: "/var/log/providapt/applied-policy-bundles"
 ```
 
-If `policy.endpoint` is omitted, the agent attempts to derive `http://<telemetry-host>:8080` from `telemetry.endpoint`. Set `PROVIDAPT_POLICY_ENDPOINT` explicitly in production when the REST control-plane port differs.
+If `policy.endpoint` is omitted, the agent attempts to derive `http://<telemetry-host>:18080` from `telemetry.endpoint`. Set `PROVIDAPT_POLICY_ENDPOINT` explicitly in production when the REST control-plane port differs.
 
 ## Agent Enrollment Operations
 

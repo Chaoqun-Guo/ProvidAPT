@@ -333,7 +333,7 @@ func DefaultConfig() *Config {
 	c.Capture.EnableProc = true
 	c.Capture.AutoExcludeNoisy = false
 	c.API.GRPC = ":50051"
-	c.API.REST = ":8080"
+	c.API.REST = ":18080"
 	c.API.RateLimitPerSec = 100
 	c.API.RateLimitBurst = 200
 	c.API.CORSOrigins = []string{"*"}
@@ -560,7 +560,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("unsupported kernel.attachment_mode %q (use auto, lsm, or kprobe)", c.Kernel.AttachmentMode)
 	}
 	if c.API.REST != "" && !strings.HasPrefix(c.API.REST, ":") {
-		return fmt.Errorf("REST address %q should be in format :port (e.g. :8080)", c.API.REST)
+		return fmt.Errorf("REST address %q should be in format :port (e.g. :18080)", c.API.REST)
 	}
 	if c.API.GRPC != "" && !strings.HasPrefix(c.API.GRPC, ":") {
 		return fmt.Errorf("gRPC address %q should be in format :port (e.g. :50051)", c.API.GRPC)

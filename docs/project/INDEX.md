@@ -10,12 +10,14 @@ This section collects engineering documentation for repository governance, layou
 | [documentation-audit.md](documentation-audit.md) | Documentation inventory by audience and purpose |
 | [encoding-policy.md](encoding-policy.md) | UTF-8 and mojibake prevention policy |
 | [release-docs-consistency-check.md](release-docs-consistency-check.md) | Pre-release documentation consistency record |
+| [current-release-gap-closure.md](current-release-gap-closure.md) | Current release gap closure status and remaining external gates |
 | [release-evidence-v1.2.2.md](release-evidence-v1.2.2.md) | Release evidence template for `v1.2.2` |
 | [release-evidence-v1.2.3-rc.1.md](release-evidence-v1.2.3-rc.1.md) | Release candidate evidence for `v1.2.3-rc.1` |
 | [commercial-release-checklist.md](commercial-release-checklist.md) | Commercial release delivery checklist |
 | [release-artifact-matrix.md](release-artifact-matrix.md) | Required commercial release artifacts and verification rules |
 | [release-security-scan-summary-v1.2.2.md](release-security-scan-summary-v1.2.2.md) | Security scan evidence for v1.2.2 |
 | [release-security-scan-summary-v1.2.3-rc.1.md](release-security-scan-summary-v1.2.3-rc.1.md) | Security scan evidence for the v1.2.3 release candidate |
+| [security-scan-waiver-summary.md](security-scan-waiver-summary.md) | Summary of accepted scan waivers and closure expectations |
 | [external-approval-request-v1.2.3-rc.1.md](external-approval-request-v1.2.3-rc.1.md) | External approval request packet for the v1.2.3 release candidate |
 | [security-waiver.md](security-waiver.md) | Security waiver template for incomplete release security controls |
 | [final-release-runbook.md](final-release-runbook.md) | Final release commit, tag, build, scan, sign, publish, and rollback runbook |

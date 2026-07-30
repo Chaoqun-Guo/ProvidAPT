@@ -1,4 +1,4 @@
-﻿# Release Security Scan Summary - v1.2.2
+# Release Security Scan Summary - v1.2.2
 
 Date: 2026-07-17
 Commit: `27ecd239`

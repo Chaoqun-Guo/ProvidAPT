@@ -16,7 +16,7 @@ import (
 // Namespace for all ProvidAPT metrics.
 const namespace = "providapt"
 
-// ─── Metric descriptors ──────────────────────────────────────────
+// Metric descriptors.
 
 var (
 	registerOnce sync.Once
@@ -89,7 +89,7 @@ var (
 		Help:      "Total backpressure events triggered.",
 	})
 
-	// ── System health metrics ────────────────────────────────
+	// System health metrics.
 
 	// CPU usage ratio (0.0–1.0), updated periodically.
 	CPUUsageRatio = prometheus.NewGauge(prometheus.GaugeOpts{

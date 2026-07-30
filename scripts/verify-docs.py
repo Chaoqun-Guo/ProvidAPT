@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """Validate Markdown encoding and local links."""
 
-from __future__ import annotations
-
 import re
 import sys
 from pathlib import Path
+from typing import List, Optional, Set
 
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKDOWN_DIRS = [ROOT / "docs", ROOT / "examples"]
 MOJIBAKE = (chr(0x00C3), chr(0x00C2), chr(0xFFFD))
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+HEADING_RE = re.compile(r"^#\s+\S+", re.MULTILINE)
 
 
-def markdown_files() -> list[Path]:
-    files: set[Path] = set()
+def markdown_files() -> List[Path]:
+    files: Set[Path] = set()
     files.update(path for path in ROOT.glob("*.md") if path.is_file())
     for base in MARKDOWN_DIRS:
         if base.exists():
@@ -23,7 +23,7 @@ def markdown_files() -> list[Path]:
     return sorted(files)
 
 
-def local_link_target(path: Path, raw: str) -> Path | None:
+def local_link_target(path: Path, raw: str) -> Optional[Path]:
     target = raw.strip().split("#", 1)[0]
     if not target or target.startswith(("http://", "https://", "mailto:", "tel:")):
         return None
@@ -33,13 +33,17 @@ def local_link_target(path: Path, raw: str) -> Path | None:
 
 
 def main() -> int:
-    failures: list[str] = []
+    failures: List[str] = []
     for path in markdown_files():
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError as exc:
             failures.append(f"{path.relative_to(ROOT)}: invalid UTF-8: {exc}")
             continue
+        if text.startswith("\ufeff"):
+            failures.append(f"{path.relative_to(ROOT)}: UTF-8 BOM is not allowed")
+        if path.suffix == ".md" and not HEADING_RE.search(text):
+            failures.append(f"{path.relative_to(ROOT)}: missing top-level heading")
         for marker in MOJIBAKE:
             if marker in text:
                 failures.append(f"{path.relative_to(ROOT)}: possible mojibake marker {marker!r}")

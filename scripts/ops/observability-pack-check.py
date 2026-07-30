@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 import argparse
 import json
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List
 
 
 SCHEMA = "providapt.observability_pack_check.v1"
@@ -30,9 +28,9 @@ def has_mojibake(data: str) -> bool:
     return any(marker in data for marker in MOJIBAKE_MARKERS)
 
 
-def check_prometheus(path: Path) -> dict[str, Any]:
+def check_prometheus(path: Path) -> Dict[str, Any]:
     data = text(path)
-    failures: list[str] = []
+    failures: List[str] = []
     if not data:
         failures.append("prometheus scrape config is missing")
     if "job_name:" not in data or "providapt" not in data:
@@ -42,10 +40,10 @@ def check_prometheus(path: Path) -> dict[str, Any]:
     return {"status": "pass" if not failures else "blocked", "path": str(path), "failures": failures}
 
 
-def check_alerts(path: Path) -> dict[str, Any]:
+def check_alerts(path: Path) -> Dict[str, Any]:
     data = text(path)
-    failures: list[str] = []
-    warnings: list[str] = []
+    failures: List[str] = []
+    warnings: List[str] = []
     for alert in REQUIRED_ALERTS:
         if alert not in data:
             failures.append(f"required alert rule missing: {alert}")
@@ -56,10 +54,10 @@ def check_alerts(path: Path) -> dict[str, Any]:
     return {"status": "blocked" if failures else ("warn" if warnings else "pass"), "path": str(path), "failures": failures, "warnings": warnings}
 
 
-def check_dashboard(path: Path) -> dict[str, Any]:
+def check_dashboard(path: Path) -> Dict[str, Any]:
     data = text(path)
-    failures: list[str] = []
-    warnings: list[str] = []
+    failures: List[str] = []
+    warnings: List[str] = []
     panels = 0
     if not data:
         failures.append("Grafana dashboard JSON is missing")
@@ -95,7 +93,7 @@ def fetch(url: str, api_key: str = "") -> str:
         raise SystemExit(f"fetch failed for {url}: {exc}") from exc
 
 
-def check_live(server: str, api_key: str) -> dict[str, Any]:
+def check_live(server: str, api_key: str) -> Dict[str, Any]:
     if not server:
         return {"status": "skipped", "message": "server URL not supplied"}
     base = server.rstrip("/")
@@ -110,7 +108,7 @@ def check_live(server: str, api_key: str) -> dict[str, Any]:
     return {"status": "pass" if not failures else "blocked", "server": server, "version": status.get("version", ""), "failures": failures}
 
 
-def overall(sections: dict[str, dict[str, Any]]) -> str:
+def overall(sections: Dict[str, Dict[str, Any]]) -> str:
     statuses = [section.get("status") for section in sections.values() if section.get("status") != "skipped"]
     if "blocked" in statuses:
         return "blocked"
@@ -119,7 +117,7 @@ def overall(sections: dict[str, dict[str, Any]]) -> str:
     return "pass"
 
 
-def render_markdown(report: dict[str, Any]) -> str:
+def render_markdown(report: Dict[str, Any]) -> str:
     lines = ["# ProvidAPT Observability Pack Check", "", f"- Status: `{report['status']}`", f"- Generated at: `{report['generated_at']}`", "", "| Section | Status | Detail |", "| --- | --- | --- |"]
     for name, section in report["sections"].items():
         detail = "; ".join(section.get("failures") or section.get("warnings") or [str(section.get("message", ""))])
@@ -128,7 +126,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def build_report(args: argparse.Namespace) -> dict[str, Any]:
+def build_report(args: argparse.Namespace) -> Dict[str, Any]:
     sections = {
         "prometheus": check_prometheus(Path(args.prometheus)),
         "alerts": check_alerts(Path(args.alerts)),
@@ -141,8 +139,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate production observability assets and optional live metrics.")
     parser.add_argument("--prometheus", default="scripts/docker/prometheus.yml")
-    parser.add_argument("--alerts", default="build/prometheus/providapt_alerts.yml")
-    parser.add_argument("--dashboard", default="build/prometheus/providapt_dashboard.json")
+    parser.add_argument("--alerts", default="scripts/docker/providapt_alerts.yml")
+    parser.add_argument("--dashboard", default="scripts/docker/providapt_dashboard.json")
     parser.add_argument("--server", default="")
     parser.add_argument("--api-key", default="")
     parser.add_argument("--out-json", default="build/observability/observability-pack-check.json")

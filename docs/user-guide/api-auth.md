@@ -8,7 +8,7 @@ Set the following in `providapt.toml`:
 
 ```toml
 [api]
-rest = ":8080"
+rest = ":18080"
 auth_enabled = true
 auth_keys = ["admin-key", "analyst-key", "auditor-key"]
 auth_roles = { "admin-key" = "admin", "analyst-key" = "analyst", "auditor-key" = "auditor" }
@@ -21,19 +21,19 @@ auth_tenants = { "analyst-key" = "prod" }
 Include the API key in every request:
 
 ```bash
-curl -H "X-API-Key: admin-key" http://localhost:8080/api/v1/status
+curl -H "X-API-Key: admin-key" http://localhost:18080/api/v1/status
 ```
 
 Alternatively, pass the key as a query parameter:
 
 ```bash
-curl "http://localhost:8080/api/v1/status?api_key=admin-key"
+curl "http://localhost:18080/api/v1/status?api_key=admin-key"
 ```
 
 Bearer token syntax is also accepted:
 
 ```bash
-curl -H "Authorization: Bearer admin-key" http://localhost:8080/api/v1/status
+curl -H "Authorization: Bearer admin-key" http://localhost:18080/api/v1/status
 ```
 
 ## Roles

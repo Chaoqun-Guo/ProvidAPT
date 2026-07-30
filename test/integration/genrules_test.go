@@ -16,8 +16,21 @@ import (
 
 func TestGenrulesIntegrationDefaultRules(t *testing.T) {
 	rules := genrules.DefaultRules()
-	if len(rules) != 8 {
-		t.Errorf("expected 8 default rules, got %d", len(rules))
+	if len(rules) < 9 {
+		t.Errorf("expected at least 9 default rules, got %d", len(rules))
+	}
+	required := []string{"ProvidaptNoEvents", "ProvidaptBackpressure", "ProvidaptCriticalAlert"}
+	for _, alert := range required {
+		found := false
+		for _, rule := range rules {
+			if rule.Alert == alert {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("default rules missing required alert %q", alert)
+		}
 	}
 
 	// Verify all rules have required fields

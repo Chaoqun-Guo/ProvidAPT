@@ -47,7 +47,7 @@ func DefaultRules() []Rule {
 			},
 		},
 		{
-			Alert: "ProvidAPTCriticalAlert",
+			Alert: "ProvidaptCriticalAlert",
 			Expr:  "rate(providapt_alerts_triggered_total{severity=\"CRITICAL\"}[5m]) > 0",
 			For:   "1m",
 			Labels: map[string]string{
@@ -68,6 +68,18 @@ func DefaultRules() []Rule {
 			Annotations: map[string]string{
 				"summary":     "High APT alert rate",
 				"description": "ProvidAPT is generating >5 alerts/second on {{ $labels.instance }}.",
+			},
+		},
+		{
+			Alert: "ProvidaptNoEvents",
+			Expr:  "rate(providapt_events_ingested_total[5m]) == 0",
+			For:   "5m",
+			Labels: map[string]string{
+				"severity": "critical",
+			},
+			Annotations: map[string]string{
+				"summary":     "No ProvidAPT events ingested",
+				"description": "ProvidAPT has not ingested events on {{ $labels.instance }} for 5 minutes.",
 			},
 		},
 		{
@@ -107,7 +119,7 @@ func DefaultRules() []Rule {
 			},
 		},
 		{
-			Alert: "ProvidAPTPipelineBackpressure",
+			Alert: "ProvidaptBackpressure",
 			Expr:  "rate(providapt_pipeline_backpressure_events_total[5m]) > 0",
 			For:   "1m",
 			Labels: map[string]string{
@@ -140,8 +152,8 @@ func Generate(rules []Rule) string {
 	out += "#\n"
 
 	groups := map[string][]Rule{
-		"providapt_alerts":  nil,
-		"providapt_health":  nil,
+		"providapt_alerts":    nil,
+		"providapt_health":    nil,
 		"providapt_resources": nil,
 	}
 

@@ -114,7 +114,7 @@ Fleet APIs:
 curl http://<server>:18080/api/v1/control/overview
 curl http://<server>:18080/api/v1/control/ha
 curl http://<server>:18080/api/v1/control/fleet
-curl "http://<server>:18080/api/v1/control/fleet -> group=prod&tag=linux"
+curl "http://<server>:18080/api/v1/control/fleet?group=prod&tag=linux"
 ```
 
 Agent status values:
@@ -211,8 +211,8 @@ Validate production observability assets:
 ```bash
 make observability-pack-check \
   PROMETHEUS_CONFIG=scripts/docker/prometheus.yml \
-  PROMETHEUS_ALERTS=build/prometheus/providapt_alerts.yml \
-  GRAFANA_DASHBOARD=build/prometheus/providapt_dashboard.json
+  PROMETHEUS_ALERTS=scripts/docker/providapt_alerts.yml \
+  GRAFANA_DASHBOARD=scripts/docker/providapt_dashboard.json
 ```
 
 When a control plane is running, add `PROVIDAPT_SERVER_URL=http://<server>:18080`

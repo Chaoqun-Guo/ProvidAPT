@@ -390,7 +390,7 @@ func cmdReload(cfgPath string) {
 
 	apiAddr := cfg.API.REST
 	if apiAddr == "" {
-		apiAddr = "http://127.0.0.1:8080"
+		apiAddr = "http://127.0.0.1:18080"
 	} else if !strings.HasPrefix(apiAddr, "http") {
 		apiAddr = "http://" + apiAddr
 	}

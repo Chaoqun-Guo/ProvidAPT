@@ -1,0 +1,70 @@
+{
+  "dashboard": {
+    "title": "ProvidAPT Operations",
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "panels": [
+      {
+        "id": 1,
+        "type": "timeseries",
+        "title": "Events Ingested",
+        "targets": [
+          {
+            "expr": "rate(providapt_events_ingested_total[5m])"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Graph Nodes",
+        "targets": [
+          {
+            "expr": "providapt_graph_nodes"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "type": "timeseries",
+        "title": "Alerts Triggered",
+        "targets": [
+          {
+            "expr": "rate(providapt_alerts_triggered_total[5m])"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "type": "timeseries",
+        "title": "Pipeline Backpressure",
+        "targets": [
+          {
+            "expr": "rate(providapt_pipeline_backpressure_events_total[5m])"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Dropped Events",
+        "targets": [
+          {
+            "expr": "rate(providapt_events_dropped_total[5m])"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "type": "stat",
+        "title": "Memory Usage",
+        "targets": [
+          {
+            "expr": "providapt_memory_usage_bytes"
+          }
+        ]
+      }
+    ]
+  }
+}

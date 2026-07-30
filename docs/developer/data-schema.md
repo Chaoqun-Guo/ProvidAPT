@@ -1,4 +1,4 @@
-﻿# Data Schema & Model Specification
+# Data Schema & Model Specification
 
 **Version 2.2** | Protobuf Definitions, Storage Encoding, Graph Schema
 

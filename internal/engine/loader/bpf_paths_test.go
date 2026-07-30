@@ -15,13 +15,23 @@ import (
 func TestBpfObjectPathsDefault(t *testing.T) {
 	t.Setenv(bpfObjectEnvVar, "")
 
-	got := bpfObjectPaths()
-	if len(got) != len(defaultBpfObjectPaths) {
-		t.Fatalf("len(bpfObjectPaths()) = %d, want %d", len(got), len(defaultBpfObjectPaths))
+	got := bpfObjectPaths("lsm")
+	if len(got) != len(defaultLSMBpfObjectPaths) {
+		t.Fatalf("len(bpfObjectPaths()) = %d, want %d", len(got), len(defaultLSMBpfObjectPaths))
 	}
-	for i := range defaultBpfObjectPaths {
-		if got[i] != defaultBpfObjectPaths[i] {
-			t.Fatalf("bpfObjectPaths()[%d] = %q, want %q", i, got[i], defaultBpfObjectPaths[i])
+	for i := range defaultLSMBpfObjectPaths {
+		if got[i] != defaultLSMBpfObjectPaths[i] {
+			t.Fatalf("bpfObjectPaths()[%d] = %q, want %q", i, got[i], defaultLSMBpfObjectPaths[i])
+		}
+	}
+
+	got = bpfObjectPaths("kprobe")
+	if len(got) != len(defaultKprobeBpfObjectPaths) {
+		t.Fatalf("len(bpfObjectPaths(kprobe)) = %d, want %d", len(got), len(defaultKprobeBpfObjectPaths))
+	}
+	for i := range defaultKprobeBpfObjectPaths {
+		if got[i] != defaultKprobeBpfObjectPaths[i] {
+			t.Fatalf("bpfObjectPaths(kprobe)[%d] = %q, want %q", i, got[i], defaultKprobeBpfObjectPaths[i])
 		}
 	}
 }
@@ -29,7 +39,7 @@ func TestBpfObjectPathsDefault(t *testing.T) {
 func TestBpfObjectPathsEnvOverride(t *testing.T) {
 	t.Setenv(bpfObjectEnvVar, "/tmp/custom-loader.bpf.o")
 
-	got := bpfObjectPaths()
+	got := bpfObjectPaths("lsm")
 	if len(got) != 1 || got[0] != "/tmp/custom-loader.bpf.o" {
 		t.Fatalf("bpfObjectPaths() = %#v, want custom override", got)
 	}

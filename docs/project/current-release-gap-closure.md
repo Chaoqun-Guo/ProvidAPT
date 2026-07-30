@@ -1,4 +1,4 @@
-﻿# Current Release Gap Closure Plan
+# Current Release Gap Closure Plan
 
 Date: 2026-07-26
 Branch: master

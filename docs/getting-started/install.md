@@ -375,7 +375,7 @@ Default configuration (`/etc/providapt/providapt.toml`):
   },
   "api": {
     "grpc": ":50051",
-    "rest": ":8080"
+    "rest": ":18080"
   }
 }
 ```
@@ -443,7 +443,7 @@ cat /var/log/providapt/providapt-*.ndjson | head -5
 
 ```bash
 # Hit the API status endpoint
-curl -s http://localhost:8080/api/v1/status
+curl -s http://localhost:18080/api/v1/status
 
 # Expected response:
 # {"status":"running","nodes":42,"edges":156,"timestamp":"2026-05-28T12:00:00Z"}
@@ -799,7 +799,7 @@ sudo bash build/setup_cgroup.sh
 sudo providaptd
 
 # 7. Verify
-curl -s http://localhost:8080/api/v1/status
+curl -s http://localhost:18080/api/v1/status
 ```
 
 ## Delivery Check

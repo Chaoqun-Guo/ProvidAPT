@@ -152,23 +152,35 @@ func NewWithAudit(cfg *config.Config, auditStore *audit.Store) (*Loader, error) 
 		l.Mode = ModeLSM
 	default:
 		if err := reloadObjects("lsm"); err != nil {
-			return nil, err
-		}
-		// Try LSM hooks first
-		lsmLinks, lsmErr := l.attachLSMHooks()
-		if lsmErr != nil {
+			if !isLSMLoadFallbackCandidate(err) {
+				return nil, err
+			}
 			l.Close()
 			l.links = nil
 			l.Mode = ModeLSM
-			if err := reloadObjects("kprobe"); err != nil {
-				return nil, fmt.Errorf("LSM attach failed and kprobe object load failed: %w (LSM error: %v)", err, lsmErr)
+			if kpErr := reloadObjects("kprobe"); kpErr != nil {
+				return nil, fmt.Errorf("LSM object load failed and kprobe object load failed: %w (LSM load error: %v)", kpErr, err)
 			}
-			if _, err := attachKprobes(fmt.Sprintf("LSM attach failed, falling back to kprobe: %v", lsmErr)); err != nil {
-				return nil, fmt.Errorf("kprobe fallback also failed: %w (LSM error: %v)", err, lsmErr)
+			if _, kpErr := attachKprobes(fmt.Sprintf("LSM object load failed, falling back to kprobe: %v", err)); kpErr != nil {
+				return nil, fmt.Errorf("kprobe fallback also failed: %w (LSM load error: %v)", kpErr, err)
 			}
 		} else {
-			l.links = append(l.links, lsmLinks...)
-			l.Mode = ModeLSM
+			// Try LSM hooks first
+			lsmLinks, lsmErr := l.attachLSMHooks()
+			if lsmErr != nil {
+				l.Close()
+				l.links = nil
+				l.Mode = ModeLSM
+				if err := reloadObjects("kprobe"); err != nil {
+					return nil, fmt.Errorf("LSM attach failed and kprobe object load failed: %w (LSM error: %v)", err, lsmErr)
+				}
+				if _, err := attachKprobes(fmt.Sprintf("LSM attach failed, falling back to kprobe: %v", lsmErr)); err != nil {
+					return nil, fmt.Errorf("kprobe fallback also failed: %w (LSM error: %v)", err, lsmErr)
+				}
+			} else {
+				l.links = append(l.links, lsmLinks...)
+				l.Mode = ModeLSM
+			}
 		}
 	}
 
@@ -189,6 +201,16 @@ func NewWithAudit(cfg *config.Config, auditStore *audit.Store) (*Loader, error) 
 	l.RB = rb
 
 	return l, nil
+}
+
+func isLSMLoadFallbackCandidate(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "sleepable programs can only use array and hash maps") ||
+		strings.Contains(message, "program type lsm not supported") ||
+		strings.Contains(message, "invalid argument")
 }
 
 // attachKprobeFallback attaches eBPF programs via kprobes instead of
