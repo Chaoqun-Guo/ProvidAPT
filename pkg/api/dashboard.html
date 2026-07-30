@@ -1109,6 +1109,84 @@ button[data-action-kind="primary"]::before {
   transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
+body.detail-drawer-open {
+  overflow: hidden;
+}
+
+.detail-drawer-backdrop {
+  z-index: 78;
+  background:
+    radial-gradient(circle at 78% 24%, rgba(0, 229, 255, 0.12), transparent 34%),
+    rgba(1, 4, 9, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.detail-drawer {
+  z-index: 79;
+  width: min(760px, 96vw);
+  max-width: 96vw;
+  border-left: 1px solid rgba(0, 229, 255, 0.34);
+  box-shadow: -26px 0 54px rgba(0,0,0,0.48), -1px 0 0 rgba(0,229,255,0.12);
+}
+
+.detail-drawer.visible {
+  transform: translateX(0);
+}
+
+.detail-drawer header {
+  flex: 0 0 auto;
+  min-height: 62px;
+  align-items: center;
+  border-bottom-color: rgba(88, 166, 255, 0.22);
+}
+
+.detail-drawer h3 {
+  max-width: min(560px, 70vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-drawer .drawer-subtitle {
+  max-width: min(600px, 72vw);
+}
+
+.detail-drawer-close {
+  flex: 0 0 auto;
+}
+
+.detail-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-auto-rows: max-content;
+  align-content: start;
+  padding: 12px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.detail-drawer-body .alert-item,
+.detail-drawer-body .empty-diagnostic,
+.detail-drawer-body pre,
+.detail-drawer-body .data-table-wrap {
+  max-width: 100%;
+}
+
+.detail-drawer-body .action-row,
+.detail-drawer-body .delivery-inline-actions,
+.detail-drawer-body .graph-cluster-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.detail-drawer-body button {
+  min-height: 30px;
+  height: auto;
+  max-width: 100%;
+}
+
 @media (max-width: 1180px) {
   .auth-strip {
     grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(72px, max-content));
@@ -1588,14 +1666,14 @@ button[data-action-kind="primary"]::before {
 </main>
 </div>
 
-<div id="detailDrawerBackdrop" class="detail-drawer-backdrop" data-ui-close="detail-drawer" onclick="event.stopPropagation(); closeDetailDrawer()"></div>
-<section id="detailDrawer" class="detail-drawer" aria-label="Details drawer" aria-hidden="true">
+<div id="detailDrawerBackdrop" class="detail-drawer-backdrop" data-ui-close="detail-drawer" onclick="closeDetailDrawer(event)"></div>
+<section id="detailDrawer" class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="detailDrawerTitle" aria-describedby="detailDrawerSubtitle" aria-hidden="true" tabindex="-1">
   <header>
     <div>
       <h3 id="detailDrawerTitle">Details</h3>
       <div class="drawer-subtitle" id="detailDrawerSubtitle">Select an item to inspect evidence.</div>
     </div>
-    <button data-ui-close="detail-drawer" onclick="event.stopPropagation(); closeDetailDrawer()" aria-label="Close details drawer">Close</button>
+    <button id="detailDrawerClose" class="detail-drawer-close" data-ui-close="detail-drawer" onclick="closeDetailDrawer(event)" aria-label="Close details drawer">Close</button>
   </header>
   <div class="detail-drawer-body" id="detailDrawerBody">
     <div class="empty-diagnostic">No item selected.</div>
@@ -2028,15 +2106,35 @@ function openDetailDrawer(title, subtitle, bodyHTML) {
   const body = document.getElementById('detailDrawerBody');
   const drawer = document.getElementById('detailDrawer');
   const backdrop = document.getElementById('detailDrawerBackdrop');
-  if (body) body.innerHTML = bodyHTML || '<div class="empty-diagnostic">No details available.</div>';
+  const closeButton = document.getElementById('detailDrawerClose');
+  if (body) {
+    body.innerHTML = bodyHTML || '<div class="empty-diagnostic">No details available.</div>';
+    body.scrollTop = 0;
+  }
   if (drawer) {
     drawer.classList.add('visible');
     drawer.setAttribute('aria-hidden', 'false');
+    drawer.scrollTop = 0;
   }
   if (backdrop) backdrop.classList.add('visible');
+  document.body.classList.add('detail-drawer-open');
+  classifyDashboardButtons();
+  if (closeButton) {
+    window.setTimeout(() => {
+      try {
+        closeButton.focus({ preventScroll: true });
+      } catch (e) {
+        closeButton.focus();
+      }
+    }, 0);
+  }
 }
 
-function closeDetailDrawer() {
+function closeDetailDrawer(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   const drawer = document.getElementById('detailDrawer');
   const backdrop = document.getElementById('detailDrawerBackdrop');
   if (drawer) {
@@ -2044,11 +2142,12 @@ function closeDetailDrawer() {
     drawer.setAttribute('aria-hidden', 'true');
   }
   if (backdrop) backdrop.classList.remove('visible');
+  document.body.classList.remove('detail-drawer-open');
 }
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
-    closeDetailDrawer();
+    closeDetailDrawer(event);
   }
 });
 

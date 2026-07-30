@@ -180,7 +180,7 @@ func TestDashboardModuleActions(t *testing.T) {
 		"runAlertWorkflowAction('close'",
 		"data-module=\\\"alert-workflow\\\" data-module-action=\\\"close\\\"",
 		"data-ui-close=\"detail-drawer\"",
-		"event.stopPropagation(); closeDetailDrawer()",
+		"onclick=\"closeDetailDrawer(event)\"",
 		"moduleStatusTargets",
 		"setModuleStatus('alert-workflow'",
 		"runAlertWorkflowBulkAction('close')",
@@ -222,6 +222,32 @@ func TestDashboardModuleActions(t *testing.T) {
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
 			t.Fatalf("dashboard missing module action %q", item)
+		}
+	}
+}
+
+func TestDashboardDetailDrawerIsolation(t *testing.T) {
+	expected := []string{
+		"role=\"dialog\"",
+		"aria-modal=\"true\"",
+		"aria-labelledby=\"detailDrawerTitle\"",
+		"aria-describedby=\"detailDrawerSubtitle\"",
+		"id=\"detailDrawerClose\"",
+		"function openDetailDrawer",
+		"function closeDetailDrawer(event)",
+		"document.body.classList.add('detail-drawer-open')",
+		"document.body.classList.remove('detail-drawer-open')",
+		"body.detail-drawer-open",
+		"body.innerHTML = bodyHTML",
+		"body.scrollTop = 0",
+		"classifyDashboardButtons();",
+		"closeButton.focus",
+		"detail-drawer-body button",
+		"button.dataset.actionKind = kind",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing detail drawer isolation content %q", item)
 		}
 	}
 }
