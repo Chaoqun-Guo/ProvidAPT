@@ -1114,6 +1114,8 @@ body.detail-drawer-open {
 }
 
 .detail-drawer-backdrop {
+  position: fixed !important;
+  inset: 0;
   z-index: 78;
   background:
     radial-gradient(circle at 78% 24%, rgba(0, 229, 255, 0.12), transparent 34%),
@@ -1122,15 +1124,29 @@ body.detail-drawer-open {
 }
 
 .detail-drawer {
+  position: fixed !important;
+  top: 0;
+  right: 0;
+  height: 100vh;
   z-index: 79;
   width: min(760px, 96vw);
   max-width: 96vw;
   border-left: 1px solid rgba(0, 229, 255, 0.34);
   box-shadow: -26px 0 54px rgba(0,0,0,0.48), -1px 0 0 rgba(0,229,255,0.12);
+  transform: translateX(105%);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.detail-drawer[hidden],
+.detail-drawer-backdrop[hidden] {
+  display: none !important;
 }
 
 .detail-drawer.visible {
   transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .detail-drawer header {
@@ -1794,8 +1810,8 @@ body.detail-drawer-open {
 </main>
 </div>
 
-<div id="detailDrawerBackdrop" class="detail-drawer-backdrop" data-ui-close="detail-drawer" onclick="closeDetailDrawer(event)"></div>
-<section id="detailDrawer" class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="detailDrawerTitle" aria-describedby="detailDrawerSubtitle" aria-hidden="true" tabindex="-1">
+<div id="detailDrawerBackdrop" class="detail-drawer-backdrop" data-ui-close="detail-drawer" onclick="closeDetailDrawer(event)" hidden></div>
+<section id="detailDrawer" class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="detailDrawerTitle" aria-describedby="detailDrawerSubtitle" aria-hidden="true" tabindex="-1" hidden>
   <header>
     <div>
       <h3 id="detailDrawerTitle">Details</h3>
@@ -1827,6 +1843,7 @@ let latestGroundTruthCorrelation = { records: [] };
 let groundTruthFilter = 'all';
 let apiKey = localStorage.getItem('providapt_api_key') || '';
 let lastAPIRequest = null;
+let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
 
 async function fetchJSON(url) {
@@ -2229,6 +2246,7 @@ function setText(id, value) {
 }
 
 function openDetailDrawer(title, subtitle, bodyHTML) {
+  window.clearTimeout(detailDrawerHideTimer);
   setText('detailDrawerTitle', title || 'Details');
   setText('detailDrawerSubtitle', subtitle || 'Evidence details');
   const body = document.getElementById('detailDrawerBody');
@@ -2240,11 +2258,15 @@ function openDetailDrawer(title, subtitle, bodyHTML) {
     body.scrollTop = 0;
   }
   if (drawer) {
+    drawer.hidden = false;
     drawer.classList.add('visible');
     drawer.setAttribute('aria-hidden', 'false');
     drawer.scrollTop = 0;
   }
-  if (backdrop) backdrop.classList.add('visible');
+  if (backdrop) {
+    backdrop.hidden = false;
+    backdrop.classList.add('visible');
+  }
   document.body.classList.add('detail-drawer-open');
   classifyDashboardButtons();
   if (closeButton) {
@@ -2271,6 +2293,14 @@ function closeDetailDrawer(event) {
   }
   if (backdrop) backdrop.classList.remove('visible');
   document.body.classList.remove('detail-drawer-open');
+  detailDrawerHideTimer = window.setTimeout(() => {
+    if (drawer && !drawer.classList.contains('visible')) {
+      drawer.hidden = true;
+    }
+    if (backdrop && !backdrop.classList.contains('visible')) {
+      backdrop.hidden = true;
+    }
+  }, 210);
 }
 
 document.addEventListener('keydown', event => {
