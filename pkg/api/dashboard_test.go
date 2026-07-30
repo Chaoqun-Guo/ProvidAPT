@@ -692,6 +692,11 @@ func TestDashboardPanelResizeInteractions(t *testing.T) {
 		"panel_sizes",
 		"mousemove",
 		"mouseup",
+		"startHeight",
+		"panel.getBoundingClientRect().height",
+		"panel.style.height",
+		"panel.style.maxHeight = 'none'",
+		"panel-resize-active",
 		"drag · resize",
 	}
 	for _, item := range expected {
@@ -706,7 +711,7 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 		"function adaptivePanelHeight",
 		"function applyAdaptivePanelSize",
 		"body.scrollHeight",
-		"window.innerHeight - 132",
+		"window.innerHeight - 96",
 		"window.requestAnimationFrame",
 		"applyAdaptivePanelSize(panel)",
 		"function panelAdaptiveMinimumHeight",

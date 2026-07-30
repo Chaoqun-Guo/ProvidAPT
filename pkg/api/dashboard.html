@@ -863,6 +863,11 @@ textarea {
   background: transparent;
 }
 
+body.panel-resize-active {
+  cursor: nwse-resize;
+  user-select: none;
+}
+
 @media (min-width: 1500px) {
   :root {
     --sidebar-width: 240px;
@@ -5239,26 +5244,29 @@ function panelAdaptiveMinimumHeight(panel) {
     const style = window.getComputedStyle ? window.getComputedStyle(child) : null;
     return !style || style.display !== 'none';
   });
-  const essentialChildren = children.slice(0, Math.min(children.length, 3));
-  const essentialHeight = essentialChildren.reduce((total, child) => total + panelVisibleHeight(child), 0);
-  const scrollReserve = body.querySelector('.alerts-list, .agents-list, .data-table-wrap') ? Math.max(84, Math.round(window.innerHeight * 0.1)) : 0;
-  const viewportFloor = Math.max(180, Math.round(window.innerHeight * 0.18));
-  return Math.ceil(Math.max(viewportFloor, headerHeight + essentialHeight + scrollReserve + 28));
+  const essentialChildren = children.slice(0, Math.min(children.length, 2));
+  const essentialHeight = essentialChildren.reduce((total, child) => total + Math.min(panelVisibleHeight(child), 92), 0);
+  const scrollReserve = body.querySelector('.alerts-list, .agents-list, .data-table-wrap') ? Math.max(64, Math.round(window.innerHeight * 0.08)) : 0;
+  const viewportFloor = Math.max(180, Math.round(window.innerHeight * 0.16));
+  return Math.ceil(Math.max(viewportFloor, headerHeight + essentialHeight + scrollReserve + 24));
 }
 
 function panelAdaptiveMaximumHeight(panel) {
   const floor = panelAdaptiveMinimumHeight(panel);
-  return Math.max(floor, Math.min(900, window.innerHeight - 132));
+  return Math.max(floor + 160, Math.min(1100, Math.max(420, window.innerHeight - 96)));
 }
 
 function applyPanelSize(panel, size) {
   if (!panel || !size) return;
   const columns = Math.max(1, Math.min(2, Number(size.columns || 1)));
-  const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), Number(size.minHeight || 360)));
+  const requestedHeight = Number(size.minHeight || size.height || 360);
+  const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), requestedHeight));
   panel.dataset.resizeColumns = String(columns);
   panel.dataset.resizeMinHeight = String(minHeight);
   panel.style.gridColumn = columns > 1 ? 'span 2' : '';
   panel.style.minHeight = minHeight + 'px';
+  panel.style.height = minHeight + 'px';
+  panel.style.maxHeight = 'none';
   const badge = panel.querySelector('.panel-size-badge');
   if (badge) badge.textContent = columns + ' col · ' + minHeight + 'px';
 }
@@ -5329,17 +5337,21 @@ function installPanelResize(panel) {
     const start = panelSizeConfig(panel);
     const startX = event.clientX;
     const startY = event.clientY;
+    const startHeight = Math.round(panel.getBoundingClientRect().height || start.minHeight);
     const columnWidth = content ? Math.max(260, content.getBoundingClientRect().width / 2) : 420;
     panel.classList.add('resizing');
+    document.body.classList.add('panel-resize-active');
     const onMove = moveEvent => {
+      moveEvent.preventDefault();
       const deltaX = moveEvent.clientX - startX;
       const deltaY = moveEvent.clientY - startY;
       const columns = start.columns === 1 && deltaX > columnWidth * 0.35 ? 2 : (start.columns === 2 && deltaX < -columnWidth * 0.25 ? 1 : start.columns);
-      const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), start.minHeight + deltaY));
+      const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), startHeight + deltaY));
       applyPanelSize(panel, { columns: columns, minHeight: minHeight });
     };
     const onUp = () => {
       panel.classList.remove('resizing');
+      document.body.classList.remove('panel-resize-active');
       savePanelSizes();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
