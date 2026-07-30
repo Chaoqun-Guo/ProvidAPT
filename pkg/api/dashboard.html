@@ -5217,6 +5217,31 @@ function applyPanelSize(panel, size) {
   if (badge) badge.textContent = columns + ' col · ' + minHeight + 'px';
 }
 
+function adaptivePanelHeight(panel) {
+  if (!panel) return 360;
+  const header = panel.querySelector('h2');
+  const body = panel.querySelector('.panel-body');
+  const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 38;
+  const bodyContentHeight = body ? Math.ceil(body.scrollHeight) : Math.ceil(panel.scrollHeight - headerHeight);
+  const viewportLimit = Math.max(360, Math.min(900, window.innerHeight - 132));
+  const naturalHeight = headerHeight + bodyContentHeight + 28;
+  return Math.max(300, Math.min(viewportLimit, naturalHeight));
+}
+
+function applyAdaptivePanelSize(panel) {
+  if (!panel) return;
+  panel.style.gridColumn = 'span 2';
+  const resize = () => {
+    applyPanelSize(panel, { columns: 2, minHeight: adaptivePanelHeight(panel) });
+    savePanelSizes();
+  };
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(resize);
+  } else {
+    resize();
+  }
+}
+
 function savedPanelSizes() {
   try {
     return JSON.parse(localStorage.getItem('providaptDashboardPanelSizes') || '{}');
@@ -5279,8 +5304,7 @@ function installPanelResize(panel) {
   handle.addEventListener('dblclick', event => {
     event.preventDefault();
     event.stopPropagation();
-    applyPanelSize(panel, { columns: 2, minHeight: 560 });
-    savePanelSizes();
+    applyAdaptivePanelSize(panel);
   });
 }
 

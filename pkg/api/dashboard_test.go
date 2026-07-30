@@ -677,6 +677,25 @@ func TestDashboardPanelResizeInteractions(t *testing.T) {
 	}
 }
 
+func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
+	expected := []string{
+		"function adaptivePanelHeight",
+		"function applyAdaptivePanelSize",
+		"body.scrollHeight",
+		"window.innerHeight - 132",
+		"window.requestAnimationFrame",
+		"applyAdaptivePanelSize(panel)",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) {
+			t.Fatalf("dashboard missing adaptive panel resize content %q", item)
+		}
+	}
+	if strings.Contains(dashboardHTML, "minHeight: 560") {
+		t.Fatal("dashboard panel double-click resize should use adaptive content height, not fixed 560px")
+	}
+}
+
 func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	expected := []string{
 		"postJSONWithLeaderRetry",
