@@ -5,6 +5,7 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -89,6 +90,309 @@ func generateAlertSVG(alertID string, graph *provenance.Graph) []byte {
 	layout.scope = alertID
 	layout.truncate = truncated
 	return renderSVG(layout)
+}
+
+func renderTraceSVGViewer(alertID string) []byte {
+	encodedID := url.PathEscape(alertID)
+	rawPath := "/api/v1/alerts/" + encodedID + "/svg"
+	var b strings.Builder
+	fmt.Fprintf(&b, `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProvidAPT Trace Viewer - %s</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #07101f;
+  --panel: rgba(9, 20, 37, 0.92);
+  --panel-strong: rgba(13, 28, 52, 0.98);
+  --line: rgba(88, 166, 255, 0.24);
+  --text: #d7e8ff;
+  --muted: #8b949e;
+  --cyan: #00e5ff;
+  --green: #19f28a;
+  --amber: #ffb020;
+  --red: #ff3158;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 14%% 10%%, rgba(0, 229, 255, 0.12), transparent 32%%),
+    linear-gradient(135deg, #06101f 0%%, #0a1324 54%%, #101827 100%%);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  overflow: hidden;
+}
+.trace-shell { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+.trace-header {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(2, 8, 18, 0.88);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+.brand { display: grid; gap: 2px; min-width: 0; }
+.title { font-size: 16px; font-weight: 850; letter-spacing: 0.4px; }
+.scope { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolbar { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+button, a.tool-link {
+  height: 30px;
+  min-width: 96px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(88, 166, 255, 0.36);
+  background: linear-gradient(180deg, rgba(17, 34, 58, 0.96), rgba(8, 18, 33, 0.96));
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 760;
+  text-decoration: none;
+  cursor: pointer;
+}
+button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18px rgba(0, 229, 255, 0.18); }
+.search {
+  height: 30px;
+  width: 210px;
+  border-radius: 999px;
+  border: 1px solid rgba(88, 166, 255, 0.24);
+  background: rgba(3, 8, 18, 0.7);
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+.viewer {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 10px;
+  padding: 10px;
+  height: 100%%;
+  min-height: 0;
+}
+.canvas-wrap {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(3, 8, 18, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.035), 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+.canvas {
+  transform-origin: 0 0;
+  transition: transform 0.12s ease;
+  min-width: max-content;
+  min-height: max-content;
+}
+.fallback-frame {
+  width: 100%%;
+  min-height: 72vh;
+  border: 0;
+  background: #0d1117;
+  border-radius: 12px;
+}
+.canvas svg {
+  max-width: none !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+.side {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  padding: 10px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+.card {
+  border: 1px solid rgba(88, 166, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(3, 8, 18, 0.36);
+  padding: 10px;
+}
+.card h2 {
+  margin: 0 0 8px;
+  color: #f0f6fc;
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.metric { border-radius: 10px; background: rgba(7, 16, 30, 0.86); padding: 8px; }
+.metric .value { color: var(--cyan); font-weight: 850; font-size: 17px; }
+.metric .label { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.7px; }
+.legend { display: grid; gap: 6px; font-size: 11px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.process::before { background: #58a6ff; }
+.file::before { background: #3fb950; }
+.network::before { background: #f85149; }
+.credential::before { background: #d29922; }
+.read::before { background: #58a6ff; }
+.write::before { background: #3fb950; }
+.exec::before { background: #d29922; }
+.context::before { background: #8b949e; }
+.status { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.error { color: #ffd7df; border-color: rgba(255, 49, 88, 0.36); }
+.dimmed { opacity: 0.16; }
+.matched rect { stroke: var(--cyan) !important; stroke-width: 3 !important; filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.55)); }
+.hide-cross .edge-cross { display: none; }
+@media (max-width: 980px) {
+  body { overflow: auto; }
+  .trace-shell { height: auto; min-height: 100vh; }
+  .trace-header, .viewer { grid-template-columns: 1fr; }
+  .toolbar { justify-content: flex-start; }
+  .search { width: 100%%; }
+  .viewer { height: auto; }
+  .canvas-wrap { min-height: 60vh; }
+}
+</style>
+</head>
+<body>
+<div class="trace-shell">
+  <header class="trace-header">
+    <div class="brand">
+      <div class="title">ProvidAPT Trace Viewer</div>
+      <div class="scope">Focused alert: %s</div>
+    </div>
+    <div class="toolbar">
+      <input class="search" id="searchBox" placeholder="Search node, event, path, cmdline">
+      <button onclick="zoomBy(0.12)">Zoom In</button>
+      <button onclick="zoomBy(-0.12)">Zoom Out</button>
+      <button onclick="fitWidth()">Fit Width</button>
+      <button onclick="toggleCrossLinks()">Cross Links</button>
+      <a class="tool-link" href="%s" target="_blank" rel="noreferrer">Raw SVG</a>
+      <a class="tool-link" href="%s" download="providapt-trace.svg">Download</a>
+    </div>
+  </header>
+  <main class="viewer">
+    <section class="canvas-wrap" id="canvasWrap" aria-label="Trace SVG canvas">
+      <div class="canvas" id="canvas"><div class="card status">Loading trace SVG...</div></div>
+    </section>
+    <aside class="side" aria-label="Trace analysis summary">
+      <div class="card">
+        <h2>Trace Summary</h2>
+        <div class="metric-grid">
+          <div class="metric"><div class="value" id="nodeCount">--</div><div class="label">Nodes</div></div>
+          <div class="metric"><div class="value" id="edgeCount">--</div><div class="label">Edges</div></div>
+          <div class="metric"><div class="value" id="crossCount">--</div><div class="label">Cross Links</div></div>
+          <div class="metric"><div class="value" id="eventCount">--</div><div class="label">Event Groups</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Legend</h2>
+        <div class="legend">
+          <span class="process">Process node</span>
+          <span class="file">File node</span>
+          <span class="network">Network node</span>
+          <span class="credential">Credential node</span>
+          <span class="read">Read / use relation</span>
+          <span class="write">Write / create relation</span>
+          <span class="exec">Execution relation</span>
+          <span class="context">Dashed context or cross-link</span>
+        </div>
+      </div>
+      <div class="card status" id="viewerStatus">
+        Direction is source -> target. Use search to isolate a path, command line, file path, event type, or process node.
+      </div>
+    </aside>
+  </main>
+</div>
+<script>
+const rawURL = %q;
+let scale = 1;
+const canvas = document.getElementById('canvas');
+const wrap = document.getElementById('canvasWrap');
+
+fetch(rawURL, { cache: 'no-store' })
+  .then(response => {
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    return response.text();
+  })
+  .then(svg => {
+    canvas.innerHTML = svg;
+    summarizeTrace();
+    fitWidth();
+  })
+  .catch(error => {
+    showFallback('Unable to inline trace SVG: ' + error.message + '. Raw SVG is embedded below.');
+  });
+
+window.setTimeout(() => {
+  if (!canvas.querySelector('svg') && !canvas.querySelector('iframe')) {
+    showFallback('Trace SVG is still loading. Raw SVG is embedded below as a fallback.');
+  }
+}, 1800);
+
+function summarizeTrace() {
+  setMetric('nodeCount', canvas.querySelectorAll('.node').length);
+  setMetric('edgeCount', canvas.querySelectorAll('.edge').length);
+  setMetric('crossCount', canvas.querySelectorAll('.edge-cross').length);
+  setMetric('eventCount', canvas.querySelectorAll('.event-group').length);
+}
+function showFallback(message) {
+  document.getElementById('viewerStatus').textContent = message;
+  canvas.innerHTML = '<iframe class="fallback-frame" src="' + rawURL.replace(/"/g, '&quot;') + '" title="Raw trace SVG fallback"></iframe>';
+  setMetric('nodeCount', '--');
+  setMetric('edgeCount', '--');
+  setMetric('crossCount', '--');
+  setMetric('eventCount', '--');
+  scale = 1;
+  applyScale();
+}
+function setMetric(id, value) { document.getElementById(id).textContent = String(value); }
+function applyScale() { canvas.style.transform = 'scale(' + scale.toFixed(2) + ')'; }
+function zoomBy(delta) {
+  scale = Math.max(0.25, Math.min(2.6, scale + delta));
+  applyScale();
+}
+function fitWidth() {
+  const svg = canvas.querySelector('svg');
+  if (!svg) return;
+  const width = Number(svg.getAttribute('width')) || svg.viewBox.baseVal.width || wrap.clientWidth;
+  scale = Math.max(0.25, Math.min(1.4, (wrap.clientWidth - 24) / Math.max(width, 1)));
+  applyScale();
+}
+function toggleCrossLinks() {
+  canvas.classList.toggle('hide-cross');
+  document.getElementById('viewerStatus').textContent = canvas.classList.contains('hide-cross')
+    ? 'Cross-links are hidden. Tree causality remains visible.'
+    : 'Cross-links are visible. Dashed links preserve non-tree evidence.';
+}
+document.getElementById('searchBox').addEventListener('input', event => {
+  const query = event.target.value.trim().toLowerCase();
+  const candidates = Array.from(canvas.querySelectorAll('.node, .edge, .event-group, .cluster'));
+  let hits = 0;
+  candidates.forEach(item => {
+    item.classList.remove('matched', 'dimmed');
+    if (!query) return;
+    const matched = item.textContent.toLowerCase().includes(query) || Array.from(item.attributes || []).some(attr => attr.value.toLowerCase().includes(query));
+    item.classList.toggle('matched', matched);
+    item.classList.toggle('dimmed', !matched);
+    if (matched) hits++;
+  });
+  document.getElementById('viewerStatus').textContent = query ? (hits + ' matching trace element(s) for \"' + query + '\"') : 'Search cleared. Full trace is visible.';
+});
+window.addEventListener('resize', () => window.requestAnimationFrame(fitWidth));
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
+`, escapeXML(alertID), escapeXML(alertID), rawPath, rawPath, rawPath)
+	return []byte(b.String())
 }
 
 func focusedGraph(startID string, graph *provenance.Graph, maxDepth, maxNodes, maxEdges int) ([]*provenance.Node, []*provenance.Edge, bool) {

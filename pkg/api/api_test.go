@@ -2533,6 +2533,23 @@ func TestAlertSVGSubroute(t *testing.T) {
 	}
 }
 
+func TestAlertSVGViewerSubroute(t *testing.T) {
+	ts := testServer(t)
+	w := apiGet(ts, "/api/v1/alerts/p%3A100/svg/view")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/html") {
+		t.Fatalf("content-type = %q", got)
+	}
+	body := w.Body.String()
+	for _, want := range []string{"ProvidAPT Trace Viewer", "Zoom In", "Fit Width", "/api/v1/alerts/p:100/svg"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("viewer missing %q in body: %s", want, body)
+		}
+	}
+}
+
 func TestEventSearchMissingOutputDirReturnsEmptyResults(t *testing.T) {
 	t.Setenv("PROVIDAPT_OUTPUT_DIR", filepath.Join(t.TempDir(), "missing"))
 	ts := testServer(t)

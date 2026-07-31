@@ -2772,14 +2772,19 @@ func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Server) handleAlertSVG(w http.ResponseWriter, _ *http.Request, path string) error {
-	// Parse: <id>/svg
-	parts := strings.SplitN(path, "/", 2)
+	// Parse: <id>/svg or <id>/svg/view
+	parts := strings.Split(path, "/")
 	if len(parts) < 2 || parts[1] != "svg" {
 		return fmt.Errorf("usage: /api/v1/alerts/<id>/svg")
 	}
 	alertID := parts[0]
 	if decoded, err := url.PathUnescape(alertID); err == nil {
 		alertID = decoded
+	}
+	if len(parts) >= 3 && parts[2] == "view" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, err := w.Write(renderTraceSVGViewer(alertID))
+		return err
 	}
 
 	svg := generateAlertSVG(alertID, s.graph)
