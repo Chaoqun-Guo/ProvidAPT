@@ -686,13 +686,15 @@ header.platform-header {
 .content {
   gap: var(--layout-gap);
   grid-auto-flow: row dense;
-  grid-auto-rows: minmax(300px, auto);
+  grid-auto-rows: 8px;
+  align-items: start;
 }
 
 .panel {
   min-height: 300px;
   max-height: min(650px, calc(100vh - 138px));
   border-radius: 12px;
+  height: auto;
 }
 
 .dashboard-density-compact .panel {
@@ -1040,7 +1042,6 @@ body.panel-resize-active {
 }
 
 .dashboard-panel[data-panel-id="control-plane-summary"],
-.dashboard-panel[data-panel-id="alert-workflow"],
 .dashboard-panel[data-panel-id="investigation-console"],
 .dashboard-panel[data-panel-id="agent-overview"] {
   min-height: 320px;
@@ -1632,7 +1633,7 @@ body.detail-drawer-open {
 </div>
 
 <div class="content">
-  <div class="panel span-2">
+  <div class="panel">
     <h2>Module Quality Review</h2>
     <div class="panel-body">
       <div class="module-quality-grid">
@@ -5389,19 +5390,66 @@ function applyPanelOrder(order) {
 function savePanelOrder() {
   const panels = Array.from(document.querySelectorAll('.content .panel'));
   localStorage.setItem('providaptDashboardPanelOrder', JSON.stringify(panels.map(panelID)));
+  scheduleDashboardMasonry();
 }
 
 function panelSizeConfig(panel) {
   return {
-    columns: Number(panel.dataset.resizeColumns || 1),
-    minHeight: Number(panel.dataset.resizeMinHeight || 360),
+    columns: Number(panel.dataset.resizeColumns || dashboardPanelDefaultColumns(panel)),
+    minHeight: Number(panel.dataset.resizeMinHeight || 0),
+    userSized: panel.dataset.userSized === 'true',
   };
+}
+
+function dashboardPanelDefaultColumns(panel) {
+  const id = panelID(panel);
+  if (panel && panel.dataset.defaultColumns) {
+    return Math.max(1, Math.min(2, Number(panel.dataset.defaultColumns || 1)));
+  }
+  if (id === 'alert-workflow') return 2;
+  return 1;
 }
 
 function panelVisibleHeight(element) {
   if (!element) return 0;
   const rect = element.getBoundingClientRect();
   return Math.ceil(rect.height || element.scrollHeight || 0);
+}
+
+let dashboardMasonryTimer = null;
+
+function dashboardGridNumber(value, fallback) {
+  const parsed = Number.parseFloat(String(value || '').replace('px', ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function layoutDashboardMasonry() {
+  const content = document.querySelector('.content');
+  if (!content) return;
+  const style = window.getComputedStyle ? window.getComputedStyle(content) : null;
+  const rowHeight = dashboardGridNumber(style && style.gridAutoRows, 8);
+  const gap = dashboardGridNumber(style && (style.rowGap || style.gap), 7);
+  Array.from(content.querySelectorAll('.panel')).forEach(panel => {
+    if (panel.classList.contains('section-hidden')) {
+      panel.style.gridRowEnd = '';
+      return;
+    }
+    panel.style.gridRowEnd = '';
+    const naturalHeight = Math.ceil(panel.getBoundingClientRect().height || panel.scrollHeight || panelAdaptiveMinimumHeight(panel));
+    const span = Math.max(1, Math.ceil((naturalHeight + gap) / (rowHeight + gap)));
+    panel.style.gridRowEnd = 'span ' + span;
+  });
+}
+
+function scheduleDashboardMasonry() {
+  window.clearTimeout(dashboardMasonryTimer);
+  dashboardMasonryTimer = window.setTimeout(() => {
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(layoutDashboardMasonry);
+    } else {
+      layoutDashboardMasonry();
+    }
+  }, 0);
 }
 
 function panelAdaptiveMinimumHeight(panel) {
@@ -5426,13 +5474,35 @@ function panelAdaptiveMaximumHeight(panel) {
   return Math.max(floor + 160, Math.min(1100, Math.max(420, window.innerHeight - 96)));
 }
 
-function applyPanelSize(panel, size) {
+function clearPanelSize(panel, columns) {
+  if (!panel) return;
+  const resolvedColumns = Math.max(1, Math.min(2, Number(columns || dashboardPanelDefaultColumns(panel))));
+  delete panel.dataset.resizeColumns;
+  delete panel.dataset.resizeMinHeight;
+  delete panel.dataset.userSized;
+  panel.style.gridColumn = resolvedColumns > 1 ? 'span 2' : '';
+  panel.style.minHeight = '';
+  panel.style.height = '';
+  panel.style.maxHeight = '';
+  panel.style.gridRowEnd = '';
+  const body = panel.querySelector('.panel-body');
+  if (body) {
+    body.style.height = '';
+    body.style.minHeight = '';
+    body.style.overflow = '';
+  }
+  const badge = panel.querySelector('.panel-size-badge');
+  if (badge) badge.textContent = resolvedColumns + ' col · auto';
+}
+
+function applyPanelSize(panel, size, userSized) {
   if (!panel || !size) return;
   const columns = Math.max(1, Math.min(2, Number(size.columns || 1)));
   const requestedHeight = Number(size.minHeight || size.height || 360);
   const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), requestedHeight));
   panel.dataset.resizeColumns = String(columns);
   panel.dataset.resizeMinHeight = String(minHeight);
+  panel.dataset.userSized = userSized === false ? 'false' : 'true';
   panel.style.gridColumn = columns > 1 ? 'span 2' : '';
   panel.style.minHeight = minHeight + 'px';
   panel.style.height = minHeight + 'px';
@@ -5445,6 +5515,7 @@ function applyPanelSize(panel, size) {
   }
   const badge = panel.querySelector('.panel-size-badge');
   if (badge) badge.textContent = columns + ' col · ' + minHeight + 'px';
+  scheduleDashboardMasonry();
 }
 
 function adaptivePanelHeight(panel) {
@@ -5460,9 +5531,8 @@ function adaptivePanelHeight(panel) {
 
 function applyAdaptivePanelSize(panel) {
   if (!panel) return;
-  panel.style.gridColumn = 'span 2';
   const resize = () => {
-    applyPanelSize(panel, { columns: 2, minHeight: adaptivePanelHeight(panel) });
+    applyPanelSize(panel, { columns: 2, minHeight: adaptivePanelHeight(panel) }, true);
     savePanelSizes();
   };
   if (typeof window.requestAnimationFrame === 'function') {
@@ -5483,7 +5553,8 @@ function savedPanelSizes() {
 function savePanelSizes() {
   const sizes = {};
   document.querySelectorAll('.content .panel').forEach(panel => {
-    sizes[panelID(panel)] = panelSizeConfig(panel);
+    const size = panelSizeConfig(panel);
+    if (size.userSized) sizes[panelID(panel)] = size;
   });
   localStorage.setItem('providaptDashboardPanelSizes', JSON.stringify(sizes));
 }
@@ -5491,8 +5562,14 @@ function savePanelSizes() {
 function applyPanelSizes(sizes) {
   const allSizes = sizes || savedPanelSizes();
   document.querySelectorAll('.content .panel').forEach(panel => {
-    applyPanelSize(panel, allSizes[panelID(panel)] || { columns: panel.classList.contains('span-2') || panel.classList.contains('span-4') ? 2 : 1, minHeight: 360 });
+    const saved = allSizes[panelID(panel)];
+    if (saved && saved.userSized === true) {
+      applyPanelSize(panel, saved, true);
+    } else {
+      clearPanelSize(panel, dashboardPanelDefaultColumns(panel));
+    }
   });
+  scheduleDashboardMasonry();
 }
 
 function installPanelResize(panel) {
@@ -5523,7 +5600,7 @@ function installPanelResize(panel) {
       const deltaY = moveEvent.clientY - startY;
       const columns = start.columns === 1 && deltaX > columnWidth * 0.35 ? 2 : (start.columns === 2 && deltaX < -columnWidth * 0.25 ? 1 : start.columns);
       const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), startHeight + deltaY));
-      applyPanelSize(panel, { columns: columns, minHeight: minHeight });
+      applyPanelSize(panel, { columns: columns, minHeight: minHeight }, true);
     };
     const onUp = () => {
       panel.classList.remove('resizing');
@@ -5612,6 +5689,7 @@ function switchDashboardSection(section) {
     panel.classList.toggle('section-hidden', !visible);
   });
   updateDashboardSectionTabs(selected);
+  scheduleDashboardMasonry();
 }
 
 function setDashboardDensity(density) {
@@ -5623,6 +5701,7 @@ function setDashboardDensity(density) {
   localStorage.setItem('providaptDashboardDensity', selected);
   const hint = document.getElementById('workspaceHint');
   if (hint) hint.textContent = 'Dashboard density set to ' + selected + '.';
+  scheduleDashboardMasonry();
 }
 
 function setDashboardTheme(theme) {
@@ -5667,6 +5746,7 @@ function loadDashboardViewProfile() {
       if (element) element.value = filters[key] || '';
     });
     applyAlertWorkflowFilters();
+    scheduleDashboardMasonry();
     openDetailDrawer('Dashboard View Loaded', 'Restored saved analyst workspace profile', renderJSONBlock(profile));
   } catch (e) {
     setInvestigationLoading('Dashboard view profile load failed: ' + e.message);
@@ -5681,6 +5761,7 @@ function resetDashboardLayout() {
   applyPanelSizes({});
   switchDashboardSection('all');
   setDashboardDensity('standard');
+  scheduleDashboardMasonry();
 }
 
 function defaultDashboardPanelOrder() {
@@ -5723,6 +5804,7 @@ function initializePanelLayout() {
       panel.classList.remove('dragging');
       Array.from(content.querySelectorAll('.drag-over')).forEach(item => item.classList.remove('drag-over'));
       savePanelOrder();
+      scheduleDashboardMasonry();
     });
     panel.addEventListener('dragover', event => {
       event.preventDefault();
@@ -5739,6 +5821,7 @@ function initializePanelLayout() {
       const placeAfter = event.clientY > rect.top + rect.height / 2;
       content.insertBefore(dragged, placeAfter ? panel.nextSibling : panel);
       savePanelOrder();
+      scheduleDashboardMasonry();
     });
   });
   try {
@@ -5751,6 +5834,7 @@ function initializePanelLayout() {
   setDashboardDensity(localStorage.getItem('providaptDashboardDensity') || 'standard');
   setDashboardTheme(localStorage.getItem('providaptDashboardTheme') || 'dark');
   switchDashboardSection(localStorage.getItem('providaptDashboardSection') || 'all');
+  scheduleDashboardMasonry();
 }
 
 async function refresh() {
@@ -5759,7 +5843,10 @@ async function refresh() {
   await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadBackups(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadCompliance(), loadGroundTruth()]);
   loadOperationsSummary();
   classifyDashboardButtons();
+  scheduleDashboardMasonry();
 }
+
+window.addEventListener('resize', scheduleDashboardMasonry);
 
 initializePanelLayout();
 installInteractionFeedback();
