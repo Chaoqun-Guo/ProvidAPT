@@ -1872,6 +1872,139 @@ body.dashboard-density-comfortable .content {
   max-height: 120px;
 }
 
+.dashboard-panel[data-panel-id="support-bundle"] .panel-body,
+.dashboard-panel[data-panel-id="delivery-health"] .panel-body,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .panel-body {
+  gap: 7px;
+  overflow: hidden;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] .policy-grid,
+.dashboard-panel[data-panel-id="delivery-health"] .policy-grid,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .policy-grid {
+  grid-template-columns: repeat(4, minmax(92px, 1fr));
+  gap: 6px;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] .policy-item,
+.dashboard-panel[data-panel-id="delivery-health"] .policy-item,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .policy-item {
+  min-height: 54px;
+  padding: 7px;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] .action-row,
+.dashboard-panel[data-panel-id="delivery-health"] .action-row,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .ground-truth-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(88, 166, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(3, 8, 18, 0.28);
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] .action-row button,
+.dashboard-panel[data-panel-id="delivery-health"] .action-row button,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .ground-truth-toolbar button {
+  width: 100%;
+  max-width: none;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] .policy-editor.compact {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] .compact-input-grid {
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 6px;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] #supportBundleStatus,
+.dashboard-panel[data-panel-id="delivery-health"] #deliveryActionStatus,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] #groundTruthStatus {
+  min-height: 18px;
+  padding: 2px 0;
+  margin: 0 !important;
+  text-align: left;
+  font-size: 10px;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] #supportBundleDetails,
+.dashboard-panel[data-panel-id="support-bundle"] #supportBundleAuditList,
+.dashboard-panel[data-panel-id="delivery-health"] #deliveryList,
+.dashboard-panel[data-panel-id="delivery-health"] #deliveryHistoryList,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] #groundTruthList {
+  min-height: 76px;
+  max-height: 150px;
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] #supportBundleAuditList,
+.dashboard-panel[data-panel-id="delivery-health"] #deliveryHistoryList {
+  min-height: 54px;
+  max-height: 108px;
+}
+
+.dashboard-panel[data-panel-id="delivery-health"] .delivery-summary {
+  grid-template-columns: repeat(3, minmax(82px, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.dashboard-panel[data-panel-id="delivery-health"] .delivery-summary .mini-card {
+  min-height: 50px;
+  padding: 7px;
+}
+
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .ground-truth-toolbar {
+  grid-template-columns: minmax(220px, 2fr) repeat(auto-fit, minmax(116px, 1fr));
+}
+
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .file-picker {
+  height: 30px;
+  border-radius: 999px;
+  padding: 0 10px;
+}
+
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .truth-phase-grid {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 5px;
+  margin: 0;
+  max-height: 78px;
+  overflow: auto;
+}
+
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .truth-phase-grid:empty {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .dashboard-panel[data-panel-id="support-bundle"] .policy-grid,
+  .dashboard-panel[data-panel-id="delivery-health"] .policy-grid,
+  .dashboard-panel[data-panel-id="evaluation-ground-truth"] .policy-grid,
+  .dashboard-panel[data-panel-id="support-bundle"] .compact-input-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-panel[data-panel-id="evaluation-ground-truth"] .ground-truth-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-panel[data-panel-id="support-bundle"] .policy-grid,
+  .dashboard-panel[data-panel-id="delivery-health"] .policy-grid,
+  .dashboard-panel[data-panel-id="evaluation-ground-truth"] .policy-grid,
+  .dashboard-panel[data-panel-id="support-bundle"] .compact-input-grid,
+  .dashboard-panel[data-panel-id="delivery-health"] .delivery-summary,
+  .dashboard-panel[data-panel-id="evaluation-ground-truth"] .ground-truth-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1180px) {
   .dashboard-panel[data-panel-id="alert-workflow"],
   .dashboard-panel[data-panel-id="policy-center"],
@@ -2563,7 +2696,7 @@ let lastAPIRequest = null;
 let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
 let selectedWorkflowAlertKey = '';
-const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v5';
+const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v6';
 
 function migrateDashboardLayoutStorage() {
   const current = localStorage.getItem('providaptDashboardLayoutVersion');
