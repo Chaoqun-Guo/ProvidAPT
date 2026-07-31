@@ -1234,6 +1234,7 @@ body.panel-resize-active {
   border: 1px solid transparent;
   border-radius: 12px;
   padding: 7px;
+  overflow: hidden;
 }
 
 .workflow-alert-card.selected {
@@ -1246,6 +1247,7 @@ body.panel-resize-active {
   min-width: 0;
   display: grid;
   gap: 4px;
+  overflow: hidden;
 }
 
 .workflow-alert-title {
@@ -1255,6 +1257,10 @@ body.panel-resize-active {
   line-height: 1.32;
   overflow-wrap: anywhere;
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .workflow-alert-meta {
@@ -1262,6 +1268,10 @@ body.panel-resize-active {
   font-size: 10px;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .workflow-alert-actions {
@@ -1332,6 +1342,8 @@ body.panel-resize-active {
   border-radius: 10px;
   background: rgba(13, 17, 23, 0.72);
   border: 1px solid rgba(48, 54, 61, 0.76);
+  max-height: 72px;
+  overflow: auto;
 }
 
 @media (max-width: 1350px) {
@@ -1656,6 +1668,133 @@ body.detail-drawer-open {
   }
   .policy-publish-actions {
     justify-content: stretch;
+  }
+}
+
+/* Final dashboard layout stabilization: content-fit panels, predictable complex workbenches. */
+.content,
+body.dashboard-density-compact .content,
+body.dashboard-density-comfortable .content {
+  grid-auto-rows: 8px !important;
+  align-items: start !important;
+}
+
+.dashboard-panel {
+  min-height: unset !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+.dashboard-panel .panel-body {
+  flex: 0 1 auto;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] {
+  min-height: 155px !important;
+}
+
+.dashboard-panel[data-panel-id="control-plane-summary"] {
+  min-height: 140px !important;
+}
+
+.dashboard-panel[data-panel-id="operations-summary"] {
+  min-height: 155px !important;
+}
+
+.dashboard-panel[data-panel-id="deployment-diagnostics"],
+.dashboard-panel[data-panel-id="support-bundle"],
+.dashboard-panel[data-panel-id="backup-restore"],
+.dashboard-panel[data-panel-id="delivery-health"],
+.dashboard-panel[data-panel-id="compliance-siem"],
+.dashboard-panel[data-panel-id="investigation-console"],
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] {
+  min-height: 300px !important;
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"] {
+  min-height: 455px !important;
+}
+
+.dashboard-panel[data-panel-id="policy-center"] {
+  min-height: 540px !important;
+}
+
+.dashboard-panel[data-panel-id="agent-overview"] {
+  min-height: 440px !important;
+}
+
+.dashboard-panel[data-panel-id="control-plane-summary"] .panel-body,
+.dashboard-panel[data-panel-id="module-quality-review"] .panel-body,
+.dashboard-panel[data-panel-id="operations-summary"] .panel-body {
+  overflow: hidden;
+}
+
+.dashboard-panel[data-panel-id="control-plane-summary"] .mini-metrics,
+.dashboard-panel[data-panel-id="operations-summary"] .policy-grid {
+  grid-template-columns: repeat(4, minmax(118px, 1fr));
+}
+
+.dashboard-panel[data-panel-id="operations-summary"] #operationsSummaryList {
+  min-height: 48px;
+  max-height: 78px;
+}
+
+.dashboard-panel[data-panel-id="control-plane-summary"] .mini-metrics .mini-card,
+.dashboard-panel[data-panel-id="operations-summary"] .policy-grid .policy-item {
+  min-height: 58px;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] .quality-card {
+  min-height: 70px;
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"] .workflow-layout {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"] #workflowAlertsList {
+  min-height: 125px;
+  max-height: 300px;
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"] .workflow-selection-card {
+  min-height: 170px;
+  max-height: 250px;
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"] .workflow-history-list {
+  min-height: 72px !important;
+  max-height: 120px !important;
+}
+
+.dashboard-panel[data-panel-id="policy-center"] #policyHistoryList,
+.dashboard-panel[data-panel-id="delivery-health"] #deliveryList,
+.dashboard-panel[data-panel-id="delivery-health"] #deliveryHistoryList,
+.dashboard-panel[data-panel-id="support-bundle"] #supportBundleDetails,
+.dashboard-panel[data-panel-id="support-bundle"] #supportBundleAuditList,
+.dashboard-panel[data-panel-id="backup-restore"] #backupDetails,
+.dashboard-panel[data-panel-id="compliance-siem"] #complianceDetails,
+.dashboard-panel[data-panel-id="investigation-console"] #investigationList,
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] #groundTruthList,
+.dashboard-panel[data-panel-id="deployment-diagnostics"] #deploymentDiagnosticsList {
+  min-height: 110px;
+  max-height: 230px;
+}
+
+.dashboard-panel[data-panel-id="policy-center"] #policyHistoryList {
+  min-height: 58px;
+  max-height: 120px;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-panel[data-panel-id="alert-workflow"],
+  .dashboard-panel[data-panel-id="policy-center"],
+  .dashboard-panel[data-panel-id="agent-overview"] {
+    grid-column: 1 / -1 !important;
   }
 }
 </style>
@@ -2680,6 +2819,10 @@ function jsString(value) {
   return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+function inlineJSONPayload(value) {
+  return encodeURIComponent(JSON.stringify(value || {}));
+}
+
 function truncateText(value, max) {
   const text = String(value == null ? '' : value);
   if (text.length <= max) return text;
@@ -2771,9 +2914,9 @@ function alertTraceActions(a) {
   }
   const encodedID = encodeURIComponent(id);
   const eventPattern = encodeURIComponent(a.headline || a.pattern || id);
-  const alertEncoded = jsString(JSON.stringify(a || {}));
+  const alertEncoded = inlineJSONPayload(a || {});
   return '<span class="trace-actions workflow-trace-actions">' +
-    '<button class="secondary" onclick="showAlertDetailsJSON(\'' + alertEncoded + '\')">Details</button>' +
+    '<button class="secondary" onclick="showAlertDetailsEncoded(\'' + alertEncoded + '\')">Details</button>' +
     '<a href="/api/v1/alerts/' + encodedID + '/svg" target="_blank" rel="noreferrer" title="Open SVG attack path">Trace SVG</a>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/backward?depth=8" target="_blank" rel="noreferrer" title="Trace upstream provenance">Backward</a>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/forward?depth=8" target="_blank" rel="noreferrer" title="Trace downstream impact">Forward</a>' +
@@ -4076,8 +4219,8 @@ function selectWorkflowAlert(alertID) {
 function renderWorkflowAlert(a) {
   const sev = a.severity || 'info';
   const sla = a.sla_status ? (' · SLA ' + escapeHTML(a.sla_status)) : '';
-  const encoded = jsString(JSON.stringify(a || {}));
-  const headline = escapeHTML(a.headline || a.pattern || 'Alert');
+  const encoded = inlineJSONPayload(a || {});
+  const headline = escapeHTML(truncateText(a.headline || a.pattern || 'Alert', 150));
   const meta = [
     'status ' + escapeHTML(a.status || 'open'),
     a.assignee ? ('assignee ' + escapeHTML(a.assignee)) : '',
@@ -4090,10 +4233,10 @@ function renderWorkflowAlert(a) {
     '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
     '<span class="workflow-alert-main">' +
       '<span class="workflow-alert-title">' + headline + '</span>' +
-      '<span class="workflow-alert-meta">' + meta + '</span>' +
+      '<span class="workflow-alert-meta">' + escapeHTML(truncateText(meta, 170)) + '</span>' +
     '</span>' +
     '<span class="alert-time">' + formatTime(a.sla_deadline || a.last_seen || a.last_notified_at) + '</span>' +
-    '<span class="workflow-alert-actions">' + workflowSelectButton(a) + '<button class="secondary" onclick="event.stopPropagation(); showAlertDetailsJSON(\'' + encoded + '\')">Details</button></span>' +
+    '<span class="workflow-alert-actions">' + workflowSelectButton(a) + '<button class="secondary" onclick="event.stopPropagation(); showAlertDetailsEncoded(\'' + encoded + '\')">Details</button></span>' +
     '</div>';
 }
 
@@ -5433,6 +5576,14 @@ function showAlertDetailsJSON(encoded) {
   }
 }
 
+function showAlertDetailsEncoded(encoded) {
+  try {
+    showAlertDetailsJSON(decodeURIComponent(encoded || '%7B%7D'));
+  } catch (e) {
+    setInvestigationLoading('Alert detail decode failed: ' + e.message);
+  }
+}
+
 async function showAlertEvents(pattern) {
   setInvestigationLoading('Searching related alert events...');
   try {
@@ -5602,7 +5753,7 @@ function dashboardPanelDefaultColumns(panel) {
   if (panel && panel.dataset.defaultColumns) {
     return Math.max(1, Math.min(2, Number(panel.dataset.defaultColumns || 1)));
   }
-  if (id === 'alert-workflow') return 2;
+  if (['alert-workflow', 'policy-center', 'agent-overview', 'operations-summary'].includes(id)) return 2;
   return 1;
 }
 
