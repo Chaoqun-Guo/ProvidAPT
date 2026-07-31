@@ -943,6 +943,11 @@ textarea {
 
 .panel-resize-handle {
   background: transparent;
+  z-index: 6;
+  width: 22px;
+  height: 22px;
+  touch-action: none;
+  pointer-events: auto;
 }
 
 body.panel-resize-active {
@@ -1704,6 +1709,12 @@ body.dashboard-density-comfortable .content {
   max-height: none !important;
 }
 
+.dashboard-panel.user-sized {
+  min-height: var(--panel-user-height, 180px) !important;
+  height: var(--panel-user-height, auto) !important;
+  max-height: none !important;
+}
+
 .dashboard-panel .panel-body {
   flex: 0 1 auto;
 }
@@ -2324,7 +2335,7 @@ let lastAPIRequest = null;
 let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
 let selectedWorkflowAlertKey = '';
-const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v3';
+const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v4';
 
 function migrateDashboardLayoutStorage() {
   const current = localStorage.getItem('providaptDashboardLayoutVersion');
@@ -5862,6 +5873,8 @@ function clearPanelSize(panel, columns) {
   delete panel.dataset.resizeColumns;
   delete panel.dataset.resizeMinHeight;
   delete panel.dataset.userSized;
+  panel.classList.remove('user-sized');
+  panel.style.removeProperty('--panel-user-height');
   panel.style.gridColumn = resolvedColumns > 1 ? 'span 2' : '';
   panel.style.minHeight = '';
   panel.style.height = '';
@@ -5885,6 +5898,8 @@ function applyPanelSize(panel, size, userSized) {
   panel.dataset.resizeColumns = String(columns);
   panel.dataset.resizeMinHeight = String(minHeight);
   panel.dataset.userSized = userSized === false ? 'false' : 'true';
+  panel.classList.toggle('user-sized', userSized !== false);
+  panel.style.setProperty('--panel-user-height', minHeight + 'px');
   panel.style.gridColumn = columns > 1 ? 'span 2' : '';
   panel.style.minHeight = minHeight + 'px';
   panel.style.height = minHeight + 'px';
@@ -5965,7 +5980,43 @@ function installPanelResize(panel) {
   badge.className = 'panel-size-badge';
   panel.appendChild(handle);
   panel.appendChild(badge);
+  handle.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    handle.setPointerCapture && handle.setPointerCapture(event.pointerId);
+    const content = document.querySelector('.content');
+    const start = panelSizeConfig(panel);
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startHeight = Math.round(panel.getBoundingClientRect().height || start.minHeight);
+    const columnWidth = content ? Math.max(260, content.getBoundingClientRect().width / 2) : 420;
+    panel.classList.add('resizing');
+    document.body.classList.add('panel-resize-active');
+    const onMove = moveEvent => {
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      const columns = start.columns === 1 && deltaX > columnWidth * 0.35 ? 2 : (start.columns === 2 && deltaX < -columnWidth * 0.25 ? 1 : start.columns);
+      const minHeight = Math.max(panelAdaptiveMinimumHeight(panel), Math.min(panelAdaptiveMaximumHeight(panel), startHeight + deltaY));
+      applyPanelSize(panel, { columns: columns, minHeight: minHeight }, true);
+    };
+    const onUp = upEvent => {
+      if (handle.releasePointerCapture && upEvent && upEvent.pointerId != null) {
+        try { handle.releasePointerCapture(upEvent.pointerId); } catch (e) {}
+      }
+      panel.classList.remove('resizing');
+      document.body.classList.remove('panel-resize-active');
+      savePanelSizes();
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  });
   handle.addEventListener('mousedown', event => {
+    if (window.PointerEvent) return;
     event.preventDefault();
     event.stopPropagation();
     const content = document.querySelector('.content');
