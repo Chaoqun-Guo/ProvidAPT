@@ -2796,7 +2796,7 @@ func TestSVGFoldsDenseSameLayerNodes(t *testing.T) {
 		t.Fatalf("expected dense layer folding, collapsed=%d clusters=%d", layout.collapsedNodes, len(layout.clusters))
 	}
 	svg := string(renderSVG(layout))
-	if !strings.Contains(svg, "folded · depth") || !strings.Contains(svg, "folded clusters summarize same-layer/type nodes") {
+	if !strings.Contains(svg, "folded - depth") || !strings.Contains(svg, "folded clusters summarize same-layer/type nodes") {
 		t.Fatalf("SVG missing folded cluster explanation: %s", svg)
 	}
 	if !strings.Contains(svg, "data-folded-count") || !strings.Contains(svg, "data-members") || !strings.Contains(svg, "data-reason") {

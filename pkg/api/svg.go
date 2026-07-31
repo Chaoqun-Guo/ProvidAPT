@@ -75,7 +75,7 @@ const (
 	xPad        = 36
 	yPad        = 42
 	layerGap    = 120
-	topY        = 76
+	topY        = 120
 	minGraphH   = 320
 	edgeLabelDX = 10
 	clusterMin  = 5
@@ -509,6 +509,9 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 	for _, id := range orderedIDs {
 		maxDepth = maxInt(maxDepth, depth[id])
 	}
+	for _, cluster := range lay.clusters {
+		maxDepth = maxInt(maxDepth, cluster.depth)
+	}
 	measured := make([]svgNode, 0, len(orderedIDs))
 	colWidths := make([]int, maxDepth+1)
 	for _, id := range orderedIDs {
@@ -519,6 +522,9 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 		node := makeSVGNode(n, depth[id])
 		measured = append(measured, node)
 		colWidths[depth[id]] = maxInt(colWidths[depth[id]], node.w)
+	}
+	for _, cluster := range lay.clusters {
+		colWidths[cluster.depth] = maxInt(colWidths[cluster.depth], minNodeW)
 	}
 
 	graphW := 0
@@ -538,18 +544,32 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 	}
 	y := topY
 	for _, node := range measured {
-		node.x = colX[depth[node.id]]
+		nodeDepth := depth[node.id]
+		node.x = colX[nodeDepth]
 		node.y = y
 		lay.nodes = append(lay.nodes, node)
-		y += node.h + yPad
+	}
+	colY := make([]int, len(colWidths))
+	for i := range colY {
+		colY[i] = topY
+	}
+	for i := range lay.nodes {
+		node := &lay.nodes[i]
+		nodeDepth := depth[node.id]
+		node.y = colY[nodeDepth]
+		colY[nodeDepth] += node.h + yPad
 	}
 	for i := range lay.clusters {
 		cluster := &lay.clusters[i]
 		cluster.x = colX[cluster.depth]
-		cluster.y = y
+		cluster.y = colY[cluster.depth]
 		cluster.w = maxInt(minNodeW, colWidths[cluster.depth])
 		cluster.h = 88
-		y += cluster.h + yPad
+		colY[cluster.depth] += cluster.h + yPad
+	}
+	y = topY
+	for _, nextY := range colY {
+		y = maxInt(y, nextY)
 	}
 
 	graphH := y + 20
@@ -795,6 +815,7 @@ func renderSVG(lay *svgLayout) []byte {
   .edge-label-derived { fill: #d8b9ff; }
   .title { fill: #f0f6fc; font: 16px sans-serif; font-weight: bold; }
   .subtitle { fill: #8b949e; font: 11px sans-serif; }
+  .legend rect { fill: rgba(13,17,23,.92); stroke: #30363d; rx: 8; }
   .legend text { fill: #c9d1d9; font: 10px monospace; }
   .event-table text { fill: #c9d1d9; font: 11px monospace; }
   .event-table .header { fill: #58a6ff; font-weight: 700; }
@@ -822,7 +843,7 @@ func renderSVG(lay *svgLayout) []byte {
   <title>%s</title>
   <rect x="%d" y="%d" width="%d" height="%d"/>
   <text class="label" x="%d" y="%d">%s</text>
-  <text class="badge" x="%d" y="%d">%d folded · depth %d</text>
+  <text class="badge" x="%d" y="%d">%d folded - depth %d</text>
   <text class="meta" x="%d" y="%d">%s</text>
   <text class="meta" x="%d" y="%d">%s</text>
 </g>
@@ -1034,12 +1055,14 @@ func renderLegend(b *strings.Builder, width int) {
 		{"derived", "#a371f7"},
 		{"folded", "#6e7681"},
 	}
-	x := maxInt(360, width-510)
-	fmt.Fprintf(b, `<g class="legend" transform="translate(%d,16)">`, x)
+	x := maxInt(360, width-180)
+	fmt.Fprintf(b, `<g class="legend" transform="translate(%d,12)">
+<rect x="-10" y="-8" width="170" height="%d"/>
+`, x, len(items)*18+10)
 	for i, item := range items {
-		offset := i * 78
-		fmt.Fprintf(b, `<line x1="%d" y1="0" x2="%d" y2="0" stroke="%s" stroke-width="2"/>
-<text x="%d" y="4">%s</text>`, offset, offset+18, item.color, offset+23, escapeXML(item.label))
+		y := i * 18
+		fmt.Fprintf(b, `<line x1="0" y1="%d" x2="18" y2="%d" stroke="%s" stroke-width="2"/>
+<text x="24" y="%d">%s</text>`, y, y, item.color, y+4, escapeXML(item.label))
 	}
 	b.WriteString("</g>\n")
 }
