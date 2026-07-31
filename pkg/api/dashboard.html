@@ -2309,6 +2309,20 @@ let lastAPIRequest = null;
 let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
 let selectedWorkflowAlertID = '';
+const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v2';
+
+function migrateDashboardLayoutStorage() {
+  const current = localStorage.getItem('providaptDashboardLayoutVersion');
+  if (current === DASHBOARD_LAYOUT_VERSION) return;
+  [
+    'providaptDashboardPanelOrder',
+    'providaptDashboardPanelSizes',
+    'providaptDashboardViewProfile',
+  ].forEach(key => localStorage.removeItem(key));
+  localStorage.setItem('providaptDashboardSection', 'all');
+  localStorage.setItem('providaptDashboardDensity', 'standard');
+  localStorage.setItem('providaptDashboardLayoutVersion', DASHBOARD_LAYOUT_VERSION);
+}
 
 async function fetchJSON(url) {
   rememberLastRequest('GET', url);
@@ -6078,6 +6092,7 @@ function setDashboardTheme(theme) {
 function saveDashboardViewProfile() {
   const profile = {
     schema: 'providapt.dashboard_view_profile.v1',
+    layout_version: DASHBOARD_LAYOUT_VERSION,
     saved_at: new Date().toISOString(),
     section: localStorage.getItem('providaptDashboardSection') || 'all',
     density: localStorage.getItem('providaptDashboardDensity') || 'standard',
@@ -6097,8 +6112,9 @@ function loadDashboardViewProfile() {
       openDetailDrawer('Dashboard View Profile', 'No saved profile found', renderEmptyDiagnostic('No saved view profile', ['Use Save View after arranging panels and filters.']));
       return;
     }
-    if (profile.panel_order && profile.panel_order.length) applyPanelOrder(profile.panel_order);
-    if (profile.panel_sizes) applyPanelSizes(profile.panel_sizes);
+    const compatible = profile.layout_version === DASHBOARD_LAYOUT_VERSION;
+    if (compatible && profile.panel_order && profile.panel_order.length) applyPanelOrder(profile.panel_order);
+    if (compatible && profile.panel_sizes) applyPanelSizes(profile.panel_sizes);
     setDashboardDensity(profile.density || 'standard');
     setDashboardTheme(profile.theme || 'dark');
     switchDashboardSection(profile.section || 'all');
@@ -6110,7 +6126,7 @@ function loadDashboardViewProfile() {
     });
     applyAlertWorkflowFilters();
     scheduleDashboardMasonry();
-    openDetailDrawer('Dashboard View Loaded', 'Restored saved analyst workspace profile', renderJSONBlock(profile));
+    openDetailDrawer('Dashboard View Loaded', compatible ? 'Restored saved analyst workspace profile' : 'Loaded theme/filters only; old layout was reset', renderJSONBlock(profile));
   } catch (e) {
     setInvestigationLoading('Dashboard view profile load failed: ' + e.message);
   }
@@ -6119,6 +6135,8 @@ function loadDashboardViewProfile() {
 function resetDashboardLayout() {
   localStorage.removeItem('providaptDashboardPanelOrder');
   localStorage.removeItem('providaptDashboardPanelSizes');
+  localStorage.removeItem('providaptDashboardViewProfile');
+  localStorage.setItem('providaptDashboardLayoutVersion', DASHBOARD_LAYOUT_VERSION);
   localStorage.setItem('providaptDashboardSection', 'all');
   applyPanelOrder(defaultDashboardPanelOrder());
   applyPanelSizes({});
@@ -6213,6 +6231,7 @@ async function refresh() {
 
 window.addEventListener('resize', scheduleDashboardMasonry);
 
+migrateDashboardLayoutStorage();
 initializePanelLayout();
 installInteractionFeedback();
 updateAuthStatus();
