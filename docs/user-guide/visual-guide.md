@@ -32,14 +32,20 @@ edge into the main tree.
 ## Large Trace Readability
 
 Trace SVG exports use a left-to-right tree layout. For dense traces, nodes with
-the same layer and type may be folded into a dashed summary box.
+the same graph depth and node type may be folded into a dashed purple cluster
+box. A cluster is not a separate event. It is a readability summary for nodes
+that would otherwise create a long vertical list at the same stage of the trace.
 
 Folded boxes show:
 
-- node type and layer
+- node type and graph depth
 - number of folded nodes
+- fold reason
 - short member preview
 - full member list in the SVG `<title>` tooltip
+
+In the Trace Viewer, use `Clusters` to highlight folded groups. Use search to
+match cluster member IDs, paths, commands, or event labels.
 
 This keeps process, file, and network structure readable while preserving the
 event table for detailed relation review.

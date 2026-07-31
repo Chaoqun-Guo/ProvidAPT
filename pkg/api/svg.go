@@ -65,6 +65,7 @@ type svgCluster struct {
 	w       int
 	h       int
 	members []string
+	reason  string
 }
 
 const (
@@ -248,6 +249,7 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
 .dimmed { opacity: 0.16; }
 .matched rect { stroke: var(--cyan) !important; stroke-width: 3 !important; filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.55)); }
 .hide-cross .edge-cross { display: none; }
+.cluster-highlight .cluster rect { stroke: var(--amber) !important; stroke-width: 3 !important; filter: drop-shadow(0 0 10px rgba(255, 176, 32, 0.55)); }
 @media (max-width: 980px) {
   body { overflow: auto; }
   .trace-shell { height: auto; min-height: 100vh; }
@@ -272,6 +274,7 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
       <button onclick="zoomBy(-0.12)">Zoom Out</button>
       <button onclick="fitWidth()">Fit Width</button>
       <button onclick="toggleCrossLinks()">Cross Links</button>
+      <button onclick="toggleClusters()">Clusters</button>
       <a class="tool-link" href="%s" target="_blank" rel="noreferrer">Raw SVG</a>
       <a class="tool-link" href="%s" download="providapt-trace.svg">Download</a>
     </div>
@@ -287,7 +290,7 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
           <div class="metric"><div class="value" id="nodeCount">--</div><div class="label">Nodes</div></div>
           <div class="metric"><div class="value" id="edgeCount">--</div><div class="label">Edges</div></div>
           <div class="metric"><div class="value" id="crossCount">--</div><div class="label">Cross Links</div></div>
-          <div class="metric"><div class="value" id="eventCount">--</div><div class="label">Event Groups</div></div>
+          <div class="metric"><div class="value" id="clusterCount">--</div><div class="label">Clusters</div></div>
         </div>
       </div>
       <div class="card">
@@ -301,6 +304,7 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
           <span class="write">Write / create relation</span>
           <span class="exec">Execution relation</span>
           <span class="context">Dashed context or cross-link</span>
+          <span class="credential">Folded cluster: same layer/type nodes summarized for readability</span>
         </div>
       </div>
       <div class="card status" id="viewerStatus">
@@ -339,7 +343,7 @@ function summarizeTrace() {
   setMetric('nodeCount', canvas.querySelectorAll('.node').length);
   setMetric('edgeCount', canvas.querySelectorAll('.edge').length);
   setMetric('crossCount', canvas.querySelectorAll('.edge-cross').length);
-  setMetric('eventCount', canvas.querySelectorAll('.event-group').length);
+  setMetric('clusterCount', canvas.querySelectorAll('.cluster').length);
 }
 function showFallback(message) {
   document.getElementById('viewerStatus').textContent = message;
@@ -347,7 +351,7 @@ function showFallback(message) {
   setMetric('nodeCount', '--');
   setMetric('edgeCount', '--');
   setMetric('crossCount', '--');
-  setMetric('eventCount', '--');
+  setMetric('clusterCount', '--');
   scale = 1;
   applyScale();
 }
@@ -369,6 +373,13 @@ function toggleCrossLinks() {
   document.getElementById('viewerStatus').textContent = canvas.classList.contains('hide-cross')
     ? 'Cross-links are hidden. Tree causality remains visible.'
     : 'Cross-links are visible. Dashed links preserve non-tree evidence.';
+}
+function toggleClusters() {
+  canvas.classList.toggle('cluster-highlight');
+  const clusters = canvas.querySelectorAll('.cluster');
+  document.getElementById('viewerStatus').textContent = canvas.classList.contains('cluster-highlight')
+    ? (clusters.length + ' folded cluster(s) highlighted. Hover a cluster to inspect folded members and fold reason.')
+    : 'Cluster highlight cleared. Folded nodes remain visible as dashed purple summary boxes.';
 }
 document.getElementById('searchBox').addEventListener('input', event => {
   const query = event.target.value.trim().toLowerCase();
@@ -537,7 +548,7 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 		cluster.x = colX[cluster.depth]
 		cluster.y = y
 		cluster.w = maxInt(minNodeW, colWidths[cluster.depth])
-		cluster.h = 74
+		cluster.h = 88
 		y += cluster.h + yPad
 	}
 
@@ -602,11 +613,12 @@ func clusterSVGNodes(nodes []*provenance.Node, orderedIDs []string, depth map[st
 		}
 		clusters = append(clusters, svgCluster{
 			id:      fmt.Sprintf("cluster:%d:%s", key.depth, key.typ),
-			title:   fmt.Sprintf("%s cluster", displayType(key.typ)),
+			title:   fmt.Sprintf("Folded %s nodes", displayType(key.typ)),
 			count:   len(members),
 			typ:     key.typ,
 			depth:   key.depth,
 			members: members,
+			reason:  fmt.Sprintf("same layer/type exceeded %d visible node limit", clusterKeep),
 		})
 	}
 	sort.Slice(clusters, func(i, j int) bool {
@@ -754,8 +766,9 @@ func renderSVG(lay *svgLayout) []byte {
 <style>
   .bg { fill: #0d1117; }
   .node rect { stroke-width: 1.2; rx: 8; }
-  .cluster rect { fill: #161b22; stroke: #6e7681; stroke-width: 1.2; rx: 10; stroke-dasharray: 6 4; }
+  .cluster rect { fill: #151923; stroke: #a371f7; stroke-width: 1.4; rx: 10; stroke-dasharray: 6 4; }
   .cluster .label { fill: #f0f6fc; font: 12px monospace; font-weight: 700; }
+  .cluster .badge { fill: #d8b9ff; font: 10px monospace; font-weight: 700; }
   .cluster .meta { fill: #8b949e; font: 10px monospace; }
   .node-process rect { fill: #0f2747; stroke: #58a6ff; }
   .node-file rect { fill: #12351f; stroke: #3fb950; }
@@ -797,7 +810,7 @@ func renderSVG(lay *svgLayout) []byte {
 <rect class="bg" x="0" y="0" width="%d" height="%d"/>
 <text x="18" y="22" class="title">ProvidAPT Provenance Trace</text>
 <text x="18" y="40" class="subtitle">%s</text>
-<text x="18" y="54" class="subtitle">Tree layout is left-to-right; Causal direction is rendered as source -&gt; target; dashed edges are retained cross-links; dashed boxes summarize folded same-layer nodes.</text>
+<text x="18" y="54" class="subtitle">Tree layout is left-to-right; Causal direction is rendered as source -&gt; target; folded clusters summarize same-layer/type nodes while preserving full member tooltips.</text>
 `, lay.width, lay.height, lay.width, lay.height, svgMarkers(), lay.width, lay.height, escapeXML(scope))
 
 	nodeMap := make(map[string]svgNode)
@@ -805,14 +818,15 @@ func renderSVG(lay *svgLayout) []byte {
 		nodeMap[n.id] = n
 	}
 	for _, cluster := range lay.clusters {
-		fmt.Fprintf(&b, `<g class="cluster cluster-%s">
+		fmt.Fprintf(&b, `<g class="cluster cluster-%s" data-cluster-id="%s" data-depth="%d" data-node-type="%s" data-folded-count="%d" data-members="%s" data-reason="%s">
   <title>%s</title>
   <rect x="%d" y="%d" width="%d" height="%d"/>
   <text class="label" x="%d" y="%d">%s</text>
-  <text class="meta" x="%d" y="%d">%d folded node(s), depth=%d</text>
+  <text class="badge" x="%d" y="%d">%d folded · depth %d</text>
+  <text class="meta" x="%d" y="%d">%s</text>
   <text class="meta" x="%d" y="%d">%s</text>
 </g>
-`, escapeXML(cluster.typ), escapeXML(clusterTitle(cluster)), cluster.x, cluster.y, cluster.w, cluster.h, cluster.x+10, cluster.y+22, escapeXML(cluster.title), cluster.x+10, cluster.y+40, cluster.count, cluster.depth, cluster.x+10, cluster.y+58, escapeXML(clusterMemberPreview(cluster)))
+`, escapeXML(cluster.typ), escapeXML(cluster.id), cluster.depth, escapeXML(cluster.typ), cluster.count, escapeXML(strings.Join(cluster.members, ", ")), escapeXML(cluster.reason), escapeXML(clusterTitle(cluster)), cluster.x, cluster.y, cluster.w, cluster.h, cluster.x+10, cluster.y+20, escapeXML(cluster.title), cluster.x+10, cluster.y+36, cluster.count, cluster.depth, cluster.x+10, cluster.y+52, escapeXML(cluster.reason), cluster.x+10, cluster.y+68, escapeXML(clusterMemberPreview(cluster)))
 	}
 	for _, e := range lay.edges {
 		src, ok := nodeMap[e.src]
