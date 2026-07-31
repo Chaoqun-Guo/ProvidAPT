@@ -5235,20 +5235,20 @@ function panelVisibleHeight(element) {
 }
 
 function panelAdaptiveMinimumHeight(panel) {
-  if (!panel) return Math.max(180, Math.round(window.innerHeight * 0.2));
+  if (!panel) return 140;
   const header = panel.querySelector('h2');
   const body = panel.querySelector('.panel-body');
   const headerHeight = panelVisibleHeight(header) || 38;
-  if (!body) return headerHeight + Math.max(120, Math.round(window.innerHeight * 0.14));
+  if (!body) return headerHeight + 72;
   const children = Array.from(body.children).filter(child => {
     const style = window.getComputedStyle ? window.getComputedStyle(child) : null;
     return !style || style.display !== 'none';
   });
   const essentialChildren = children.slice(0, Math.min(children.length, 2));
-  const essentialHeight = essentialChildren.reduce((total, child) => total + Math.min(panelVisibleHeight(child), 92), 0);
-  const scrollReserve = body.querySelector('.alerts-list, .agents-list, .data-table-wrap') ? Math.max(64, Math.round(window.innerHeight * 0.08)) : 0;
-  const viewportFloor = Math.max(180, Math.round(window.innerHeight * 0.16));
-  return Math.ceil(Math.max(viewportFloor, headerHeight + essentialHeight + scrollReserve + 24));
+  const essentialHeight = essentialChildren.reduce((total, child) => total + Math.min(panelVisibleHeight(child), 58), 0);
+  const scrollReserve = body.querySelector('.alerts-list, .agents-list, .data-table-wrap') ? 44 : 0;
+  const bodyPadding = 22;
+  return Math.ceil(Math.max(128, headerHeight + essentialHeight + scrollReserve + bodyPadding));
 }
 
 function panelAdaptiveMaximumHeight(panel) {
@@ -5267,6 +5267,12 @@ function applyPanelSize(panel, size) {
   panel.style.minHeight = minHeight + 'px';
   panel.style.height = minHeight + 'px';
   panel.style.maxHeight = 'none';
+  const body = panel.querySelector('.panel-body');
+  if (body) {
+    body.style.height = 'auto';
+    body.style.minHeight = '0';
+    body.style.overflow = 'auto';
+  }
   const badge = panel.querySelector('.panel-size-badge');
   if (badge) badge.textContent = columns + ' col · ' + minHeight + 'px';
 }

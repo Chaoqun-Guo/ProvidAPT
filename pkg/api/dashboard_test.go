@@ -696,6 +696,8 @@ func TestDashboardPanelResizeInteractions(t *testing.T) {
 		"panel.getBoundingClientRect().height",
 		"panel.style.height",
 		"panel.style.maxHeight = 'none'",
+		"body.style.height = 'auto'",
+		"body.style.overflow = 'auto'",
 		"panel-resize-active",
 		"drag · resize",
 	}
@@ -717,6 +719,7 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 		"function panelAdaptiveMinimumHeight",
 		"panelAdaptiveMinimumHeight(panel)",
 		"function panelAdaptiveMaximumHeight",
+		"scrollReserve = body.querySelector",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
