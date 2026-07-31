@@ -516,8 +516,8 @@ body.dashboard-theme-contrast .panel, body.dashboard-theme-contrast .card, body.
 /* Product layout refinement: compact IDS console, stable panels, responsive controls. */
 :root {
   --layout-max-width: 1840px;
-  --layout-gap: 10px;
-  --control-height: 32px;
+  --layout-gap: 7px;
+  --control-height: 30px;
   --sidebar-width: 232px;
 }
 
@@ -574,8 +574,8 @@ header.platform-header {
 .workspace-nav {
   max-width: var(--layout-max-width);
   margin: 0 auto;
-  padding: 8px 18px 0;
-  gap: 8px;
+  padding: 6px 14px 0;
+  gap: var(--layout-gap);
 }
 
 .workspace-tabs,
@@ -619,7 +619,7 @@ header.platform-header {
   gap: var(--layout-gap);
   max-width: var(--layout-max-width);
   margin: 0 auto;
-  padding: 10px 18px 18px;
+  padding: 8px 14px 14px;
 }
 
 .dashboard-main {
@@ -686,21 +686,21 @@ header.platform-header {
 .content {
   gap: var(--layout-gap);
   grid-auto-flow: row dense;
-  grid-auto-rows: minmax(330px, auto);
+  grid-auto-rows: minmax(300px, auto);
 }
 
 .panel {
-  min-height: 330px;
-  max-height: min(680px, calc(100vh - 150px));
-  border-radius: 14px;
+  min-height: 300px;
+  max-height: min(650px, calc(100vh - 138px));
+  border-radius: 12px;
 }
 
 .dashboard-density-compact .panel {
-  min-height: 292px;
+  min-height: 250px;
 }
 
 .dashboard-density-comfortable .panel {
-  min-height: 400px;
+  min-height: 360px;
 }
 
 .panel h2 {
@@ -725,7 +725,7 @@ header.platform-header {
 }
 
 .panel-body {
-  padding: 10px;
+  padding: 8px;
   overflow: auto;
   scrollbar-gutter: stable;
 }
@@ -1043,7 +1043,7 @@ body.panel-resize-active {
 .dashboard-panel[data-panel-id="alert-workflow"],
 .dashboard-panel[data-panel-id="investigation-console"],
 .dashboard-panel[data-panel-id="agent-overview"] {
-  min-height: 370px;
+  min-height: 320px;
 }
 
 .dashboard-panel[data-panel-id="alert-workflow"] .workflow-filter-bar,
@@ -1055,6 +1055,160 @@ body.panel-resize-active {
   border: 1px solid rgba(88, 166, 255, 0.14);
   border-radius: 14px;
   background: rgba(3, 8, 18, 0.28);
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"] {
+  grid-column: span 2;
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"] .panel-body {
+  gap: 7px;
+}
+
+.workflow-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(86px, 1fr));
+  gap: 6px;
+}
+
+.workflow-summary-grid .policy-item {
+  min-height: 54px;
+  padding: 7px;
+}
+
+.workflow-summary-grid .policy-item .value {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.workflow-filter-bar {
+  grid-template-columns: 132px 132px minmax(120px, 0.75fr) minmax(120px, 1fr) minmax(120px, 0.7fr) auto;
+  margin: 0;
+}
+
+.workflow-filter-bar input {
+  max-width: none;
+}
+
+.workflow-filter-summary {
+  margin: 0;
+}
+
+.workflow-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 0.78fr);
+  gap: 7px;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.workflow-column {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workflow-section-title {
+  color: #8b949e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.workflow-layout .alerts-list {
+  min-height: 120px;
+  overflow: auto;
+}
+
+.workflow-history-list {
+  max-height: 235px;
+}
+
+.workflow-alert-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.workflow-alert-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.workflow-alert-title {
+  color: #c9d1d9;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.workflow-alert-meta {
+  color: #8b949e;
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.workflow-alert-actions {
+  grid-column: 2 / 4;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+.workflow-alert-actions .delivery-inline-actions {
+  display: contents;
+}
+
+.workflow-alert-actions button {
+  min-width: 58px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.workflow-trace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+}
+
+.workflow-trace-actions button,
+.workflow-trace-actions a {
+  min-height: 24px;
+  height: 24px;
+  min-width: 58px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+@media (max-width: 1350px) {
+  .workflow-summary-grid {
+    grid-template-columns: repeat(4, minmax(86px, 1fr));
+  }
+  .workflow-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dashboard-panel[data-panel-id="alert-workflow"] {
+    grid-column: 1 / -1 !important;
+  }
+  .workflow-filter-bar {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
 }
 
 button[data-action-kind] {
@@ -1644,13 +1798,11 @@ body.detail-drawer-open {
   <div class="panel">
     <h2>Alert Workflow</h2>
     <div class="panel-body">
-      <div class="policy-grid">
+      <div class="workflow-summary-grid">
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="awOpenDetail">--</div><div class="label">Open</div></div>
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('assigned')"><div class="value" id="awAssigned">--</div><div class="label">Assigned</div></div>
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('suppressed')"><div class="value" id="awSuppressed">--</div><div class="label">Suppressed</div></div>
         <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('closed')"><div class="value" id="awClosed">--</div><div class="label">Closed</div></div>
-      </div>
-      <div class="policy-grid">
         <div class="policy-item clickable" onclick="showAlertQuality()"><div class="value" id="awReviewed">--</div><div class="label">Reviewed</div></div>
         <div class="policy-item clickable" onclick="showAlertQuality()"><div class="value" id="awPrecision">--</div><div class="label">Precision</div></div>
         <div class="policy-item clickable" onclick="filterAlertQuality('duplicate')"><div class="value" id="awDuplicates">--</div><div class="label">Duplicates</div></div>
@@ -1678,19 +1830,26 @@ body.detail-drawer-open {
         <button onclick="resetAlertWorkflowFilters()">Reset</button>
       </div>
       <div class="workflow-filter-summary" id="workflowFilterSummary">Showing latest workflow alerts.</div>
-      <div class="alerts-list" id="workflowAlertsList">
-        <div class="loading">Loading workflow alerts...</div>
-      </div>
-      <div class="action-row">
-        <button data-module="alert-workflow" data-module-action="bulk-close" class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Filtered Batch</button>
-        <button data-module="alert-workflow" data-module-action="bulk-silence" class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Filtered Batch</button>
-        <button class="secondary" onclick="showAlertQuality()">Quality</button>
-        <button class="secondary" onclick="downloadAlertQuality()">Export Quality Summary</button>
-        <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback Ledger</button>
-      </div>
-      <div class="loading" style="margin-top:12px;">Recent Workflow Actions</div>
-      <div class="alerts-list" id="workflowHistoryList">
-        <div class="loading">Loading workflow actions...</div>
+      <div class="workflow-layout">
+        <div class="workflow-column">
+          <div class="workflow-section-title">Active Queue</div>
+          <div class="alerts-list" id="workflowAlertsList">
+            <div class="loading">Loading workflow alerts...</div>
+          </div>
+          <div class="action-row">
+            <button data-module="alert-workflow" data-module-action="bulk-close" class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Filtered Batch</button>
+            <button data-module="alert-workflow" data-module-action="bulk-silence" class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Filtered Batch</button>
+            <button class="secondary" onclick="showAlertQuality()">Quality</button>
+            <button class="secondary" onclick="downloadAlertQuality()">Export Quality Summary</button>
+            <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback Ledger</button>
+          </div>
+        </div>
+        <div class="workflow-column">
+          <div class="workflow-section-title">Recent Actions</div>
+          <div class="alerts-list workflow-history-list" id="workflowHistoryList">
+            <div class="loading">Loading workflow actions...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2460,7 +2619,7 @@ function alertTraceActions(a) {
   const encodedID = encodeURIComponent(id);
   const eventPattern = encodeURIComponent(a.headline || a.pattern || id);
   const alertEncoded = jsString(JSON.stringify(a || {}));
-  return '<span class="trace-actions">' +
+  return '<span class="trace-actions workflow-trace-actions">' +
     '<button class="secondary" onclick="showAlertDetailsJSON(\'' + alertEncoded + '\')">Details</button>' +
     '<a href="/api/v1/alerts/' + encodedID + '/svg" target="_blank" rel="noreferrer" title="Open SVG attack path">Trace SVG</a>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/backward?depth=8" target="_blank" rel="noreferrer" title="Trace upstream provenance">Backward</a>' +
@@ -3722,11 +3881,22 @@ function renderWorkflowAlert(a) {
   const actions = alertTraceActions(a);
   const sla = a.sla_status ? (' · SLA ' + escapeHTML(a.sla_status)) : '';
   const encoded = jsString(JSON.stringify(a || {}));
-  return '<div class="alert-item clickable" tabindex="0" role="button" onclick="if(event.target.closest(\'button,a\')) return; showAlertDetailsJSON(\'' + encoded + '\')" onkeydown="handleCardKey(event, function(){ showAlertDetailsJSON(\'' + encoded + '\'); })">' +
+  const headline = escapeHTML(a.headline || a.pattern || 'Alert');
+  const meta = [
+    'status ' + escapeHTML(a.status || 'open'),
+    a.assignee ? ('assignee ' + escapeHTML(a.assignee)) : '',
+    'count x' + escapeHTML(a.count || 1),
+    sla ? sla.replace(/^ · /, '') : '',
+    a.hostname || a.agent_id || a.source ? ('source ' + escapeHTML(a.hostname || a.agent_id || a.source)) : '',
+  ].filter(Boolean).join(' · ');
+  return '<div class="alert-item workflow-alert-card clickable" tabindex="0" role="button" onclick="if(event.target.closest(\'button,a\')) return; showAlertDetailsJSON(\'' + encoded + '\')" onkeydown="handleCardKey(event, function(){ showAlertDetailsJSON(\'' + encoded + '\'); })">' +
     '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
-    '<span class="alert-msg">' + escapeHTML(a.headline || a.pattern || 'Alert') + ' · ' + escapeHTML(a.status || 'open') + (a.assignee ? (' · ' + escapeHTML(a.assignee)) : '') + ' · x' + (a.count || 1) + sla + workflowActionButtons(a) + '</span>' +
+    '<span class="workflow-alert-main">' +
+      '<span class="workflow-alert-title">' + headline + '</span>' +
+      '<span class="workflow-alert-meta">' + meta + '</span>' +
+    '</span>' +
     '<span class="alert-time">' + formatTime(a.sla_deadline || a.last_seen || a.last_notified_at) + '</span>' +
-    actions +
+    '<span class="workflow-alert-actions">' + workflowActionButtons(a) + actions + '</span>' +
     '</div>';
 }
 
