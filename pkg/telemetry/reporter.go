@@ -53,6 +53,13 @@ type Summary struct {
 	StoreHealthy         bool   `json:"store_healthy"`
 	AttachmentMode       string `json:"attachment_mode,omitempty"`
 	AppliedPolicyVersion int    `json:"applied_policy_version,omitempty"`
+	AlertCount           int    `json:"alert_count,omitempty"`
+	MLAlertCount         int    `json:"ml_alert_count,omitempty"`
+	LastAlertID          string `json:"last_alert_id,omitempty"`
+	LastAlertPattern     string `json:"last_alert_pattern,omitempty"`
+	LastAlertSeverity    string `json:"last_alert_severity,omitempty"`
+	LastAlertHeadline    string `json:"last_alert_headline,omitempty"`
+	LastAlertReason      string `json:"last_alert_reason,omitempty"`
 	TimestampUnixSec     int64  `json:"timestamp_unix_sec"`
 }
 

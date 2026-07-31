@@ -50,6 +50,12 @@ type Config struct {
 
 	// Quiet mode: only log alerts at SeverityHigh+.
 	Quiet bool
+
+	OnlineMLEnabled bool
+	MLModelDir      string
+	MLThreshold     float64
+	MLMinNodes      int
+	MLMinEdges      int
 }
 
 // DefaultConfig returns a sensible starting configuration.
@@ -64,7 +70,10 @@ func DefaultConfig() *Config {
 			PatPrivEsc,
 			PatMemoryAnomaly,
 		},
-		Quiet: false,
+		Quiet:       false,
+		MLThreshold: 0.85,
+		MLMinNodes:  3,
+		MLMinEdges:  2,
 	}
 }
 
@@ -91,6 +100,8 @@ type Analyzer struct {
 	sigmaRules map[string]*sigma.Rule // rule ID → parsed rule
 	sigmaMu    sync.RWMutex
 
+	mlScorer *OnlineMLScorer
+
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 }
@@ -116,6 +127,7 @@ func New(graph *provenance.Graph, cfg *Config) *Analyzer {
 		}
 		a.sigmaRules[id] = rule
 	}
+	a.configureOnlineML(cfg)
 	return a
 }
 
@@ -138,8 +150,30 @@ func (a *Analyzer) Stop() {
 // The change takes effect on the next scan() iteration.
 func (a *Analyzer) ReloadConfig(cfg *Config) {
 	a.cfg = cfg
+	a.configureOnlineML(cfg)
 	log.Printf("[analyzer] config reloaded (interval=%s, patterns=%d)",
 		cfg.ScanInterval, len(cfg.EnablePatterns))
+}
+
+func (a *Analyzer) configureOnlineML(cfg *Config) {
+	if cfg == nil || !cfg.OnlineMLEnabled {
+		a.mlScorer = nil
+		return
+	}
+	scorer, err := NewOnlineMLScorer(OnlineMLConfig{
+		ModelDir:  cfg.MLModelDir,
+		Threshold: cfg.MLThreshold,
+		MinNodes:  cfg.MLMinNodes,
+		MinEdges:  cfg.MLMinEdges,
+	})
+	if err != nil {
+		log.Printf("[analyzer] online ML disabled: %v", err)
+		a.mlScorer = nil
+		return
+	}
+	a.mlScorer = scorer
+	log.Printf("[analyzer] online ML enabled (model=%s version=%s threshold=%.3f)",
+		scorer.ModelName(), scorer.ModelVersion(), scorer.Threshold())
 }
 
 // Alerts returns a copy of all alerts generated so far.
@@ -248,6 +282,12 @@ func (a *Analyzer) scan() {
 	}
 
 	// Sigma rules (no taint required — match on node/edge patterns directly)
+	if a.mlScorer != nil {
+		if alert := a.mlScorer.Score(snap, te); alert != nil {
+			alerts = append(alerts, alert)
+		}
+	}
+
 	a.sigmaMu.RLock()
 	ruleCount := len(a.sigmaRules)
 	a.sigmaMu.RUnlock()

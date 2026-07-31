@@ -130,6 +130,9 @@ func CleanupArchives(rootDir string, retain int) error {
 	sort.Slice(matches, func(i, j int) bool {
 		return matches[i].modTime.After(matches[j].modTime)
 	})
+	if len(matches) <= retain {
+		return nil
+	}
 	for _, item := range matches[retain:] {
 		if err := os.RemoveAll(item.path); err != nil {
 			return fmt.Errorf("cleanup archive %s: %w", item.path, err)

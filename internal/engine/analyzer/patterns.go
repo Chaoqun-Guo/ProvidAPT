@@ -47,6 +47,8 @@ const (
 	// Triggers on-demand memory forensics acquisition + YARA scanning
 	// of the process address space.
 	PatMemoryAnomaly PatternID = "MEMORY_ANOMALY"
+
+	PatMLGraphAnomaly PatternID = "ML_GRAPH_ANOMALY"
 )
 
 // PatternDesc returns a human-readable description of the pattern.

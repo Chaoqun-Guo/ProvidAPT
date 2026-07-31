@@ -115,6 +115,13 @@ type AgentTelemetrySnapshot struct {
 	StoreHealthy         bool      `json:"store_healthy"`
 	AttachmentMode       string    `json:"attachment_mode,omitempty"`
 	AppliedPolicyVersion int       `json:"applied_policy_version,omitempty"`
+	AlertCount           int       `json:"alert_count,omitempty"`
+	MLAlertCount         int       `json:"ml_alert_count,omitempty"`
+	LastAlertID          string    `json:"last_alert_id,omitempty"`
+	LastAlertPattern     string    `json:"last_alert_pattern,omitempty"`
+	LastAlertSeverity    string    `json:"last_alert_severity,omitempty"`
+	LastAlertHeadline    string    `json:"last_alert_headline,omitempty"`
+	LastAlertReason      string    `json:"last_alert_reason,omitempty"`
 	EnrollmentStatus     string    `json:"enrollment_status,omitempty"`
 	EnrollmentNote       string    `json:"enrollment_note,omitempty"`
 	EnrollmentUpdatedAt  time.Time `json:"enrollment_updated_at,omitempty"`
@@ -938,6 +945,13 @@ func (s *Server) ReportEvents(stream mgmtpb.ProvidAPTTelemetry_ReportEventsServe
 					StoreHealthy:         lastSummary.StoreHealthy,
 					AttachmentMode:       lastSummary.AttachmentMode,
 					AppliedPolicyVersion: lastSummary.AppliedPolicyVersion,
+					AlertCount:           lastSummary.AlertCount,
+					MLAlertCount:         lastSummary.MLAlertCount,
+					LastAlertID:          lastSummary.LastAlertID,
+					LastAlertPattern:     lastSummary.LastAlertPattern,
+					LastAlertSeverity:    lastSummary.LastAlertSeverity,
+					LastAlertHeadline:    lastSummary.LastAlertHeadline,
+					LastAlertReason:      lastSummary.LastAlertReason,
 					EnrollmentStatus:     existing.EnrollmentStatus,
 					EnrollmentNote:       existing.EnrollmentNote,
 					EnrollmentUpdatedAt:  existing.EnrollmentUpdatedAt,

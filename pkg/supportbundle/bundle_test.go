@@ -256,6 +256,29 @@ func TestCleanupArchivesRetainsNewest(t *testing.T) {
 	}
 }
 
+func TestCleanupArchivesRetainMoreThanAvailable(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "support-bundle")
+	bundleDir := root + "-20260101T000000Z"
+	bundleZip := bundleDir + ".zip"
+	if err := os.MkdirAll(bundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bundleZip, []byte("zip"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := CleanupArchives(root, 5); err != nil {
+		t.Fatalf("CleanupArchives: %v", err)
+	}
+	if _, err := os.Stat(bundleDir); err != nil {
+		t.Fatalf("bundle dir missing: %v", err)
+	}
+	if _, err := os.Stat(bundleZip); err != nil {
+		t.Fatalf("bundle zip missing: %v", err)
+	}
+}
+
 func TestWriteFileCreatesDirectories(t *testing.T) {
 	// writeFile should NOT create directories (it uses os.WriteFile directly)
 	dir := t.TempDir()

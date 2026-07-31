@@ -62,25 +62,28 @@ type HealthStatus struct {
 type HealthCheckFunc func() HealthStatus
 
 type RuntimeDiagnostics struct {
-	Version                  string `json:"version,omitempty"`
-	APIRest                  string `json:"api_rest,omitempty"`
-	APIGRPC                  string `json:"api_grpc,omitempty"`
-	APIAuthEnabled           bool   `json:"api_auth_enabled"`
-	TLSEnabled               bool   `json:"tls_enabled"`
-	MTLSEnabled              bool   `json:"mtls_enabled"`
-	KernelAttachmentMode     string `json:"kernel_attachment_mode,omitempty"`
-	PolicyEnabled            bool   `json:"policy_enabled"`
-	PolicyEndpoint           string `json:"policy_endpoint,omitempty"`
-	PolicyBundleDir          string `json:"policy_bundle_dir,omitempty"`
-	AppliedPolicyVersion     int    `json:"applied_policy_version,omitempty"`
-	ControlPlaneMode         string `json:"control_plane_mode,omitempty"`
-	ControlPlaneRole         string `json:"control_plane_role,omitempty"`
-	ControlPlaneStateBackend string `json:"control_plane_state_backend,omitempty"`
-	StorageEncrypted         bool   `json:"storage_encrypted"`
-	StorageKeyConfigured     bool   `json:"storage_key_configured"`
-	OutputDir                string `json:"output_dir,omitempty"`
-	SupportBundleEnabled     bool   `json:"support_bundle_enabled"`
-	UpdatedAt                string `json:"updated_at,omitempty"`
+	Version                  string  `json:"version,omitempty"`
+	APIRest                  string  `json:"api_rest,omitempty"`
+	APIGRPC                  string  `json:"api_grpc,omitempty"`
+	APIAuthEnabled           bool    `json:"api_auth_enabled"`
+	TLSEnabled               bool    `json:"tls_enabled"`
+	MTLSEnabled              bool    `json:"mtls_enabled"`
+	KernelAttachmentMode     string  `json:"kernel_attachment_mode,omitempty"`
+	PolicyEnabled            bool    `json:"policy_enabled"`
+	PolicyEndpoint           string  `json:"policy_endpoint,omitempty"`
+	PolicyBundleDir          string  `json:"policy_bundle_dir,omitempty"`
+	AppliedPolicyVersion     int     `json:"applied_policy_version,omitempty"`
+	OnlineMLEnabled          bool    `json:"online_ml_enabled"`
+	MLModelDir               string  `json:"ml_model_dir,omitempty"`
+	MLThreshold              float64 `json:"ml_threshold,omitempty"`
+	ControlPlaneMode         string  `json:"control_plane_mode,omitempty"`
+	ControlPlaneRole         string  `json:"control_plane_role,omitempty"`
+	ControlPlaneStateBackend string  `json:"control_plane_state_backend,omitempty"`
+	StorageEncrypted         bool    `json:"storage_encrypted"`
+	StorageKeyConfigured     bool    `json:"storage_key_configured"`
+	OutputDir                string  `json:"output_dir,omitempty"`
+	SupportBundleEnabled     bool    `json:"support_bundle_enabled"`
+	UpdatedAt                string  `json:"updated_at,omitempty"`
 }
 
 type ClusterAgent struct {
@@ -108,6 +111,13 @@ type ClusterAgent struct {
 	StoreHealthy         bool     `json:"store_healthy"`
 	AttachmentMode       string   `json:"attachment_mode,omitempty"`
 	AppliedPolicyVersion int      `json:"applied_policy_version,omitempty"`
+	AlertCount           int      `json:"alert_count,omitempty"`
+	MLAlertCount         int      `json:"ml_alert_count,omitempty"`
+	LastAlertID          string   `json:"last_alert_id,omitempty"`
+	LastAlertPattern     string   `json:"last_alert_pattern,omitempty"`
+	LastAlertSeverity    string   `json:"last_alert_severity,omitempty"`
+	LastAlertHeadline    string   `json:"last_alert_headline,omitempty"`
+	LastAlertReason      string   `json:"last_alert_reason,omitempty"`
 	EnrollmentStatus     string   `json:"enrollment_status,omitempty"`
 	EnrollmentNote       string   `json:"enrollment_note,omitempty"`
 	EnrollmentUpdatedAt  string   `json:"enrollment_updated_at,omitempty"`

@@ -127,6 +127,11 @@ type Config struct {
 		DeepTaintThreshold int      `json:"deep_taint_threshold" yaml:"deep_taint_threshold"`
 		EnablePatterns     []string `json:"enable_patterns" yaml:"enable_patterns"`
 		Quiet              bool     `json:"quiet" yaml:"quiet"`
+		OnlineMLEnabled    bool     `json:"online_ml_enabled" yaml:"online_ml_enabled"`
+		MLModelDir         string   `json:"ml_model_dir" yaml:"ml_model_dir"`
+		MLThreshold        float64  `json:"ml_threshold" yaml:"ml_threshold"`
+		MLMinNodes         int      `json:"ml_min_nodes" yaml:"ml_min_nodes"`
+		MLMinEdges         int      `json:"ml_min_edges" yaml:"ml_min_edges"`
 	} `json:"analyzer" yaml:"analyzer"`
 
 	TaintSecrets struct {
@@ -361,6 +366,10 @@ func DefaultConfig() *Config {
 	c.Notify.RetryBackoff = "250ms"
 	c.Telemetry.Interval = "30s"
 	c.Policy.PollInterval = "30s"
+	c.Analyzer.MLModelDir = "/var/lib/providapt/models/current"
+	c.Analyzer.MLThreshold = 0.85
+	c.Analyzer.MLMinNodes = 3
+	c.Analyzer.MLMinEdges = 2
 	c.SupportBundle.RetainArchives = 5
 	c.SupportBundle.RedactArchives = true
 	c.Backup.Enabled = false
@@ -620,6 +629,15 @@ func (c *Config) Validate() error {
 	if c.Analyzer.DeepTaintThreshold < 0 {
 		return fmt.Errorf("deep_taint_threshold must be non-negative")
 	}
+	if c.Analyzer.MLThreshold < 0 || c.Analyzer.MLThreshold > 1 {
+		return fmt.Errorf("analyzer.ml_threshold must be between 0 and 1")
+	}
+	if c.Analyzer.MLMinNodes < 0 {
+		return fmt.Errorf("analyzer.ml_min_nodes must be non-negative")
+	}
+	if c.Analyzer.MLMinEdges < 0 {
+		return fmt.Errorf("analyzer.ml_min_edges must be non-negative")
+	}
 	if c.Notify.MaxAttempts < 1 {
 		return fmt.Errorf("notify.max_attempts must be at least 1")
 	}
@@ -772,6 +790,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Policy.PollInterval, "PROVIDAPT_POLICY_POLL_INTERVAL")
 	overrideString(&cfg.Policy.BundleDir, "PROVIDAPT_POLICY_BUNDLE_DIR")
 	overrideString(&cfg.Policy.CAFile, "PROVIDAPT_POLICY_CA_FILE")
+	overrideString(&cfg.Analyzer.MLModelDir, "PROVIDAPT_ANALYZER_ML_MODEL_DIR")
 	overrideString(&cfg.Notify.RetryBackoff, "PROVIDAPT_NOTIFY_RETRY_BACKOFF")
 	overrideString(&cfg.Notify.TicketProvider, "PROVIDAPT_NOTIFY_TICKET_PROVIDER")
 	overrideString(&cfg.Notify.TicketWebhookURL, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_URL")
@@ -835,6 +854,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Telemetry.EnableTLS, "PROVIDAPT_TELEMETRY_ENABLE_TLS")
 	overrideBool(&cfg.Policy.Enabled, "PROVIDAPT_POLICY_ENABLED")
 	overrideBool(&cfg.Policy.EnableTLS, "PROVIDAPT_POLICY_ENABLE_TLS")
+	overrideBool(&cfg.Analyzer.OnlineMLEnabled, "PROVIDAPT_ANALYZER_ONLINE_ML_ENABLED")
 	overrideBool(&cfg.SupportBundle.RedactArchives, "PROVIDAPT_SUPPORT_REDACT_ARCHIVES")
 	overrideBool(&cfg.Backup.Enabled, "PROVIDAPT_BACKUP_ENABLED")
 	overrideBool(&cfg.Backup.AllowActivation, "PROVIDAPT_BACKUP_ALLOW_ACTIVATION")
@@ -856,6 +876,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt(&cfg.Compliance.RetentionDays, "PROVIDAPT_COMPLIANCE_RETENTION_DAYS")
 	overrideInt(&cfg.Compliance.MaxAuditEntries, "PROVIDAPT_COMPLIANCE_MAX_AUDIT_ENTRIES")
 	overrideInt(&cfg.Upgrade.CanaryPercent, "PROVIDAPT_UPGRADE_CANARY_PERCENT")
+	overrideInt(&cfg.Analyzer.MLMinNodes, "PROVIDAPT_ANALYZER_ML_MIN_NODES")
+	overrideInt(&cfg.Analyzer.MLMinEdges, "PROVIDAPT_ANALYZER_ML_MIN_EDGES")
 	overrideInt64(&cfg.Backup.MinFreeBytes, "PROVIDAPT_BACKUP_MIN_FREE_BYTES")
 	overrideInt64(&cfg.Output.MaxFileBytes, "PROVIDAPT_OUTPUT_MAX_FILE_BYTES")
 	overrideInt64(&cfg.Output.RetainMaxBytes, "PROVIDAPT_OUTPUT_RETAIN_MAX_BYTES")
@@ -863,6 +885,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt64(&cfg.Output.AlertRetainBytes, "PROVIDAPT_OUTPUT_ALERT_RETAIN_MAX_BYTES")
 
 	overrideFloat(&cfg.API.RateLimitPerSec, "PROVIDAPT_API_RATE_LIMIT_PER_SEC")
+	overrideFloat(&cfg.Analyzer.MLThreshold, "PROVIDAPT_ANALYZER_ML_THRESHOLD")
 	overrideUint32Slice(&cfg.Capture.ExcludePIDs, "PROVIDAPT_CAPTURE_EXCLUDE_PIDS")
 	overrideStringSlice(&cfg.Capture.ExcludeComms, "PROVIDAPT_CAPTURE_EXCLUDE_COMMS")
 	overrideStringSlice(&cfg.Capture.IncludeComms, "PROVIDAPT_CAPTURE_INCLUDE_COMMS")

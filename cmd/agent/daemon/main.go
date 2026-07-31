@@ -1406,11 +1406,28 @@ func main() {
 
 	// ── APT analyzer ────────────────────────────────────
 	aptCfg := analyzer.DefaultConfig()
-	aptCfg.ScanInterval = 30 * time.Second
+	if cfg.Analyzer.ScanInterval.Duration > 0 {
+		aptCfg.ScanInterval = time.Duration(cfg.Analyzer.ScanInterval.Duration)
+	}
+	if cfg.Analyzer.DeepTaintThreshold > 0 {
+		aptCfg.DeepTaintThreshold = cfg.Analyzer.DeepTaintThreshold
+	}
+	if len(cfg.Analyzer.EnablePatterns) > 0 {
+		aptCfg.EnablePatterns = nil
+		for _, p := range cfg.Analyzer.EnablePatterns {
+			aptCfg.EnablePatterns = append(aptCfg.EnablePatterns, analyzer.PatternID(p))
+		}
+	}
+	aptCfg.Quiet = cfg.Analyzer.Quiet
+	aptCfg.OnlineMLEnabled = cfg.Analyzer.OnlineMLEnabled
+	aptCfg.MLModelDir = cfg.Analyzer.MLModelDir
+	aptCfg.MLThreshold = cfg.Analyzer.MLThreshold
+	aptCfg.MLMinNodes = cfg.Analyzer.MLMinNodes
+	aptCfg.MLMinEdges = cfg.Analyzer.MLMinEdges
 	apt := analyzer.New(graph, aptCfg)
 	apt.Start()
 	defer apt.Stop()
-	logx.System().Info("taint analysis configured", "scan_interval", aptCfg.ScanInterval.String())
+	logx.System().Info("taint analysis configured", "scan_interval", aptCfg.ScanInterval.String(), "online_ml", aptCfg.OnlineMLEnabled, "ml_model_dir", aptCfg.MLModelDir)
 
 	// ── Connect sketch integrator (graph anomaly detection) ──
 	si := analyzer.NewSketchIntegrator(analyzer.DefaultSketchConfig())
@@ -1520,7 +1537,7 @@ func main() {
 			status = "HEALTHY"
 		}
 
-		return telemetry.Summary{
+		summary := telemetry.Summary{
 			AgentID:              agentID,
 			Hostname:             systemEnv.Hostname,
 			OS:                   systemEnv.OS,
@@ -1542,6 +1559,22 @@ func main() {
 			AppliedPolicyVersion: int(appliedPolicyVersion.Load()),
 			TimestampUnixSec:     time.Now().Unix(),
 		}
+		alerts := apt.Alerts()
+		summary.AlertCount = len(alerts)
+		for _, alert := range alerts {
+			if alert.Pattern == analyzer.PatMLGraphAnomaly {
+				summary.MLAlertCount++
+			}
+		}
+		if len(alerts) > 0 {
+			last := alerts[len(alerts)-1]
+			summary.LastAlertID = last.AlertNodeID
+			summary.LastAlertPattern = string(last.Pattern)
+			summary.LastAlertSeverity = last.Severity.String()
+			summary.LastAlertHeadline = last.Headline
+			summary.LastAlertReason = last.Reason
+		}
+		return summary
 	}
 
 	var mgmtServer *mgmt.Server
@@ -1563,6 +1596,9 @@ func main() {
 		PolicyEndpoint:           policyClientCfg.Endpoint,
 		PolicyBundleDir:          policyClientCfg.BundleDir,
 		AppliedPolicyVersion:     int(appliedPolicyVersion.Load()),
+		OnlineMLEnabled:          cfg.Analyzer.OnlineMLEnabled,
+		MLModelDir:               cfg.Analyzer.MLModelDir,
+		MLThreshold:              cfg.Analyzer.MLThreshold,
 		ControlPlaneMode:         cfg.ControlPlane.Mode,
 		ControlPlaneRole:         cfg.ControlPlane.Role,
 		ControlPlaneStateBackend: haStateBackend,
@@ -1623,6 +1659,9 @@ func main() {
 		ServerName: cfg.Telemetry.ServerName,
 		OnAck: func(status telemetry.ReporterStatus) {
 			if status.DesiredPolicyVersion > 0 {
+				if !cfg.Policy.Enabled {
+					return
+				}
 				version := int64(status.DesiredPolicyVersion)
 				if appliedPolicyVersion.Load() == version {
 					return
@@ -1710,6 +1749,13 @@ func main() {
 				StoreHealthy:         local.StoreHealthy,
 				AttachmentMode:       local.AttachmentMode,
 				AppliedPolicyVersion: local.AppliedPolicyVersion,
+				AlertCount:           local.AlertCount,
+				MLAlertCount:         local.MLAlertCount,
+				LastAlertID:          local.LastAlertID,
+				LastAlertPattern:     local.LastAlertPattern,
+				LastAlertSeverity:    local.LastAlertSeverity,
+				LastAlertHeadline:    local.LastAlertHeadline,
+				LastAlertReason:      local.LastAlertReason,
 				EnrollmentStatus:     "approved",
 			},
 		}
@@ -1740,6 +1786,13 @@ func main() {
 					StoreHealthy:         agent.StoreHealthy,
 					AttachmentMode:       agent.AttachmentMode,
 					AppliedPolicyVersion: agent.AppliedPolicyVersion,
+					AlertCount:           agent.AlertCount,
+					MLAlertCount:         agent.MLAlertCount,
+					LastAlertID:          agent.LastAlertID,
+					LastAlertPattern:     agent.LastAlertPattern,
+					LastAlertSeverity:    agent.LastAlertSeverity,
+					LastAlertHeadline:    agent.LastAlertHeadline,
+					LastAlertReason:      agent.LastAlertReason,
 					EnrollmentStatus:     agent.EnrollmentStatus,
 					EnrollmentNote:       agent.EnrollmentNote,
 					EnrollmentUpdatedAt:  formatTimePtr(agent.EnrollmentUpdatedAt),
@@ -1793,6 +1846,13 @@ func main() {
 			StoreHealthy:         local.StoreHealthy,
 			AttachmentMode:       local.AttachmentMode,
 			AppliedPolicyVersion: local.AppliedPolicyVersion,
+			AlertCount:           local.AlertCount,
+			MLAlertCount:         local.MLAlertCount,
+			LastAlertID:          local.LastAlertID,
+			LastAlertPattern:     local.LastAlertPattern,
+			LastAlertSeverity:    local.LastAlertSeverity,
+			LastAlertHeadline:    local.LastAlertHeadline,
+			LastAlertReason:      local.LastAlertReason,
 			EnrollmentStatus:     "approved",
 		}
 		includeLocal := group == "" && tag == ""
@@ -1829,6 +1889,13 @@ func main() {
 					StoreHealthy:         agent.StoreHealthy,
 					AttachmentMode:       agent.AttachmentMode,
 					AppliedPolicyVersion: agent.AppliedPolicyVersion,
+					AlertCount:           agent.AlertCount,
+					MLAlertCount:         agent.MLAlertCount,
+					LastAlertID:          agent.LastAlertID,
+					LastAlertPattern:     agent.LastAlertPattern,
+					LastAlertSeverity:    agent.LastAlertSeverity,
+					LastAlertHeadline:    agent.LastAlertHeadline,
+					LastAlertReason:      agent.LastAlertReason,
 					EnrollmentStatus:     agent.EnrollmentStatus,
 					EnrollmentNote:       agent.EnrollmentNote,
 					EnrollmentUpdatedAt:  formatTimePtr(agent.EnrollmentUpdatedAt),
@@ -3200,11 +3267,40 @@ func main() {
 		for _, item := range snapshot.Alerts {
 			items = append(items, toAPIAlertWorkflowItem(item))
 		}
+		remoteOpen := 0
+		if mgmtServer != nil && strings.TrimSpace(assignee) == "" && (strings.TrimSpace(status) == "" || strings.EqualFold(strings.TrimSpace(status), "open")) {
+			for _, agent := range mgmtServer.TelemetryOverview() {
+				if agent.AgentID == agentID || strings.TrimSpace(agent.LastAlertPattern) == "" {
+					continue
+				}
+				count := agent.AlertCount
+				if count < 1 {
+					count = 1
+				}
+				remoteOpen++
+				items = append(items, api.AlertWorkflowItem{
+					ID:       "agent:" + agent.AgentID + ":" + firstNonEmpty(agent.LastAlertID, agent.LastAlertPattern),
+					Severity: firstNonEmpty(agent.LastAlertSeverity, "MEDIUM"),
+					Pattern:  agent.LastAlertPattern,
+					Headline: firstNonEmpty(agent.LastAlertHeadline, "remote agent alert"),
+					Reason:   agent.LastAlertReason,
+					Source:   "agent:" + agent.AgentID,
+					Status:   "open",
+					Count:    count,
+					LastSeen: formatTimePtr(agent.LastReportAt),
+					Details: map[string]string{
+						"agent_id":       agent.AgentID,
+						"hostname":       agent.Hostname,
+						"ml_alert_count": strconv.Itoa(agent.MLAlertCount),
+					},
+				})
+			}
+		}
 		return api.AlertWorkflow{
 			UpdatedAt: snapshot.UpdatedAt,
 			Summary: api.AlertWorkflowSummary{
-				Total:      snapshot.Summary.Total,
-				Open:       snapshot.Summary.Open,
+				Total:      snapshot.Summary.Total + remoteOpen,
+				Open:       snapshot.Summary.Open + remoteOpen,
 				Assigned:   snapshot.Summary.Assigned,
 				Suppressed: snapshot.Summary.Suppressed,
 				Closed:     snapshot.Summary.Closed,
@@ -3565,6 +3661,11 @@ loop:
 					ScanInterval:       time.Duration(newCfg.Analyzer.ScanInterval.Duration),
 					DeepTaintThreshold: newCfg.Analyzer.DeepTaintThreshold,
 					Quiet:              newCfg.Analyzer.Quiet,
+					OnlineMLEnabled:    newCfg.Analyzer.OnlineMLEnabled,
+					MLModelDir:         newCfg.Analyzer.MLModelDir,
+					MLThreshold:        newCfg.Analyzer.MLThreshold,
+					MLMinNodes:         newCfg.Analyzer.MLMinNodes,
+					MLMinEdges:         newCfg.Analyzer.MLMinEdges,
 				}
 				for _, p := range newCfg.Analyzer.EnablePatterns {
 					newAptCfg.EnablePatterns = append(newAptCfg.EnablePatterns, analyzer.PatternID(p))
