@@ -690,6 +690,11 @@ header.platform-header {
   align-items: start;
 }
 
+body.dashboard-density-compact .content,
+body.dashboard-density-comfortable .content {
+  grid-auto-rows: 8px;
+}
+
 .panel {
   min-height: 300px;
   max-height: min(650px, calc(100vh - 138px));
@@ -730,6 +735,7 @@ header.platform-header {
   padding: 8px;
   overflow: auto;
   scrollbar-gutter: stable;
+  gap: 8px;
 }
 
 .panel-body > .alerts-list,
@@ -772,6 +778,80 @@ header.platform-header {
 .mini-metrics,
 .delivery-summary {
   gap: 8px;
+}
+
+.dashboard-panel .policy-grid,
+.dashboard-panel .mini-metrics,
+.dashboard-panel .delivery-summary,
+.dashboard-panel .module-quality-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 7px;
+}
+
+.dashboard-panel .action-row,
+.dashboard-panel .console-toolbar,
+.dashboard-panel .fleet-toolbar,
+.dashboard-panel .ground-truth-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(126px, max-content));
+  justify-content: start;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dashboard-panel .action-row button,
+.dashboard-panel .console-toolbar button,
+.dashboard-panel .fleet-toolbar button,
+.dashboard-panel .ground-truth-toolbar button {
+  width: 100%;
+  min-width: 0;
+  max-width: 220px;
+}
+
+.dashboard-panel .alerts-list {
+  min-height: 96px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.dashboard-panel.has-list .panel-body {
+  min-height: 0;
+}
+
+.dashboard-panel.has-toolbar.has-list .alerts-list:last-child {
+  flex: 1 1 auto;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] {
+  min-height: 210px;
+}
+
+.dashboard-panel[data-panel-id="control-plane-summary"],
+.dashboard-panel[data-panel-id="operations-summary"],
+.dashboard-panel[data-panel-id="deployment-diagnostics"] {
+  min-height: 285px;
+}
+
+.dashboard-panel[data-panel-id="evaluation-ground-truth"] .ground-truth-toolbar,
+.dashboard-panel[data-panel-id="compliance-siem"] .action-row {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+}
+
+.dashboard-panel[data-panel-id="agent-overview"] .fleet-toolbar {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+}
+
+.dashboard-panel[data-panel-id="support-bundle"] .compact-input-grid,
+.dashboard-panel[data-panel-id="backup-restore"] .compact-input-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.dashboard-panel .loading[style*="margin-top"] {
+  margin-top: 4px !important;
+  padding: 5px 0;
+  text-align: left;
 }
 
 .policy-item,
@@ -1062,13 +1142,18 @@ body.panel-resize-active {
   grid-column: span 2;
 }
 
+.dashboard-panel[data-panel-id="alert-workflow"] {
+  min-height: 540px;
+}
+
 .dashboard-panel[data-panel-id="alert-workflow"] .panel-body {
-  gap: 7px;
+  gap: 8px;
+  overflow: hidden;
 }
 
 .workflow-summary-grid {
   display: grid;
-  grid-template-columns: repeat(8, minmax(86px, 1fr));
+  grid-template-columns: repeat(8, minmax(76px, 1fr));
   gap: 6px;
 }
 
@@ -1083,7 +1168,7 @@ body.panel-resize-active {
 }
 
 .workflow-filter-bar {
-  grid-template-columns: 132px 132px minmax(120px, 0.75fr) minmax(120px, 1fr) minmax(120px, 0.7fr) auto;
+  grid-template-columns: 130px 130px minmax(116px, 0.75fr) minmax(128px, 1fr) minmax(116px, 0.7fr) 82px;
   margin: 0;
 }
 
@@ -1097,10 +1182,11 @@ body.panel-resize-active {
 
 .workflow-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 0.78fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
   gap: 7px;
   min-height: 0;
   flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .workflow-column {
@@ -1120,17 +1206,19 @@ body.panel-resize-active {
 }
 
 .workflow-layout .alerts-list {
-  min-height: 120px;
+  min-height: 190px;
+  max-height: none;
   overflow: auto;
 }
 
 .workflow-history-list {
-  max-height: 180px;
+  min-height: 88px !important;
+  max-height: 150px !important;
 }
 
 .workflow-selection-card {
-  min-height: 190px;
-  max-height: 320px;
+  min-height: 205px;
+  max-height: 285px;
   overflow: auto;
   border: 1px solid rgba(88, 166, 255, 0.16);
   border-radius: 14px;
@@ -1145,6 +1233,7 @@ body.panel-resize-active {
   align-items: start;
   border: 1px solid transparent;
   border-radius: 12px;
+  padding: 7px;
 }
 
 .workflow-alert-card.selected {
@@ -1182,6 +1271,7 @@ body.panel-resize-active {
   flex-wrap: wrap;
   gap: 5px;
   min-width: 0;
+  margin-top: 2px;
 }
 
 .workflow-alert-actions .delivery-inline-actions {
@@ -1189,7 +1279,7 @@ body.panel-resize-active {
 }
 
 .workflow-alert-actions button {
-  min-width: 58px;
+  min-width: 64px;
   height: 24px;
   min-height: 24px;
   padding: 0 8px;
@@ -1210,6 +1300,9 @@ body.panel-resize-active {
   min-width: 58px;
   padding: 0 8px;
   font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .workflow-selection-head {
@@ -1256,6 +1349,13 @@ body.panel-resize-active {
   }
   .workflow-filter-bar {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+  .workflow-layout {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .dashboard-panel[data-panel-id="alert-workflow"] .panel-body {
+    overflow: auto;
   }
 }
 
@@ -5751,6 +5851,22 @@ function ensurePanelHeaderMeta(panel) {
   chip.textContent = dashboardPanelSectionShortLabel(section);
 }
 
+function normalizeDashboardPanelStructure(panel) {
+  if (!panel) return;
+  const body = panel.querySelector('.panel-body');
+  const hasSummary = !!(body && body.querySelector('.policy-grid, .mini-metrics, .delivery-summary, .module-quality-grid, .workflow-summary-grid'));
+  const hasToolbar = !!(body && body.querySelector('.action-row, .console-toolbar, .fleet-toolbar, .ground-truth-toolbar, .workflow-filter-bar, .policy-editor'));
+  const hasList = !!(body && body.querySelector('.alerts-list, .agents-list, .data-table-wrap'));
+  panel.classList.toggle('has-summary', hasSummary);
+  panel.classList.toggle('has-toolbar', hasToolbar);
+  panel.classList.toggle('has-list', hasList);
+}
+
+function normalizeDashboardPanels() {
+  document.querySelectorAll('.content .panel').forEach(panel => normalizeDashboardPanelStructure(panel));
+  scheduleDashboardMasonry();
+}
+
 function dashboardSectionLabel(section) {
   return {
     all: 'Command center: full IDS posture with all modules visible.',
@@ -5887,6 +6003,7 @@ function initializePanelLayout() {
     panel.dataset.section = dashboardPanelSection(panel);
     panel.classList.add('dashboard-panel');
     ensurePanelHeaderMeta(panel);
+    normalizeDashboardPanelStructure(panel);
     installPanelResize(panel);
     const header = panel.querySelector('h2');
     if (!header) return;
@@ -5939,6 +6056,7 @@ async function refresh() {
   await Promise.all([loadStatus(), loadHealth(), loadControlOverview(), loadSupportBundles(), loadBackups(), loadLicenseAndUpgrade(), loadPolicies(), loadAlertWorkflow(), loadDeliveries(), loadCompliance(), loadGroundTruth()]);
   loadOperationsSummary();
   classifyDashboardButtons();
+  normalizeDashboardPanels();
   scheduleDashboardMasonry();
 }
 
