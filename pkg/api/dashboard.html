@@ -1125,7 +1125,17 @@ body.panel-resize-active {
 }
 
 .workflow-history-list {
-  max-height: 235px;
+  max-height: 180px;
+}
+
+.workflow-selection-card {
+  min-height: 190px;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid rgba(88, 166, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(3, 8, 18, 0.28);
+  padding: 8px;
 }
 
 .workflow-alert-card {
@@ -1133,6 +1143,14 @@ body.panel-resize-active {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+
+.workflow-alert-card.selected {
+  border-color: rgba(0, 229, 255, 0.44);
+  background: rgba(0, 229, 255, 0.07);
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.12) inset;
 }
 
 .workflow-alert-main {
@@ -1158,9 +1176,9 @@ body.panel-resize-active {
 }
 
 .workflow-alert-actions {
-  grid-column: 2 / 4;
+  grid-column: 1 / -1;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 5px;
   min-width: 0;
@@ -1182,7 +1200,7 @@ body.panel-resize-active {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .workflow-trace-actions button,
@@ -1192,6 +1210,35 @@ body.panel-resize-active {
   min-width: 58px;
   padding: 0 8px;
   font-size: 10px;
+}
+
+.workflow-selection-head {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.workflow-selection-title {
+  color: #f0f6fc;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.workflow-selection-meta,
+.workflow-selection-reason {
+  color: #8b949e;
+  font-size: 11px;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.workflow-selection-reason {
+  padding: 7px;
+  border-radius: 10px;
+  background: rgba(13, 17, 23, 0.72);
+  border: 1px solid rgba(48, 54, 61, 0.76);
 }
 
 @media (max-width: 1350px) {
@@ -1846,6 +1893,10 @@ body.detail-drawer-open {
           </div>
         </div>
         <div class="workflow-column">
+          <div class="workflow-section-title">Selected Alert</div>
+          <div class="workflow-selection-card" id="workflowSelectionDetail">
+            <div class="loading">Select an alert from the queue.</div>
+          </div>
           <div class="workflow-section-title">Recent Actions</div>
           <div class="alerts-list workflow-history-list" id="workflowHistoryList">
             <div class="loading">Loading workflow actions...</div>
@@ -2018,6 +2069,7 @@ let apiKey = localStorage.getItem('providapt_api_key') || '';
 let lastAPIRequest = null;
 let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
+let selectedWorkflowAlertID = '';
 
 async function fetchJSON(url) {
   rememberLastRequest('GET', url);
@@ -3714,9 +3766,12 @@ function renderAlertWorkflowList(alerts) {
   const all = alerts || latestWorkflow.alerts || [];
   const filters = collectAlertWorkflowFilters();
   const filtered = all.filter(alert => alertMatchesWorkflowFilters(alert, filters));
+  if (filtered.length > 0 && !filtered.some(alert => alert.id === selectedWorkflowAlertID)) {
+    selectedWorkflowAlertID = filtered[0].id || '';
+  }
   if (summary) {
     const active = Object.keys(filters).filter(key => filters[key]).map(key => key + '=' + filters[key]);
-    summary.textContent = 'Showing ' + filtered.length + ' of ' + all.length + ' alerts' + (active.length ? ' · filters: ' + active.join(', ') : ' · no filters');
+    summary.textContent = 'Showing ' + filtered.length + ' of ' + all.length + ' alerts' + (active.length ? ' · filters: ' + active.join(', ') : ' · no filters') + (selectedWorkflowAlertID ? ' · selected: ' + selectedWorkflowAlertID : '');
   }
   if (filtered.length === 0) {
     list.innerHTML = renderEmptyDiagnostic('No workflow alerts. Generate a test event, review active rules, or lower the alert filter severity.', [
@@ -3724,9 +3779,12 @@ function renderAlertWorkflowList(alerts) {
       'Confirm active rules are deployed and agents are reporting.',
       'Use Recent Events to verify raw telemetry before expecting alerts.',
     ]);
+    renderWorkflowSelection(null);
     return;
   }
   list.innerHTML = filtered.slice(0, 25).map(a => renderWorkflowAlert(a)).join('');
+  renderWorkflowSelection(filtered.find(alert => alert.id === selectedWorkflowAlertID) || filtered[0]);
+  scheduleDashboardMasonry();
 }
 
 function applyAlertWorkflowFilters() {
@@ -3877,9 +3935,46 @@ function workflowActionButtons(alert) {
   return '<span class="delivery-inline-actions">' + actions.join('').replace(/REPLACE_ID/g, id) + '</span>';
 }
 
+function workflowSelectButton(alert) {
+  const id = jsString(alert.id || '');
+  return '<button class="secondary" onclick="event.stopPropagation(); selectWorkflowAlert(\'' + id + '\')">' + (selectedWorkflowAlertID === alert.id ? 'Selected' : 'Select') + '</button>';
+}
+
+function renderWorkflowSelection(alert) {
+  const target = document.getElementById('workflowSelectionDetail');
+  if (!target) return;
+  if (!alert) {
+    target.innerHTML = '<div class="loading">No alert selected.</div>';
+    return;
+  }
+  selectedWorkflowAlertID = alert.id || selectedWorkflowAlertID;
+  const meta = [
+    formatSeverity(alert.severity || 'info'),
+    'status ' + (alert.status || 'open'),
+    'count x' + (alert.count || 1),
+    alert.assignee ? ('assignee ' + alert.assignee) : 'unassigned',
+    alert.source || alert.hostname || alert.agent_id || '',
+  ].filter(Boolean).map(escapeHTML).join(' · ');
+  target.innerHTML =
+    '<div class="workflow-selection-head">' +
+      '<span class="alert-sev ' + getSeverityClass(alert.severity || 'info') + '">' + formatSeverity(alert.severity || 'info') + '</span>' +
+      '<div class="workflow-selection-title">' + escapeHTML(alert.headline || alert.pattern || alert.id || 'Alert') + '</div>' +
+      '<div class="workflow-selection-meta">' + meta + '</div>' +
+      '<div class="workflow-selection-meta">' + escapeHTML(formatTime(alert.first_seen || alert.created_at)) + ' → ' + escapeHTML(formatTime(alert.last_seen || alert.last_notified_at || alert.sla_deadline)) + '</div>' +
+    '</div>' +
+    '<div class="workflow-selection-reason">' + escapeHTML(alert.reason || alert.pattern || 'No reason supplied.') + '</div>' +
+    '<div class="workflow-alert-actions">' + workflowActionButtons(alert) + alertTraceActions(alert) + '</div>';
+}
+
+function selectWorkflowAlert(alertID) {
+  selectedWorkflowAlertID = alertID || '';
+  const alert = (latestWorkflow.alerts || []).find(item => item.id === selectedWorkflowAlertID);
+  renderWorkflowSelection(alert || null);
+  renderAlertWorkflowList(latestWorkflow.alerts || []);
+}
+
 function renderWorkflowAlert(a) {
   const sev = a.severity || 'info';
-  const actions = alertTraceActions(a);
   const sla = a.sla_status ? (' · SLA ' + escapeHTML(a.sla_status)) : '';
   const encoded = jsString(JSON.stringify(a || {}));
   const headline = escapeHTML(a.headline || a.pattern || 'Alert');
@@ -3890,14 +3985,15 @@ function renderWorkflowAlert(a) {
     sla ? sla.replace(/^ · /, '') : '',
     a.hostname || a.agent_id || a.source ? ('source ' + escapeHTML(a.hostname || a.agent_id || a.source)) : '',
   ].filter(Boolean).join(' · ');
-  return '<div class="alert-item workflow-alert-card clickable" tabindex="0" role="button" onclick="if(event.target.closest(\'button,a\')) return; showAlertDetailsJSON(\'' + encoded + '\')" onkeydown="handleCardKey(event, function(){ showAlertDetailsJSON(\'' + encoded + '\'); })">' +
+  const selected = selectedWorkflowAlertID === a.id ? ' selected' : '';
+  return '<div class="alert-item workflow-alert-card clickable' + selected + '" tabindex="0" role="button" onclick="if(event.target.closest(\'button,a\')) return; selectWorkflowAlert(\'' + jsString(a.id || '') + '\')" onkeydown="handleCardKey(event, function(){ selectWorkflowAlert(\'' + jsString(a.id || '') + '\'); })">' +
     '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
     '<span class="workflow-alert-main">' +
       '<span class="workflow-alert-title">' + headline + '</span>' +
       '<span class="workflow-alert-meta">' + meta + '</span>' +
     '</span>' +
     '<span class="alert-time">' + formatTime(a.sla_deadline || a.last_seen || a.last_notified_at) + '</span>' +
-    '<span class="workflow-alert-actions">' + workflowActionButtons(a) + actions + '</span>' +
+    '<span class="workflow-alert-actions">' + workflowSelectButton(a) + '<button class="secondary" onclick="event.stopPropagation(); showAlertDetailsJSON(\'' + encoded + '\')">Details</button></span>' +
     '</div>';
 }
 
