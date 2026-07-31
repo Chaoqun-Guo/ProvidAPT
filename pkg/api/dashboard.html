@@ -1182,7 +1182,7 @@ body.panel-resize-active {
 
 .workflow-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 7px;
   min-height: 0;
   flex: 1 1 auto;
@@ -1224,6 +1224,21 @@ body.panel-resize-active {
   border-radius: 14px;
   background: rgba(3, 8, 18, 0.28);
   padding: 8px;
+}
+
+.workflow-alert-detail {
+  grid-column: 1 / -1;
+  display: none;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(88, 166, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(3, 8, 18, 0.34);
+  min-width: 0;
+}
+
+.workflow-alert-card.selected .workflow-alert-detail {
+  display: grid;
 }
 
 .workflow-alert-card {
@@ -1282,6 +1297,10 @@ body.panel-resize-active {
   gap: 5px;
   min-width: 0;
   margin-top: 2px;
+}
+
+.workflow-alert-card:not(.selected) .workflow-alert-actions.primary-actions {
+  display: none;
 }
 
 .workflow-alert-actions .delivery-inline-actions {
@@ -1712,7 +1731,7 @@ body.dashboard-density-comfortable .content {
 }
 
 .dashboard-panel[data-panel-id="alert-workflow"] {
-  min-height: 455px !important;
+  min-height: 500px !important;
 }
 
 .dashboard-panel[data-panel-id="policy-center"] {
@@ -1757,8 +1776,8 @@ body.dashboard-density-comfortable .content {
 }
 
 .dashboard-panel[data-panel-id="alert-workflow"] #workflowAlertsList {
-  min-height: 125px;
-  max-height: 300px;
+  min-height: 190px;
+  max-height: 360px;
 }
 
 .dashboard-panel[data-panel-id="alert-workflow"] .workflow-selection-card {
@@ -2132,10 +2151,6 @@ body.dashboard-density-comfortable .content {
           </div>
         </div>
         <div class="workflow-column">
-          <div class="workflow-section-title">Selected Alert</div>
-          <div class="workflow-selection-card" id="workflowSelectionDetail">
-            <div class="loading">Select an alert from the queue.</div>
-          </div>
           <div class="workflow-section-title">Recent Actions</div>
           <div class="alerts-list workflow-history-list" id="workflowHistoryList">
             <div class="loading">Loading workflow actions...</div>
@@ -2308,8 +2323,8 @@ let apiKey = localStorage.getItem('providapt_api_key') || '';
 let lastAPIRequest = null;
 let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
-let selectedWorkflowAlertID = '';
-const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v2';
+let selectedWorkflowAlertKey = '';
+const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v3';
 
 function migrateDashboardLayoutStorage() {
   const current = localStorage.getItem('providaptDashboardLayoutVersion');
@@ -4023,12 +4038,14 @@ function renderAlertWorkflowList(alerts) {
   const all = alerts || latestWorkflow.alerts || [];
   const filters = collectAlertWorkflowFilters();
   const filtered = all.filter(alert => alertMatchesWorkflowFilters(alert, filters));
-  if (filtered.length > 0 && !filtered.some(alert => alert.id === selectedWorkflowAlertID)) {
-    selectedWorkflowAlertID = filtered[0].id || '';
+  const keyed = filtered.map((alert, index) => ({ alert: alert, key: workflowAlertKey(alert, index) }));
+  if (keyed.length > 0 && !keyed.some(item => item.key === selectedWorkflowAlertKey)) {
+    selectedWorkflowAlertKey = keyed[0].key;
   }
   if (summary) {
     const active = Object.keys(filters).filter(key => filters[key]).map(key => key + '=' + filters[key]);
-    summary.textContent = 'Showing ' + filtered.length + ' of ' + all.length + ' alerts' + (active.length ? ' · filters: ' + active.join(', ') : ' · no filters') + (selectedWorkflowAlertID ? ' · selected: ' + selectedWorkflowAlertID : '');
+    const selectedIndex = keyed.findIndex(item => item.key === selectedWorkflowAlertKey);
+    summary.textContent = 'Showing ' + filtered.length + ' of ' + all.length + ' alerts' + (active.length ? ' · filters: ' + active.join(', ') : ' · no filters') + (selectedIndex >= 0 ? ' · selected #' + (selectedIndex + 1) : '');
   }
   if (filtered.length === 0) {
     list.innerHTML = renderEmptyDiagnostic('No workflow alerts. Generate a test event, review active rules, or lower the alert filter severity.', [
@@ -4036,11 +4053,10 @@ function renderAlertWorkflowList(alerts) {
       'Confirm active rules are deployed and agents are reporting.',
       'Use Recent Events to verify raw telemetry before expecting alerts.',
     ]);
-    renderWorkflowSelection(null);
+    selectedWorkflowAlertKey = '';
     return;
   }
-  list.innerHTML = filtered.slice(0, 25).map(a => renderWorkflowAlert(a)).join('');
-  renderWorkflowSelection(filtered.find(alert => alert.id === selectedWorkflowAlertID) || filtered[0]);
+  list.innerHTML = filtered.slice(0, 25).map((alert, index) => renderWorkflowAlert(alert, workflowAlertKey(alert, index))).join('');
   scheduleDashboardMasonry();
 }
 
@@ -4192,19 +4208,22 @@ function workflowActionButtons(alert) {
   return '<span class="delivery-inline-actions">' + actions.join('').replace(/REPLACE_ID/g, id) + '</span>';
 }
 
-function workflowSelectButton(alert) {
-  const id = jsString(alert.id || '');
-  return '<button class="secondary" onclick="event.stopPropagation(); selectWorkflowAlert(\'' + id + '\')">' + (selectedWorkflowAlertID === alert.id ? 'Selected' : 'Select') + '</button>';
+function workflowAlertKey(alert, index) {
+  return [
+    index,
+    alert.id || '',
+    alert.last_seen || alert.last_notified_at || alert.created_at || '',
+    alert.headline || alert.pattern || '',
+    alert.source || alert.hostname || alert.agent_id || '',
+  ].join('|');
 }
 
-function renderWorkflowSelection(alert) {
-  const target = document.getElementById('workflowSelectionDetail');
-  if (!target) return;
-  if (!alert) {
-    target.innerHTML = '<div class="loading">No alert selected.</div>';
-    return;
-  }
-  selectedWorkflowAlertID = alert.id || selectedWorkflowAlertID;
+function workflowSelectButton(alertKey) {
+  const key = jsString(alertKey || '');
+  return '<button class="secondary" onclick="event.stopPropagation(); selectWorkflowAlert(\'' + key + '\')">' + (selectedWorkflowAlertKey === alertKey ? 'Selected' : 'Select') + '</button>';
+}
+
+function renderWorkflowAlertDetail(alert) {
   const meta = [
     formatSeverity(alert.severity || 'info'),
     'status ' + (alert.status || 'open'),
@@ -4212,7 +4231,7 @@ function renderWorkflowSelection(alert) {
     alert.assignee ? ('assignee ' + alert.assignee) : 'unassigned',
     alert.source || alert.hostname || alert.agent_id || '',
   ].filter(Boolean).map(escapeHTML).join(' · ');
-  target.innerHTML =
+  return '<div class="workflow-alert-detail">' +
     '<div class="workflow-selection-head">' +
       '<span class="alert-sev ' + getSeverityClass(alert.severity || 'info') + '">' + formatSeverity(alert.severity || 'info') + '</span>' +
       '<div class="workflow-selection-title">' + escapeHTML(alert.headline || alert.pattern || alert.id || 'Alert') + '</div>' +
@@ -4220,17 +4239,16 @@ function renderWorkflowSelection(alert) {
       '<div class="workflow-selection-meta">' + escapeHTML(formatTime(alert.first_seen || alert.created_at)) + ' → ' + escapeHTML(formatTime(alert.last_seen || alert.last_notified_at || alert.sla_deadline)) + '</div>' +
     '</div>' +
     '<div class="workflow-selection-reason">' + escapeHTML(alert.reason || alert.pattern || 'No reason supplied.') + '</div>' +
-    '<div class="workflow-alert-actions">' + workflowActionButtons(alert) + alertTraceActions(alert) + '</div>';
+    '<div class="workflow-alert-actions primary-actions">' + workflowActionButtons(alert) + alertTraceActions(alert) + '</div>' +
+    '</div>';
 }
 
-function selectWorkflowAlert(alertID) {
-  selectedWorkflowAlertID = alertID || '';
-  const alert = (latestWorkflow.alerts || []).find(item => item.id === selectedWorkflowAlertID);
-  renderWorkflowSelection(alert || null);
+function selectWorkflowAlert(alertKey) {
+  selectedWorkflowAlertKey = alertKey || '';
   renderAlertWorkflowList(latestWorkflow.alerts || []);
 }
 
-function renderWorkflowAlert(a) {
+function renderWorkflowAlert(a, alertKey) {
   const sev = a.severity || 'info';
   const sla = a.sla_status ? (' · SLA ' + escapeHTML(a.sla_status)) : '';
   const encoded = inlineJSONPayload(a || {});
@@ -4242,15 +4260,18 @@ function renderWorkflowAlert(a) {
     sla ? sla.replace(/^ · /, '') : '',
     a.hostname || a.agent_id || a.source ? ('source ' + escapeHTML(a.hostname || a.agent_id || a.source)) : '',
   ].filter(Boolean).join(' · ');
-  const selected = selectedWorkflowAlertID === a.id ? ' selected' : '';
-  return '<div class="alert-item workflow-alert-card clickable' + selected + '" tabindex="0" role="button" onclick="if(event.target.closest(\'button,a\')) return; selectWorkflowAlert(\'' + jsString(a.id || '') + '\')" onkeydown="handleCardKey(event, function(){ selectWorkflowAlert(\'' + jsString(a.id || '') + '\'); })">' +
+  const key = alertKey || workflowAlertKey(a, 0);
+  const selected = selectedWorkflowAlertKey === key ? ' selected' : '';
+  const keyLiteral = jsString(key);
+  return '<div class="alert-item workflow-alert-card clickable' + selected + '" tabindex="0" role="button" onclick="if(event.target.closest(\'button,a\')) return; selectWorkflowAlert(\'' + keyLiteral + '\')" onkeydown="handleCardKey(event, function(){ selectWorkflowAlert(\'' + keyLiteral + '\'); })">' +
     '<span class="alert-sev ' + getSeverityClass(sev) + '">' + formatSeverity(sev) + '</span>' +
     '<span class="workflow-alert-main">' +
       '<span class="workflow-alert-title">' + headline + '</span>' +
       '<span class="workflow-alert-meta">' + escapeHTML(truncateText(meta, 170)) + '</span>' +
     '</span>' +
     '<span class="alert-time">' + formatTime(a.sla_deadline || a.last_seen || a.last_notified_at) + '</span>' +
-    '<span class="workflow-alert-actions">' + workflowSelectButton(a) + '<button class="secondary" onclick="event.stopPropagation(); showAlertDetailsEncoded(\'' + encoded + '\')">Details</button></span>' +
+    '<span class="workflow-alert-actions">' + workflowSelectButton(key) + '<button class="secondary" onclick="event.stopPropagation(); showAlertDetailsEncoded(\'' + encoded + '\')">Details</button></span>' +
+    renderWorkflowAlertDetail(a) +
     '</div>';
 }
 
