@@ -24,7 +24,7 @@ Current closure progress:
 | --- | --- | --- |
 | Secret management | Deployment examples document secrets but do not integrate a concrete secret backend | Kubernetes Secret, Docker env-file, and systemd credential examples are validated |
 | TLS automation | TLS is documented but certificate bootstrap and rotation are still operator-driven | Repeatable certificate bootstrap, rotation, and expiry checks exist |
-| PostgreSQL operations | Production storage exists, but backup, restore, migration, and retention drills need recurring evidence | Restore drill and schema migration evidence are included in release validation |
+| PostgreSQL operations | Production storage exists, but migration and retention drills need recurring evidence | Schema migration and retention evidence are included in release validation |
 | Fleet lifecycle | Agent health is visible, but bulk enrollment, decommission, and certificate rotation workflows need deeper automation | Operators can enroll, rotate, quarantine, and retire agents from one workflow |
 
 Current closure progress:
@@ -34,6 +34,7 @@ Current closure progress:
 - Secret backend handoff artifacts for systemd, Docker Compose, and Kubernetes are generated through `make ops-secret-backends SECRET_ENV=...`.
 - TLS bootstrap and expiry checking are available through `make ops-tls-bootstrap` and `make ops-tls-check CERTS="..."`.
 - PostgreSQL logical backup, optional staging restore, and structured drill reports are available through `make ops-postgres-drill`.
+- Local checkpoint backup, restore staging, cutover, and download evidence is gated through `make backup-readiness-gate`.
 - Fleet list, lifecycle operations, and dry-run lifecycle plans are wrapped by `scripts/ops/fleet-lifecycle.sh`.
 - Constrained VM deployment is guarded by ELF, bpf-tag, SHA-256, service-active, and log-budget checks through `make deploy-vms`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
@@ -66,14 +67,17 @@ Current closure progress:
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
 | SIEM/SOAR | SIEM mappings exist, but production connectors need environment-specific certification | Splunk, Elastic, and webhook delivery are validated with retry and backpressure evidence |
-| RBAC and audit | RBAC exists, but multi-tenant boundaries and delegated administration need hardening tests | Tenant-scoped policies, audit export, and role reviews are tested |
-| Reporting | Support bundles exist, but executive and compliance reports need scheduled generation | Scheduled PDF/Markdown/JSON reports summarize fleet risk, alerts, and coverage |
+| RBAC and audit | RBAC exists, but delegated administration needs hardening tests | Tenant-scoped policies, audit export, and role reviews are tested |
+| Reporting | Support bundles and scheduled-report plans exist, but customer-specific report delivery needs certification | Scheduled PDF/Markdown/JSON reports summarize fleet risk, alerts, and coverage |
 | Upgrade orchestration | Upgrade preflight exists, but fleet-wide staged rollout and rollback need richer automation | Operators can canary, pause, resume, and rollback upgrades across agent groups |
 
 Current closure progress:
 
 - Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, SIEM/SOAR delivery checks, upgrade rollout evidence, and detection quality through `make enterprise-readiness`.
 - Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
+- Policy approval readiness gates RBAC status, tenant scoping, approval workflow, required approval actions, and approval audit evidence through `make policy-approval-gate`.
+- Support bundle readiness gates archive presence, redaction, export audit, and download evidence through `make support-bundle-gate`.
+- Runtime deployment diagnostics gates API auth, TLS, storage encryption, policy sync, kernel attach, control plane, and support bundle availability through `make deployment-diagnostics-gate`.
 - VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
 - Upgrade rollout planning produces canary, wave, pause/resume, and rollback evidence through `make upgrade-rollout-plan`.
@@ -85,7 +89,7 @@ Current closure progress:
 | --- | --- | --- |
 | Performance certification | Benchmarks exist, but long-duration noisy-host soak evidence should be expanded | 24-72 hour soak results define throughput, loss, CPU, memory, and disk budgets |
 | Plugin ecosystem | Plugin development docs exist, but signed plugin distribution and compatibility policy need productization | Plugins have signing, version compatibility, and safe rollback rules |
-| Model training | Simulation logs can train detectors, and registry, drift, and feature-schema compatibility checks now exist; runtime model deployment gating still needs integration | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
+| Model training | Simulation logs can train detectors; broader model promotion automation can still mature | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
 | Customer onboarding | Handoff docs exist, but guided first-run setup can be smoother | A guided setup wizard validates prerequisites and generates a ready-to-run config |
 
 Current closure progress:
@@ -96,3 +100,4 @@ Current closure progress:
 - First-run onboarding bundles generate a starter config, checklist, and manifest through `make onboarding-wizard`.
 - Plugin release gating validates plugin manifests, semantic versions, supported plugin types, signature evidence, and rollback instructions through `make plugin-release-gate`.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
+- Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.

@@ -10,7 +10,7 @@ This section collects engineering documentation for repository governance, layou
 | [documentation-audit.md](documentation-audit.md) | Documentation inventory by audience and purpose |
 | [encoding-policy.md](encoding-policy.md) | UTF-8 and mojibake prevention policy |
 | [release-docs-consistency-check.md](release-docs-consistency-check.md) | Pre-release documentation consistency record |
-| [current-release-gap-closure.md](current-release-gap-closure.md) | Current release gap closure status and remaining external gates |
+| [macbook-ai-development-handoff.md](macbook-ai-development-handoff.md) | Current development handoff, implemented gates, and remaining work |
 | [release-evidence-v1.2.2.md](release-evidence-v1.2.2.md) | Release evidence template for `v1.2.2` |
 | [release-evidence-v1.2.3-rc.1.md](release-evidence-v1.2.3-rc.1.md) | Release candidate evidence for `v1.2.3-rc.1` |
 | [commercial-release-checklist.md](commercial-release-checklist.md) | Commercial release delivery checklist |
@@ -29,12 +29,11 @@ This section collects engineering documentation for repository governance, layou
 | [support-sla.md](support-sla.md) | Support severity, SLA, and escalation model |
 | [customer-handoff.md](customer-handoff.md) | POC, onboarding, and production handoff checklist |
 | [commercial-approval-record.md](commercial-approval-record.md) | Final commercial release approval record |
-| [release-validation-status-2026-07-26.md](release-validation-status-2026-07-26.md) | Current validation status and blocked release gates |
 | [commercial-feature-gap-register.md](commercial-feature-gap-register.md) | Prioritized commercial feature and release gap register |
 
 ## Usage Guidance
 
 1. Review `project-layout.md` before adding new documents.
-2. Use `documentation-audit.md` to find the right documentation entry point.
+2. Use `../INDEX.md` and `documentation-audit.md` to find the right documentation entry point.
 3. Run the checks in `release-docs-consistency-check.md` before release.
 4. Complete the release evidence, artifact matrix, handoff checklist, SLA, and approval record before commercial delivery.

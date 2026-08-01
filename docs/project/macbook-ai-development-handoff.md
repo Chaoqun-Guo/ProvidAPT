@@ -198,7 +198,9 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
 
 ### Traceability UX
 
-- Continue improving large-trace in-canvas expand/collapse and filtering.
+- Large-trace filtering and file/network fold controls are available in the
+  Trace Viewer; continue refining deeper path-only views and baseline visual
+  regression coverage.
 - Keep visual regression baselines current for dashboard and Trace Viewer
   exports.
 

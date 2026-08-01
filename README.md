@@ -34,8 +34,8 @@ ProvidAPT/
 └── examples/           # example configurations and usage samples
 ```
 
-Detailed documentation for the repository layout is available in
-`docs/project/project-layout.md`.
+Detailed documentation starts at `docs/INDEX.md`; repository layout guidance is
+available in `docs/project/project-layout.md`.
 
 ## Ubuntu Development Quick Start
 
@@ -75,11 +75,12 @@ build/ebpf/*.bpf.o            # Compiled eBPF programs
 
 | Section | Description |
 | ------- | ----------- |
+| [Documentation Index](docs/INDEX.md) | Audience-based entry point for all maintained docs |
 | [Getting Started](docs/getting-started/INDEX.md) | Installation, deployment, and first-run guidance |
 | [Architecture](docs/architecture/INDEX.md) | System design, data flow, provenance model |
 | [User Guide](docs/user-guide/INDEX.md) | CLI, operations, ProvQL, detection rules |
 | [Developer Guide](docs/developer/INDEX.md) | API, schema, testing, upgrade, release notes |
-| [Project Docs](docs/project/INDEX.md) | Documentation audit, project layout, release consistency checks |
+| [Project Docs](docs/project/INDEX.md) | Project layout, release evidence, handoff, approval, and docs hygiene |
 | [Benchmarks](docs/benchmarks/INDEX.md) | Performance and benchmark material |
 | [Compliance](docs/compliance/INDEX.md) | Security, privacy, and governance posture |
 

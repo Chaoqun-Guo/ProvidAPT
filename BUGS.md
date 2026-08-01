@@ -53,8 +53,8 @@ This document tracks notable repository bugs and their current status.
 | ID | Area | Status | Note |
 | --- | --- | --- | --- |
 | FOLLOWUP-001 | historical test scripts | In Progress | legacy validation scripts are being normalized to the current binary and command names |
-| FOLLOWUP-002 | older benchmark/editorial pages | In Progress | remaining historical wording is being tightened during release cleanup |
+| FOLLOWUP-002 | older benchmark/editorial pages | Fixed | obsolete root progress logs removed and documentation indexes refreshed |
 
 ## Last Updated
 
-- 2026-06-09
+- 2026-08-01

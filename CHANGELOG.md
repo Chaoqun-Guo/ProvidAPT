@@ -53,8 +53,8 @@ All notable changes to ProvidAPT are documented here.
 - Expanded and reorganized project documentation with clearer release-scoped
   sections
 - Formatted `internal/policy/mgmt/server.go` to resolve code style issues
-- Updated `DEVELOPMENT_PROGRESS.md` to reflect current project state and
-  release target
+- Updated project documentation to reflect current project state and release
+  target
 
 ## v1.2.1 (2026-06-09)
 

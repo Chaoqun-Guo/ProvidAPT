@@ -43,7 +43,7 @@ Use `.tmp-*` for short-lived test scratch directories.
 | `docs/user-guide/` | Operator and analyst documentation |
 | `docs/architecture/` | Architecture and data-model references |
 | `docs/developer/` | API, schema, testing, release, and upgrade docs |
-| `docs/project/` | Repository governance, documentation audit, release consistency |
+| `docs/project/` | Repository governance, documentation audit, release evidence, handoff, and release consistency |
 | `docs/benchmarks/` | Performance reports |
 | `docs/compliance/` | Security, privacy, and compliance posture |
 
@@ -52,7 +52,10 @@ Use `.tmp-*` for short-lived test scratch directories.
 Keep only the following document classes at repository root:
 
 - product entry points such as `README.md` and `CHANGELOG.md`
-- legal and governance documents such as `LICENSE`, `EULA.md`, `DPA.md`, `SECURITY.md`, `CLA.md`
-- short-lived engineering logs only when they are intentionally top-level (`DEVELOPMENT_PROGRESS.md`, `COMMERCIALIZATION_ROADMAP.md`)
+- legal and governance documents such as `LICENSE`, `EULA.md`, `DPA.md`,
+  `PRIVACY.md`, `SECURITY.md`, `CLA.md`, `CODE_OF_CONDUCT.md`, and
+  `CONTRIBUTING.md`
 
-All new long-form documentation should be created under `docs/`.
+All new long-form documentation, progress records, release evidence, and
+roadmaps should be created under `docs/`. Use `docs/project/` for internal
+handoff and release-management material.
