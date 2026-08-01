@@ -232,8 +232,20 @@ def overall(sections: dict[str, dict[str, Any]]) -> str:
     return "pass"
 
 
+def apply_strict_mode(sections: dict[str, dict[str, Any]]) -> None:
+    for name, section in sections.items():
+        if section.get("status") == "skipped":
+            section["status"] = "blocked"
+            section.setdefault("failures", []).append(f"{name} evidence is required in strict mode")
+            continue
+        warnings = list(section.get("warnings") or [])
+        if warnings:
+            section.setdefault("failures", []).extend("strict mode blocks warning: " + item for item in warnings)
+            section["status"] = "blocked"
+
+
 def render_markdown(report: dict[str, Any]) -> str:
-    lines = ["# ProvidAPT Security Hardening Gate", "", f"- Status: `{report['status']}`", f"- Generated at: `{report['generated_at']}`", ""]
+    lines = ["# ProvidAPT Security Hardening Gate", "", f"- Status: `{report['status']}`", f"- Generated at: `{report['generated_at']}`", f"- Strict mode: `{report.get('strict', False)}`", ""]
     for name, section in report["sections"].items():
         lines.extend([f"## {name.replace('_', ' ').title()}", "", f"- Status: `{section['status']}`"])
         if section.get("failures"):
@@ -253,7 +265,9 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "environment": check_env(Path(args.env_file)),
         "rbac": check_rbac(load_json(args.rbac_audit)),
     }
-    return {"schema": SCHEMA, "generated_at": utc_now(), "status": overall(sections), "sections": sections}
+    if getattr(args, "strict", False):
+        apply_strict_mode(sections)
+    return {"schema": SCHEMA, "generated_at": utc_now(), "status": overall(sections), "strict": bool(getattr(args, "strict", False)), "sections": sections}
 
 
 def main() -> int:
@@ -262,6 +276,7 @@ def main() -> int:
     parser.add_argument("--service", default="deploy/linux/providapt.service")
     parser.add_argument("--env-file", default="deploy/linux/providapt.env")
     parser.add_argument("--rbac-audit", default="")
+    parser.add_argument("--strict", action="store_true", help="Block on warnings and require optional hardening evidence such as RBAC audit")
     parser.add_argument("--out-json", default="build/security-hardening/security-hardening-gate.json")
     parser.add_argument("--out-md", default="build/security-hardening/security-hardening-gate.md")
     args = parser.parse_args()

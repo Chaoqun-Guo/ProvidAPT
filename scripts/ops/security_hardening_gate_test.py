@@ -27,7 +27,7 @@ class SecurityHardeningGateTest(unittest.TestCase):
         config = self.write("providapt.yaml", self.production_config(rotation_auto=False))
         service = self.write("providapt.service", "PrivateTmp=true\nProtectHome=true\nRuntimeDirectory=providapt\nReadWritePaths=/var/log/providapt\nCapabilityBoundingSet=CAP_BPF\nNoNewPrivileges=false\n")
         env_file = self.write("providapt.env", 'PROVIDAPT_SKIP_PRIVILEGE_DROP=""\nPROVIDAPT_SKIP_SANITY_CHECKS=""\n')
-        args = SimpleNamespace(config=str(config), service=str(service), env_file=str(env_file), rbac_audit="")
+        args = SimpleNamespace(config=str(config), service=str(service), env_file=str(env_file), rbac_audit="", strict=False)
 
         report = gate.build_report(args)
 
@@ -39,7 +39,7 @@ class SecurityHardeningGateTest(unittest.TestCase):
         config = self.write("providapt.yaml", "encrypt: true\n")
         service = self.write("providapt.service", "")
         env_file = self.write("providapt.env", "")
-        args = SimpleNamespace(config=str(config), service=str(service), env_file=str(env_file), rbac_audit="")
+        args = SimpleNamespace(config=str(config), service=str(service), env_file=str(env_file), rbac_audit="", strict=False)
 
         report = gate.build_report(args)
 
@@ -49,7 +49,7 @@ class SecurityHardeningGateTest(unittest.TestCase):
         config = self.write("providapt.yaml", self.production_config(cors="*", secrets_provider="env"))
         service = self.write("providapt.service", "PrivateTmp=true\nProtectHome=true\nRuntimeDirectory=providapt\nReadWritePaths=/var/log/providapt\nCapabilityBoundingSet=CAP_BPF\n")
         env_file = self.write("providapt.env", 'PROVIDAPT_SKIP_PRIVILEGE_DROP=""\nPROVIDAPT_SKIP_SANITY_CHECKS=""\n')
-        args = SimpleNamespace(config=str(config), service=str(service), env_file=str(env_file), rbac_audit="")
+        args = SimpleNamespace(config=str(config), service=str(service), env_file=str(env_file), rbac_audit="", strict=False)
 
         report = gate.build_report(args)
 
@@ -57,6 +57,21 @@ class SecurityHardeningGateTest(unittest.TestCase):
         failures = report["sections"]["configuration"]["failures"]
         self.assertTrue(any("cors_origins" in item for item in failures))
         self.assertTrue(any("secrets.provider" in item for item in failures))
+
+    def test_strict_mode_blocks_warnings_and_requires_rbac(self):
+        config = self.write("providapt.yaml", self.production_config(rotation_auto=False))
+        service = self.write("providapt.service", "PrivateTmp=true\nProtectHome=true\nRuntimeDirectory=providapt\nReadWritePaths=/var/log/providapt\nCapabilityBoundingSet=CAP_BPF\nNoNewPrivileges=false\n")
+        env_file = self.write("providapt.env", 'PROVIDAPT_SKIP_PRIVILEGE_DROP=""\nPROVIDAPT_SKIP_SANITY_CHECKS=""\n')
+        args = SimpleNamespace(config=str(config), service=str(service), env_file=str(env_file), rbac_audit="", strict=True)
+
+        report = gate.build_report(args)
+
+        self.assertTrue(report["strict"])
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["sections"]["configuration"]["status"], "blocked")
+        self.assertEqual(report["sections"]["systemd_sandbox"]["status"], "blocked")
+        self.assertEqual(report["sections"]["rbac"]["status"], "blocked")
+        self.assertTrue(any("strict mode blocks warning" in item for item in report["sections"]["configuration"]["failures"]))
 
     def write(self, name, content):
         path = self.tmp / name

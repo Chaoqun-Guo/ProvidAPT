@@ -245,6 +245,15 @@ are warnings in sample files and must be replaced by customer-approved secret
 material before release approval. eBPF-related systemd relaxations are reported
 as warnings so a release owner can explicitly approve them.
 
+For release candidates, run strict mode so warnings and missing optional
+evidence, including RBAC audit evidence, block the gate:
+
+```bash
+make security-hardening-gate \
+  STRICT_SECURITY=1 \
+  RBAC_AUDIT=build/rbac/rbac-audit.json
+```
+
 Check certificate expiry:
 
 ```bash
