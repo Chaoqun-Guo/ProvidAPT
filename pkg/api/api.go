@@ -467,6 +467,8 @@ type LicenseActionRequest struct {
 type LicenseActionResult struct {
 	Status            string `json:"status"`
 	Message           string `json:"message,omitempty"`
+	RequestID         string `json:"request_id,omitempty"`
+	ActivationKey     string `json:"activation_key,omitempty"`
 	ValidatedAt       string `json:"validated_at,omitempty"`
 	ExpiresAt         string `json:"expires_at,omitempty"`
 	GracePeriodDays   int    `json:"grace_period_days,omitempty"`

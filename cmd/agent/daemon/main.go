@@ -215,6 +215,7 @@ type persistedApprovals struct {
 
 type licenseDocument struct {
 	ID                 string `json:"id" yaml:"id"`
+	ActivationKey      string `json:"activation_key,omitempty" yaml:"activation_key,omitempty"`
 	Customer           string `json:"customer" yaml:"customer"`
 	Edition            string `json:"edition" yaml:"edition"`
 	MaxAgents          int    `json:"max_agents" yaml:"max_agents"`
@@ -238,10 +239,12 @@ type activationServerRequest struct {
 }
 
 type activationServerResponse struct {
-	Status      string          `json:"status"`
-	Message     string          `json:"message"`
-	LicenseData string          `json:"license_data"`
-	License     licenseDocument `json:"license"`
+	Status        string          `json:"status"`
+	Message       string          `json:"message"`
+	RequestID     string          `json:"request_id,omitempty"`
+	ActivationKey string          `json:"activation_key,omitempty"`
+	LicenseData   string          `json:"license_data"`
+	License       licenseDocument `json:"license"`
 }
 
 type upgradeManifestDocument struct {
@@ -675,6 +678,9 @@ func licenseSignaturePayload(doc licenseDocument) string {
 		"issued_at=" + strings.TrimSpace(doc.IssuedAt),
 		"expires_at=" + strings.TrimSpace(doc.ExpiresAt),
 	}
+	if strings.TrimSpace(doc.ActivationKey) != "" {
+		parts = append([]string{parts[0], "activation_key=" + strings.TrimSpace(doc.ActivationKey)}, parts[1:]...)
+	}
 	if doc.MaxAgents > 0 {
 		parts = append(parts, "max_agents="+strconv.Itoa(doc.MaxAgents))
 	}
@@ -692,6 +698,14 @@ func verifyLicenseSignature(doc licenseDocument, signingKey string) bool {
 }
 
 func requestLicenseActivation(endpoint string, req activationServerRequest) (activationServerResponse, error) {
+	return postActivationServerRequest(endpoint, req, true)
+}
+
+func submitLicenseActivationRequest(endpoint string, req activationServerRequest) (activationServerResponse, error) {
+	return postActivationServerRequest(activationRequestEndpoint(endpoint), req, false)
+}
+
+func postActivationServerRequest(endpoint string, req activationServerRequest, requireLicenseData bool) (activationServerResponse, error) {
 	var result activationServerResponse
 	trimmedEndpoint := strings.TrimSpace(endpoint)
 	if trimmedEndpoint == "" {
@@ -704,7 +718,7 @@ func requestLicenseActivation(endpoint string, req activationServerRequest) (act
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Post(trimmedEndpoint, "application/json", bytes.NewReader(body))
 	if err != nil {
-		return result, fmt.Errorf("activate license: %w", err)
+		return result, fmt.Errorf("contact activation server: %w", err)
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
@@ -717,10 +731,21 @@ func requestLicenseActivation(endpoint string, req activationServerRequest) (act
 	if err := json.Unmarshal(data, &result); err != nil {
 		return result, fmt.Errorf("decode activation response: %w", err)
 	}
-	if strings.TrimSpace(result.LicenseData) == "" {
+	if requireLicenseData && strings.TrimSpace(result.LicenseData) == "" {
 		return result, fmt.Errorf("activation response missing license_data")
 	}
 	return result, nil
+}
+
+func activationRequestEndpoint(endpoint string) string {
+	trimmed := strings.TrimSpace(endpoint)
+	if strings.HasSuffix(trimmed, "/v1/activate") {
+		return strings.TrimSuffix(trimmed, "/v1/activate") + "/v1/activation-requests"
+	}
+	if strings.HasSuffix(trimmed, "/v1") {
+		return strings.TrimRight(trimmed, "/") + "/activation-requests"
+	}
+	return strings.TrimRight(trimmed, "/") + "/activation-requests"
 }
 
 func fetchUpgradeManifest(endpoint string) (upgradeManifestDocument, error) {
@@ -2690,6 +2715,30 @@ func main() {
 			action = "validate"
 		}
 		activatedOnline := false
+		if action == "request_activation" || action == "activation_request" {
+			activationURL := firstNonEmpty(strings.TrimSpace(req.ActivationURL), strings.TrimSpace(cfg.License.ActivationURL))
+			activation, err := submitLicenseActivationRequest(activationURL, activationServerRequest{
+				ActivationCode:     strings.TrimSpace(req.ActivationCode),
+				Customer:           strings.TrimSpace(req.Customer),
+				Edition:            strings.TrimSpace(req.Edition),
+				MaxAgents:          req.MaxAgents,
+				MachineFingerprint: machineFingerprint(),
+				ValidDays:          req.ValidityDays,
+			})
+			if err != nil {
+				licenseAudit.record("license_request_activation", req.Actor, req.Role, activationURL, req.Note, "failed", err.Error())
+				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
+			}
+			message := firstNonEmpty(activation.Message, "activation request submitted")
+			licenseAudit.record("license_request_activation", req.Actor, req.Role, activation.RequestID, req.Note, activation.Status, message)
+			logControlAudit(auditStore, "license", "license_request_activation", req.Actor, req.Role, activation.RequestID, req.Note, activation.Status, message)
+			return api.LicenseActionResult{
+				Status:      firstNonEmpty(activation.Status, "pending"),
+				Message:     message,
+				RequestID:   activation.RequestID,
+				ValidatedAt: time.Now().UTC().Format(time.RFC3339),
+			}, nil
+		}
 		if action == "activate" || action == "activate_online" {
 			activationURL := firstNonEmpty(strings.TrimSpace(req.ActivationURL), strings.TrimSpace(cfg.License.ActivationURL))
 			activation, err := requestLicenseActivation(activationURL, activationServerRequest{
