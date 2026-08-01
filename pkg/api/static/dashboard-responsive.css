@@ -1,4 +1,81 @@
 /* Dashboard viewport optimization and panel density rules. */
+.platform-header,
+.dashboard-shell,
+.dashboard-main,
+.dashboard-panel,
+.dashboard-panel .panel-body {
+  min-width: 0;
+}
+
+.platform-header {
+  flex-wrap: wrap;
+}
+
+.header-right {
+  flex: 1 1 420px;
+  max-width: 100%;
+}
+
+.top-license {
+  flex: 0 1 auto;
+  max-width: min(100%, 250px);
+}
+
+.license-pill {
+  flex: 1 1 118px;
+  min-width: 86px;
+  max-width: 150px;
+}
+
+.license-pill .label {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.license-pill .value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+  overflow: visible;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] .quality-card {
+  min-width: 0;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-head {
+  align-items: flex-start;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.2;
+}
+
+.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-score {
+  flex: 0 0 auto;
+}
+
+.dashboard-panel .action-row button,
+.dashboard-panel .console-toolbar button,
+.dashboard-panel .fleet-toolbar button,
+.dashboard-panel .ground-truth-toolbar button,
+.dashboard-panel .workflow-filter-bar button {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.dashboard-panel .workflow-filter-bar {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr));
+  overflow: hidden;
+}
+
 @media (min-width: 1280px) and (max-width: 1439px) {
   .dashboard-shell {
     grid-template-columns: 218px minmax(0, 1fr);
@@ -18,9 +95,34 @@
   }
   .dashboard-sidebar {
     padding: 10px;
+    position: relative;
+    top: auto;
+    max-height: none;
+    overflow: visible;
   }
   .dashboard-panel .panel-body {
     padding: 8px 10px;
+  }
+  .header-right {
+    flex: 1 1 360px;
+    gap: 6px;
+  }
+  .top-license {
+    max-width: 212px;
+  }
+  .license-pill {
+    flex-basis: 100px;
+    min-width: 92px;
+    max-width: 106px;
+  }
+  .license-pill .label {
+    display: none;
+  }
+  .license-pill .value {
+    max-width: 100%;
+  }
+  .dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 154px), 1fr));
   }
   .dashboard-panel[data-panel-id="control-plane-summary"],
   .dashboard-panel[data-panel-id="operations-summary"],

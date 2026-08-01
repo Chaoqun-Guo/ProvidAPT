@@ -146,6 +146,22 @@ labels plus split settings. Use it as the immutable training input identifier
 when comparing detector versions. Each output file also includes byte size and
 SHA-256 so training jobs can verify that labels were not modified after export.
 
+Gate dataset versioning, split support, label balance, and output hashes before
+training or release evidence review:
+
+```bash
+make dataset-split-gate \
+  DATASET_MANIFEST=build/evaluation-dataset/manifest.json \
+  REQUIRE_DATASET_VERSION=1 \
+  REQUIRE_TRAIN_SPLIT=1 \
+  REQUIRE_TEST_SPLIT=1 \
+  REQUIRE_BOTH_LABELS=1 \
+  REQUIRE_DATASET_FILE_HASHES=1
+```
+
+Use the same gate for graph datasets by pointing `DATASET_MANIFEST` at
+`build/ml-dataset/manifest.json`.
+
 ## Merge Detection Correlation
 
 Export correlation from the control plane:
@@ -258,13 +274,16 @@ gate:
 ```bash
 make detection-quality \
   COVERAGE_JSON=build/evaluation-dataset/coverage.json \
-  ALERT_QUALITY_JSON=build/evaluation/alert-quality.json \
+  ALERTS=/var/log/providapt \
+  ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson \
   OUT_DIR=build/evaluation
 ```
 
 `detection-quality.json` is the ML release evidence artifact for recall,
 precision, F1, missed tactics, missed techniques, and rule-tuning
-recommendations.
+recommendations. When `ALERTS` and `ALERT_FEEDBACK` are supplied, the target
+first generates feedback-aware `alert-quality.json`, then merges it into
+`detection-quality.json`.
 
 Graph training manifests can reference the same feedback ledger:
 

@@ -70,6 +70,43 @@ class ModelClosedLoopTest(unittest.TestCase):
         self.assertIn("recall", failed)
         self.assertIn("registered_model", failed)
 
+    def test_uses_dataset_manifest_feedback_when_file_not_supplied(self):
+        root = Path.cwd() / ".tmp-tests" / "model-closed-loop" / uuid.uuid4().hex
+        root.mkdir(parents=True, exist_ok=True)
+        manifest = root / "manifest.json"
+        metrics = root / "metrics.json"
+        registry = root / "registry.json"
+        manifest.write_text(json.dumps({
+            "dataset_id": "ds1",
+            "dataset_version": "1",
+            "record_count": 1000,
+            "alert_feedback": {
+                "feedback_entry_count": 2,
+                "feedback_by_classification": {"true_positive": 2},
+            },
+        }), encoding="utf-8")
+        metrics.write_text(json.dumps({"precision": 0.92, "recall": 0.91, "f1": 0.915}), encoding="utf-8")
+        registry.write_text(json.dumps({"models": [{"model_name": "graph-detector", "model_version": "1.0.0"}]}), encoding="utf-8")
+        args = SimpleNamespace(
+            dataset_manifest=str(manifest),
+            metrics=str(metrics),
+            registry=str(registry),
+            model_name="graph-detector",
+            model_version="1.0.0",
+            drift_report="",
+            feedback="",
+            require_feedback=True,
+            min_precision=70.0,
+            min_recall=80.0,
+            min_f1=70.0,
+        )
+
+        report = loop.build_report(args)
+
+        self.assertEqual(report["status"], "ready")
+        self.assertEqual(report["feedback"]["source"], "dataset_manifest")
+        self.assertEqual(report["feedback"]["records"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

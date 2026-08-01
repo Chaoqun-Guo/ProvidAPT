@@ -100,6 +100,8 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"installInteractionFeedback",
 		"interactionFeedback",
 		"action-clicked",
+		"function setCompactVersionText",
+		"setCompactVersionText('topVersion'",
 		"overflow-x: hidden",
 		"min-width:0",
 		"repeat(auto-fit, minmax(120px, 1fr))",
@@ -109,6 +111,32 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 	for _, item := range expected {
 		if !strings.Contains(dashboardHTML, item) {
 			t.Fatalf("dashboard missing investigation console content %q", item)
+		}
+	}
+}
+
+func TestDashboardResponsiveOverflowGuards(t *testing.T) {
+	expected := []string{
+		".platform-header",
+		"flex-wrap: wrap",
+		".header-right",
+		"flex: 1 1 420px",
+		".top-license",
+		"max-width: min(100%, 250px)",
+		".license-pill .label",
+		"display: none",
+		`.dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid`,
+		"minmax(min(100%, 168px), 1fr)",
+		`.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-name`,
+		"white-space: normal",
+		".dashboard-panel .action-row button",
+		".dashboard-panel .workflow-filter-bar",
+		"minmax(min(100%, 112px), 1fr)",
+		"overflow-wrap: anywhere",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("dashboard responsive CSS missing overflow guard %q", item)
 		}
 	}
 }

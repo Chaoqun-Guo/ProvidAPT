@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace build-auth-server generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet verify-vm-config probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates artifact-signing-gate customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-auth-server docker-run help
@@ -446,6 +446,10 @@ graph-dataset:
 	@if [ -z "$(EVENTS)" ] || [ -z "$(GROUND_TRUTH)" ]; then echo 'usage: make graph-dataset EVENTS=/var/log/providapt GROUND_TRUTH=/var/log/providapt/ground-truth [ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson] [OUT_DIR=build/ml-dataset]'; exit 2; fi
 	python3 scripts/evaluation/build_graph_training_dataset.py --events "$(EVENTS)" $(if $(NORMAL_EVENTS),--normal-events "$(NORMAL_EVENTS)") --ground-truth "$(GROUND_TRUTH)" $(if $(ALERT_FEEDBACK),--alert-feedback "$(ALERT_FEEDBACK)") --out-dir "$(or $(OUT_DIR),build/ml-dataset)" --dataset-version "$(or $(DATASET_VERSION),dev)" --window-seconds "$(or $(WINDOW_SECONDS),300)" --negative-ratio "$(or $(NEGATIVE_RATIO),1)" --normal-window-events "$(or $(NORMAL_WINDOW_EVENTS),64)"
 
+dataset-split-gate:
+	@if [ -z "$(DATASET_MANIFEST)" ]; then echo 'usage: make dataset-split-gate DATASET_MANIFEST=build/ml-dataset/manifest.json'; exit 2; fi
+	python3 scripts/evaluation/dataset_split_gate.py --manifest "$(DATASET_MANIFEST)" --min-records "$(or $(MIN_DATASET_RECORDS),1)" --min-train "$(or $(MIN_TRAIN_RECORDS),1)" --min-test "$(or $(MIN_TEST_RECORDS),1)" --min-val "$(or $(MIN_VAL_RECORDS),0)" $(if $(REQUIRE_DATASET_VERSION),--require-version) $(if $(REQUIRE_TRAIN_SPLIT),--require-train) $(if $(REQUIRE_TEST_SPLIT),--require-test) $(if $(REQUIRE_VAL_SPLIT),--require-val) $(if $(REQUIRE_BOTH_LABELS),--require-both-labels) $(if $(REQUIRE_DATASET_FILE_HASHES),--require-file-hashes) --out-json "$(or $(OUT_DIR),build/evaluation)/dataset-split-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/dataset-split-gate.md"
+
 graph-augment:
 	@if [ -z "$(GRAPH_DATASET)" ]; then echo 'usage: make graph-augment GRAPH_DATASET=build/ml-dataset/graphs.jsonl [OUT_DIR=build/ml-dataset-large] [RECORDS=200000]'; exit 2; fi
 	python3 scripts/evaluation/augment_graph_dataset.py --input "$(GRAPH_DATASET)" --out-dir "$(or $(OUT_DIR),build/ml-dataset-large)" --records "$(or $(RECORDS),200000)" --dataset-version "$(or $(DATASET_VERSION),synthetic-large)" $(if $(SOURCE_MANIFEST),--source-manifest "$(SOURCE_MANIFEST)") $(if $(FEATURE_SCHEMA),--feature-schema "$(FEATURE_SCHEMA)")
@@ -469,8 +473,10 @@ alert-quality:
 	python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" $(if $(ALERT_FEEDBACK),--feedback "$(ALERT_FEEDBACK)") --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md"
 
 detection-quality:
-	@if [ -z "$(COVERAGE_JSON)" ] || [ -z "$(ALERT_QUALITY_JSON)" ]; then echo 'usage: make detection-quality COVERAGE_JSON=build/evaluation-dataset/coverage.json ALERT_QUALITY_JSON=build/evaluation/alert-quality.json [OUT_DIR=build/evaluation]'; exit 2; fi
-	python3 scripts/evaluation/detection_quality_report.py --coverage "$(COVERAGE_JSON)" --alert-quality "$(ALERT_QUALITY_JSON)" --out-json "$(or $(OUT_DIR),build/evaluation)/detection-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/detection-quality.md"
+	@if [ -z "$(COVERAGE_JSON)" ]; then echo 'usage: make detection-quality COVERAGE_JSON=build/evaluation-dataset/coverage.json ALERT_QUALITY_JSON=build/evaluation/alert-quality.json [ALERTS=/var/log/providapt/alerts.ndjson ALERT_FEEDBACK=/var/log/providapt/alert-feedback.ndjson] [OUT_DIR=build/evaluation]'; exit 2; fi
+	@if [ -z "$(ALERT_QUALITY_JSON)" ] && [ -z "$(ALERTS)" ]; then echo 'set ALERT_QUALITY_JSON or ALERTS'; exit 2; fi
+	$(if $(ALERT_QUALITY_JSON),,python3 scripts/evaluation/alert_quality_report.py "$(ALERTS)" $(if $(ALERT_FEEDBACK),--feedback "$(ALERT_FEEDBACK)") --out-json "$(or $(OUT_DIR),build/evaluation)/alert-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/alert-quality.md")
+	python3 scripts/evaluation/detection_quality_report.py --coverage "$(COVERAGE_JSON)" --alert-quality "$(or $(ALERT_QUALITY_JSON),$(or $(OUT_DIR),build/evaluation)/alert-quality.json)" --out-json "$(or $(OUT_DIR),build/evaluation)/detection-quality.json" --out-md "$(or $(OUT_DIR),build/evaluation)/detection-quality.md"
 
 attack-coverage-plan:
 	@if [ -z "$(DETECTION_QUALITY_JSON)" ]; then echo 'usage: make attack-coverage-plan DETECTION_QUALITY_JSON=build/evaluation/detection-quality.json [OUT_DIR=build/evaluation]'; exit 2; fi
@@ -540,6 +546,7 @@ help:
 	@echo '  make attack-full-chain Run ATT&CK full-chain simulation'
 	@echo '  make export-ground-truth Export train/test labels and ATT&CK coverage'
 	@echo '  make graph-dataset    Build graph ML dataset from events and labels'
+	@echo '  make dataset-split-gate Gate dataset version, split, label, and hash evidence'
 	@echo '  make graph-augment    Expand captured graphs into a large synthetic dataset'
 	@echo '  make graph-train      Train GCN/GAT/GraphSAGE with conda torch_py39'
 	@echo '  make alert-quality    Export annotated alert precision and review metrics'

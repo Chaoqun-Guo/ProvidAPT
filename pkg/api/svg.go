@@ -308,6 +308,7 @@ button.mode-active { border-color: var(--green); color: #d8ffed; box-shadow: ins
       <button data-layout-mode="grouped" onclick="applyLayoutMode('grouped')">Grouped</button>
       <button data-collapse-type="file" onclick="toggleTypeCollapse('file')">Fold Files</button>
       <button data-collapse-type="network" onclick="toggleTypeCollapse('network')">Fold Network</button>
+      <button onclick="focusSelectedPath()">Path Only</button>
       <button onclick="expandTrace()">Expand All</button>
       <button onclick="toggleCrossLinks()">Cross Links</button>
       <button onclick="toggleClusters()">Clusters</button>
@@ -372,7 +373,7 @@ const alertID = %q;
 let scale = 1;
 const canvas = document.getElementById('canvas');
 const wrap = document.getElementById('canvasWrap');
-const layoutState = { mode: 'tree', typeFilter: 'all', collapsedTypes: new Set(), searchQuery: '' };
+const layoutState = { mode: 'tree', typeFilter: 'all', collapsedTypes: new Set(), searchQuery: '', pathFocus: new Set() };
 
 fetch(rawURL, { cache: 'no-store' })
   .then(response => {
@@ -652,6 +653,7 @@ function toggleTypeCollapse(type) {
 function expandTrace() {
   layoutState.typeFilter = 'all';
   layoutState.collapsedTypes.clear();
+  layoutState.pathFocus.clear();
   const filter = document.getElementById('typeFilter');
   if (filter) filter.value = 'all';
   updateCollapseButtons();
@@ -681,7 +683,8 @@ function applyTraceVisibility() {
     const typeHidden = layoutState.typeFilter !== 'all' && type !== layoutState.typeFilter;
     const collapsed = layoutState.collapsedTypes.has(type);
     const searchHidden = layoutState.searchQuery && !text.includes(layoutState.searchQuery);
-    const hidden = typeHidden || collapsed || searchHidden;
+    const pathHidden = layoutState.pathFocus.size && !layoutState.pathFocus.has(node.dataset.nodeId);
+    const hidden = typeHidden || collapsed || searchHidden || pathHidden;
     node.classList.toggle('filtered-hidden', hidden);
     if (hidden) {
       hiddenNodes++;
@@ -694,19 +697,48 @@ function applyTraceVisibility() {
     const type = cluster.dataset.nodeType || 'node';
     const typeHidden = layoutState.typeFilter !== 'all' && type !== layoutState.typeFilter;
     const searchHidden = layoutState.searchQuery && !nodeTraceText(cluster).includes(layoutState.searchQuery);
-    cluster.classList.toggle('filtered-hidden', typeHidden || searchHidden);
+    cluster.classList.toggle('filtered-hidden', typeHidden || searchHidden || layoutState.pathFocus.size > 0);
   });
   let visibleEdges = 0;
   Array.from(canvas.querySelectorAll('.edge')).forEach(edge => {
     const text = nodeTraceText(edge);
     const endpointHidden = hiddenNodeIDs.has(edge.dataset.source) || hiddenNodeIDs.has(edge.dataset.target);
     const searchHidden = layoutState.searchQuery && !text.includes(layoutState.searchQuery);
-    const hidden = endpointHidden || searchHidden;
+    const pathHidden = layoutState.pathFocus.size && (!layoutState.pathFocus.has(edge.dataset.source) || !layoutState.pathFocus.has(edge.dataset.target));
+    const hidden = endpointHidden || searchHidden || pathHidden;
     edge.classList.toggle('filtered-hidden', hidden);
     if (!hidden) visibleEdges++;
   });
   document.getElementById('viewerStatus').textContent =
     'Visible trace: ' + visibleNodes + ' node(s), ' + visibleEdges + ' edge(s), ' + hiddenNodes + ' folded/filtered node(s).';
+}
+function focusSelectedPath() {
+  const selected = canvas.querySelector('.node.selected');
+  if (!selected || !selected.dataset.nodeId) {
+    document.getElementById('viewerStatus').textContent = 'Select a node before enabling path-only view.';
+    return;
+  }
+  const start = selected.dataset.nodeId;
+  const adjacency = new Map();
+  Array.from(canvas.querySelectorAll('.node')).forEach(node => adjacency.set(node.dataset.nodeId, new Set()));
+  Array.from(canvas.querySelectorAll('.edge')).forEach(edge => {
+    if (!adjacency.has(edge.dataset.source) || !adjacency.has(edge.dataset.target)) return;
+    adjacency.get(edge.dataset.source).add(edge.dataset.target);
+    adjacency.get(edge.dataset.target).add(edge.dataset.source);
+  });
+  const keep = new Set([start]);
+  const queue = [start];
+  while (queue.length) {
+    const id = queue.shift();
+    adjacency.get(id).forEach(next => {
+      if (keep.has(next)) return;
+      keep.add(next);
+      queue.push(next);
+    });
+  }
+  layoutState.pathFocus = keep;
+  applyTraceVisibility();
+  document.getElementById('viewerStatus').textContent = 'Path-only view from ' + start + ': ' + keep.size + ' connected node(s).';
 }
 function nodeTraceText(item) {
   return (item.textContent + ' ' + Array.from(item.attributes || []).map(attr => attr.value).join(' ')).toLowerCase();

@@ -55,9 +55,17 @@ def latest_model(registry: dict[str, Any], model_name: str, model_version: str) 
     return {}
 
 
-def feedback_summary(path: str | None) -> dict[str, Any]:
+def feedback_summary(path: str | None, manifest: dict[str, Any] | None = None) -> dict[str, Any]:
     if not path:
-        return {"path": "", "records": 0, "labels": {}}
+        manifest_feedback = (manifest or {}).get("alert_feedback")
+        if isinstance(manifest_feedback, dict):
+            return {
+                "path": "",
+                "records": int(manifest_feedback.get("feedback_entry_count") or 0),
+                "labels": manifest_feedback.get("feedback_by_classification", {}),
+                "source": "dataset_manifest",
+            }
+        return {"path": "", "records": 0, "labels": {}, "source": "none"}
     target = Path(path)
     if not target.exists():
         return {"path": str(target), "records": 0, "labels": {}, "missing": True}
@@ -76,7 +84,7 @@ def feedback_summary(path: str | None) -> dict[str, Any]:
                 continue
             label = str(item.get("label") or item.get("verdict") or item.get("status") or "unlabeled").lower()
             labels[label] = labels.get(label, 0) + 1
-    return {"path": str(target), "records": records, "labels": labels}
+    return {"path": str(target), "records": records, "labels": labels, "source": "feedback_file"}
 
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
@@ -85,7 +93,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     registry = load_json(args.registry)
     drift = load_json(args.drift_report)
     model = latest_model(registry, args.model_name, args.model_version)
-    feedback = feedback_summary(args.feedback)
+    feedback = feedback_summary(args.feedback, manifest)
     precision = as_percent(metric(metrics, "precision"))
     recall = as_percent(metric(metrics, "recall"))
     accuracy = as_percent(metric(metrics, "accuracy"))

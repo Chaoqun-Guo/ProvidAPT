@@ -60,9 +60,17 @@ def build_report(coverage: dict[str, Any], alert_quality: dict[str, Any]) -> dic
     technique_rows = coverage_rows(coverage.get("by_technique", {}))
     missed_tactics = [row for row in tactic_rows if row["missed"] > 0]
     missed_techniques = [row for row in technique_rows if row["missed"] > 0]
+    feedback = alert_quality.get("feedback") if isinstance(alert_quality.get("feedback"), dict) else {}
+    feedback_entries = int(feedback.get("feedback_entries") or 0)
+    feedback_matched = int(feedback.get("feedback_matched_alerts") or 0)
+    feedback_unmatched = int(feedback.get("feedback_unmatched_alerts") or 0)
     recommendations = []
     if reviewed < 80:
         recommendations.append("Increase analyst review coverage before using alert precision as release evidence.")
+    if feedback_entries == 0:
+        recommendations.append("Attach analyst feedback ledger to make precision evidence auditable.")
+    elif feedback_unmatched > 0:
+        recommendations.append("Review unmatched alert feedback entries so the quality report covers the latest analyst decisions.")
     if recall < 80:
         recommendations.append("Add or tune rules for missed ATT&CK techniques before expanding detector training.")
     if precision < 70:
@@ -82,6 +90,12 @@ def build_report(coverage: dict[str, Any], alert_quality: dict[str, Any]) -> dic
         "review_coverage_percent": reviewed,
         "coverage_source": coverage.get("schema", ""),
         "alert_quality_source": alert_quality.get("schema", ""),
+        "feedback": {
+            "entries": feedback_entries,
+            "matched_alerts": feedback_matched,
+            "unmatched_alerts": feedback_unmatched,
+            "by_classification": feedback.get("feedback_by_classification", {}),
+        },
         "by_tactic": tactic_rows,
         "by_technique": technique_rows,
         "missed_tactics": missed_tactics,
@@ -99,6 +113,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Recall: `{report['recall_percent']}%`",
         f"- F1: `{report['f1_percent']}%`",
         f"- Review coverage: `{report['review_coverage_percent']}%`",
+        f"- Feedback entries: `{report['feedback']['entries']}`",
+        f"- Feedback matched alerts: `{report['feedback']['matched_alerts']}`",
         "",
         "## Missed Techniques",
         "",

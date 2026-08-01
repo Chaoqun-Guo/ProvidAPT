@@ -199,8 +199,8 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
 ### Traceability UX
 
 - Large-trace filtering and file/network fold controls are available in the
-  Trace Viewer; continue refining deeper path-only views and baseline visual
-  regression coverage.
+  Trace Viewer; path-only focus from a selected node is available. Continue
+  refining very large trace ergonomics and baseline visual regression coverage.
 - Keep visual regression baselines current for dashboard and Trace Viewer
   exports.
 
@@ -218,6 +218,8 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
   `make capture-enrichment-field-gate EVENTS=...` to produce JSON/Markdown
   coverage evidence from VM or evaluation NDJSON.
 - Keep benign and attack datasets separated with explicit manifests.
+- Dataset versioning, split support, label balance, and output hash inventory
+  can be gated with `make dataset-split-gate DATASET_MANIFEST=...`.
 - Online detector alerts include model identity/version and feature-count
   metadata.
 - Online detector loading can require `model-deploy-gate.json` evidence through
@@ -227,7 +229,7 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
   before enabling runtime scoring.
 - Analyst TP/FP feedback is persisted to `alert-feedback.ndjson`, exportable via
   `/api/v1/control/alerts/feedback`, and consumable by alert-quality,
-  graph-dataset, and model-closed-loop evaluation reports.
+  graph-dataset, detection-quality, and model-closed-loop evaluation reports.
 
 ### Commercial Readiness
 
