@@ -488,6 +488,11 @@ func TestDashboardAdminActionsGiveFeedback(t *testing.T) {
 func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
 	expected := []string{
 		"apiKeyInput",
+		"apiKeyToggle",
+		"apiKeyPanel",
+		"toggleAPIKeyPanel",
+		"apiKeyPanelOpen = false",
+		".auth-strip.is-collapsed",
 		"providapt_api_key",
 		"testAPIKeyPermissions",
 		"copyStatusCurl",

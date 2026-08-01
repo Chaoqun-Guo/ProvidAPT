@@ -51,6 +51,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .platform-action-status.active { color:#58a6ff; }
 .platform-action-status.error { color:#f85149; }
 .platform-button { height:28px; min-width:72px; max-width:150px; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.api-key-toggle { min-width:88px; max-width:118px; }
+.auth-strip.is-collapsed { display:none !important; }
 .dashboard-shell { display:grid; grid-template-columns: 250px minmax(0, 1fr); gap:14px; padding:12px 18px 18px; align-items:start; min-width:0; }
 .dashboard-main { min-width:0; display:grid; gap:12px; }
 .dashboard-sidebar { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px; min-width:0; }
@@ -2223,8 +2225,9 @@ button.panel-resize-handle:hover,
       <div class="subtitle">Provenance-driven APT Detection</div>
       <span class="refresh-info" id="authStatus">No key stored</span>
       <span class="platform-action-status" id="actionStatus">Ready</span>
+      <button id="apiKeyToggle" class="platform-button api-key-toggle" onclick="toggleAPIKeyPanel()" aria-expanded="true" aria-controls="apiKeyPanel">API Key</button>
     </div>
-    <div class="auth-strip">
+    <div id="apiKeyPanel" class="auth-strip">
       <input id="apiKeyInput" type="password" placeholder="API key for protected control plane" autocomplete="current-password" onkeydown="handleAPIKeyInputKey(event)">
       <label class="auth-remember" title="Unchecked stores the key only for this browser tab"><input id="apiKeyRemember" type="checkbox" onchange="syncAPIKeyRememberChoice()">Remember</label>
       <button class="platform-button" onclick="saveAPIKey()">Use Key</button>
@@ -2717,6 +2720,7 @@ const API_KEY_STORAGE = 'providapt_api_key';
 const API_KEY_REMEMBER_STORAGE = 'providapt_api_key_remember';
 let apiKey = sessionStorage.getItem(API_KEY_STORAGE) || localStorage.getItem(API_KEY_STORAGE) || '';
 let apiKeyRemember = localStorage.getItem(API_KEY_REMEMBER_STORAGE) === 'true' || (!!localStorage.getItem(API_KEY_STORAGE) && !sessionStorage.getItem(API_KEY_STORAGE));
+let apiKeyPanelOpen = !apiKey;
 let lastAPIRequest = null;
 let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
@@ -2945,7 +2949,8 @@ function authHeaders() {
 function updateAuthStatus(message) {
   const input = document.getElementById('apiKeyInput');
   const remember = document.getElementById('apiKeyRemember');
-  const strip = input ? input.closest('.auth-strip') : null;
+  const strip = document.getElementById('apiKeyPanel') || (input ? input.closest('.auth-strip') : null);
+  const toggle = document.getElementById('apiKeyToggle');
   const status = document.getElementById('authStatus');
   if (input && apiKey) {
     input.value = apiKey;
@@ -2956,10 +2961,26 @@ function updateAuthStatus(message) {
   if (strip) {
     strip.classList.toggle('has-key', !!apiKey);
     strip.classList.toggle('needs-key', !apiKey);
+    strip.classList.toggle('is-collapsed', !!apiKey && !apiKeyPanelOpen);
+  }
+  if (toggle) {
+    const hasKey = !!apiKey;
+    toggle.textContent = hasKey ? (apiKeyPanelOpen ? 'Hide Key' : 'API Key OK') : 'Enter Key';
+    toggle.classList.toggle('btn-primary', hasKey && !apiKeyPanelOpen);
+    toggle.setAttribute('aria-expanded', apiKeyPanelOpen ? 'true' : 'false');
   }
   if (status) {
     const scope = apiKeyRemember ? 'this browser' : 'this tab';
     status.textContent = message || (apiKey ? 'API key stored for ' + scope : 'No key stored');
+  }
+}
+
+function toggleAPIKeyPanel() {
+  apiKeyPanelOpen = !apiKeyPanelOpen;
+  updateAuthStatus();
+  if (apiKeyPanelOpen) {
+    const input = document.getElementById('apiKeyInput');
+    if (input) input.focus();
   }
 }
 
@@ -3127,6 +3148,9 @@ function saveAPIKey() {
     } else {
       sessionStorage.setItem(API_KEY_STORAGE, apiKey);
     }
+    apiKeyPanelOpen = false;
+  } else {
+    apiKeyPanelOpen = true;
   }
   updateAuthStatus(apiKey ? 'API key stored for ' + (apiKeyRemember ? 'this browser' : 'this tab') : 'No key stored');
   refresh();
@@ -3138,6 +3162,7 @@ function clearAPIKey() {
   localStorage.removeItem(API_KEY_STORAGE);
   const input = document.getElementById('apiKeyInput');
   if (input) input.value = '';
+  apiKeyPanelOpen = true;
   updateAuthStatus('No key stored');
 }
 

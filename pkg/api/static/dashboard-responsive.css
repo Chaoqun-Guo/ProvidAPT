@@ -32,6 +32,16 @@
   overflow: hidden;
 }
 
+.auth-strip.is-collapsed {
+  display: none !important;
+}
+
+.api-key-toggle {
+  flex: 0 0 auto;
+  min-width: 88px;
+  max-width: 118px;
+}
+
 .auth-strip input {
   flex: 1 1 220px;
   min-width: min(100%, 180px);
