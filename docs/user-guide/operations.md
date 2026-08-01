@@ -236,9 +236,14 @@ make security-hardening-gate \
 ```
 
 The gate verifies production config controls, systemd sandbox markers, risky
-environment bypass defaults, and optional RBAC audit evidence. eBPF-related
-systemd relaxations are reported as warnings so a release owner can explicitly
-approve them.
+environment bypass defaults, and optional RBAC audit evidence. Configuration
+checks include API auth keys, restricted CORS origins, REST TLS certificate
+paths, TLS rotation settings, encrypted storage, approval workflow, support
+bundle redaction, agent telemetry TLS, HTTPS policy pulls, and a production
+secret backend (`file` or `vault`). Placeholder API keys or database passwords
+are warnings in sample files and must be replaced by customer-approved secret
+material before release approval. eBPF-related systemd relaxations are reported
+as warnings so a release owner can explicitly approve them.
 
 Check certificate expiry:
 

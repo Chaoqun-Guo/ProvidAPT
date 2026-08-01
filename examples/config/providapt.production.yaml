@@ -64,6 +64,14 @@ tls:
   cert_file: /etc/providapt/tls/server.crt
   key_file: /etc/providapt/tls/server.key
   ca_file: /etc/providapt/tls/ca.crt
+  rotation_check: 24h
+  rotation_renew_before: 720h
+  rotation_auto: true
+  rotation_restart_after: true
+
+secrets:
+  provider: file
+  base_dir: /run/secrets/providapt
 
 storage:
   encrypt: true
