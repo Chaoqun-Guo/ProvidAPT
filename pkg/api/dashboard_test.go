@@ -123,6 +123,15 @@ func TestDashboardResponsiveOverflowGuards(t *testing.T) {
 		"flex: 1 1 420px",
 		".auth-strip",
 		"flex: 1 1 520px",
+		"display: flex",
+		"flex-wrap: wrap",
+		".auth-remember",
+		".auth-strip button",
+		"max-width: 118px",
+		".alert-msg",
+		"overflow-wrap: anywhere",
+		".delivery-inline-actions button",
+		"max-width: 160px",
 		".top-license",
 		"max-width: min(100%, 250px)",
 		".license-pill .label",
@@ -141,6 +150,31 @@ func TestDashboardResponsiveOverflowGuards(t *testing.T) {
 	for _, item := range expected {
 		if !strings.Contains(dashboardResponsiveCSS, item) {
 			t.Fatalf("dashboard responsive CSS missing overflow guard %q", item)
+		}
+	}
+}
+
+func TestDashboardAuthStripLayoutIsResponsive(t *testing.T) {
+	forbidden := []string{
+		"grid-template-columns: minmax(190px, 1fr) repeat(5, minmax(72px, max-content))",
+		"grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(72px, max-content))",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardHTML, item) || strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("dashboard auth strip should not use brittle fixed action columns %q", item)
+		}
+	}
+
+	expected := []string{
+		`<label class="auth-remember"`,
+		"width: min(100%, 860px)",
+		"flex: 1 1 220px",
+		"@media (max-width: 760px)",
+		"grid-template-columns: 1fr 1fr",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardHTML, item) && !strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("dashboard auth strip missing responsive rule %q", item)
 		}
 	}
 }

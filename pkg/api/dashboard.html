@@ -1051,31 +1051,40 @@ body.panel-resize-active {
 
 /* SOC information architecture pass: module ownership, action semantics, analyst ergonomics. */
 .auth-strip {
-  width: min(100%, 780px);
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) repeat(5, minmax(72px, max-content));
+  width: min(100%, 860px);
+  display: flex;
+  flex-wrap: wrap;
   gap: 5px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   margin-top: 6px;
   padding: 5px;
   border: 1px solid rgba(88, 166, 255, 0.16);
-  border-radius: 999px;
+  border-radius: 18px;
   background: rgba(3, 8, 18, 0.36);
 }
 
 .auth-strip input {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 1 1 220px;
   height: 28px;
   border-radius: 999px !important;
 }
 
 .auth-strip button {
-  min-width: 72px;
+  flex: 1 1 72px;
+  min-width: 0;
+  max-width: 118px;
   height: 28px;
   min-height: 28px;
   padding: 0 9px;
   font-size: 11px;
+}
+
+.auth-remember {
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .dashboard-panel {
@@ -1668,7 +1677,6 @@ body.detail-drawer-open {
 
 @media (max-width: 1180px) {
   .auth-strip {
-    grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(72px, max-content));
     border-radius: 18px;
   }
   .policy-center-panel .policy-summary-grid {
@@ -1687,11 +1695,16 @@ body.detail-drawer-open {
 
 @media (max-width: 760px) {
   .auth-strip {
+    display: grid;
     grid-template-columns: 1fr 1fr;
     border-radius: 16px;
   }
   .auth-strip input {
     grid-column: 1 / -1;
+  }
+  .auth-remember {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
   .policy-center-panel .policy-summary-grid,
   .policy-rule-fields {
