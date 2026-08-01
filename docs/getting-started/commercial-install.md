@@ -249,7 +249,7 @@ certificate bundle before rollout:
 make ops-tls-bootstrap \
   TLS_OUT=build/tls \
   TLS_SERVER_CN=cp-0.example.com \
-  TLS_SERVER_SAN="DNS:cp-0.example.com,IP:192.168.150.132" \
+  TLS_SERVER_SAN="DNS:cp-0.example.com,DNS:vm-ubuntu-master.<TAILSCALE_DOMAIN>" \
   TLS_AGENT_CNS="ubuntu-129,centos-131"
 ```
 

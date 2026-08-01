@@ -48,7 +48,10 @@ class VerifyVMFleetTest(unittest.TestCase):
             report = verify_vm.verify("http://server", args)
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["healthy_agents"], 3)
+        self.assertEqual(len(report["agent_details"]), 3)
+        self.assertEqual(report["agent_details"][0]["agent_id"], "a")
         self.assertIn("VM Fleet Verification", verify_vm.render_markdown(report))
+        self.assertIn("| Agent | Hostname | Status | Age | Attachment | Enrollment | Alerts |", verify_vm.render_markdown(report))
 
     def test_verify_blocks_stale_or_missing_agents(self):
         responses = {

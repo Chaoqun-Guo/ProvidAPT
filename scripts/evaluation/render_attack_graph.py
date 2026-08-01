@@ -63,9 +63,9 @@ def short_text(value: Any, limit: int = 64) -> str:
 
 def host_label(run_id: str) -> str:
     if "ubuntu" in run_id:
-        return "192.168.150.129 / ubuntu"
+        return "ubuntu agent"
     if "localhost.localdomain" in run_id or "centos" in run_id:
-        return "192.168.150.131 / centos"
+        return "centos agent"
     return run_id or "unknown host"
 
 

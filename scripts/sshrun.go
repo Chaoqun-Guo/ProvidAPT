@@ -13,9 +13,12 @@ import (
 )
 
 func main() {
-	host := "192.168.150.129"
-	user := "ubuntu"
-	pass := "ubuntu"
+	host := envDefault("PROVIDAPT_SSH_HOST", "vm-ubuntu-slave.<TAILSCALE_DOMAIN>")
+	user := envDefault("PROVIDAPT_SSH_USER", "ubuntu")
+	pass := os.Getenv("PROVIDAPT_SSH_PASSWORD")
+	if pass == "" {
+		log.Fatal("set PROVIDAPT_SSH_PASSWORD before running")
+	}
 
 	config := &ssh.ClientConfig{
 		User:            user,
@@ -60,6 +63,13 @@ func main() {
 	}
 
 	client.Close()
+}
+
+func envDefault(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func runSSH(client *ssh.Client, cmd string) ([]byte, error) {

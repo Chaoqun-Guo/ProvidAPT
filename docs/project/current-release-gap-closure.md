@@ -33,7 +33,7 @@ Verification commit: `9cdf515e88d7ed28eeaa429a3cd7d7e0354673ad`
 
 ```bash
 go test ./pkg/api ./pkg/config ./internal/storage/format
-PROVIDAPT_VM_HOSTS="ubuntu@192.168.150.129 centos@192.168.150.131 ubuntu@192.168.150.132" \
+PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-slave.<TAILSCALE_DOMAIN> centos@vm-centos-slave.<TAILSCALE_DOMAIN> ubuntu@vm-ubuntu-master.<TAILSCALE_DOMAIN>" \
   bash scripts/deploy/deploy-vms.sh
 bash scripts/deploy/check-storage-budget.sh /var/log/providapt
 ```

@@ -47,10 +47,16 @@ Wrapper:
 ```bash
 bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" \
   action --agent agent-a --state quarantined --note "incident containment"
+make ops-fleet-action \
+  FLEET_AGENTS=agent-a \
+  FLEET_STATE=approved \
+  FLEET_NOTE="host identity reviewed"
 ```
 
 Use `approved` after enrollment review, `quarantined` during active
 investigation, and `revoked` when an agent identity is retired or distrusted.
+The wrapper and Make target can write JSON and Markdown evidence with
+per-agent success or failure details under `build/fleet/`.
 
 ## Lifecycle Plans
 

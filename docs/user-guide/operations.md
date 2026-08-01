@@ -148,6 +148,10 @@ export PROVIDAPT_SERVER_URL=http://<server>:18080
 make ops-fleet-list
 bash scripts/ops/fleet-lifecycle.sh --server "$PROVIDAPT_SERVER_URL" \
   action --agent agent-a,agent-b --state quarantined --note "incident containment"
+make ops-fleet-action \
+  FLEET_AGENTS=agent-a,agent-b \
+  FLEET_STATE=approved \
+  FLEET_NOTE="host identity reviewed"
 make ops-fleet-plan FLEET_OPERATION=cert-rotation FLEET_GROUP=prod FLEET_TAG=linux
 ```
 
@@ -162,6 +166,8 @@ Common lifecycle transitions:
 Use `make ops-fleet-plan` before high-impact lifecycle work. It writes JSON and
 Markdown dry-run evidence under `build/fleet/` for certificate rotation,
 quarantine, and decommissioning.
+Use `make ops-fleet-action` after review to apply enrollment transitions and
+capture per-agent JSON/Markdown action evidence.
 
 ## 7. Secret and TLS Operations
 
@@ -240,7 +246,7 @@ Check certificate expiry:
 make ops-tls-bootstrap \
   TLS_OUT=build/tls \
   TLS_SERVER_CN=cp-0.example.com \
-  TLS_SERVER_SAN="DNS:cp-0.example.com,IP:192.168.150.132" \
+  TLS_SERVER_SAN="DNS:cp-0.example.com,DNS:vm-ubuntu-master.<TAILSCALE_DOMAIN>" \
   TLS_AGENT_CNS="ubuntu-129,centos-131"
 
 make ops-tls-check CERTS="/etc/providapt/tls/server.crt /etc/providapt/tls/agent.crt"

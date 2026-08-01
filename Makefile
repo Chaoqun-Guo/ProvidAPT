@@ -1,11 +1,11 @@
 .PHONY: all build build-core build-ebpf build-userspace build-auth-server generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
-.PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet probe cgroup
+.PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet verify-vm-config probe cgroup
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-auth-server docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-plan ops-siem-verify ops-rbac-audit install-delivery-check observability-pack-check security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit install-delivery-check observability-pack-check security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -29,6 +29,10 @@ BPF_SRC := cmd/bpf/probes
 SBOM_OUT ?= build
 FUZZ_TIME ?= 15s
 COVER_DIR := $(OUTPUT)/coverage
+TAILSCALE_DOMAIN ?= ts.net.example
+VM_CONTROL_HOST ?= vm-ubuntu-master.$(TAILSCALE_DOMAIN)
+PROVIDAPT_VM_HOSTS ?= ubuntu@vm-ubuntu-slave.$(TAILSCALE_DOMAIN) centos@vm-centos-slave.$(TAILSCALE_DOMAIN) ubuntu@$(VM_CONTROL_HOST)
+PROVIDAPT_SERVER_URL ?= http://$(VM_CONTROL_HOST):18080
 
 all: build-core
 
@@ -290,6 +294,12 @@ ops-fleet-list:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
 	bash scripts/ops/fleet-lifecycle.sh --server "$(PROVIDAPT_SERVER_URL)" list
 
+ops-fleet-action:
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
+	@if [ -z "$(FLEET_AGENTS)" ]; then echo 'set FLEET_AGENTS=agent-a,agent-b'; exit 2; fi
+	@if [ -z "$(FLEET_STATE)" ]; then echo 'set FLEET_STATE=approved|quarantined|revoked'; exit 2; fi
+	bash scripts/ops/fleet-lifecycle.sh --server "$(PROVIDAPT_SERVER_URL)" action --agent "$(FLEET_AGENTS)" --state "$(FLEET_STATE)" $(if $(FLEET_NOTE),--note "$(FLEET_NOTE)") --out-json build/fleet/fleet-$(FLEET_STATE)-action.json --out-md build/fleet/fleet-$(FLEET_STATE)-action.md
+
 ops-fleet-plan:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'set PROVIDAPT_SERVER_URL, for example http://localhost:18080'; exit 2; fi
 	@if [ -z "$(FLEET_OPERATION)" ]; then echo 'set FLEET_OPERATION=cert-rotation|decommission|quarantine'; exit 2; fi
@@ -375,12 +385,16 @@ deploy-prod:
 	@sudo bash build/deploy_prod.sh
 
 deploy-vms:
-	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ]; then echo 'usage: make deploy-vms PROVIDAPT_VM_HOSTS="ubuntu@192.168.150.129 centos@192.168.150.131 ubuntu@192.168.150.132" [PROVIDAPT_BIN=build/bin/providaptd]'; exit 2; fi
+	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ]; then echo 'usage: make deploy-vms PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-slave.$(TAILSCALE_DOMAIN) centos@vm-centos-slave.$(TAILSCALE_DOMAIN) ubuntu@vm-ubuntu-master.$(TAILSCALE_DOMAIN)" [PROVIDAPT_BIN=build/bin/providaptd]'; exit 2; fi
 	bash scripts/deploy/deploy-vms.sh
 
 verify-vm-fleet:
-	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make verify-vm-fleet PROVIDAPT_SERVER_URL=http://192.168.150.132:18080 [EXPECTED_COMMIT=...]'; exit 2; fi
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make verify-vm-fleet PROVIDAPT_SERVER_URL=http://vm-ubuntu-master.$(TAILSCALE_DOMAIN):18080 [EXPECTED_COMMIT=...]'; exit 2; fi
 	python3 scripts/deploy/verify-vm-fleet.py --server "$(PROVIDAPT_SERVER_URL)" $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),30)" $(if $(EXPECTED_COMMIT),--expected-commit "$(EXPECTED_COMMIT)") --out-json "$(or $(OUT_DIR),build/deploy)/vm-fleet-verification.json" --out-md "$(or $(OUT_DIR),build/deploy)/vm-fleet-verification.md"
+
+verify-vm-config:
+	@if [ -z "$(PROVIDAPT_CONFIG)" ]; then echo 'usage: make verify-vm-config PROVIDAPT_CONFIG=/path/to/providapt.toml [VM_CONTROL_HOST=$(VM_CONTROL_HOST)]'; exit 2; fi
+	python3 scripts/deploy/configure-vm-endpoints.py "$(PROVIDAPT_CONFIG)" --control-host "$(VM_CONTROL_HOST)"
 
 probe:
 	@bash build/kernel_probe.sh
@@ -553,6 +567,7 @@ help:
 	@echo '  make ops-tls-check CERTS="..." Check TLS certificate expiry'
 	@echo '  make ops-postgres-drill Run PostgreSQL backup/restore drill'
 	@echo '  make ops-fleet-list List control-plane fleet state'
+	@echo '  make ops-fleet-action FLEET_AGENTS=... FLEET_STATE=approved|quarantined|revoked Apply fleet lifecycle action'
 	@echo '  make ops-fleet-plan FLEET_OPERATION=... Generate fleet lifecycle plan'
 	@echo '  make ops-siem-verify Queue and verify SIEM test delivery'
 	@echo '  make ops-rbac-audit PROVIDAPT_CONFIG=... Audit RBAC and tenant scoping'

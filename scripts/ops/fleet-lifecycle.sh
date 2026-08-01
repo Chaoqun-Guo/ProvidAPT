@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage:
   fleet-lifecycle.sh --server URL list [--group GROUP] [--tag TAG]
-  fleet-lifecycle.sh --server URL action --agent AGENT_ID[,AGENT_ID] --state approved|quarantined|revoked [--note NOTE]
+  fleet-lifecycle.sh --server URL action --agent AGENT_ID[,AGENT_ID] --state approved|quarantined|revoked [--note NOTE] [--out-json path] [--out-md path]
   fleet-lifecycle.sh --server URL plan --operation cert-rotation|decommission|quarantine [--agent AGENT_ID[,AGENT_ID]] [--group GROUP] [--tag TAG] [--out-json path] [--out-md path] [--from-file fleet.json]
 
 Wrap common fleet lifecycle operations with safe defaults.
@@ -112,6 +112,70 @@ agent_json_array() {
     }
     printf "]"
   }'
+}
+
+write_action_evidence() {
+  local response="$1"
+  RESPONSE_JSON="$response" python3 - "$state" "$agents" "$note" "$out_json" "$out_md" <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+state, agents, note, out_json, out_md = sys.argv[1:6]
+response = json.loads(os.environ.get("RESPONSE_JSON", "{}").lstrip("\ufeff"))
+generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+results = response.get("results") or []
+failed = int(response.get("failed") or 0)
+succeeded = int(response.get("succeeded") or 0)
+report = {
+    "schema": "providapt.fleet_lifecycle_action.v1",
+    "generated_at": generated_at,
+    "action": state,
+    "requested_agents": [item.strip() for item in agents.split(",") if item.strip()],
+    "note": note,
+    "status": "pass" if failed == 0 else "blocked",
+    "processed": response.get("processed", len(results)),
+    "succeeded": succeeded,
+    "failed": failed,
+    "results": results,
+}
+
+if out_json:
+    target = Path(out_json)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+if out_md:
+    target = Path(out_md)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Fleet Lifecycle Action",
+        "",
+        f"Generated: {generated_at}",
+        f"Action: `{state}`",
+        f"Status: `{report['status']}`",
+        f"Processed: `{report['processed']}`",
+        f"Succeeded: `{succeeded}`",
+        f"Failed: `{failed}`",
+        "",
+        "| Agent | Status | Message |",
+        "| --- | --- | --- |",
+    ]
+    for item in results:
+        lines.append("| `{}` | `{}` | {} |".format(
+            item.get("agent_id", ""),
+            item.get("status", ""),
+            item.get("message", ""),
+        ))
+    if note:
+        lines.extend(["", f"Note: {note}"])
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+print(json.dumps(report, indent=2, sort_keys=True))
+raise SystemExit(1 if failed else 0)
+PY
 }
 
 generate_plan() {
@@ -262,9 +326,20 @@ case "$cmd" in
       printf "%s", $0
     }')"
     payload="{\"agent_ids\":$agent_json,\"action\":\"$state\",\"note\":\"$note_json\"}"
-    curl -fsS -X POST "$server/api/v1/control/fleet" \
+    response="$(curl -fsS -X POST "$server/api/v1/control/fleet" \
       -H "Content-Type: application/json" \
-      -d "$payload"
+      -d "$payload")"
+    if [ -n "$out_json" ] || [ -n "$out_md" ]; then
+      write_action_evidence "$response"
+    else
+      printf '%s\n' "$response"
+      RESPONSE_JSON="$response" python3 - <<'PY'
+import json
+import os
+response = json.loads(os.environ.get("RESPONSE_JSON", "{}").lstrip("\ufeff"))
+raise SystemExit(1 if int(response.get("failed") or 0) else 0)
+PY
+    fi
     ;;
   plan)
     case "$operation" in

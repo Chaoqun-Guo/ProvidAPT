@@ -2,12 +2,12 @@
 # ── vm-proxy-setup.sh ─────────────────────────────────────────────
 # ProvidAPT Linux VM proxy configuration
 #
-# Run this script ON the Linux VM (192.168.150.131, user: camflow)
+# Run this script ON the Linux VM.
 # to configure outbound network access through the Windows host proxy.
 #
 # Usage:
-#   scp scripts/vm-proxy-setup.sh camflow@192.168.150.131:~/
-#   ssh camflow@192.168.150.131 "bash ~/vm-proxy-setup.sh"
+#   scp scripts/vm-proxy-setup.sh user@vm-host:~/
+#   ssh user@vm-host "bash ~/vm-proxy-setup.sh"
 #
 # Prerequisites:
 #   - Windows host proxy at http://127.0.0.1:7890 must listen on

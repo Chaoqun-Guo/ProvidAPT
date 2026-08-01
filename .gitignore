@@ -27,6 +27,8 @@ vendor/
 *.prof
 coverage.html
 coverage.out
+__pycache__/
+*.py[cod]
 
 # --- Go Workspace ---
 go.work

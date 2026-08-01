@@ -59,7 +59,7 @@ After building `build/bin/providaptd`, deploy without leaving large archives on
 the VMs:
 
 ```bash
-PROVIDAPT_VM_HOSTS="ubuntu@192.168.150.129 centos@192.168.150.131 ubuntu@192.168.150.132" \
+PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-slave.<TAILSCALE_DOMAIN> centos@vm-centos-slave.<TAILSCALE_DOMAIN> ubuntu@vm-ubuntu-master.<TAILSCALE_DOMAIN>" \
   bash scripts/deploy/deploy-vms.sh
 ```
 

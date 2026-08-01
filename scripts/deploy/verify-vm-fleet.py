@@ -55,6 +55,23 @@ def report_age(agent: dict[str, Any], default: int = 999999) -> int:
         return default
 
 
+def agent_summary(agent: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "agent_id": str(agent.get("agent_id") or agent.get("hostname") or "unknown"),
+        "hostname": str(agent.get("hostname") or ""),
+        "status": str(agent.get("status") or ""),
+        "status_reason": str(agent.get("status_reason") or ""),
+        "last_report_age_seconds": report_age(agent),
+        "last_report_at": str(agent.get("last_report_at") or ""),
+        "version": str(agent.get("version") or ""),
+        "attachment_mode": str(agent.get("attachment_mode") or ""),
+        "enrollment_status": str(agent.get("enrollment_status") or ""),
+        "graph_nodes": agent.get("graph_nodes", 0),
+        "graph_edges": agent.get("graph_edges", 0),
+        "alerts": agent.get("alert_count", 0),
+    }
+
+
 def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
     failures: list[str] = []
     warnings: list[str] = []
@@ -74,6 +91,7 @@ def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
     if not isinstance(agents, list):
         failures.append("fleet agents is not a list")
         agents = []
+    agent_summaries = sorted([agent_summary(agent) for agent in agents], key=lambda item: item["agent_id"])
     healthy = [agent for agent in agents if str(agent.get("status", "")).upper() == "HEALTHY"]
     if len(agents) < args.min_agents:
         failures.append(f"fleet has {len(agents)} agents, expected at least {args.min_agents}")
@@ -107,6 +125,7 @@ def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
         "overview_healthy_agents": overview.get("healthy_agents", 0),
         "max_report_age_seconds": max([report_age(agent, 0) for agent in agents] or [0]),
         "agent_versions": versions,
+        "agent_details": agent_summaries,
         "graph_elements": len(graph_elements) if isinstance(graph_elements, list) else 0,
         "alerts": alert_count,
         "dashboard_markers": {marker: marker in html for marker in args.dashboard_markers},
@@ -137,6 +156,17 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(["## Warnings", ""])
         lines.extend(f"- {item}" for item in report["warnings"])
         lines.append("")
+    lines.extend(["## Agents", ""])
+    lines.append("| Agent | Hostname | Status | Age | Attachment | Enrollment | Alerts |")
+    lines.append("| --- | --- | --- | ---: | --- | --- | ---: |")
+    for agent in report.get("agent_details", []):
+        reason = f" ({agent['status_reason']})" if agent.get("status_reason") else ""
+        lines.append(
+            f"| `{agent['agent_id']}` | `{agent['hostname']}` | `{agent['status']}{reason}` | "
+            f"`{agent['last_report_age_seconds']}s` | `{agent['attachment_mode']}` | "
+            f"`{agent['enrollment_status']}` | `{agent['alerts']}` |"
+        )
+    lines.append("")
     lines.extend(["## Dashboard Markers", ""])
     lines.extend(f"- `{key}`: {value}" for key, value in report["dashboard_markers"].items())
     lines.append("")
@@ -145,7 +175,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify a deployed ProvidAPT control plane and reporting VM fleet.")
-    parser.add_argument("--server", required=True, help="Control-plane base URL, for example http://192.168.150.132:18080")
+    parser.add_argument("--server", required=True, help="Control-plane base URL, for example http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080")
     parser.add_argument("--api-key", default="")
     parser.add_argument("--min-agents", type=int, default=3)
     parser.add_argument("--min-healthy", type=int, default=3)

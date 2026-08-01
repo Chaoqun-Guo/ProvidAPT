@@ -9,8 +9,8 @@ Claude, or another coding agent.
 - Handoff commit: `65a6f25 fix: stabilize trace svg legend and clusters`
 - Portable archive: `ProvidAPT-macbook-dev-65a6f25.tar.gz`
 - Archive checksum file: `ProvidAPT-macbook-dev-65a6f25.tar.gz.sha256`
-- VM state at handoff: `192.168.150.129`, `192.168.150.131`, and
-  `192.168.150.132` were cleaned, ProvidAPT services were stopped, and shutdown
+- VM state at handoff: `vm-ubuntu-slave`, `vm-centos-slave`, and
+  `vm-ubuntu-master` were cleaned, ProvidAPT services were stopped, and shutdown
   commands were issued.
 
 ## MacBook Setup
@@ -78,7 +78,7 @@ Claude, or another coding agent.
 - Evaluation guide: `docs/getting-started/evaluation.md`
 - Training script entry: `scripts/evaluation/train_graph_detector.py`
 - Previous GPU training server used by the project:
-  - Host: `guocq@192.168.0.102`
+  - Host: `guocq@guocq-cslab`
   - Conda env: `torch_py310`
 - Do not assume VM-collected training data is present in this archive unless it
   is explicitly copied separately. Generated datasets and large `.ndjson` files
@@ -115,13 +115,15 @@ go build -o build/bin/providaptd-darwin ./cmd/agent/daemon
 
 ## VM Deployment Notes
 
-Previous test VMs:
+Current test VMs are reachable through Tailscale MagicDNS. Prefer domain names
+for deployment, verification, telemetry, and policy endpoints. Keep the real
+tailnet suffix and VM passwords in local secret storage; do not commit them.
 
-| Role | Address | User | Password |
-| --- | --- | --- | --- |
-| Ubuntu agent | `192.168.150.129` | `ubuntu` | `ubuntu` |
-| CentOS agent | `192.168.150.131` | `centos` | `centos` |
-| Ubuntu control/server | `192.168.150.132` | `ubuntu` | `ubuntu` |
+| Role                  | Address                                 | User     | Password |
+| --------------------- | --------------------------------------- | -------- | -------- |
+| Ubuntu agent          | `vm-ubuntu-slave.<TAILSCALE_DOMAIN>`    | `ubuntu` | local secret |
+| CentOS agent          | `vm-centos-slave.<TAILSCALE_DOMAIN>`    | `centos` | local secret |
+| Ubuntu control/server | `vm-ubuntu-master.<TAILSCALE_DOMAIN>`   | `ubuntu` | local secret |
 
 Service path on VMs:
 
@@ -137,10 +139,27 @@ scp build/bin/providaptd-linux-amd64 user@host:/tmp/providaptd
 ssh user@host 'sudo install -m 0755 /tmp/providaptd /usr/local/sbin/providaptd && sudo systemctl restart providapt.service'
 ```
 
-The control plane was typically verified on:
+Agent configs should point to the control-plane domain instead of any legacy
+private IP address:
+
+```yaml
+telemetry:
+  endpoint: "vm-ubuntu-master.<TAILSCALE_DOMAIN>:50051"
+policy:
+  endpoint: "http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080"
+```
+
+Validate a copied config before deployment:
+
+```bash
+make verify-vm-config PROVIDAPT_CONFIG=/path/to/providapt.toml \
+  VM_CONTROL_HOST=vm-ubuntu-master.<TAILSCALE_DOMAIN>
+```
+
+The control plane is verified on:
 
 ```text
-http://192.168.150.132:18080/dashboard
+http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
 ```
 
 ## Important Repository Hygiene

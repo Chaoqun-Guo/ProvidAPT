@@ -140,7 +140,8 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 Deploy to the VM fleet:
 
 ```bash
-export PROVIDAPT_VM_HOSTS="ubuntu@192.168.150.129 centos@192.168.150.131 ubuntu@192.168.150.132"
+export TAILSCALE_DOMAIN=<TAILSCALE_DOMAIN>
+export PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-slave.${TAILSCALE_DOMAIN} centos@vm-centos-slave.${TAILSCALE_DOMAIN} ubuntu@vm-ubuntu-master.${TAILSCALE_DOMAIN}"
 make deploy-vms
 ```
 
@@ -148,13 +149,32 @@ make deploy-vms
 stub error string unless `PROVIDAPT_ALLOW_BPF_STUB=1` is set for an explicit
 test-only deployment. It verifies the remote SHA-256, removes transient
 `providapt-*.ndjson` and `alerts*.ndjson` files before restart, waits for
-`providapt.service` to become active, and reports log-directory size.
+`providapt.service` to become active, enables the service for reboot
+persistence by default, and reports log-directory size.
+
+Agent configs should use the Tailscale control-plane domain for both gRPC
+telemetry and REST policy pulls:
+
+```yaml
+telemetry:
+  endpoint: "vm-ubuntu-master.<TAILSCALE_DOMAIN>:50051"
+policy:
+  endpoint: "http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080"
+```
+
+Validate a local or copied config before rollout:
+
+```bash
+make verify-vm-config \
+  PROVIDAPT_CONFIG=/path/to/providapt.toml \
+  VM_CONTROL_HOST=vm-ubuntu-master.<TAILSCALE_DOMAIN>
+```
 
 Verify the control plane and reporting agents:
 
 ```bash
 make verify-vm-fleet \
-  PROVIDAPT_SERVER_URL=http://192.168.150.132:18080 \
+  PROVIDAPT_SERVER_URL=http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080 \
   EXPECTED_COMMIT="$(git rev-parse --short HEAD)" \
   OUT_DIR=build/deploy
 ```
