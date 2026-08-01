@@ -325,6 +325,50 @@ The generated plan records the report command, retention budget, systemd timer
 metadata, and Kubernetes CronJob schedule. Treat it as the approval artifact
 before wiring the schedule into customer automation.
 
+Gate policy approval workflow evidence after RBAC and compliance status are
+captured:
+
+```bash
+make policy-approval-gate \
+  RBAC_AUDIT=build/rbac/rbac-audit.json \
+  COMPLIANCE_STATUS=build/compliance/compliance-status.json \
+  AUDIT_LOG=build/audit/control-audit.json \
+  REQUIRE_APPROVAL_AUDIT=1
+```
+
+Gate backup, restore, and cutover evidence:
+
+```bash
+make backup-readiness-gate \
+  BACKUP_SUMMARY=build/backup/backup-summary.json \
+  REQUIRE_BACKUP_RESTORE=1 \
+  REQUIRE_BACKUP_CUTOVER=1 \
+  REQUIRE_BACKUP_DOWNLOAD=1
+```
+
+Gate support bundle redaction and audit evidence:
+
+```bash
+make support-bundle-gate \
+  SUPPORT_SUMMARY=build/support/support-bundle-summary.json \
+  REQUIRE_SUPPORT_ARCHIVE=1 \
+  REQUIRE_SUPPORT_REDACTED=1 \
+  REQUIRE_SUPPORT_AUDIT=1 \
+  REQUIRE_SUPPORT_DOWNLOAD=1
+```
+
+Gate runtime deployment diagnostics saved from `/api/v1/status`:
+
+```bash
+make deployment-diagnostics-gate \
+  STATUS_JSON=build/deploy/status.json \
+  REQUIRE_API_AUTH=1 \
+  REQUIRE_TLS=1 \
+  REQUIRE_STORAGE_ENCRYPTION=1 \
+  REQUIRE_POLICY_SYNC=1 \
+  REQUIRE_KERNEL_ATTACH=1
+```
+
 ## 8. Operations Readiness
 
 After constrained VM deployment, capture deployment evidence from the control
@@ -339,6 +383,62 @@ make verify-vm-fleet \
 The report verifies dashboard cluster actions, graph export, alert workflow
 access, agent health, and telemetry freshness. Store the JSON/Markdown outputs
 with the deployment handoff record.
+
+Capture dashboard and Trace Viewer screenshots for visual regression review:
+
+```bash
+make visual-regression-snapshots \
+  PROVIDAPT_SERVER_URL=http://<server>:18080 \
+  ALERT_ID=p:100
+```
+
+The helper writes PNG screenshots plus JSON/Markdown manifests under
+`build/visual-regression/` for `1366x768`, `1920x1080`, and ultrawide
+viewports. Pass `BASELINE=build/visual-regression/visual-regression-snapshots.json`
+to compare current screenshot hashes against a previous manifest. Use
+`DRY_RUN=1` to validate the screenshot plan without launching a browser.
+
+Gate captured screenshot evidence before release:
+
+```bash
+make visual-regression-gate \
+  VISUAL_REGRESSION_MANIFEST=build/visual-regression/visual-regression-snapshots.json
+```
+
+The gate requires captured dashboard and Trace Viewer screenshots for
+`1366x768`, `1920x1080`, and `2560x1080`, verifies screenshot files and hashes
+are present, and blocks baseline changes unless `WARN_ON_VISUAL_CHANGED=1` is
+set for a controlled review. Dashboard responsive rules live in the embedded
+static asset `pkg/api/static/dashboard-responsive.css`, served at
+`/assets/dashboard-responsive.css`.
+
+Validate capture/enrichment field coverage from VM or evaluation NDJSON before
+training or customer evidence review:
+
+```bash
+make capture-enrichment-field-gate \
+  EVENTS=build/vm-training/attack_events.ndjson \
+  OUT_DIR=build/capture-quality
+```
+
+The report checks event type, PID/PPID, UID/GID, command line, executable path,
+file pathname, and network tuple coverage, then writes JSON/Markdown evidence
+under `build/capture-quality/`.
+
+Gate activation-server integration evidence before commercialization review:
+
+```bash
+make activation-server-gate \
+  CUSTOMER_REGISTRY=build/auth/customers.json \
+  ACTIVATION_AUDIT=build/auth/activations.jsonl
+```
+
+For a live auth server probe, add `AUTH_SERVER_URL`, `ACTIVATION_CODE`, and a
+test `MACHINE_FINGERPRINT`; add `NEGATIVE_FINGERPRINT` when the registry should
+reject an unentitled machine. The gate validates entitlement completeness,
+fingerprint scoping, issued/rejected audit records, hashed activation-code
+audit evidence, and optional live activation responses without writing raw
+activation codes to its report.
 
 Aggregate enterprise delivery evidence after release gates, secret backend
 handoff, PostgreSQL drills, detection quality, RBAC audit, and scheduled report
@@ -385,15 +485,28 @@ make operations-readiness-gate \
   UPGRADE_ROLLOUT=build/upgrade/rollout-plan.json \
   SIEM_VERIFY=build/siem/siem-verification.json \
   RBAC_AUDIT=build/rbac/rbac-audit.json \
+  POLICY_APPROVAL_GATE=build/policy-approval/policy-approval-gate.json \
+  BACKUP_READINESS_GATE=build/backup/backup-readiness-gate.json \
+  SUPPORT_BUNDLE_GATE=build/support/support-bundle-gate.json \
+  DEPLOYMENT_DIAGNOSTICS_GATE=build/deploy/deployment-diagnostics-gate.json \
   INSTALL_DELIVERY_CHECK=build/install-delivery/install-delivery-check.json \
   OBSERVABILITY_PACK_CHECK=build/observability/observability-pack-check.json \
   SECURITY_HARDENING_GATE=build/security-hardening/security-hardening-gate.json
 ```
 
-The operations readiness gate blocks when production foundation, detection/ML evidence, fleet
-health, soak stability, upgrade rollout, SIEM/SOAR delivery, RBAC audit,
-installation handoff, observability pack, or security hardening evidence is
+The operations readiness gate blocks when production foundation, detection/ML
+evidence, fleet health, soak stability, upgrade rollout, SIEM/SOAR delivery,
+RBAC audit, policy approval, backup readiness, support bundle evidence,
+deployment diagnostics, installation handoff, observability pack, visual
+regression, capture/enrichment coverage, or security hardening evidence is
 missing or failed.
+
+Close commercialization readiness with activation evidence included:
+
+```bash
+make commercialization-readiness-gate \
+  ACTIVATION_SERVER_GATE=build/activation/activation-server-gate.json
+```
 
 For large investigations, the dashboard graph summary groups nodes into
 clusters and high-degree hubs. Use `Inspect` to view a collapsed cluster,

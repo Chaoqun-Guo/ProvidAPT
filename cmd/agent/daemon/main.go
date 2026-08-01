@@ -1421,13 +1421,15 @@ func main() {
 	aptCfg.Quiet = cfg.Analyzer.Quiet
 	aptCfg.OnlineMLEnabled = cfg.Analyzer.OnlineMLEnabled
 	aptCfg.MLModelDir = cfg.Analyzer.MLModelDir
+	aptCfg.MLDeployGatePath = cfg.Analyzer.MLDeployGatePath
+	aptCfg.RequireMLDeployGate = cfg.Analyzer.RequireMLDeployGate
 	aptCfg.MLThreshold = cfg.Analyzer.MLThreshold
 	aptCfg.MLMinNodes = cfg.Analyzer.MLMinNodes
 	aptCfg.MLMinEdges = cfg.Analyzer.MLMinEdges
 	apt := analyzer.New(graph, aptCfg)
 	apt.Start()
 	defer apt.Stop()
-	logx.System().Info("taint analysis configured", "scan_interval", aptCfg.ScanInterval.String(), "online_ml", aptCfg.OnlineMLEnabled, "ml_model_dir", aptCfg.MLModelDir)
+	logx.System().Info("taint analysis configured", "scan_interval", aptCfg.ScanInterval.String(), "online_ml", aptCfg.OnlineMLEnabled, "ml_model_dir", aptCfg.MLModelDir, "ml_deploy_gate", aptCfg.MLDeployGatePath, "require_ml_deploy_gate", aptCfg.RequireMLDeployGate)
 
 	// ── Connect sketch integrator (graph anomaly detection) ──
 	si := analyzer.NewSketchIntegrator(analyzer.DefaultSketchConfig())
@@ -3658,14 +3660,16 @@ loop:
 				}
 				// Reload analyzer config (atomic pointer swap)
 				newAptCfg := &analyzer.Config{
-					ScanInterval:       time.Duration(newCfg.Analyzer.ScanInterval.Duration),
-					DeepTaintThreshold: newCfg.Analyzer.DeepTaintThreshold,
-					Quiet:              newCfg.Analyzer.Quiet,
-					OnlineMLEnabled:    newCfg.Analyzer.OnlineMLEnabled,
-					MLModelDir:         newCfg.Analyzer.MLModelDir,
-					MLThreshold:        newCfg.Analyzer.MLThreshold,
-					MLMinNodes:         newCfg.Analyzer.MLMinNodes,
-					MLMinEdges:         newCfg.Analyzer.MLMinEdges,
+					ScanInterval:        time.Duration(newCfg.Analyzer.ScanInterval.Duration),
+					DeepTaintThreshold:  newCfg.Analyzer.DeepTaintThreshold,
+					Quiet:               newCfg.Analyzer.Quiet,
+					OnlineMLEnabled:     newCfg.Analyzer.OnlineMLEnabled,
+					MLModelDir:          newCfg.Analyzer.MLModelDir,
+					MLDeployGatePath:    newCfg.Analyzer.MLDeployGatePath,
+					RequireMLDeployGate: newCfg.Analyzer.RequireMLDeployGate,
+					MLThreshold:         newCfg.Analyzer.MLThreshold,
+					MLMinNodes:          newCfg.Analyzer.MLMinNodes,
+					MLMinEdges:          newCfg.Analyzer.MLMinEdges,
 				}
 				for _, p := range newCfg.Analyzer.EnablePatterns {
 					newAptCfg.EnablePatterns = append(newAptCfg.EnablePatterns, analyzer.PatternID(p))

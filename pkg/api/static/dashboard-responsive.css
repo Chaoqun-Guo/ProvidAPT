@@ -1,0 +1,75 @@
+/* Dashboard viewport optimization and panel density rules. */
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .dashboard-shell {
+    grid-template-columns: 218px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 14px 14px;
+  }
+  .workspace-nav {
+    padding: 8px 14px 0;
+  }
+  .content {
+    gap: 10px;
+    grid-auto-rows: 7px !important;
+  }
+  .metrics {
+    grid-template-columns: repeat(6, minmax(104px, 1fr));
+    gap: 6px;
+  }
+  .dashboard-sidebar {
+    padding: 10px;
+  }
+  .dashboard-panel .panel-body {
+    padding: 8px 10px;
+  }
+  .dashboard-panel[data-panel-id="control-plane-summary"],
+  .dashboard-panel[data-panel-id="operations-summary"],
+  .dashboard-panel[data-panel-id="module-quality-review"] {
+    min-height: 132px !important;
+  }
+}
+
+@media (min-width: 1800px) and (max-width: 2299px) {
+  .dashboard-shell {
+    grid-template-columns: 252px minmax(0, 1fr);
+    max-width: 1960px;
+    margin: 0 auto;
+  }
+  .content {
+    grid-template-columns: repeat(2, minmax(620px, 1fr));
+    gap: 14px;
+  }
+  .metrics {
+    grid-template-columns: repeat(6, minmax(150px, 1fr));
+  }
+  .dashboard-panel[data-panel-id="alert-workflow"],
+  .dashboard-panel[data-panel-id="policy-center"],
+  .dashboard-panel[data-panel-id="agent-overview"] {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 2300px) {
+  .dashboard-shell {
+    grid-template-columns: 268px minmax(0, 1fr);
+    max-width: 2560px;
+    margin: 0 auto;
+  }
+  .content {
+    grid-template-columns: repeat(3, minmax(480px, 1fr));
+    gap: 14px;
+  }
+  .metrics {
+    grid-template-columns: repeat(6, minmax(160px, 1fr));
+  }
+  .dashboard-panel[data-panel-id="alert-workflow"],
+  .dashboard-panel[data-panel-id="policy-center"],
+  .dashboard-panel[data-panel-id="agent-overview"] {
+    grid-column: span 2;
+  }
+  .dashboard-panel[data-panel-id="control-plane-summary"],
+  .dashboard-panel[data-panel-id="module-quality-review"],
+  .dashboard-panel[data-panel-id="operations-summary"] {
+    grid-column: span 1;
+  }
+}

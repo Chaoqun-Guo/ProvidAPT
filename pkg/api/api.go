@@ -1430,6 +1430,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/evaluation/ground-truth", s.jsonHandler(s.handleGroundTruth))
 	mux.HandleFunc("/api/v1/evaluation/correlation", s.jsonHandler(s.handleGroundTruthCorrelation))
 	mux.HandleFunc("/api/v1/investigation/report", s.jsonHandler(s.handleInvestigationReport))
+	mux.HandleFunc("/assets/dashboard-responsive.css", s.handleDashboardResponsiveCSS)
 	mux.HandleFunc("/dashboard", s.handleDashboard)
 	mux.HandleFunc("/", s.handleDashboard)
 	mux.HandleFunc("/api/v1/events/recent", s.jsonHandler(s.handleEventRecent))
@@ -2763,7 +2764,7 @@ func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) error {
 	})
 }
 
-func (s *Server) handleAlertSVG(w http.ResponseWriter, _ *http.Request, path string) error {
+func (s *Server) handleAlertSVG(w http.ResponseWriter, r *http.Request, path string) error {
 	// Parse: <id>/svg or <id>/svg/view
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 || parts[1] != "svg" {
@@ -2779,7 +2780,7 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, _ *http.Request, path str
 		return err
 	}
 
-	svg := generateAlertSVG(alertID, s.graph)
+	svg := generateAlertSVGWithLayout(alertID, s.graph, r.URL.Query().Get("layout"))
 	w.Header().Set("Content-Type", "image/svg+xml")
 	_, err := w.Write(svg)
 	return err

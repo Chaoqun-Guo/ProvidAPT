@@ -61,6 +61,7 @@ def recommended_action(section_name: str) -> str:
     return {
         "release_gates": "Attach passing CI, scanner, approval, and artifact gate evidence.",
         "dist_artifacts": "Rebuild final release artifacts and regenerate checksums, signatures, SBOMs, and readiness report.",
+        "artifact_signing": "Run artifact-signing-gate and fix checksum, artifact hash, or signature evidence failures.",
         "package_smoke": "Run package smoke tests on approved disposable Linux hosts or containers.",
         "production_readiness": "Run production-readiness-gate after secrets, TLS, PostgreSQL, and fleet evidence are available.",
         "ml_readiness": "Run ml-readiness-gate after VM capture, ground-truth matching, training, and evaluation.",

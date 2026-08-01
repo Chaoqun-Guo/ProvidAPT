@@ -155,6 +155,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: layout
+          in: query
+          required: false
+          description: Optional SVG layout mode.
+          schema:
+            type: string
+            enum: [tree, compact, timeline, grouped]
       responses:
         "200":
           description: SVG image
@@ -163,6 +170,80 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  /api/v1/alerts/{id}/svg/view:
+    get:
+      summary: Interactive alert trace viewer
+      description: Returns the browser-based Trace Viewer for an alert, including layout controls, element details, and export links.
+      operationId: getAlertSVGViewer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Interactive Trace Viewer HTML
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/v1/investigation/report:
+    get:
+      summary: Investigation report
+      description: Builds a focused provenance investigation report from a node ID or PID. JSON is returned by default; pass `format=markdown` for an incident-handoff Markdown report.
+      operationId: getInvestigationReport
+      parameters:
+        - name: node
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Start node ID, such as `p:1234`. Either `node` or `pid` is required.
+        - name: pid
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Process ID shorthand. Used as `p:<pid>` when `node` is omitted.
+        - name: direction
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [backward, forward]
+            default: backward
+          description: Trace direction.
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+          description: Maximum graph traversal depth.
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, markdown]
+            default: json
+          description: Response format. Any value other than `markdown` returns JSON.
+      responses:
+        "200":
+          description: Investigation report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestigationReport"
+            text/markdown:
+              schema:
+                type: string
+        "500":
+          description: Invalid request or trace error
 
   /api/v1/admin/reload:
     post:
@@ -511,6 +592,100 @@ components:
               type: string
             class:
               type: string
+
+    InvestigationReport:
+      type: object
+      required:
+        - generated_at
+        - start_node
+        - direction
+        - depth
+        - node_count
+        - edge_count
+        - risk_summary
+        - key_observations
+        - nodes
+        - edges
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        start_node:
+          type: string
+          example: p:1234
+        direction:
+          type: string
+          enum: [backward, forward]
+        depth:
+          type: integer
+        node_count:
+          type: integer
+        edge_count:
+          type: integer
+        process_count:
+          type: integer
+        file_count:
+          type: integer
+        network_count:
+          type: integer
+        risk_summary:
+          type: string
+        key_observations:
+          type: array
+          items:
+            type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvestigationNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvestigationEdge"
+
+    InvestigationNode:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          example: process
+        prov_type:
+          type: string
+        first_seen:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        attributes:
+          type: object
+          additionalProperties: true
+
+    InvestigationEdge:
+      type: object
+      required: [id, source, target, relation]
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+        relation:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        count:
+          type: integer
+        attributes:
+          type: object
+          additionalProperties: true
 
     ClusterOverview:
       type: object

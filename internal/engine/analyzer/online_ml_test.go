@@ -4,6 +4,8 @@
 package analyzer
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -44,6 +46,52 @@ func TestOnlineMLScorerEmitsGraphAnomaly(t *testing.T) {
 	}
 	if alert.AlertNodeID == "" || alert.Reason == "" {
 		t.Fatalf("incomplete alert: %+v", alert)
+	}
+	if alert.Metadata["model_version"] != "test-gat" || alert.Metadata["model_name"] != "graph-detector" {
+		t.Fatalf("missing ML metadata: %+v", alert.Metadata)
+	}
+	gateMetadata, ok := alert.Metadata["deploy_gate"].(map[string]interface{})
+	if !ok || gateMetadata["status"] != "" {
+		t.Fatalf("unexpected deploy gate metadata: %+v", alert.Metadata["deploy_gate"])
+	}
+	var buf bytes.Buffer
+	if err := SerializeAlertJSON(&buf, []*Alert{alert}); err != nil {
+		t.Fatalf("SerializeAlertJSON: %v", err)
+	}
+	var serialized []map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &serialized); err != nil {
+		t.Fatalf("decode alert JSON: %v", err)
+	}
+	metadata, ok := serialized[0]["metadata"].(map[string]interface{})
+	if !ok || metadata["model_version"] != "test-gat" {
+		t.Fatalf("serialized metadata = %#v", serialized[0]["metadata"])
+	}
+}
+
+func TestOnlineMLScorerRequiresDeployGate(t *testing.T) {
+	_, err := NewOnlineMLScorer(OnlineMLConfig{ModelDir: t.TempDir(), RequireDeployGate: true})
+	if err == nil {
+		t.Fatal("expected missing deploy gate to block scorer")
+	}
+}
+
+func TestOnlineMLScorerLoadsPassingDeployGate(t *testing.T) {
+	dir := t.TempDir()
+	registry := `{"models":[{"model_name":"graph-detector","model_version":"approved"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "model-registry.json"), []byte(registry), 0644); err != nil {
+		t.Fatal(err)
+	}
+	gate := `{"schema":"providapt.model_deploy_gate.v1","status":"pass","model_name":"graph-detector","model_version":"approved"}`
+	gatePath := filepath.Join(dir, "model-deploy-gate.json")
+	if err := os.WriteFile(gatePath, []byte(gate), 0644); err != nil {
+		t.Fatal(err)
+	}
+	scorer, err := NewOnlineMLScorer(OnlineMLConfig{ModelDir: dir, RequireDeployGate: true})
+	if err != nil {
+		t.Fatalf("NewOnlineMLScorer: %v", err)
+	}
+	if scorer.DeployGatePath() != gatePath || scorer.DeployGateStatus() != "pass" {
+		t.Fatalf("deploy gate evidence not loaded: path=%q status=%q", scorer.DeployGatePath(), scorer.DeployGateStatus())
 	}
 }
 

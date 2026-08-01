@@ -45,7 +45,14 @@ Folded boxes show:
 - full member list in the SVG `<title>` tooltip
 
 In the Trace Viewer, use `Clusters` to highlight folded groups. Use search to
-match cluster member IDs, paths, commands, or event labels.
+match cluster member IDs, paths, commands, or event labels. Select a node, edge,
+or folded cluster to open a structured details panel with source, target,
+relation, event, command line, path, and fold metadata where available.
+
+The raw SVG endpoint accepts `layout=tree`, `layout=compact`,
+`layout=timeline`, or `layout=grouped`. The viewer can switch between the same
+layout modes after load and recalculates visible edge paths for the selected
+view.
 
 This keeps process, file, and network structure readable while preserving the
 event table for detailed relation review.
@@ -94,6 +101,9 @@ are counted as collapsed rows to avoid very long pages.
 | PROV-JSON | `.json` | Machine analysis and custom tooling |
 | GraphML | `.graphml` | yEd, Gephi, or offline graph exploration |
 | SVG | `.svg` | Browser review, tickets, and report evidence |
+| PNG | `.png` | Visual regression baselines and ticket attachments |
+| Markdown report | `.md` | Incident handoff and analyst notes |
+| JSON report | `.json` | Automation and downstream case systems |
 | Markdown | `.md` | Analyst handoff and incident review |
 
 Example:

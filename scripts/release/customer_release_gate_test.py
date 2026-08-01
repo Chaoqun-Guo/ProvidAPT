@@ -40,6 +40,14 @@ class CustomerReleaseGateTest(unittest.TestCase):
         values = {
             "release_gates": str(self.write_json("release-gates.json", {"gates": [{"name": "ci", "status": "pass"}]})),
             "dist_dir": str(self.tmp / "dist"),
+            "artifact_signing_gate": str(self.write_json("artifact-signing.json", {
+                "schema": "providapt.artifact_signing_gate.v1",
+                "status": "pass",
+                "artifact_count": 5,
+                "signature": {"format": "providapt-ed25519", "verification": "structural_and_message_hash"},
+                "failures": [],
+                "warnings": [],
+            })),
             "package_smoke_dir": str(self.tmp / "package-smoke"),
             "production_readiness_gate": str(self.write_json("production.json", {"status": "pass"})),
             "ml_readiness_gate": str(self.write_json("ml.json", {"status": "pass"})),
@@ -77,6 +85,7 @@ class CustomerReleaseGateTest(unittest.TestCase):
         report = subject.build_report(self.make_args())
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["sections"]["dist_artifacts"]["status"], "pass")
+        self.assertEqual(report["sections"]["artifact_signing"]["status"], "pass")
         self.assertIn("Customer Release Gate", subject.render_markdown(report))
 
     def test_build_report_blocks_on_missing_dist_artifact(self):
@@ -85,6 +94,12 @@ class CustomerReleaseGateTest(unittest.TestCase):
         report = subject.build_report(self.make_args())
         self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["sections"]["dist_artifacts"]["status"], "blocked")
+
+    def test_build_report_blocks_on_missing_artifact_signing_gate(self):
+        self.populate_dist_and_smoke()
+        report = subject.build_report(self.make_args(artifact_signing_gate=str(self.tmp / "missing-artifact-signing.json")))
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["sections"]["artifact_signing"]["status"], "blocked")
 
     def test_skipped_ci_can_be_controlled_warning(self):
         self.populate_dist_and_smoke()

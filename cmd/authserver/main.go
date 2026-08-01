@@ -116,20 +116,20 @@ func handleActivate(w http.ResponseWriter, r *http.Request) {
 	code := strings.TrimSpace(req.ActivationCode)
 	entitlement, registryEnabled, err := resolveEntitlement(code)
 	if err != nil {
-		writeActivationFailure(w, http.StatusForbidden, code, strings.TrimSpace(req.MachineFingerprint), err.Error())
+		writeActivationFailure(w, code, strings.TrimSpace(req.MachineFingerprint), err.Error())
 		return
 	}
 	expectedCode := strings.TrimSpace(os.Getenv("PROVIDAPT_AUTH_ACTIVATION_CODE"))
 	if !registryEnabled && expectedCode != "" && !hmac.Equal([]byte(code), []byte(expectedCode)) {
-		writeActivationFailure(w, http.StatusForbidden, code, strings.TrimSpace(req.MachineFingerprint), "invalid activation code")
+		writeActivationFailure(w, code, strings.TrimSpace(req.MachineFingerprint), "invalid activation code")
 		return
 	}
 	if registryEnabled && !fingerprintAllowed(strings.TrimSpace(req.MachineFingerprint), entitlement.AllowedFingerprints) {
-		writeActivationFailure(w, http.StatusForbidden, code, strings.TrimSpace(req.MachineFingerprint), "machine fingerprint is not entitled")
+		writeActivationFailure(w, code, strings.TrimSpace(req.MachineFingerprint), "machine fingerprint is not entitled")
 		return
 	}
 	if registryEnabled && entitlement.Disabled {
-		writeActivationFailure(w, http.StatusForbidden, code, strings.TrimSpace(req.MachineFingerprint), "activation entitlement disabled")
+		writeActivationFailure(w, code, strings.TrimSpace(req.MachineFingerprint), "activation entitlement disabled")
 		return
 	}
 	if registryEnabled && strings.TrimSpace(entitlement.ActivationCode) == "" {
@@ -333,7 +333,7 @@ func fingerprintAllowed(fingerprint string, allowed []string) bool {
 	return false
 }
 
-func writeActivationFailure(w http.ResponseWriter, status int, code, fingerprint, message string) {
+func writeActivationFailure(w http.ResponseWriter, code, fingerprint, message string) {
 	appendActivationAudit(activationAuditRecord{
 		Timestamp:            time.Now().UTC().Format(time.RFC3339),
 		Status:               "rejected",
@@ -341,7 +341,7 @@ func writeActivationFailure(w http.ResponseWriter, status int, code, fingerprint
 		MachineFingerprint:   fingerprint,
 		ActivationCodeSHA256: sha256Hex(code),
 	})
-	writeJSON(w, status, map[string]string{"error": message})
+	writeJSON(w, http.StatusForbidden, map[string]string{"error": message})
 }
 
 func appendActivationAudit(record activationAuditRecord) {
@@ -363,7 +363,11 @@ func appendActivationAudit(record activationAuditRecord) {
 		log.Printf("open activation audit: %v", err)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("close activation audit: %v", err)
+		}
+	}()
 	if _, err := file.Write(append(data, '\n')); err != nil {
 		log.Printf("write activation audit: %v", err)
 	}

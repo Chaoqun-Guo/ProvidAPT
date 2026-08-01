@@ -139,6 +139,25 @@ def dist_artifact_detail(path: Path) -> dict[str, Any]:
     }
 
 
+def artifact_signing_detail(report: dict[str, Any]) -> dict[str, Any]:
+    if not report:
+        return {
+            "status": "blocked",
+            "failures": ["artifact signing gate evidence is missing; run make artifact-signing-gate"],
+        }
+    status = status_of(report)
+    signature = report.get("signature") if isinstance(report.get("signature"), dict) else {}
+    return {
+        "status": status,
+        "source_status": report.get("status", "missing"),
+        "artifact_count": report.get("artifact_count", 0),
+        "signature_format": signature.get("format", ""),
+        "signature_verification": signature.get("verification", ""),
+        "failures": list(report.get("failures") or []) if status == "blocked" else [],
+        "warnings": list(report.get("warnings") or []) if status == "warn" else [],
+    }
+
+
 def docs_detail(paths: list[str]) -> dict[str, Any]:
     missing: list[str] = []
     empty: list[str] = []
@@ -195,6 +214,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     sections = {
         "release_gates": release_gate_detail(load_json(Path(args.release_gates)), args.allow_skipped_ci),
         "dist_artifacts": dist_artifact_detail(Path(args.dist_dir)),
+        "artifact_signing": artifact_signing_detail(load_json(Path(args.artifact_signing_gate))),
         "package_smoke": package_smoke_detail(Path(args.package_smoke_dir)),
         "production_readiness": readiness_detail(load_json(Path(args.production_readiness_gate)), "production readiness"),
         "ml_readiness": readiness_detail(load_json(Path(args.ml_readiness_gate)), "ML readiness"),
@@ -246,6 +266,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Aggregate customer-release evidence for commercial delivery.")
     parser.add_argument("--release-gates", default="build/release-gate-status.json")
     parser.add_argument("--dist-dir", default="dist")
+    parser.add_argument("--artifact-signing-gate", default="build/artifact-signing/artifact-signing-gate.json")
     parser.add_argument("--package-smoke-dir", default="build/package-smoke")
     parser.add_argument("--production-readiness-gate", default="build/production-readiness/production-readiness-gate.json")
     parser.add_argument("--ml-readiness-gate", default="build/ml-readiness/ml-readiness-gate.json")

@@ -34,7 +34,7 @@ import (
 // Config
 // ═══════════════════════════════════════════════════════════════
 
-// Config tunes the analyzer's sensitivity and scan behaviour.
+// Config tunes the analyzer's sensitivity and scan behavior.
 type Config struct {
 	// ScanInterval is how often the analyzer takes a snapshot and
 	// re-runs detection.  Shorter intervals catch attacks faster but
@@ -51,11 +51,13 @@ type Config struct {
 	// Quiet mode: only log alerts at SeverityHigh+.
 	Quiet bool
 
-	OnlineMLEnabled bool
-	MLModelDir      string
-	MLThreshold     float64
-	MLMinNodes      int
-	MLMinEdges      int
+	OnlineMLEnabled     bool
+	MLModelDir          string
+	MLDeployGatePath    string
+	RequireMLDeployGate bool
+	MLThreshold         float64
+	MLMinNodes          int
+	MLMinEdges          int
 }
 
 // DefaultConfig returns a sensible starting configuration.
@@ -87,9 +89,8 @@ type Analyzer struct {
 	graph *provenance.Graph
 	cfg   *Config
 
-	mu        sync.Mutex
-	alerts    []*Alert
-	eventBase int // number of events at last scan (for delta detection)
+	mu     sync.Mutex
+	alerts []*Alert
 
 	// AlertCh is consumed by the caller (e.g., main.go) for
 	// real-time notification.
@@ -161,10 +162,12 @@ func (a *Analyzer) configureOnlineML(cfg *Config) {
 		return
 	}
 	scorer, err := NewOnlineMLScorer(OnlineMLConfig{
-		ModelDir:  cfg.MLModelDir,
-		Threshold: cfg.MLThreshold,
-		MinNodes:  cfg.MLMinNodes,
-		MinEdges:  cfg.MLMinEdges,
+		ModelDir:          cfg.MLModelDir,
+		DeployGatePath:    cfg.MLDeployGatePath,
+		RequireDeployGate: cfg.RequireMLDeployGate,
+		Threshold:         cfg.MLThreshold,
+		MinNodes:          cfg.MLMinNodes,
+		MinEdges:          cfg.MLMinEdges,
 	})
 	if err != nil {
 		log.Printf("[analyzer] online ML disabled: %v", err)
@@ -172,8 +175,8 @@ func (a *Analyzer) configureOnlineML(cfg *Config) {
 		return
 	}
 	a.mlScorer = scorer
-	log.Printf("[analyzer] online ML enabled (model=%s version=%s threshold=%.3f)",
-		scorer.ModelName(), scorer.ModelVersion(), scorer.Threshold())
+	log.Printf("[analyzer] online ML enabled (model=%s version=%s threshold=%.3f deploy_gate=%s status=%s)",
+		scorer.ModelName(), scorer.ModelVersion(), scorer.Threshold(), scorer.DeployGatePath(), scorer.DeployGateStatus())
 }
 
 // Alerts returns a copy of all alerts generated so far.

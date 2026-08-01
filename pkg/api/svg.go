@@ -20,6 +20,7 @@ type svgLayout struct {
 	height         int
 	graphH         int
 	scope          string
+	layoutMode     string
 	truncate       bool
 	collapsedNodes int
 }
@@ -30,6 +31,7 @@ type svgNode struct {
 	detail1 string
 	detail2 string
 	typ     string
+	depth   int
 	x       int
 	y       int
 	w       int
@@ -83,11 +85,16 @@ const (
 )
 
 func generateAlertSVG(alertID string, graph *provenance.Graph) []byte {
+	return generateAlertSVGWithLayout(alertID, graph, "tree")
+}
+
+func generateAlertSVGWithLayout(alertID string, graph *provenance.Graph, mode string) []byte {
 	nodes, edges, truncated := focusedGraph(alertID, graph, 4, 80, 120)
 	if len(nodes) == 0 {
 		return defaultSVG("No provenance events are available yet")
 	}
 	layout := layoutGraph(nodes, edges)
+	applyServerSVGLayout(layout, normalizeSVGLayoutMode(mode))
 	layout.scope = alertID
 	layout.truncate = truncated
 	return renderSVG(layout)
@@ -96,6 +103,8 @@ func generateAlertSVG(alertID string, graph *provenance.Graph) []byte {
 func renderTraceSVGViewer(alertID string) []byte {
 	encodedID := url.PathEscape(alertID)
 	rawPath := "/api/v1/alerts/" + encodedID + "/svg"
+	reportPath := "/api/v1/investigation/report?node=" + url.QueryEscape(alertID) + "&direction=backward&depth=5"
+	reportMarkdownPath := reportPath + "&format=markdown"
 	var b strings.Builder
 	fmt.Fprintf(&b, `<!doctype html>
 <html lang="en">
@@ -161,6 +170,7 @@ button, a.tool-link {
   cursor: pointer;
 }
 button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18px rgba(0, 229, 255, 0.18); }
+button.mode-active { border-color: var(--green); color: #d8ffed; box-shadow: inset 0 0 0 1px rgba(25, 242, 138, 0.22); }
 .search {
   height: 30px;
   width: 210px;
@@ -245,9 +255,21 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
 .exec::before { background: #d29922; }
 .context::before { background: #8b949e; }
 .status { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.detail-panel { display: grid; gap: 8px; }
+.detail-empty { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.detail-title { color: #f0f6fc; font-size: 12px; font-weight: 800; overflow-wrap: anywhere; }
+.detail-table { display: grid; gap: 5px; }
+.detail-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: start; }
+.detail-key { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase; }
+.detail-value { color: var(--text); font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; white-space: pre-wrap; }
+.export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.export-grid button { min-width: 0; width: 100%%; }
 .error { color: #ffd7df; border-color: rgba(255, 49, 88, 0.36); }
 .dimmed { opacity: 0.16; }
+.filtered-hidden { display: none; }
 .matched rect { stroke: var(--cyan) !important; stroke-width: 3 !important; filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.55)); }
+.selected rect, .selected path { stroke: var(--cyan) !important; stroke-width: 3 !important; filter: drop-shadow(0 0 9px rgba(0, 229, 255, 0.58)); }
+.node, .edge, .cluster { cursor: pointer; }
 .hide-cross .edge-cross { display: none; }
 .cluster-highlight .cluster rect { stroke: var(--amber) !important; stroke-width: 3 !important; filter: drop-shadow(0 0 10px rgba(255, 176, 32, 0.55)); }
 @media (max-width: 980px) {
@@ -270,13 +292,31 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
     </div>
     <div class="toolbar">
       <input class="search" id="searchBox" placeholder="Search node, event, path, cmdline">
+      <select class="tool-link" id="typeFilter" onchange="setTypeFilter(this.value)" aria-label="Filter trace by node type">
+        <option value="all">All Types</option>
+        <option value="process">Processes</option>
+        <option value="file">Files</option>
+        <option value="network">Network</option>
+        <option value="credential">Credentials</option>
+      </select>
       <button onclick="zoomBy(0.12)">Zoom In</button>
       <button onclick="zoomBy(-0.12)">Zoom Out</button>
       <button onclick="fitWidth()">Fit Width</button>
+      <button data-layout-mode="tree" class="mode-active" onclick="applyLayoutMode('tree')">Tree</button>
+      <button data-layout-mode="compact" onclick="applyLayoutMode('compact')">Compact</button>
+      <button data-layout-mode="timeline" onclick="applyLayoutMode('timeline')">Timeline</button>
+      <button data-layout-mode="grouped" onclick="applyLayoutMode('grouped')">Grouped</button>
+      <button data-collapse-type="file" onclick="toggleTypeCollapse('file')">Fold Files</button>
+      <button data-collapse-type="network" onclick="toggleTypeCollapse('network')">Fold Network</button>
+      <button onclick="expandTrace()">Expand All</button>
       <button onclick="toggleCrossLinks()">Cross Links</button>
       <button onclick="toggleClusters()">Clusters</button>
+      <button onclick="exportPNG()">PNG</button>
+      <button onclick="copyReportSnippet()">Report</button>
       <a class="tool-link" href="%s" target="_blank" rel="noreferrer">Raw SVG</a>
-      <a class="tool-link" href="%s" download="providapt-trace.svg">Download</a>
+      <a class="tool-link" href="%s" download="providapt-trace.svg">SVG</a>
+      <a class="tool-link" href="%s" target="_blank" rel="noreferrer">MD Report</a>
+      <a class="tool-link" href="%s" target="_blank" rel="noreferrer">JSON</a>
     </div>
   </header>
   <main class="viewer">
@@ -307,6 +347,19 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
           <span class="credential">Folded cluster: same layer/type nodes summarized for readability</span>
         </div>
       </div>
+      <div class="card detail-panel">
+        <h2>Selected Element</h2>
+        <div id="detailPanel" class="detail-empty">Select a node, edge, or folded cluster in the trace.</div>
+      </div>
+      <div class="card">
+        <h2>Export</h2>
+        <div class="export-grid">
+          <button onclick="downloadInlineSVG()">SVG</button>
+          <button onclick="exportPNG()">PNG</button>
+          <button onclick="copyReportSnippet()">Report</button>
+          <button onclick="copySelectedDetail()">Detail</button>
+        </div>
+      </div>
       <div class="card status" id="viewerStatus">
         Direction is source -> target. Use search to isolate a path, command line, file path, event type, or process node.
       </div>
@@ -315,9 +368,11 @@ button:hover, a.tool-link:hover { border-color: var(--cyan); box-shadow: 0 0 18p
 </div>
 <script>
 const rawURL = %q;
+const alertID = %q;
 let scale = 1;
 const canvas = document.getElementById('canvas');
 const wrap = document.getElementById('canvasWrap');
+const layoutState = { mode: 'tree', typeFilter: 'all', collapsedTypes: new Set(), searchQuery: '' };
 
 fetch(rawURL, { cache: 'no-store' })
   .then(response => {
@@ -327,6 +382,7 @@ fetch(rawURL, { cache: 'no-store' })
   .then(svg => {
     canvas.innerHTML = svg;
     summarizeTrace();
+    bindTraceDetails();
     fitWidth();
   })
   .catch(error => {
@@ -345,6 +401,228 @@ function summarizeTrace() {
   setMetric('crossCount', canvas.querySelectorAll('.edge-cross').length);
   setMetric('clusterCount', canvas.querySelectorAll('.cluster').length);
 }
+function initLayoutState() {
+  Array.from(canvas.querySelectorAll('.node')).forEach(node => {
+    const rect = node.querySelector('rect');
+    if (!rect) return;
+    node.dataset.originX = String(Number(rect.getAttribute('x')) || 0);
+    node.dataset.originY = String(Number(rect.getAttribute('y')) || 0);
+    node.dataset.width = String(Number(rect.getAttribute('width')) || 0);
+    node.dataset.height = String(Number(rect.getAttribute('height')) || 0);
+    node.dataset.currentX = node.dataset.originX;
+    node.dataset.currentY = node.dataset.originY;
+  });
+  const table = canvas.querySelector('.event-table');
+  const tableRect = table ? table.querySelector('rect') : null;
+  if (tableRect) {
+    table.dataset.originY = String(Number(tableRect.getAttribute('y')) || 0);
+    table.dataset.height = String(Number(tableRect.getAttribute('height')) || 0);
+  }
+}
+function applyLayoutMode(mode) {
+  const svg = currentSVG();
+  if (!svg) return;
+  initLayoutState();
+  layoutState.mode = mode;
+  updateLayoutButtons(mode);
+  const nodes = Array.from(canvas.querySelectorAll('.node'));
+  const groups = {};
+  nodes.forEach(node => {
+    const key = mode === 'grouped' ? (node.dataset.nodeType || 'node') : (node.dataset.depth || '0');
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(node);
+  });
+  const typeOrder = ['process', 'file', 'network', 'credential', 'node'];
+  const keys = Object.keys(groups).sort((a, b) => {
+    if (mode === 'grouped') {
+      const ai = typeOrder.indexOf(a);
+      const bi = typeOrder.indexOf(b);
+      return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi) || a.localeCompare(b);
+    }
+    return Number(a) - Number(b);
+  });
+  const next = new Map();
+  if (mode === 'tree') {
+    nodes.forEach(node => next.set(node, { x: Number(node.dataset.originX), y: Number(node.dataset.originY) }));
+  } else if (mode === 'compact') {
+    keys.forEach((key, col) => {
+      groups[key].forEach((node, row) => next.set(node, { x: 36 + col * 300, y: 96 + row * 78 }));
+    });
+  } else if (mode === 'timeline') {
+    const ordered = nodes.slice().sort((a, b) => Number(a.dataset.originX) - Number(b.dataset.originX) || Number(a.dataset.originY) - Number(b.dataset.originY));
+    ordered.forEach((node, row) => next.set(node, { x: 96 + Number(node.dataset.depth || 0) * 28, y: 96 + row * 88 }));
+  } else {
+    keys.forEach((key, col) => {
+      groups[key].forEach((node, row) => next.set(node, { x: 36 + col * 320, y: 96 + row * 86 }));
+    });
+  }
+  let maxX = 0;
+  let maxY = 0;
+  next.forEach((pos, node) => {
+    const dx = pos.x - Number(node.dataset.originX);
+    const dy = pos.y - Number(node.dataset.originY);
+    node.setAttribute('transform', dx || dy ? 'translate(' + dx + ' ' + dy + ')' : '');
+    node.dataset.currentX = String(pos.x);
+    node.dataset.currentY = String(pos.y);
+    maxX = Math.max(maxX, pos.x + Number(node.dataset.width));
+    maxY = Math.max(maxY, pos.y + Number(node.dataset.height));
+  });
+  rerouteEdges();
+  repositionEventTable(maxY + 60);
+  const table = canvas.querySelector('.event-table');
+  const tableBottom = table ? Number(table.dataset.currentY || table.dataset.originY || 0) + Number(table.dataset.height || 0) : maxY;
+  const width = Math.max(Number(svg.getAttribute('width')) || 0, maxX + 80);
+  const height = Math.max(tableBottom + 40, maxY + 120);
+  svg.setAttribute('width', String(Math.ceil(width)));
+  svg.setAttribute('height', String(Math.ceil(height)));
+  svg.setAttribute('viewBox', '0 0 ' + Math.ceil(width) + ' ' + Math.ceil(height));
+  document.getElementById('viewerStatus').textContent = 'Layout mode: ' + mode + '. Edge paths were recalculated in the viewer.';
+  fitWidth();
+}
+function updateLayoutButtons(mode) {
+  document.querySelectorAll('[data-layout-mode]').forEach(button => {
+    button.classList.toggle('mode-active', button.dataset.layoutMode === mode);
+  });
+}
+function rerouteEdges() {
+  const nodeByID = new Map();
+  Array.from(canvas.querySelectorAll('.node')).forEach(node => nodeByID.set(node.dataset.nodeId, node));
+  Array.from(canvas.querySelectorAll('.edge')).forEach(edge => {
+    const src = nodeByID.get(edge.dataset.source);
+    const dst = nodeByID.get(edge.dataset.target);
+    if (!src || !dst) return;
+    const a = nodeBox(src);
+    const b = nodeBox(dst);
+    let x1 = a.x + a.w;
+    let y1 = a.y + a.h / 2;
+    let x2 = b.x;
+    let y2 = b.y + b.h / 2;
+    if (b.x <= a.x) {
+      x1 = a.x + a.w / 2;
+      y1 = a.y + a.h;
+      x2 = b.x + b.w / 2;
+      y2 = b.y;
+    }
+    const midX = (x1 + x2) / 2;
+    const labelY = (y1 + y2) / 2 - 6;
+    const path = edge.querySelector('path');
+    const label = edge.querySelector('text');
+    if (path) path.setAttribute('d', svgEdgePath(x1, y1, x2, y2));
+    if (label) {
+      label.setAttribute('x', String(Math.round(midX + 10)));
+      label.setAttribute('y', String(Math.round(labelY)));
+    }
+  });
+}
+function nodeBox(node) {
+  return {
+    x: Number(node.dataset.currentX || node.dataset.originX || 0),
+    y: Number(node.dataset.currentY || node.dataset.originY || 0),
+    w: Number(node.dataset.width || 0),
+    h: Number(node.dataset.height || 0)
+  };
+}
+function svgEdgePath(x1, y1, x2, y2) {
+  x1 = Math.round(x1); y1 = Math.round(y1); x2 = Math.round(x2); y2 = Math.round(y2);
+  if (x2 > x1) {
+    const midX = Math.round((x1 + x2) / 2);
+    return 'M' + x1 + ',' + y1 + ' C' + midX + ',' + y1 + ' ' + midX + ',' + y2 + ' ' + x2 + ',' + y2;
+  }
+  const arc = Math.max(60, Math.round(Math.abs(y2 - y1) / 2 + 30));
+  return 'M' + x1 + ',' + y1 + ' C' + x1 + ',' + (y1 + arc) + ' ' + x2 + ',' + (y2 - arc) + ' ' + x2 + ',' + y2;
+}
+function repositionEventTable(targetY) {
+  const table = canvas.querySelector('.event-table');
+  if (!table || !table.dataset.originY) return;
+  const originY = Number(table.dataset.originY);
+  const nextY = Math.max(originY, targetY);
+  const dy = nextY - originY;
+  table.setAttribute('transform', dy ? 'translate(0 ' + Math.round(dy) + ')' : '');
+  table.dataset.currentY = String(nextY);
+}
+function bindTraceDetails() {
+  const items = Array.from(canvas.querySelectorAll('.node, .edge, .cluster'));
+  items.forEach(item => {
+    item.setAttribute('tabindex', '0');
+    item.setAttribute('role', 'button');
+    item.addEventListener('click', event => {
+      event.stopPropagation();
+      selectTraceElement(item);
+    });
+    item.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectTraceElement(item);
+      }
+    });
+  });
+  const svg = canvas.querySelector('svg');
+  if (svg) {
+    svg.addEventListener('click', () => clearTraceSelection());
+  }
+}
+function selectTraceElement(item) {
+  canvas.querySelectorAll('.selected').forEach(selected => selected.classList.remove('selected'));
+  item.classList.add('selected');
+  const detail = traceElementDetail(item);
+  document.getElementById('detailPanel').innerHTML = renderDetail(detail);
+  document.getElementById('viewerStatus').textContent = detail.status;
+}
+function clearTraceSelection() {
+  canvas.querySelectorAll('.selected').forEach(selected => selected.classList.remove('selected'));
+  document.getElementById('detailPanel').innerHTML = 'Select a node, edge, or folded cluster in the trace.';
+  document.getElementById('detailPanel').className = 'detail-empty';
+}
+function traceElementDetail(item) {
+  if (item.classList.contains('node')) {
+    return {
+      title: item.dataset.nodeLabel || item.dataset.nodeId || 'Node',
+      status: 'Node selected: ' + (item.dataset.nodeId || 'unknown'),
+      rows: [
+        ['ID', item.dataset.nodeId],
+        ['Type', item.dataset.nodeType],
+        ['Label', item.dataset.nodeLabel],
+        ['Summary', item.dataset.detail],
+        ['Identity', item.dataset.identity]
+      ]
+    };
+  }
+  if (item.classList.contains('edge')) {
+    return {
+      title: (item.dataset.event || item.dataset.relation || 'Edge') + ' relation',
+      status: 'Edge selected: ' + (item.dataset.source || '?') + ' -> ' + (item.dataset.target || '?'),
+      rows: [
+        ['Source', item.dataset.source],
+        ['Target', item.dataset.target],
+        ['Relation', item.dataset.relation],
+        ['Event', item.dataset.event],
+        ['Kind', item.dataset.kind],
+        ['Tree', item.dataset.tree],
+        ['Summary', item.dataset.summary],
+        ['Details', item.dataset.detail]
+      ]
+    };
+  }
+  return {
+    title: item.dataset.clusterId || 'Folded cluster',
+    status: 'Cluster selected: ' + (item.dataset.foldedCount || '0') + ' folded node(s)',
+    rows: [
+      ['Type', item.dataset.nodeType],
+      ['Depth', item.dataset.depth],
+      ['Folded', item.dataset.foldedCount],
+      ['Reason', item.dataset.reason],
+      ['Members', item.dataset.members]
+    ]
+  };
+}
+function renderDetail(detail) {
+  document.getElementById('detailPanel').className = 'detail-panel';
+  const rows = detail.rows
+    .filter(row => row[1] !== undefined && row[1] !== null && String(row[1]).trim() !== '')
+    .map(row => '<div class="detail-row"><div class="detail-key">' + escapeHTML(row[0]) + '</div><div class="detail-value">' + escapeHTML(row[1]) + '</div></div>')
+    .join('');
+  return '<div class="detail-title">' + escapeHTML(detail.title) + '</div><div class="detail-table">' + rows + '</div>';
+}
 function showFallback(message) {
   document.getElementById('viewerStatus').textContent = message;
   canvas.innerHTML = '<iframe class="fallback-frame" src="' + rawURL.replace(/"/g, '&quot;') + '" title="Raw trace SVG fallback"></iframe>';
@@ -352,11 +630,228 @@ function showFallback(message) {
   setMetric('edgeCount', '--');
   setMetric('crossCount', '--');
   setMetric('clusterCount', '--');
+  document.getElementById('detailPanel').className = 'detail-empty';
+  document.getElementById('detailPanel').textContent = 'Trace details are unavailable while the raw SVG fallback is active.';
   scale = 1;
   applyScale();
 }
 function setMetric(id, value) { document.getElementById(id).textContent = String(value); }
+function setTypeFilter(type) {
+  layoutState.typeFilter = type || 'all';
+  applyTraceVisibility();
+}
+function toggleTypeCollapse(type) {
+  if (layoutState.collapsedTypes.has(type)) {
+    layoutState.collapsedTypes.delete(type);
+  } else {
+    layoutState.collapsedTypes.add(type);
+  }
+  updateCollapseButtons();
+  applyTraceVisibility();
+}
+function expandTrace() {
+  layoutState.typeFilter = 'all';
+  layoutState.collapsedTypes.clear();
+  const filter = document.getElementById('typeFilter');
+  if (filter) filter.value = 'all';
+  updateCollapseButtons();
+  applyTraceVisibility();
+}
+function updateCollapseButtons() {
+  document.querySelectorAll('[data-collapse-type]').forEach(button => {
+    const active = layoutState.collapsedTypes.has(button.dataset.collapseType);
+    button.classList.toggle('mode-active', active);
+    button.textContent = active
+      ? 'Show ' + labelForType(button.dataset.collapseType)
+      : 'Fold ' + labelForType(button.dataset.collapseType);
+  });
+}
+function labelForType(type) {
+  return type === 'network' ? 'Network' : type.charAt(0).toUpperCase() + type.slice(1) + 's';
+}
+function applyTraceVisibility() {
+  const nodes = Array.from(canvas.querySelectorAll('.node'));
+  const clusters = Array.from(canvas.querySelectorAll('.cluster'));
+  const hiddenNodeIDs = new Set();
+  let visibleNodes = 0;
+  let hiddenNodes = 0;
+  nodes.forEach(node => {
+    const type = node.dataset.nodeType || 'node';
+    const text = nodeTraceText(node);
+    const typeHidden = layoutState.typeFilter !== 'all' && type !== layoutState.typeFilter;
+    const collapsed = layoutState.collapsedTypes.has(type);
+    const searchHidden = layoutState.searchQuery && !text.includes(layoutState.searchQuery);
+    const hidden = typeHidden || collapsed || searchHidden;
+    node.classList.toggle('filtered-hidden', hidden);
+    if (hidden) {
+      hiddenNodes++;
+      if (node.dataset.nodeId) hiddenNodeIDs.add(node.dataset.nodeId);
+    } else {
+      visibleNodes++;
+    }
+  });
+  clusters.forEach(cluster => {
+    const type = cluster.dataset.nodeType || 'node';
+    const typeHidden = layoutState.typeFilter !== 'all' && type !== layoutState.typeFilter;
+    const searchHidden = layoutState.searchQuery && !nodeTraceText(cluster).includes(layoutState.searchQuery);
+    cluster.classList.toggle('filtered-hidden', typeHidden || searchHidden);
+  });
+  let visibleEdges = 0;
+  Array.from(canvas.querySelectorAll('.edge')).forEach(edge => {
+    const text = nodeTraceText(edge);
+    const endpointHidden = hiddenNodeIDs.has(edge.dataset.source) || hiddenNodeIDs.has(edge.dataset.target);
+    const searchHidden = layoutState.searchQuery && !text.includes(layoutState.searchQuery);
+    const hidden = endpointHidden || searchHidden;
+    edge.classList.toggle('filtered-hidden', hidden);
+    if (!hidden) visibleEdges++;
+  });
+  document.getElementById('viewerStatus').textContent =
+    'Visible trace: ' + visibleNodes + ' node(s), ' + visibleEdges + ' edge(s), ' + hiddenNodes + ' folded/filtered node(s).';
+}
+function nodeTraceText(item) {
+  return (item.textContent + ' ' + Array.from(item.attributes || []).map(attr => attr.value).join(' ')).toLowerCase();
+}
 function applyScale() { canvas.style.transform = 'scale(' + scale.toFixed(2) + ')'; }
+function currentSVG() { return canvas.querySelector('svg'); }
+function serializedSVG() {
+  const svg = currentSVG();
+  if (!svg) return '';
+  const clone = svg.cloneNode(true);
+  clone.querySelectorAll('.selected, .matched, .dimmed').forEach(item => {
+    item.classList.remove('selected', 'matched', 'dimmed');
+  });
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  return new XMLSerializer().serializeToString(clone);
+}
+function downloadBlob(blob, filename) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+function downloadInlineSVG() {
+  const svg = serializedSVG();
+  if (!svg) {
+    document.getElementById('viewerStatus').textContent = 'SVG export is unavailable until the trace is loaded.';
+    return;
+  }
+  downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), 'providapt-trace-' + safeFilename(alertID) + '.svg');
+  document.getElementById('viewerStatus').textContent = 'SVG export prepared from the current trace.';
+}
+function exportPNG() {
+  const svg = currentSVG();
+  const text = serializedSVG();
+  if (!svg || !text) {
+    document.getElementById('viewerStatus').textContent = 'PNG export is unavailable until the trace is loaded.';
+    return;
+  }
+  const width = Number(svg.getAttribute('width')) || svg.viewBox.baseVal.width || 1200;
+  const height = Number(svg.getAttribute('height')) || svg.viewBox.baseVal.height || 800;
+  const image = new Image();
+  const url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml;charset=utf-8' }));
+  image.onload = () => {
+    const targetScale = Math.min(2, Math.max(1, 1800 / Math.max(width, 1)));
+    const out = document.createElement('canvas');
+    out.width = Math.round(width * targetScale);
+    out.height = Math.round(height * targetScale);
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(image, 0, 0, out.width, out.height);
+    out.toBlob(blob => {
+      URL.revokeObjectURL(url);
+      if (!blob) {
+        document.getElementById('viewerStatus').textContent = 'PNG export failed while rendering the trace.';
+        return;
+      }
+      downloadBlob(blob, 'providapt-trace-' + safeFilename(alertID) + '.png');
+      document.getElementById('viewerStatus').textContent = 'PNG export prepared from the current trace.';
+    }, 'image/png');
+  };
+  image.onerror = () => {
+    URL.revokeObjectURL(url);
+    document.getElementById('viewerStatus').textContent = 'PNG export failed while loading the SVG image.';
+  };
+  image.src = url;
+}
+function copyReportSnippet() {
+  const report = buildReportSnippet();
+  if (!report) {
+    document.getElementById('viewerStatus').textContent = 'Report snippet is unavailable until the trace is loaded.';
+    return;
+  }
+  writeClipboard(report, 'Investigation report snippet copied.');
+}
+function copySelectedDetail() {
+  const selected = canvas.querySelector('.selected');
+  if (!selected) {
+    document.getElementById('viewerStatus').textContent = 'Select a trace element before copying detail.';
+    return;
+  }
+  const detail = traceElementDetail(selected);
+  const lines = ['### ' + detail.title];
+  detail.rows.forEach(row => {
+    if (row[1] !== undefined && row[1] !== null && String(row[1]).trim() !== '') {
+      lines.push('- ' + row[0] + ': ' + String(row[1]));
+    }
+  });
+  writeClipboard(lines.join('\n'), 'Selected element detail copied.');
+}
+function buildReportSnippet() {
+  if (!currentSVG()) return '';
+  const nodes = Array.from(canvas.querySelectorAll('.node'));
+  const edges = Array.from(canvas.querySelectorAll('.edge'));
+  const clusters = Array.from(canvas.querySelectorAll('.cluster'));
+  const lines = [
+    '## ProvidAPT Trace Investigation',
+    '',
+    '- Alert scope: ' + alertID,
+    '- Nodes: ' + nodes.length,
+    '- Edges: ' + edges.length,
+    '- Cross-links: ' + canvas.querySelectorAll('.edge-cross').length,
+    '- Folded clusters: ' + clusters.length,
+    '',
+    '### Notable Relations'
+  ];
+  edges.slice(0, 8).forEach((edge, index) => {
+    lines.push((index + 1) + '. ' + (edge.dataset.event || edge.dataset.relation || 'event') + ': ' + (edge.dataset.source || '?') + ' -> ' + (edge.dataset.target || '?'));
+    if (edge.dataset.detail) lines.push('   - Detail: ' + edge.dataset.detail);
+  });
+  if (edges.length > 8) lines.push('- ' + (edges.length - 8) + ' additional relation(s) omitted from this snippet.');
+  if (clusters.length) {
+    lines.push('', '### Folded Clusters');
+    clusters.slice(0, 5).forEach(cluster => {
+      lines.push('- ' + (cluster.dataset.nodeType || 'node') + ' depth ' + (cluster.dataset.depth || '?') + ': ' + (cluster.dataset.foldedCount || '0') + ' folded node(s)');
+    });
+  }
+  return lines.join('\n');
+}
+function writeClipboard(text, successMessage) {
+  const done = () => { document.getElementById('viewerStatus').textContent = successMessage; };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    return;
+  }
+  fallbackCopy(text, done);
+}
+function fallbackCopy(text, done) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.style.position = 'fixed';
+  area.style.left = '-9999px';
+  document.body.appendChild(area);
+  area.focus();
+  area.select();
+  document.execCommand('copy');
+  area.remove();
+  done();
+}
+function safeFilename(value) {
+  return String(value || 'trace').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'trace';
+}
 function zoomBy(delta) {
   scale = Math.max(0.25, Math.min(2.6, scale + delta));
   applyScale();
@@ -383,6 +878,7 @@ function toggleClusters() {
 }
 document.getElementById('searchBox').addEventListener('input', event => {
   const query = event.target.value.trim().toLowerCase();
+  layoutState.searchQuery = query;
   const candidates = Array.from(canvas.querySelectorAll('.node, .edge, .event-group, .cluster'));
   let hits = 0;
   candidates.forEach(item => {
@@ -393,7 +889,10 @@ document.getElementById('searchBox').addEventListener('input', event => {
     item.classList.toggle('dimmed', !matched);
     if (matched) hits++;
   });
-  document.getElementById('viewerStatus').textContent = query ? (hits + ' matching trace element(s) for \"' + query + '\"') : 'Search cleared. Full trace is visible.';
+  if (query) {
+    document.getElementById('viewerStatus').textContent = hits + ' matching trace element(s) for \"' + query + '\"';
+  }
+  applyTraceVisibility();
 });
 window.addEventListener('resize', () => window.requestAnimationFrame(fitWidth));
 function escapeHTML(value) {
@@ -402,7 +901,7 @@ function escapeHTML(value) {
 </script>
 </body>
 </html>
-`, escapeXML(alertID), escapeXML(alertID), rawPath, rawPath, rawPath)
+`, escapeXML(alertID), escapeXML(alertID), rawPath, rawPath, reportMarkdownPath, reportPath, rawPath, alertID)
 	return []byte(b.String())
 }
 
@@ -602,6 +1101,212 @@ func layoutGraph(nodes []*provenance.Node, edges []*provenance.Edge) *svgLayout 
 	return lay
 }
 
+func normalizeSVGLayoutMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "compact", "timeline", "grouped":
+		return strings.ToLower(strings.TrimSpace(mode))
+	default:
+		return "tree"
+	}
+}
+
+func applyServerSVGLayout(lay *svgLayout, mode string) {
+	if lay == nil {
+		return
+	}
+	lay.layoutMode = mode
+	if mode == "tree" {
+		return
+	}
+	switch mode {
+	case "compact":
+		arrangeSVGCompact(lay)
+	case "timeline":
+		arrangeSVGTimeline(lay)
+	case "grouped":
+		arrangeSVGGrouped(lay)
+	}
+	lay.graphH = maxInt(minGraphH, maxSVGContentY(lay)+40)
+	lay.height = lay.graphH + eventTableHeight(lay.edges) + 50
+}
+
+func arrangeSVGCompact(lay *svgLayout) {
+	byDepth := map[int][]int{}
+	for i, node := range lay.nodes {
+		byDepth[node.depth] = append(byDepth[node.depth], i)
+	}
+	depths := sortedIntKeys(byDepth)
+	maxX := 0
+	for col, depth := range depths {
+		y := topY
+		x := xPad + col*300
+		for _, idx := range byDepth[depth] {
+			lay.nodes[idx].x = x
+			lay.nodes[idx].y = y
+			y += lay.nodes[idx].h + 18
+			maxX = maxInt(maxX, x+lay.nodes[idx].w)
+		}
+		for i := range lay.clusters {
+			if lay.clusters[i].depth != depth {
+				continue
+			}
+			lay.clusters[i].x = x
+			lay.clusters[i].y = y
+			lay.clusters[i].w = maxInt(minNodeW, columnWidth(lay, depth))
+			y += lay.clusters[i].h + 18
+			maxX = maxInt(maxX, lay.clusters[i].x+lay.clusters[i].w)
+		}
+	}
+	lay.width = maxInt(1120, maxX+xPad)
+}
+
+func arrangeSVGTimeline(lay *svgLayout) {
+	sort.SliceStable(lay.nodes, func(i, j int) bool {
+		if lay.nodes[i].x == lay.nodes[j].x {
+			return lay.nodes[i].y < lay.nodes[j].y
+		}
+		return lay.nodes[i].x < lay.nodes[j].x
+	})
+	maxX := 0
+	for i := range lay.nodes {
+		lay.nodes[i].x = 96 + lay.nodes[i].depth*28
+		lay.nodes[i].y = topY + i*88
+		maxX = maxInt(maxX, lay.nodes[i].x+lay.nodes[i].w)
+	}
+	y := topY + len(lay.nodes)*88 + 24
+	for i := range lay.clusters {
+		lay.clusters[i].x = 96 + lay.clusters[i].depth*28
+		lay.clusters[i].y = y
+		y += lay.clusters[i].h + 18
+		maxX = maxInt(maxX, lay.clusters[i].x+lay.clusters[i].w)
+	}
+	lay.width = maxInt(1120, maxX+xPad)
+}
+
+func arrangeSVGGrouped(lay *svgLayout) {
+	order := []string{"process", "file", "network", "credential", ""}
+	rank := map[string]int{}
+	for i, typ := range order {
+		rank[typ] = i
+	}
+	sort.SliceStable(lay.nodes, func(i, j int) bool {
+		left := rankOrDefault(rank, lay.nodes[i].typ)
+		right := rankOrDefault(rank, lay.nodes[j].typ)
+		if left == right {
+			if lay.nodes[i].depth == lay.nodes[j].depth {
+				return lay.nodes[i].id < lay.nodes[j].id
+			}
+			return lay.nodes[i].depth < lay.nodes[j].depth
+		}
+		return left < right
+	})
+	byType := map[string][]int{}
+	for i, node := range lay.nodes {
+		byType[node.typ] = append(byType[node.typ], i)
+	}
+	types := sortedSVGTypes(byType)
+	maxX := 0
+	for col, typ := range types {
+		x := xPad + col*320
+		y := topY
+		for _, idx := range byType[typ] {
+			lay.nodes[idx].x = x
+			lay.nodes[idx].y = y
+			y += lay.nodes[idx].h + 22
+			maxX = maxInt(maxX, x+lay.nodes[idx].w)
+		}
+		for i := range lay.clusters {
+			if lay.clusters[i].typ != typ {
+				continue
+			}
+			lay.clusters[i].x = x
+			lay.clusters[i].y = y
+			lay.clusters[i].w = maxInt(minNodeW, typeColumnWidth(lay, typ))
+			y += lay.clusters[i].h + 22
+			maxX = maxInt(maxX, lay.clusters[i].x+lay.clusters[i].w)
+		}
+	}
+	lay.width = maxInt(1120, maxX+xPad)
+}
+
+func maxSVGContentY(lay *svgLayout) int {
+	y := topY
+	for _, node := range lay.nodes {
+		y = maxInt(y, node.y+node.h)
+	}
+	for _, cluster := range lay.clusters {
+		y = maxInt(y, cluster.y+cluster.h)
+	}
+	return y
+}
+
+func columnWidth(lay *svgLayout, depth int) int {
+	width := minNodeW
+	for _, node := range lay.nodes {
+		if node.depth == depth {
+			width = maxInt(width, node.w)
+		}
+	}
+	return width
+}
+
+func typeColumnWidth(lay *svgLayout, typ string) int {
+	width := minNodeW
+	for _, node := range lay.nodes {
+		if node.typ == typ {
+			width = maxInt(width, node.w)
+		}
+	}
+	return width
+}
+
+func sortedIntKeys(groups map[int][]int) []int {
+	keys := make([]int, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Ints(keys)
+	return keys
+}
+
+func sortedSVGTypes(groups map[string][]int) []string {
+	keys := make([]string, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		left := svgTypeRank(keys[i])
+		right := svgTypeRank(keys[j])
+		if left == right {
+			return keys[i] < keys[j]
+		}
+		return left < right
+	})
+	return keys
+}
+
+func svgTypeRank(typ string) int {
+	switch typ {
+	case "process":
+		return 0
+	case "file":
+		return 1
+	case "network":
+		return 2
+	case "credential":
+		return 3
+	default:
+		return 9
+	}
+}
+
+func rankOrDefault(rank map[string]int, key string) int {
+	if value, ok := rank[key]; ok {
+		return value
+	}
+	return 9
+}
+
 func clusterSVGNodes(nodes []*provenance.Node, orderedIDs []string, depth map[string]int) ([]string, []svgCluster) {
 	byID := make(map[string]*provenance.Node, len(nodes))
 	for _, node := range nodes {
@@ -782,7 +1487,7 @@ func renderSVG(lay *svgLayout) []byte {
 	if lay.truncate {
 		scope += " (truncated for readability)"
 	}
-	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" preserveAspectRatio="xMidYMin meet" style="max-width:100vw;height:auto;display:block;margin:0 auto;background:#0d1117;">
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" data-layout="%s" preserveAspectRatio="xMidYMin meet" style="max-width:100vw;height:auto;display:block;margin:0 auto;background:#0d1117;">
 <style>
   .bg { fill: #0d1117; }
   .node rect { stroke-width: 1.2; rx: 8; }
@@ -832,7 +1537,7 @@ func renderSVG(lay *svgLayout) []byte {
 <text x="18" y="22" class="title">ProvidAPT Provenance Trace</text>
 <text x="18" y="40" class="subtitle">%s</text>
 <text x="18" y="54" class="subtitle">Tree layout is left-to-right; Causal direction is rendered as source -&gt; target; folded clusters summarize same-layer/type nodes while preserving full member tooltips.</text>
-`, lay.width, lay.height, lay.width, lay.height, svgMarkers(), lay.width, lay.height, escapeXML(scope))
+`, lay.width, lay.height, lay.width, lay.height, escapeXML(firstNonEmpty(lay.layoutMode, "tree")), svgMarkers(), lay.width, lay.height, escapeXML(scope))
 
 	nodeMap := make(map[string]svgNode)
 	for _, n := range lay.nodes {
@@ -874,11 +1579,11 @@ func renderSVG(lay *svgLayout) []byte {
 		if e.tree {
 			edgeClass = "edge-tree"
 		}
-		fmt.Fprintf(&b, `<g class="edge %s edge-%s edge-%s" data-direction="%s-&gt;%s" data-tree="%t">
+		fmt.Fprintf(&b, `<g class="edge %s edge-%s edge-%s" data-source="%s" data-target="%s" data-relation="%s" data-kind="%s" data-event="%s" data-summary="%s" data-detail="%s" data-direction="%s-&gt;%s" data-tree="%t">
   <path d="%s"/>
   <text class="edge-label-%s" x="%d" y="%d">%s -&gt;</text>
 </g>
-`, edgeClass, e.rel, e.kind, escapeXML(e.src), escapeXML(e.dst), e.tree, edgePath(x1, y1, x2, y2), e.kind, midX+edgeLabelDX, labelY, escapeXML(e.event))
+`, edgeClass, e.rel, e.kind, escapeXML(e.src), escapeXML(e.dst), escapeXML(e.rel), escapeXML(e.kind), escapeXML(e.event), escapeXML(e.summary), escapeXML(e.detail), escapeXML(e.src), escapeXML(e.dst), e.tree, edgePath(x1, y1, x2, y2), e.kind, midX+edgeLabelDX, labelY, escapeXML(e.event))
 	}
 
 	renderLegend(&b, lay.width)
@@ -894,12 +1599,12 @@ func renderSVG(lay *svgLayout) []byte {
 		case "credential":
 			class = "node-credential"
 		}
-		fmt.Fprintf(&b, `<g class="node %s">
+		fmt.Fprintf(&b, `<g class="node %s" data-node-id="%s" data-node-type="%s" data-depth="%d" data-node-label="%s" data-detail="%s" data-identity="%s">
   <title>%s</title>
   <rect x="%d" y="%d" width="%d" height="%d"/>
   %s
 </g>
-`, class, escapeXML(nodeTitle(n)), n.x, n.y, n.w, n.h, renderNodeText(n))
+`, class, escapeXML(n.id), escapeXML(n.typ), n.depth, escapeXML(n.label), escapeXML(n.detail1), escapeXML(n.detail2), escapeXML(nodeTitle(n)), n.x, n.y, n.w, n.h, renderNodeText(n))
 	}
 
 	renderEventTable(&b, lay)
@@ -1090,13 +1795,14 @@ func svgMarkers() string {
 	return b.String()
 }
 
-func makeSVGNode(n *provenance.Node, _ int) svgNode {
+func makeSVGNode(n *provenance.Node, depth int) svgNode {
 	node := svgNode{
 		id:      n.ID,
 		label:   n.Label,
 		detail1: nodeDetailLine(n),
 		detail2: nodeIdentityLine(n),
 		typ:     n.Subtype,
+		depth:   depth,
 	}
 	node.w = measureNodeWidth(node)
 	lineCount := len(nodeTextLines(node))

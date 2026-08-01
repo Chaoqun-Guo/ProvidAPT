@@ -891,6 +891,10 @@ analyzer:
     - pat_sensitive_exfil
     - pat_script_child
   quiet: true
+  online_ml_enabled: true
+  ml_model_dir: /models/current
+  ml_deploy_gate_path: /models/current/model-deploy-gate.json
+  require_ml_deploy_gate: true
 `
 	path := writeTempFile(t, "config.*.yaml", yaml)
 	cfg, err := Load(path)
@@ -908,6 +912,12 @@ analyzer:
 	}
 	if len(cfg.Analyzer.EnablePatterns) != 2 {
 		t.Errorf("enable_patterns count = %d, want 2", len(cfg.Analyzer.EnablePatterns))
+	}
+	if !cfg.Analyzer.OnlineMLEnabled || !cfg.Analyzer.RequireMLDeployGate {
+		t.Fatalf("online ML deploy gate settings not loaded: %+v", cfg.Analyzer)
+	}
+	if cfg.Analyzer.MLDeployGatePath != "/models/current/model-deploy-gate.json" {
+		t.Fatalf("ml_deploy_gate_path = %q", cfg.Analyzer.MLDeployGatePath)
 	}
 }
 

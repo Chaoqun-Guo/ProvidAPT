@@ -2533,6 +2533,20 @@ func TestAlertSVGSubroute(t *testing.T) {
 	}
 }
 
+func TestAlertSVGSubrouteSupportsLayoutModes(t *testing.T) {
+	ts := testServer(t)
+	w := apiGet(ts, "/api/v1/alerts/p%3A100/svg?layout=grouped")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	for _, want := range []string{`data-layout="grouped"`, `data-node-id="p:100"`, `data-source="p:100"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("layout SVG missing %q: %s", want, body)
+		}
+	}
+}
+
 func TestAlertSVGViewerSubroute(t *testing.T) {
 	ts := testServer(t)
 	w := apiGet(ts, "/api/v1/alerts/p%3A100/svg/view")
@@ -2543,7 +2557,33 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		t.Fatalf("content-type = %q", got)
 	}
 	body := w.Body.String()
-	for _, want := range []string{"ProvidAPT Trace Viewer", "Zoom In", "Fit Width", "/api/v1/alerts/p:100/svg"} {
+	for _, want := range []string{
+		"ProvidAPT Trace Viewer",
+		"Zoom In",
+		"Fit Width",
+		"All Types",
+		"Fold Files",
+		"Fold Network",
+		"Expand All",
+		"Selected Element",
+		"bindTraceDetails",
+		"setTypeFilter",
+		"toggleTypeCollapse",
+		"applyTraceVisibility",
+		"exportPNG",
+		"downloadInlineSVG",
+		"copyReportSnippet",
+		"applyLayoutMode('compact')",
+		"applyLayoutMode('timeline')",
+		"applyLayoutMode('grouped')",
+		"mode-active",
+		"updateLayoutButtons",
+		"rerouteEdges",
+		"ProvidAPT Trace Investigation",
+		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5&format=markdown",
+		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5",
+		"/api/v1/alerts/p:100/svg",
+	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("viewer missing %q in body: %s", want, body)
 		}
@@ -2634,6 +2674,9 @@ func TestSVGGeneration(t *testing.T) {
 	if !strings.Contains(string(svg), `preserveAspectRatio="xMidYMin meet"`) || !strings.Contains(string(svg), `margin:0 auto`) {
 		t.Error("SVG missing responsive centered viewport")
 	}
+	if !strings.Contains(string(svg), `data-layout="tree"`) {
+		t.Error("SVG missing default layout metadata")
+	}
 	if !strings.Contains(string(svg), "categories") || !strings.Contains(string(svg), "Discovery or Credential Access / File Reads") {
 		t.Error("SVG missing categorized event summary")
 	}
@@ -2666,6 +2709,15 @@ func TestSVGGeneration(t *testing.T) {
 	}
 	if !strings.Contains(string(svg), `edge-label-read`) {
 		t.Error("SVG missing operation-specific edge label class")
+	}
+	if !strings.Contains(string(svg), `data-node-id="p:100"`) || !strings.Contains(string(svg), `data-node-type="process"`) || !strings.Contains(string(svg), `data-depth="`) {
+		t.Error("SVG missing clickable node metadata")
+	}
+	if !strings.Contains(string(svg), `data-source="p:100"`) || !strings.Contains(string(svg), `data-target="f:5000:8:3#v1"`) {
+		t.Error("SVG missing clickable edge endpoint metadata")
+	}
+	if !strings.Contains(string(svg), `data-event="file_open"`) || !strings.Contains(string(svg), `cmdline=cat /etc/shadow`) {
+		t.Error("SVG missing clickable edge event detail metadata")
 	}
 	t.Logf("SVG size: %d bytes", len(svg))
 }

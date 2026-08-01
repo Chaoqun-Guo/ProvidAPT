@@ -90,6 +90,67 @@ def simple_detail(report: dict[str, Any], **fields: str) -> dict[str, Any]:
     return row
 
 
+def visual_detail(report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": status_value(report),
+        "screenshots": report.get("screenshot_count", 0),
+        "comparisons": report.get("comparison_count", 0),
+    }
+
+
+def capture_field_detail(report: dict[str, Any]) -> dict[str, Any]:
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    rates = summary.get("field_rates") if isinstance(summary.get("field_rates"), dict) else {}
+    return {
+        "status": status_value(report),
+        "events": summary.get("event_count", 0),
+        "cmdline_percent": rates.get("cmdline_percent", 0),
+        "exe_path_percent": rates.get("exe_path_percent", 0),
+        "pathname_percent": rates.get("pathname_percent", 0),
+        "network_tuple_percent": rates.get("network_tuple_percent", 0),
+    }
+
+
+def policy_approval_detail(report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": status_value(report, {"pass", "warn"}),
+        "approval_enabled": bool(report.get("approval_enabled")),
+        "tenant_scoped_keys": report.get("tenant_scoped_keys", 0),
+        "tenant_count": report.get("tenant_count", 0),
+        "audit_matches": report.get("audit_matches", 0),
+    }
+
+
+def backup_readiness_detail(report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": status_value(report, {"pass", "warn"}),
+        "size_bytes": report.get("size_bytes", 0),
+        "history_count": report.get("history_count", 0),
+        "restore_required": bool(report.get("restore_required")),
+        "cutover_required": bool(report.get("cutover_required")),
+    }
+
+
+def support_bundle_detail(report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": status_value(report, {"pass", "warn"}),
+        "redacted": bool(report.get("redacted")),
+        "history_count": report.get("history_count", 0),
+        "export_events": report.get("export_events", 0),
+    }
+
+
+def deployment_diagnostics_detail(report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": status_value(report, {"pass", "warn"}),
+        "api_auth_enabled": bool(report.get("api_auth_enabled")),
+        "tls_enabled": bool(report.get("tls_enabled")),
+        "kernel_attachment_mode": report.get("kernel_attachment_mode", ""),
+        "storage_encrypted": bool(report.get("storage_encrypted")),
+        "applied_policy_version": report.get("applied_policy_version", 0),
+    }
+
+
 def overall_status(sections: dict[str, dict[str, Any]]) -> str:
     statuses = [section.get("status") for section in sections.values()]
     if any(status == "blocked" for status in statuses):
@@ -108,9 +169,15 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "upgrade_rollout": upgrade_detail(load_json(Path(args.upgrade_rollout))),
         "siem_soar_delivery": simple_detail(load_json(Path(args.siem_verify)), delivered="delivered", dead_letter="dead_letter"),
         "rbac_audit": simple_detail(load_json(Path(args.rbac_audit)), keys="key_count", tenant_scoped_keys="tenant_scoped_keys"),
+        "policy_approval": policy_approval_detail(load_json(Path(args.policy_approval_gate))),
+        "backup_readiness": backup_readiness_detail(load_json(Path(args.backup_readiness_gate))),
+        "support_bundle": support_bundle_detail(load_json(Path(args.support_bundle_gate))),
+        "deployment_diagnostics": deployment_diagnostics_detail(load_json(Path(args.deployment_diagnostics_gate))),
         "install_delivery": simple_detail(load_json(Path(args.install_delivery_check))),
         "observability_pack": simple_detail(load_json(Path(args.observability_pack_check))),
         "security_hardening": simple_detail(load_json(Path(args.security_hardening_gate))),
+        "visual_regression": visual_detail(load_json(Path(args.visual_regression_gate))),
+        "capture_enrichment": capture_field_detail(load_json(Path(args.capture_enrichment_gate))),
     }
     return {
         "schema": SCHEMA,
@@ -154,9 +221,15 @@ def main() -> int:
     parser.add_argument("--upgrade-rollout", default="build/upgrade/rollout-plan.json")
     parser.add_argument("--siem-verify", default="build/siem/siem-verification.json")
     parser.add_argument("--rbac-audit", default="build/rbac/rbac-audit.json")
+    parser.add_argument("--policy-approval-gate", default="build/policy-approval/policy-approval-gate.json")
+    parser.add_argument("--backup-readiness-gate", default="build/backup/backup-readiness-gate.json")
+    parser.add_argument("--support-bundle-gate", default="build/support/support-bundle-gate.json")
+    parser.add_argument("--deployment-diagnostics-gate", default="build/deploy/deployment-diagnostics-gate.json")
     parser.add_argument("--install-delivery-check", default="build/install-delivery/install-delivery-check.json")
     parser.add_argument("--observability-pack-check", default="build/observability/observability-pack-check.json")
     parser.add_argument("--security-hardening-gate", default="build/security-hardening/security-hardening-gate.json")
+    parser.add_argument("--visual-regression-gate", default="build/visual-regression/visual-regression-gate.json")
+    parser.add_argument("--capture-enrichment-gate", default="build/capture-quality/capture-enrichment-field-gate.json")
     parser.add_argument("--out-json", default="build/operations-readiness/operations-readiness-gate.json")
     parser.add_argument("--out-md", default="build/operations-readiness/operations-readiness-gate.md")
     args = parser.parse_args()

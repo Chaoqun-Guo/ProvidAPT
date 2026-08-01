@@ -123,15 +123,17 @@ type Config struct {
 	} `json:"storage" yaml:"storage"`
 
 	Analyzer struct {
-		ScanInterval       Duration `json:"scan_interval" yaml:"scan_interval"`
-		DeepTaintThreshold int      `json:"deep_taint_threshold" yaml:"deep_taint_threshold"`
-		EnablePatterns     []string `json:"enable_patterns" yaml:"enable_patterns"`
-		Quiet              bool     `json:"quiet" yaml:"quiet"`
-		OnlineMLEnabled    bool     `json:"online_ml_enabled" yaml:"online_ml_enabled"`
-		MLModelDir         string   `json:"ml_model_dir" yaml:"ml_model_dir"`
-		MLThreshold        float64  `json:"ml_threshold" yaml:"ml_threshold"`
-		MLMinNodes         int      `json:"ml_min_nodes" yaml:"ml_min_nodes"`
-		MLMinEdges         int      `json:"ml_min_edges" yaml:"ml_min_edges"`
+		ScanInterval        Duration `json:"scan_interval" yaml:"scan_interval"`
+		DeepTaintThreshold  int      `json:"deep_taint_threshold" yaml:"deep_taint_threshold"`
+		EnablePatterns      []string `json:"enable_patterns" yaml:"enable_patterns"`
+		Quiet               bool     `json:"quiet" yaml:"quiet"`
+		OnlineMLEnabled     bool     `json:"online_ml_enabled" yaml:"online_ml_enabled"`
+		MLModelDir          string   `json:"ml_model_dir" yaml:"ml_model_dir"`
+		MLDeployGatePath    string   `json:"ml_deploy_gate_path" yaml:"ml_deploy_gate_path"`
+		RequireMLDeployGate bool     `json:"require_ml_deploy_gate" yaml:"require_ml_deploy_gate"`
+		MLThreshold         float64  `json:"ml_threshold" yaml:"ml_threshold"`
+		MLMinNodes          int      `json:"ml_min_nodes" yaml:"ml_min_nodes"`
+		MLMinEdges          int      `json:"ml_min_edges" yaml:"ml_min_edges"`
 	} `json:"analyzer" yaml:"analyzer"`
 
 	TaintSecrets struct {
@@ -367,6 +369,8 @@ func DefaultConfig() *Config {
 	c.Telemetry.Interval = "30s"
 	c.Policy.PollInterval = "30s"
 	c.Analyzer.MLModelDir = "/var/lib/providapt/models/current"
+	c.Analyzer.MLDeployGatePath = ""
+	c.Analyzer.RequireMLDeployGate = false
 	c.Analyzer.MLThreshold = 0.85
 	c.Analyzer.MLMinNodes = 3
 	c.Analyzer.MLMinEdges = 2
@@ -791,6 +795,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Policy.BundleDir, "PROVIDAPT_POLICY_BUNDLE_DIR")
 	overrideString(&cfg.Policy.CAFile, "PROVIDAPT_POLICY_CA_FILE")
 	overrideString(&cfg.Analyzer.MLModelDir, "PROVIDAPT_ANALYZER_ML_MODEL_DIR")
+	overrideString(&cfg.Analyzer.MLDeployGatePath, "PROVIDAPT_ANALYZER_ML_DEPLOY_GATE_PATH")
 	overrideString(&cfg.Notify.RetryBackoff, "PROVIDAPT_NOTIFY_RETRY_BACKOFF")
 	overrideString(&cfg.Notify.TicketProvider, "PROVIDAPT_NOTIFY_TICKET_PROVIDER")
 	overrideString(&cfg.Notify.TicketWebhookURL, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_URL")
@@ -855,6 +860,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Policy.Enabled, "PROVIDAPT_POLICY_ENABLED")
 	overrideBool(&cfg.Policy.EnableTLS, "PROVIDAPT_POLICY_ENABLE_TLS")
 	overrideBool(&cfg.Analyzer.OnlineMLEnabled, "PROVIDAPT_ANALYZER_ONLINE_ML_ENABLED")
+	overrideBool(&cfg.Analyzer.RequireMLDeployGate, "PROVIDAPT_ANALYZER_REQUIRE_ML_DEPLOY_GATE")
 	overrideBool(&cfg.SupportBundle.RedactArchives, "PROVIDAPT_SUPPORT_REDACT_ARCHIVES")
 	overrideBool(&cfg.Backup.Enabled, "PROVIDAPT_BACKUP_ENABLED")
 	overrideBool(&cfg.Backup.AllowActivation, "PROVIDAPT_BACKUP_ALLOW_ACTIVATION")

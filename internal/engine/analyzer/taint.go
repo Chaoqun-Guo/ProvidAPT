@@ -276,7 +276,7 @@ func (te *TaintEngine) seedTaints() []string {
 func (te *TaintEngine) tryTaint(id, prevID, rel string, level TaintLevel,
 	reason string, worklist *[]string) {
 
-	prevTn, _ := te.tainted[prevID]
+	prevTn := te.tainted[prevID]
 	newDepth := 0
 	if prevTn != nil {
 		newDepth = prevTn.Depth + 1

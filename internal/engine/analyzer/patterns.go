@@ -79,7 +79,7 @@ func (id PatternID) String() string {
 //
 //	proc:P --used--> file:/etc/shadow      (sensitive read)
 //	proc:P --used--> net:external-ip       (network connect)
-//	⇒ ALERT: exfiltration behaviour
+//	⇒ ALERT: exfiltration behavior
 func checkSensitiveExfil(te *TaintEngine) []*Alert {
 	var alerts []*Alert
 

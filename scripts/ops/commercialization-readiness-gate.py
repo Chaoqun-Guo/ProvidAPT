@@ -105,6 +105,23 @@ def approval_detail(path_value: str) -> dict[str, Any]:
     }
 
 
+def activation_detail(report: dict[str, Any]) -> dict[str, Any]:
+    if not report:
+        return {"status": "blocked", "failures": ["activation server gate evidence is missing"]}
+    status = status_value(report, {"pass", "warn"})
+    registry = report.get("registry") if isinstance(report.get("registry"), dict) else {}
+    audit = report.get("audit") if isinstance(report.get("audit"), dict) else {}
+    live_probe = report.get("live_probe") if isinstance(report.get("live_probe"), dict) else {}
+    return {
+        "status": status,
+        "entitlements": registry.get("entitlements", 0),
+        "audit_records": audit.get("records", 0),
+        "live_probe": live_probe.get("status", "missing"),
+        "failures": report.get("failures", []) if status == "blocked" else [],
+        "warnings": report.get("warnings", []) if status == "warn" else [],
+    }
+
+
 def overall_status(sections: dict[str, dict[str, Any]]) -> str:
     statuses = [section.get("status") for section in sections.values()]
     if any(status == "blocked" for status in statuses):
@@ -121,6 +138,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "operations_readiness": {"status": status_value(load_json(Path(args.operations_readiness_gate)), {"pass", "warn"})},
         "enterprise_readiness": {"status": status_value(load_json(Path(args.enterprise_readiness)), {"pass", "warn"})},
         "onboarding_bundle": onboarding_detail(load_json(Path(args.onboarding_manifest))),
+        "activation_server": activation_detail(load_json(Path(args.activation_server_gate))),
         "plugin_release_gates": plugin_detail(plugin_reports),
         "commercial_documentation": validate_docs(docs),
         "external_approval": approval_detail(args.external_approval),
@@ -175,6 +193,7 @@ def main() -> int:
     parser.add_argument("--operations-readiness-gate", default="build/operations-readiness/operations-readiness-gate.json")
     parser.add_argument("--enterprise-readiness", default="build/enterprise-readiness.json")
     parser.add_argument("--onboarding-manifest", default="build/onboarding/onboarding-manifest.json")
+    parser.add_argument("--activation-server-gate", default="build/activation/activation-server-gate.json")
     parser.add_argument("--plugin-gate", action="append", default=[])
     parser.add_argument("--required-doc", action="append", default=[])
     parser.add_argument("--external-approval", default="docs/project/external-approval-request-v1.2.3-rc.1.md")

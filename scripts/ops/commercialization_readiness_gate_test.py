@@ -41,6 +41,7 @@ class CommercializationReadinessGateTest(unittest.TestCase):
             operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
             enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
             onboarding_manifest=str(onboarding),
+            activation_server_gate=str(self.write_json("activation.json", {"status": "pass", "registry": {"entitlements": 1}, "audit": {"records": 2}, "live_probe": {"status": "skipped"}})),
             plugin_gate=[],
             required_doc=[str(doc)],
             external_approval=str(doc),
@@ -57,12 +58,29 @@ class CommercializationReadinessGateTest(unittest.TestCase):
             operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
             enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
             onboarding_manifest=str(onboarding),
+            activation_server_gate=str(self.write_json("activation.json", {"status": "pass", "registry": {"entitlements": 1}, "audit": {"records": 2}, "live_probe": {"status": "skipped"}})),
             plugin_gate=[str(plugin)],
             required_doc=[str(self.tmp / "missing.md")],
             external_approval=str(approval),
         ))
         self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["sections"]["commercial_documentation"]["missing_count"], 1)
+
+    def test_build_report_blocks_without_activation_evidence(self):
+        approval = self.write_doc("approval.md", "approved\n")
+        onboarding = self.write_json("onboarding.json", {"outputs": {"config": "a", "checklist": "b"}})
+        plugin = self.write_json("plugin.json", {"status": "pass", "signature_present": True, "plugin": {"name": "demo"}})
+        report = subject.build_report(Namespace(
+            operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
+            enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
+            onboarding_manifest=str(onboarding),
+            activation_server_gate=str(self.tmp / "missing-activation.json"),
+            plugin_gate=[str(plugin)],
+            required_doc=[str(approval)],
+            external_approval=str(approval),
+        ))
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["sections"]["activation_server"]["status"], "blocked")
 
 
 if __name__ == "__main__":

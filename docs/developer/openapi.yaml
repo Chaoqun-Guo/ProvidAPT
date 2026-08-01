@@ -147,6 +147,65 @@ paths:
       responses:
         "200":
           description: Cytoscape-compatible graph export.
+  /api/v1/alerts/{id}/svg:
+    get:
+      summary: Export alert trace SVG
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: layout
+          in: query
+          schema:
+            type: string
+            enum: [tree, compact, timeline, grouped]
+      responses:
+        "200":
+          description: SVG alert trace.
+  /api/v1/alerts/{id}/svg/view:
+    get:
+      summary: Open interactive alert Trace Viewer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trace Viewer HTML.
+  /api/v1/investigation/report:
+    get:
+      summary: Export investigation report
+      parameters:
+        - name: node
+          in: query
+          schema:
+            type: string
+        - name: pid
+          in: query
+          schema:
+            type: string
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [backward, forward]
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            default: 5
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, markdown]
+      responses:
+        "200":
+          description: Investigation report JSON or Markdown.
 components:
   securitySchemes:
     ApiKeyAuth:

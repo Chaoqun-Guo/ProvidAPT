@@ -66,11 +66,24 @@ Claude, or another coding agent.
 - Current behavior:
   - Raw SVG remains export-friendly.
   - Viewer provides zoom, fit width, search highlighting, cross-link toggle,
-    cluster highlight, raw SVG open, and download.
+    node type filtering, file/network fold controls, cluster highlight, raw SVG
+    open, SVG/PNG export, JSON/Markdown report links, and Markdown
+    investigation snippet copy.
+  - Nodes, edges, and clusters expose clickable detail metadata in the viewer
+    side panel, including source/target, relation, event summary, identity,
+    depth, and folded member details.
+  - Layout modes are available for tree, compact, timeline, and grouped views.
+    Raw SVG export accepts `?layout=tree|compact|timeline|grouped`.
   - Cluster boxes summarize folded nodes with `data-folded-count`,
     `data-members`, `data-reason`, depth, and node type metadata.
   - Legend is vertical and avoids overlap with the graph.
   - Cluster placement is depth-column based to avoid cross-column overflow.
+  - Visual regression screenshot capture is available through
+    `make visual-regression-snapshots` for dashboard and Trace Viewer evidence,
+    and `make visual-regression-gate` gates captured screenshots/baselines.
+  - Dashboard responsive viewport rules are split into
+    `pkg/api/static/dashboard-responsive.css` and served as an embedded static
+    stylesheet.
 
 ### Capture, Enrichment, and ML Pipeline
 
@@ -185,34 +198,53 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
 
 ### Traceability UX
 
-- Add node click-to-detail inside Trace Viewer.
-- Add edge click-to-event-detail with source, target, relation, timestamp, path,
-  command line, and enrichment fields.
-- Add layout modes: tree, compact tree, timeline, and grouped-by-process.
-- Add export options for `PNG`, `SVG`, and investigation report snippets.
+- Continue improving large-trace in-canvas expand/collapse and filtering.
+- Keep visual regression baselines current for dashboard and Trace Viewer
+  exports.
 
 ### Dashboard UX
 
 - Continue reviewing every module panel for overflow at `1366x768`,
   `1920x1080`, and ultrawide resolutions.
-- Add visual regression screenshots for dashboard and Trace Viewer.
 - Convert large inline dashboard HTML into structured templates or static assets
-  when feasible.
+  when feasible; responsive CSS has started moving to embedded static assets.
 
 ### Detection and ML
 
 - Ensure capture/enrichment reliably records `cmdline`, `exe_path`, `pathname`,
-  UID/GID, PID/PPID, network tuple, and event type.
+  UID/GID, PID/PPID, network tuple, and event type. Use
+  `make capture-enrichment-field-gate EVENTS=...` to produce JSON/Markdown
+  coverage evidence from VM or evaluation NDJSON.
 - Keep benign and attack datasets separated with explicit manifests.
-- Add model version metadata to online detector outputs.
-- Add online feedback loop from analyst TP/FP labels back into evaluation data.
+- Online detector alerts include model identity/version and feature-count
+  metadata.
+- Online detector loading can require `model-deploy-gate.json` evidence through
+  `analyzer.require_ml_deploy_gate` or
+  `PROVIDAPT_ANALYZER_REQUIRE_ML_DEPLOY_GATE`; the scorer validates
+  `providapt.model_deploy_gate.v1`, pass status, and model identity/version
+  before enabling runtime scoring.
+- Analyst TP/FP feedback is persisted to `alert-feedback.ndjson`, exportable via
+  `/api/v1/control/alerts/feedback`, and consumable by alert-quality,
+  graph-dataset, and model-closed-loop evaluation reports.
 
 ### Commercial Readiness
 
-- Harden activation server integration and upgrade artifact signing.
-- Continue RBAC, audit, multi-tenant boundaries, and policy approval workflow.
-- Expand operational readiness gates for backup, SIEM, support bundle, and
-  deployment diagnostics.
+- Activation server integration now has
+  `make activation-server-gate CUSTOMER_REGISTRY=... ACTIVATION_AUDIT=...`
+  for customer registry, fingerprint scoping, issued/rejected audit, hashed
+  activation-code audit evidence, and optional live server probes. Commercial
+  readiness consumes this evidence through `ACTIVATION_SERVER_GATE=...`.
+- Artifact signing has an explicit release gate:
+  `make artifact-signing-gate REQUIRED_ARTIFACTS="archive deb rpm helm monitoring"`.
+  The customer-release gate consumes this evidence through its
+  `artifact_signing` section.
+- RBAC, audit, multi-tenant scope, and policy approval workflow have an
+  explicit `make policy-approval-gate` evidence check.
+- Backup/restore/cutover evidence has `make backup-readiness-gate`.
+- Support bundle redaction/audit evidence has `make support-bundle-gate`.
+- Runtime deployment diagnostics evidence has `make deployment-diagnostics-gate`.
+- Operations readiness consumes policy approval, backup, support bundle, and
+  deployment diagnostics gate outputs.
 
 ## Useful Documentation Entry Points
 

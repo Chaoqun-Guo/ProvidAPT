@@ -55,6 +55,7 @@ type Alert struct {
 	Reason      string // detailed explanation
 	AlertNodeID string // node that triggered the alert
 	DetectedAt  time.Time
+	Metadata    map[string]interface{} // machine-readable detector context
 
 	// Subgraph is the extracted provenance fragment showing the
 	// attack path. Populated by ExtractSubgraph.
@@ -88,7 +89,7 @@ type AlertSubgraph struct {
 //     via TaintNode.PrevID pointers.
 //  2. Collect all nodes along the path.
 //  3. Collect all edges whose both endpoints are path nodes.
-//  4. Add 1-hop context: direct neighbours of path nodes.
+//  4. Add 1-hop context: direct neighbors of path nodes.
 func (a *Alert) ExtractSubgraph(te *TaintEngine) {
 	pathIDs := te.PropagationPath(a.AlertNodeID)
 	if len(pathIDs) == 0 {
@@ -101,7 +102,7 @@ func (a *Alert) ExtractSubgraph(te *TaintEngine) {
 		onPath[id] = true
 	}
 
-	// 1-hop context: direct neighbours of path nodes
+	// 1-hop context: direct neighbors of path nodes
 	context := make(map[string]bool)
 	for _, id := range pathIDs {
 		for _, e := range te.forward[id] {
@@ -181,14 +182,11 @@ func (te *TaintEngine) allEdges() []*provenance.Edge {
 
 func (a *Alert) String() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("[%s] [%s] %s\n",
-		a.DetectedAt.Format(time.RFC3339),
-		a.Severity, a.Pattern))
-	b.WriteString(fmt.Sprintf("  %s\n", a.Headline))
+	fmt.Fprintf(&b, "[%s] [%s] %s\n", a.DetectedAt.Format(time.RFC3339), a.Severity, a.Pattern)
+	fmt.Fprintf(&b, "  %s\n", a.Headline)
 	if a.Subgraph != nil {
-		b.WriteString(fmt.Sprintf("  subgraph: %d nodes, %d edges, path=%d hops\n",
-			len(a.Subgraph.Nodes), len(a.Subgraph.Edges),
-			len(a.Subgraph.PathNodeIDs)))
+		fmt.Fprintf(&b, "  subgraph: %d nodes, %d edges, path=%d hops\n",
+			len(a.Subgraph.Nodes), len(a.Subgraph.Edges), len(a.Subgraph.PathNodeIDs))
 	}
 	return b.String()
 }
@@ -199,13 +197,14 @@ func (a *Alert) String() string {
 
 // alertEnvelope is the JSON-serializable alert wrapper.
 type alertEnvelope struct {
-	Pattern     string         `json:"pattern"`
-	Severity    string         `json:"severity"`
-	Headline    string         `json:"headline"`
-	Reason      string         `json:"reason"`
-	AlertNodeID string         `json:"alert_node_id"`
-	DetectedAt  time.Time      `json:"detected_at"`
-	Subgraph    *alertSubgraph `json:"subgraph,omitempty"`
+	Pattern     string                 `json:"pattern"`
+	Severity    string                 `json:"severity"`
+	Headline    string                 `json:"headline"`
+	Reason      string                 `json:"reason"`
+	AlertNodeID string                 `json:"alert_node_id"`
+	DetectedAt  time.Time              `json:"detected_at"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Subgraph    *alertSubgraph         `json:"subgraph,omitempty"`
 }
 
 type alertSubgraph struct {
@@ -242,6 +241,7 @@ func SerializeAlertJSON(w io.Writer, alerts []*Alert) error {
 			Reason:      a.Reason,
 			AlertNodeID: a.AlertNodeID,
 			DetectedAt:  a.DetectedAt,
+			Metadata:    a.Metadata,
 		}
 		if a.Subgraph != nil {
 			sg := a.Subgraph

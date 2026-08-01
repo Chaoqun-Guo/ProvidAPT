@@ -68,6 +68,8 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 ## 6. Supply Chain & Artifact Integrity
 
 - Run `make release-gates` before final review. It writes `build/release-gate-status.md` and `build/release-gate-status.json` with CI, scanner availability, scanner evidence, approval, and artifact status.
+- Run `make artifact-signing-gate REQUIRED_ARTIFACTS="archive deb rpm helm monitoring"` after `make release-commercial`. It writes `build/artifact-signing/artifact-signing-gate.md` and `.json`, validates `dist/checksums.txt`, rejects unsafe checksum paths, verifies every listed artifact hash, and confirms detached signature evidence is present.
+- Run `make customer-release-gate` only after the artifact signing gate has produced passing evidence; the customer gate includes an `artifact_signing` section and blocks when that report is missing or failing.
 - When GitHub Actions or scanner evidence is collected outside the local
   workstation, pass it explicitly:
 
@@ -87,7 +89,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - Confirm `dist/checksums.txt` contains one SHA-256 entry per published release artifact
 - Confirm the checksum manifest includes the required commercial artifact types: `archive`, `deb`, `rpm`, `helm`, and `monitoring`
 - Confirm every artifact listed in `dist/checksums.txt` exists under `dist/` and matches its SHA-256 digest
-- Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured; `providapt-sign` Ed25519 bundles, GPG armored signatures, Minisign signatures, and Cosign bundle evidence are recognized in release reports
+- Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured; `providapt-sign` Ed25519 bundles, GPG armored signatures, Minisign signatures, and Cosign bundle evidence are recognized in release reports. The artifact signing gate blocks unsigned marker files and verifies that ProvidAPT Ed25519 bundles are structurally valid and bound to the exact checksum manifest hash.
 - When using `providapt-sign`, publish `dist/checksums.txt.pub` with the release handoff package and keep the private key under customer-approved key custody
 - Confirm SBOM artifacts are generated in SPDX and CycloneDX JSON formats
 - Confirm container image labels include source, version, and revision

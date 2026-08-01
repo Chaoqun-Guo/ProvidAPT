@@ -164,4 +164,3 @@ func (si *SketchIntegrator) Uploader() *graphsketch.VectorUploader {
 func (a *Analyzer) SetSketchIntegrator(si *SketchIntegrator) {
 	a.sketchIntegrator = si
 }
-

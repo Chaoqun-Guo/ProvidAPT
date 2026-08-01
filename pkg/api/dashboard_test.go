@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -731,6 +733,45 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 	}
 	if strings.Contains(dashboardHTML, "Math.max(300") {
 		t.Fatal("dashboard panel drag resize should use adaptive minimum height, not fixed 300px")
+	}
+}
+
+func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
+	if !strings.Contains(dashboardHTML, `href="/assets/dashboard-responsive.css"`) {
+		t.Fatal("dashboard should link the responsive CSS asset")
+	}
+	expected := []string{
+		"@media (min-width: 1280px) and (max-width: 1439px)",
+		"grid-template-columns: 218px minmax(0, 1fr)",
+		"grid-auto-rows: 7px !important",
+		"@media (min-width: 1800px) and (max-width: 2299px)",
+		"max-width: 1960px",
+		"repeat(2, minmax(620px, 1fr))",
+		"@media (min-width: 2300px)",
+		"max-width: 2560px",
+		"repeat(3, minmax(480px, 1fr))",
+		"grid-column: span 2",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("dashboard missing viewport optimization %q", item)
+		}
+	}
+}
+
+func TestDashboardResponsiveCSSAsset(t *testing.T) {
+	ts := testServer(t)
+	req := httptest.NewRequest(http.MethodGet, "/assets/dashboard-responsive.css", nil)
+	w := httptest.NewRecorder()
+	ts.mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("responsive css status = %d", w.Code)
+	}
+	if !strings.Contains(w.Header().Get("Content-Type"), "text/css") {
+		t.Fatalf("responsive css content type = %q", w.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(w.Body.String(), "repeat(3, minmax(480px, 1fr))") {
+		t.Fatalf("responsive css missing ultrawide layout: %s", w.Body.String())
 	}
 }
 

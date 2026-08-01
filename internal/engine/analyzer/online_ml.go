@@ -16,19 +16,23 @@ import (
 )
 
 type OnlineMLConfig struct {
-	ModelDir  string
-	Threshold float64
-	MinNodes  int
-	MinEdges  int
+	ModelDir          string
+	DeployGatePath    string
+	RequireDeployGate bool
+	Threshold         float64
+	MinNodes          int
+	MinEdges          int
 }
 
 type OnlineMLScorer struct {
-	modelName    string
-	modelVersion string
-	modelDir     string
-	threshold    float64
-	minNodes     int
-	minEdges     int
+	modelName        string
+	modelVersion     string
+	modelDir         string
+	deployGatePath   string
+	deployGateStatus string
+	threshold        float64
+	minNodes         int
+	minEdges         int
 }
 
 type onlineModelRegistry struct {
@@ -36,6 +40,13 @@ type onlineModelRegistry struct {
 		ModelName    string `json:"model_name"`
 		ModelVersion string `json:"model_version"`
 	} `json:"models"`
+}
+
+type onlineModelDeployGate struct {
+	Schema       string `json:"schema"`
+	Status       string `json:"status"`
+	ModelName    string `json:"model_name"`
+	ModelVersion string `json:"model_version"`
 }
 
 func NewOnlineMLScorer(cfg OnlineMLConfig) (*OnlineMLScorer, error) {
@@ -71,6 +82,9 @@ func NewOnlineMLScorer(cfg OnlineMLConfig) (*OnlineMLScorer, error) {
 		minEdges:     minEdges,
 	}
 	scorer.loadRegistryMetadata()
+	if err := scorer.loadDeployGate(cfg); err != nil {
+		return nil, err
+	}
 	return scorer, nil
 }
 
@@ -84,6 +98,14 @@ func (s *OnlineMLScorer) ModelVersion() string {
 
 func (s *OnlineMLScorer) Threshold() float64 {
 	return s.threshold
+}
+
+func (s *OnlineMLScorer) DeployGatePath() string {
+	return s.deployGatePath
+}
+
+func (s *OnlineMLScorer) DeployGateStatus() string {
+	return s.deployGateStatus
 }
 
 func (s *OnlineMLScorer) loadRegistryMetadata() {
@@ -102,6 +124,40 @@ func (s *OnlineMLScorer) loadRegistryMetadata() {
 	if latest.ModelVersion != "" {
 		s.modelVersion = latest.ModelVersion
 	}
+}
+
+func (s *OnlineMLScorer) loadDeployGate(cfg OnlineMLConfig) error {
+	gatePath := strings.TrimSpace(cfg.DeployGatePath)
+	if gatePath == "" {
+		gatePath = filepath.Join(s.modelDir, "model-deploy-gate.json")
+	}
+	data, err := os.ReadFile(gatePath)
+	if err != nil {
+		if cfg.RequireDeployGate {
+			return fmt.Errorf("read model deploy gate %s: %w", gatePath, err)
+		}
+		return nil
+	}
+	var gate onlineModelDeployGate
+	if err := json.Unmarshal(data, &gate); err != nil {
+		return fmt.Errorf("parse model deploy gate %s: %w", gatePath, err)
+	}
+	if gate.Schema != "providapt.model_deploy_gate.v1" {
+		return fmt.Errorf("model deploy gate %s has unsupported schema %q", gatePath, gate.Schema)
+	}
+	status := strings.ToLower(strings.TrimSpace(gate.Status))
+	if status != "pass" {
+		return fmt.Errorf("model deploy gate %s status is %q", gatePath, gate.Status)
+	}
+	if gate.ModelName != "" && gate.ModelName != s.modelName {
+		return fmt.Errorf("model deploy gate %s model_name %q does not match loaded model %q", gatePath, gate.ModelName, s.modelName)
+	}
+	if gate.ModelVersion != "" && gate.ModelVersion != s.modelVersion {
+		return fmt.Errorf("model deploy gate %s model_version %q does not match loaded model %q", gatePath, gate.ModelVersion, s.modelVersion)
+	}
+	s.deployGatePath = gatePath
+	s.deployGateStatus = status
+	return nil
 }
 
 func (s *OnlineMLScorer) Score(snap *Snapshot, te *TaintEngine) *Alert {
@@ -126,6 +182,26 @@ func (s *OnlineMLScorer) Score(snap *Snapshot, te *TaintEngine) *Alert {
 			s.threshold, score, features.nodes, features.edges, features.taintedProcesses, features.sensitiveFiles, features.networkNodes, features.execEdges, s.modelDir),
 		AlertNodeID: alertNodeID,
 		DetectedAt:  time.Now(),
+		Metadata: map[string]interface{}{
+			"detector":      "online_graph_scorer",
+			"model_name":    s.modelName,
+			"model_version": s.modelVersion,
+			"model_dir":     s.modelDir,
+			"deploy_gate": map[string]interface{}{
+				"path":   s.deployGatePath,
+				"status": s.deployGateStatus,
+			},
+			"score":     score,
+			"threshold": s.threshold,
+			"feature_counts": map[string]interface{}{
+				"nodes":             features.nodes,
+				"edges":             features.edges,
+				"tainted_processes": features.taintedProcesses,
+				"sensitive_files":   features.sensitiveFiles,
+				"network_nodes":     features.networkNodes,
+				"exec_edges":        features.execEdges,
+			},
+		},
 	}
 }
 
