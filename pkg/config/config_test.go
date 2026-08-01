@@ -70,6 +70,17 @@ func TestLoadNonExistent(t *testing.T) {
 	}
 }
 
+func TestEnvOverridesAPIAuthKeys(t *testing.T) {
+	t.Setenv("PROVIDAPT_API_AUTH_KEYS", "admin-key, analyst-key ")
+	cfg, err := Load("/tmp/nonexistent_providapt_config.json")
+	if err != nil {
+		t.Fatalf("Load with env auth keys: %v", err)
+	}
+	if len(cfg.API.AuthKeys) != 2 || cfg.API.AuthKeys[0] != "admin-key" || cfg.API.AuthKeys[1] != "analyst-key" {
+		t.Fatalf("auth keys = %#v", cfg.API.AuthKeys)
+	}
+}
+
 func TestLoadFromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")

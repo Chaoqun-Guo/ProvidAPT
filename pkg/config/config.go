@@ -759,6 +759,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Output.Format, "PROVIDAPT_OUTPUT_FORMAT")
 	overrideString(&cfg.API.GRPC, "PROVIDAPT_API_GRPC")
 	overrideString(&cfg.API.REST, "PROVIDAPT_API_REST")
+	overrideStringSlice(&cfg.API.AuthKeys, "PROVIDAPT_API_AUTH_KEYS")
 	overrideString(&cfg.AI.Provider, "PROVIDAPT_AI_PROVIDER")
 	overrideString(&cfg.AI.Endpoint, "PROVIDAPT_AI_ENDPOINT")
 	overrideString(&cfg.AI.Model, "PROVIDAPT_AI_MODEL")

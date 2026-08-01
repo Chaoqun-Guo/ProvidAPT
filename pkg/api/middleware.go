@@ -63,8 +63,18 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 					return
 				}
 			}
-			if !enabled || len(keys) == 0 {
+			if !enabled {
 				next.ServeHTTP(w, withRole(r, RoleAdmin))
+				return
+			}
+			if len(keys) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				if err := json.NewEncoder(w).Encode(map[string]string{
+					"error": "unauthorized: API authentication is enabled but no API keys are configured",
+				}); err != nil {
+					log.Printf("[api] encode unauthorized response failed: %v", err)
+				}
 				return
 			}
 			key := requestAPIKey(r)

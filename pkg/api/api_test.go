@@ -178,6 +178,20 @@ func TestTenantScopedClusterOverview(t *testing.T) {
 	}
 }
 
+func TestAPIAuthEnabledWithoutKeysDeniesRequests(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth(nil, nil, nil, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	w := apiServe(ts, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status code = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+	if !strings.Contains(w.Body.String(), "no API keys are configured") {
+		t.Fatalf("response body = %q", w.Body.String())
+	}
+}
+
 func TestFleetEndpoint(t *testing.T) {
 	ts := testServer(t)
 	ts.SetFleetListFunc(func(group, tag string) FleetList {
