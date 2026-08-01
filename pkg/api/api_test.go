@@ -192,6 +192,25 @@ func TestAPIAuthEnabledWithoutKeysDeniesRequests(t *testing.T) {
 	}
 }
 
+func TestAPIAuthAllowsDashboardShellWithoutKey(t *testing.T) {
+	ts := testServer(t)
+	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)
+
+	for _, path := range []string{"/dashboard", "/", "/assets/dashboard-responsive.css"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		w := apiServe(ts, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s status code = %d, want %d", path, w.Code, http.StatusOK)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	w := apiServe(ts, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated API status code = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
 func TestFleetEndpoint(t *testing.T) {
 	ts := testServer(t)
 	ts.SetFleetListFunc(func(group, tag string) FleetList {

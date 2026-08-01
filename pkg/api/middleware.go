@@ -67,6 +67,10 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 				next.ServeHTTP(w, withRole(r, RoleAdmin))
 				return
 			}
+			if isPublicDashboardShell(r) {
+				next.ServeHTTP(w, withRole(r, RoleOperator))
+				return
+			}
 			if len(keys) == 0 {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
@@ -101,6 +105,10 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 			next.ServeHTTP(w, withTenant(withActor(withRole(r, role), key, role, identities[key]), tenant))
 		})
 	}
+}
+
+func isPublicDashboardShell(r *http.Request) bool {
+	return isPublicDashboardPath(r.Method, r.URL.Path)
 }
 
 func authorizationMiddleware(rolePermissions map[string][]string) func(http.Handler) http.Handler {
@@ -207,6 +215,9 @@ func normalizeRole(role string) string {
 }
 
 func allowed(role, method, path string, rolePermissions map[string][]string) bool {
+	if isPublicDashboardPath(method, path) {
+		return true
+	}
 	role = normalizeRole(role)
 	if role != RoleAdmin && role != RoleAnalyst && role != RoleAuditor && role != RoleOperator {
 		return allowedByCustomPermissions(role, method, path, rolePermissions)
@@ -311,6 +322,13 @@ func allowed(role, method, path string, rolePermissions map[string][]string) boo
 	default:
 		return false
 	}
+}
+
+func isPublicDashboardPath(method, path string) bool {
+	if method != http.MethodGet && method != http.MethodHead {
+		return false
+	}
+	return path == "/" || path == "/dashboard" || path == "/assets/dashboard-responsive.css"
 }
 
 func allowedByCustomPermissions(role, method, path string, rolePermissions map[string][]string) bool {
