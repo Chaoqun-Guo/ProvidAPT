@@ -263,9 +263,13 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .graph-cluster-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:999px; padding:3px 8px; cursor:pointer; font-size:11px; }
 .graph-cluster-actions button:hover { border-color:#58a6ff; color:#58a6ff; }
 .graph-subset-summary { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:6px; margin-bottom:8px; }
-.auth-strip { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; min-width:0; }
+.auth-strip { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; min-width:0; max-width:100%; }
 .auth-strip input { background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:5px 8px; min-width:160px; max-width:100%; flex:1 1 220px; }
 .auth-strip button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:5px 8px; cursor:pointer; }
+.auth-remember { display:inline-flex; align-items:center; gap:5px; color:#8b949e; font-size:11px; white-space:nowrap; }
+.auth-remember input { flex:0 0 auto; min-width:0; width:14px; height:14px; accent-color:#1f6feb; }
+.auth-strip.has-key #apiKeyInput { border-color:#238636; }
+.auth-strip.needs-key #apiKeyInput { border-color:#d29922; }
 
 /* Professional Cyber IDS glassmorphism HUD theme: Electric Red, Amber, Emerald Green severity accents. */
 :root {
@@ -2205,7 +2209,8 @@ button.panel-resize-handle:hover,
       <span class="platform-action-status" id="actionStatus">Ready</span>
     </div>
     <div class="auth-strip">
-      <input id="apiKeyInput" type="password" placeholder="API key for protected control plane">
+      <input id="apiKeyInput" type="password" placeholder="API key for protected control plane" autocomplete="current-password" onkeydown="handleAPIKeyInputKey(event)">
+      <label class="auth-remember" title="Unchecked stores the key only for this browser tab"><input id="apiKeyRemember" type="checkbox" onchange="syncAPIKeyRememberChoice()">Remember</label>
       <button class="platform-button" onclick="saveAPIKey()">Use Key</button>
       <button class="platform-button" onclick="testAPIKeyPermissions()">Test Access</button>
       <button class="platform-button" onclick="copyStatusCurl()">Copy curl</button>
@@ -2629,7 +2634,7 @@ button.panel-resize-handle:hover,
         <button onclick="showRecentEvents()">Recent Events</button>
         <button onclick="showDroppedEvents()">Dropped Events</button>
         <button onclick="showRuntimeDetails('runtime')">Runtime</button>
-        <button onclick="window.open('/api/v1/graph/export', '_blank', 'noreferrer')">Export Graph JSON</button>
+        <button onclick="openProtectedEndpoint('/api/v1/graph/export', 'providapt-graph.json')">Export Graph JSON</button>
         <button class="secondary" onclick="openGraphFullscreen()">Open Graph Fullscreen</button>
         <button class="secondary" onclick="showAttackRouteMap()">Attack Route Map</button>
       </div>
@@ -2692,7 +2697,10 @@ let latestCompliance = {};
 let latestGroundTruth = { records: [], phases: {}, files: [] };
 let latestGroundTruthCorrelation = { records: [] };
 let groundTruthFilter = 'all';
-let apiKey = localStorage.getItem('providapt_api_key') || '';
+const API_KEY_STORAGE = 'providapt_api_key';
+const API_KEY_REMEMBER_STORAGE = 'providapt_api_key_remember';
+let apiKey = sessionStorage.getItem(API_KEY_STORAGE) || localStorage.getItem(API_KEY_STORAGE) || '';
+let apiKeyRemember = localStorage.getItem(API_KEY_REMEMBER_STORAGE) === 'true' || (!!localStorage.getItem(API_KEY_STORAGE) && !sessionStorage.getItem(API_KEY_STORAGE));
 let lastAPIRequest = null;
 let detailDrawerHideTimer = null;
 let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
@@ -2920,13 +2928,48 @@ function authHeaders() {
 
 function updateAuthStatus(message) {
   const input = document.getElementById('apiKeyInput');
+  const remember = document.getElementById('apiKeyRemember');
+  const strip = input ? input.closest('.auth-strip') : null;
   const status = document.getElementById('authStatus');
   if (input && apiKey) {
     input.value = apiKey;
   }
-  if (status) {
-    status.textContent = message || (apiKey ? 'API key stored locally' : 'No key stored');
+  if (remember) {
+    remember.checked = apiKeyRemember;
   }
+  if (strip) {
+    strip.classList.toggle('has-key', !!apiKey);
+    strip.classList.toggle('needs-key', !apiKey);
+  }
+  if (status) {
+    const scope = apiKeyRemember ? 'this browser' : 'this tab';
+    status.textContent = message || (apiKey ? 'API key stored for ' + scope : 'No key stored');
+  }
+}
+
+function handleAPIKeyInputKey(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    saveAPIKey();
+  }
+}
+
+function syncAPIKeyRememberChoice() {
+  const remember = document.getElementById('apiKeyRemember');
+  apiKeyRemember = !!(remember && remember.checked);
+  localStorage.setItem(API_KEY_REMEMBER_STORAGE, apiKeyRemember ? 'true' : 'false');
+  if (!apiKey) {
+    updateAuthStatus();
+    return;
+  }
+  if (apiKeyRemember) {
+    localStorage.setItem(API_KEY_STORAGE, apiKey);
+    sessionStorage.removeItem(API_KEY_STORAGE);
+  } else {
+    sessionStorage.setItem(API_KEY_STORAGE, apiKey);
+    localStorage.removeItem(API_KEY_STORAGE);
+  }
+  updateAuthStatus('API key storage changed');
 }
 
 const moduleStatusTargets = {
@@ -2994,7 +3037,7 @@ async function testAPIKeyPermissions() {
 }
 
 async function copyStatusCurl() {
-  const header = apiKey ? " -H 'Authorization: Bearer " + apiKey.replace(/'/g, "'\\''") + "'" : '';
+  const header = apiKey ? " -H 'X-API-Key: " + apiKey.replace(/'/g, "'\\''") + "'" : '';
   const command = "curl" + header + " '" + window.location.origin + "/api/v1/status'";
   try {
     await navigator.clipboard.writeText(command);
@@ -3056,20 +3099,68 @@ function showModuleQuality(area) {
 
 function saveAPIKey() {
   const input = document.getElementById('apiKeyInput');
+  const remember = document.getElementById('apiKeyRemember');
   apiKey = input && input.value ? input.value.trim() : '';
+  apiKeyRemember = !!(remember && remember.checked);
+  localStorage.setItem(API_KEY_REMEMBER_STORAGE, apiKeyRemember ? 'true' : 'false');
+  sessionStorage.removeItem(API_KEY_STORAGE);
+  localStorage.removeItem(API_KEY_STORAGE);
   if (apiKey) {
-    localStorage.setItem('providapt_api_key', apiKey);
+    if (apiKeyRemember) {
+      localStorage.setItem(API_KEY_STORAGE, apiKey);
+    } else {
+      sessionStorage.setItem(API_KEY_STORAGE, apiKey);
+    }
   }
-  updateAuthStatus(apiKey ? 'API key stored locally' : 'No key stored');
-  loadAll();
+  updateAuthStatus(apiKey ? 'API key stored for ' + (apiKeyRemember ? 'this browser' : 'this tab') : 'No key stored');
+  refresh();
 }
 
 function clearAPIKey() {
   apiKey = '';
-  localStorage.removeItem('providapt_api_key');
+  sessionStorage.removeItem(API_KEY_STORAGE);
+  localStorage.removeItem(API_KEY_STORAGE);
   const input = document.getElementById('apiKeyInput');
   if (input) input.value = '';
   updateAuthStatus('No key stored');
+}
+
+async function openProtectedEndpoint(url, defaultName) {
+  rememberLastRequest('DOWNLOAD', url, { file_name: defaultName || 'providapt-response' });
+  try {
+    const response = await fetch(url, { headers: authHeaders() });
+    if (!response.ok) {
+      const err = await responseError(response, url);
+      reportAPIError('GET', url, err);
+      updateAuthStatus(err.status === 401 || err.status === 403 ? 'API key required for ' + url : 'Open failed: ' + err.message);
+      return;
+    }
+    clearAPIStatus();
+    const contentType = response.headers.get('Content-Type') || 'application/octet-stream';
+    const blob = await response.blob();
+    const href = URL.createObjectURL(blob);
+    const opened = window.open(href, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = defaultName || protectedEndpointFileName(url, contentType);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    window.setTimeout(() => URL.revokeObjectURL(href), 30000);
+  } catch (e) {
+    reportAPIError('GET', url, e);
+  }
+}
+
+function protectedEndpointFileName(url, contentType) {
+  const safe = String(url || 'providapt-response').replace(/[^A-Za-z0-9_.-]+/g, '_').replace(/^_+|_+$/g, '');
+  if (contentType.indexOf('svg') >= 0) return safe + '.svg';
+  if (contentType.indexOf('html') >= 0) return safe + '.html';
+  if (contentType.indexOf('json') >= 0) return safe + '.json';
+  if (contentType.indexOf('csv') >= 0) return safe + '.csv';
+  return safe || 'providapt-response';
 }
 
 async function downloadWithAuth(url, defaultName) {
@@ -3093,6 +3184,15 @@ async function downloadWithAuth(url, defaultName) {
   link.click();
   link.remove();
   URL.revokeObjectURL(href);
+}
+
+function installProtectedAPILinkHandler() {
+  document.addEventListener('click', event => {
+    const link = event.target.closest('a[href^="/api/v1/"]');
+    if (!link || event.defaultPrevented) return;
+    event.preventDefault();
+    openProtectedEndpoint(link.getAttribute('href'), protectedEndpointFileName(link.getAttribute('href'), ''));
+  });
 }
 
 function escapeHTML(value) {
@@ -4568,7 +4668,7 @@ function downloadAlertQuality() {
 }
 
 function openAlertFeedbackLedger() {
-  window.open('/api/v1/control/alerts/feedback?format=csv', '_blank', 'noopener,noreferrer');
+  openProtectedEndpoint('/api/v1/control/alerts/feedback?format=csv', 'providapt-alert-feedback.csv');
   setInvestigationItems([
     renderKVItem('feedback ledger', 'CSV export requested', '/api/v1/control/alerts/feedback?format=csv'),
     renderKVItem('audit use', 'analyst labels, workflow actions, actor, role, timestamp', 'append-only evidence')
@@ -5833,11 +5933,11 @@ async function exportClusterSubset(clusterKey) {
 
 function openGraphTrace(nodeID, direction) {
   if (!nodeID) return;
-  window.open('/api/v1/graph/node/' + encodeURIComponent(nodeID) + '/' + direction + '?depth=8', '_blank', 'noreferrer');
+  openProtectedEndpoint('/api/v1/graph/node/' + encodeURIComponent(nodeID) + '/' + direction + '?depth=8', 'providapt-graph-trace.json');
 }
 
 function openGraphFullscreen() {
-  window.open('/api/v1/graph/export', '_blank', 'noreferrer');
+  openProtectedEndpoint('/api/v1/graph/export', 'providapt-graph.json');
   openDetailDrawer('Graph Fullscreen', 'Opened graph JSON in a new tab', [
     renderKVItem('primary view', '/api/v1/graph/export', 'new tab'),
     renderKVItem('next step', 'Use Graph Nodes or Attack Route Map to reduce clutter before opening node traces.', 'workflow'),
@@ -6690,6 +6790,7 @@ window.addEventListener('resize', scheduleDashboardMasonry);
 migrateDashboardLayoutStorage();
 initializePanelLayout();
 installInteractionFeedback();
+installProtectedAPILinkHandler();
 updateAuthStatus();
 refresh();
 setInterval(refresh, 5000);
