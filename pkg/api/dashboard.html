@@ -53,6 +53,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .platform-button { height:28px; min-width:72px; max-width:150px; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .api-key-toggle { min-width:88px; max-width:118px; }
 .auth-strip.is-collapsed { display:none !important; }
+.auth-strip.needs-key .auth-key-secondary { display:none !important; }
+.auth-strip.needs-key { width:min(100%, 520px); }
 .dashboard-shell { display:grid; grid-template-columns: 250px minmax(0, 1fr); gap:14px; padding:12px 18px 18px; align-items:start; min-width:0; }
 .dashboard-main { min-width:0; display:grid; gap:12px; }
 .dashboard-sidebar { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px; min-width:0; }
@@ -269,7 +271,8 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .graph-cluster-actions button:hover { border-color:#58a6ff; color:#58a6ff; }
 .graph-subset-summary { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:6px; margin-bottom:8px; }
 .auth-strip { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; min-width:0; max-width:100%; }
-.auth-strip input { background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:5px 8px; min-width:160px; max-width:100%; flex:1 1 220px; }
+.auth-strip input { background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:5px 8px; min-width:0; max-width:100%; flex:1 1 220px; }
+.auth-strip input::placeholder { color:#6e7681; text-overflow:ellipsis; }
 .auth-strip button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:6px; padding:5px 8px; cursor:pointer; }
 .auth-remember { display:inline-flex; align-items:center; gap:5px; color:#8b949e; font-size:11px; white-space:nowrap; }
 .auth-remember input { flex:0 0 auto; min-width:0; width:14px; height:14px; accent-color:#1f6feb; }
@@ -1067,6 +1070,10 @@ body.panel-resize-active {
   background: rgba(3, 8, 18, 0.36);
 }
 
+.auth-strip.needs-key {
+  width: min(100%, 520px);
+}
+
 .auth-strip input {
   min-width: 0;
   flex: 1 1 220px;
@@ -1082,6 +1089,11 @@ body.panel-resize-active {
   min-height: 28px;
   padding: 0 9px;
   font-size: 11px;
+}
+
+.auth-strip.needs-key button {
+  flex: 0 0 78px;
+  max-width: 92px;
 }
 
 .auth-remember {
@@ -2230,11 +2242,11 @@ button.panel-resize-handle:hover,
     <div id="apiKeyPanel" class="auth-strip">
       <input id="apiKeyInput" type="password" placeholder="API key for protected control plane" autocomplete="current-password" onkeydown="handleAPIKeyInputKey(event)">
       <label class="auth-remember" title="Unchecked stores the key only for this browser tab"><input id="apiKeyRemember" type="checkbox" onchange="syncAPIKeyRememberChoice()">Remember</label>
-      <button class="platform-button" onclick="saveAPIKey()">Use Key</button>
-      <button class="platform-button" onclick="testAPIKeyPermissions()">Test Access</button>
-      <button class="platform-button" onclick="copyStatusCurl()">Copy curl</button>
-      <button class="platform-button" onclick="showRBACPermissions()">RBAC Matrix</button>
-      <button class="platform-button" onclick="clearAPIKey()">Clear</button>
+      <button class="platform-button auth-key-primary" onclick="saveAPIKey()">Save</button>
+      <button class="platform-button auth-key-secondary" onclick="testAPIKeyPermissions()">Test</button>
+      <button class="platform-button auth-key-secondary" onclick="copyStatusCurl()">Copy curl</button>
+      <button class="platform-button auth-key-secondary" onclick="showRBACPermissions()">RBAC</button>
+      <button class="platform-button auth-key-secondary" onclick="clearAPIKey()">Clear</button>
     </div>
   </div>
   <div class="header-right">

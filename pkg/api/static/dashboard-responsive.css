@@ -36,6 +36,15 @@
   display: none !important;
 }
 
+.auth-strip.needs-key {
+  flex-basis: 420px;
+  width: min(100%, 520px);
+}
+
+.auth-strip.needs-key .auth-key-secondary {
+  display: none !important;
+}
+
 .api-key-toggle {
   flex: 0 0 auto;
   min-width: 88px;
@@ -44,7 +53,12 @@
 
 .auth-strip input {
   flex: 1 1 220px;
-  min-width: min(100%, 180px);
+  min-width: 0;
+}
+
+.auth-strip input::placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .auth-remember {
@@ -56,6 +70,11 @@
   flex: 1 1 72px;
   min-width: 0;
   max-width: 118px;
+}
+
+.auth-strip.needs-key button {
+  flex: 0 0 78px;
+  max-width: 92px;
 }
 
 .alert-item {
@@ -237,9 +256,15 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
+  .auth-strip.needs-key {
+    width: 100%;
+  }
   .auth-strip input,
   .auth-remember {
     grid-column: 1 / -1;
+  }
+  .auth-strip.needs-key button {
+    max-width: none;
   }
 }
 

@@ -158,6 +158,7 @@ func TestDashboardAuthStripLayoutIsResponsive(t *testing.T) {
 	forbidden := []string{
 		"grid-template-columns: minmax(190px, 1fr) repeat(5, minmax(72px, max-content))",
 		"grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(72px, max-content))",
+		"min-width:160px",
 	}
 	for _, item := range forbidden {
 		if strings.Contains(dashboardHTML, item) || strings.Contains(dashboardResponsiveCSS, item) {
@@ -168,7 +169,10 @@ func TestDashboardAuthStripLayoutIsResponsive(t *testing.T) {
 	expected := []string{
 		`<label class="auth-remember"`,
 		"width: min(100%, 860px)",
+		"width: min(100%, 520px)",
 		"flex: 1 1 220px",
+		"input::placeholder",
+		"text-overflow:ellipsis",
 		"@media (max-width: 760px)",
 		"grid-template-columns: 1fr 1fr",
 	}
@@ -493,6 +497,9 @@ func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
 		"toggleAPIKeyPanel",
 		"apiKeyPanelOpen = false",
 		".auth-strip.is-collapsed",
+		".auth-strip.needs-key .auth-key-secondary",
+		"auth-key-primary",
+		"auth-key-secondary",
 		"providapt_api_key",
 		"testAPIKeyPermissions",
 		"copyStatusCurl",
