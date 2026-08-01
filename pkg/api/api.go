@@ -1833,10 +1833,6 @@ func filterAuditFeedForTenant(feed AuditFeed, tenant string) AuditFeed {
 	return feed
 }
 
-func agentMatchesTenant(agent ClusterAgent, tenant string) bool {
-	return agentMatchesTenantScope(agent, tenantScopeList(tenant))
-}
-
 func agentMatchesTenantScope(agent ClusterAgent, scope []string) bool {
 	if len(scope) == 0 {
 		return true
@@ -1852,10 +1848,6 @@ func agentMatchesTenantScope(agent ClusterAgent, scope []string) bool {
 		}
 	}
 	return false
-}
-
-func auditEntryMatchesTenant(entry AuditEntry, tenant string) bool {
-	return auditEntryMatchesTenantScope(entry, tenantScopeList(tenant))
 }
 
 func auditEntryMatchesTenantScope(entry AuditEntry, scope []string) bool {
