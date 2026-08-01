@@ -7,6 +7,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -318,6 +319,21 @@ func validateDurationString(value string) error {
 	return nil
 }
 
+func validateListenAddress(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.HasPrefix(value, ":") {
+		return nil
+	}
+	host, port, err := net.SplitHostPort(value)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" {
+		return fmt.Errorf("missing host or port")
+	}
+	return nil
+}
+
 // DefaultConfig returns a configuration with sensible defaults.
 func DefaultConfig() *Config {
 	c := &Config{}
@@ -572,11 +588,11 @@ func (c *Config) Validate() error {
 		mode != "auto" && mode != "lsm" && mode != "kprobe" {
 		return fmt.Errorf("unsupported kernel.attachment_mode %q (use auto, lsm, or kprobe)", c.Kernel.AttachmentMode)
 	}
-	if c.API.REST != "" && !strings.HasPrefix(c.API.REST, ":") {
-		return fmt.Errorf("REST address %q should be in format :port (e.g. :18080)", c.API.REST)
+	if err := validateListenAddress(c.API.REST); err != nil {
+		return fmt.Errorf("REST address %q should be in format :port or host:port (e.g. :18080 or 127.0.0.1:18080)", c.API.REST)
 	}
-	if c.API.GRPC != "" && !strings.HasPrefix(c.API.GRPC, ":") {
-		return fmt.Errorf("gRPC address %q should be in format :port (e.g. :50051)", c.API.GRPC)
+	if err := validateListenAddress(c.API.GRPC); err != nil {
+		return fmt.Errorf("gRPC address %q should be in format :port or host:port (e.g. :50051 or 127.0.0.1:50051)", c.API.GRPC)
 	}
 	if mode := strings.ToLower(strings.TrimSpace(c.ControlPlane.Mode)); mode != "" && mode != "standalone" && mode != "active-passive" && mode != "external" {
 		return fmt.Errorf("unsupported control_plane.mode %q (use standalone, active-passive, or external)", c.ControlPlane.Mode)

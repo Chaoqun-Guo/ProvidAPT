@@ -81,6 +81,19 @@ func TestEnvOverridesAPIAuthKeys(t *testing.T) {
 	}
 }
 
+func TestValidateAPIListenAddressesAllowHostPort(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.API.REST = "127.0.0.1:18080"
+	cfg.API.GRPC = "[::1]:50051"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate host-bound listen addresses: %v", err)
+	}
+	cfg.API.REST = "127.0.0.1"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate should reject listen address without port")
+	}
+}
+
 func TestLoadFromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
