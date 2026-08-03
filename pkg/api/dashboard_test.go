@@ -862,6 +862,30 @@ func TestDashboardResponsiveCSSAsset(t *testing.T) {
 	}
 }
 
+func TestDashboardForensicWorkbenchDesignLayer(t *testing.T) {
+	expected := []string{
+		"Forensic workbench design layer",
+		"--forensic-bg: #080b0f",
+		"--forensic-copper: #b9835a",
+		"--forensic-cyan: #61d6e8",
+		"--forensic-green: #77d99a",
+		"--font-display",
+		"--font-data",
+		".content::before",
+		"evidence spine",
+		".dashboard-panel::before",
+		".dashboard-panel h2::after",
+		"width: 28px",
+		":focus-visible",
+		"prefers-reduced-motion",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("dashboard missing forensic workbench design layer %q", item)
+		}
+	}
+}
+
 func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	expected := []string{
 		"postJSONWithLeaderRetry",
