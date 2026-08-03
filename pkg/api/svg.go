@@ -370,12 +370,15 @@ button.mode-active { border-color: var(--green); color: #d8ffed; box-shadow: ins
 <script>
 const rawURL = %q;
 const alertID = %q;
+const API_KEY_STORAGE = 'providapt_api_key';
+const API_KEY_REMEMBER_STORAGE = 'providapt_api_key_remember';
+let apiKey = sessionStorage.getItem(API_KEY_STORAGE) || localStorage.getItem(API_KEY_STORAGE) || '';
 let scale = 1;
 const canvas = document.getElementById('canvas');
 const wrap = document.getElementById('canvasWrap');
 const layoutState = { mode: 'tree', typeFilter: 'all', collapsedTypes: new Set(), searchQuery: '', pathFocus: new Set() };
 
-fetch(rawURL, { cache: 'no-store' })
+fetch(rawURL, { cache: 'no-store', headers: authHeaders() })
   .then(response => {
     if (!response.ok) throw new Error('HTTP ' + response.status);
     return response.text();
@@ -390,6 +393,13 @@ fetch(rawURL, { cache: 'no-store' })
     showFallback('Unable to inline trace SVG: ' + error.message + '. Raw SVG is embedded below.');
   });
 
+function authHeaders() {
+  return apiKey ? { 'X-API-Key': apiKey } : {};
+}
+function updateAuthNotice(message) {
+  const status = document.getElementById('viewerStatus');
+  if (status) status.textContent = message;
+}
 window.setTimeout(() => {
   if (!canvas.querySelector('svg') && !canvas.querySelector('iframe')) {
     showFallback('Trace SVG is still loading. Raw SVG is embedded below as a fallback.');
@@ -626,7 +636,7 @@ function renderDetail(detail) {
 }
 function showFallback(message) {
   document.getElementById('viewerStatus').textContent = message;
-  canvas.innerHTML = '<iframe class="fallback-frame" src="' + rawURL.replace(/"/g, '&quot;') + '" title="Raw trace SVG fallback"></iframe>';
+  canvas.innerHTML = '<div class="card status">Loading authenticated raw SVG fallback...</div>';
   setMetric('nodeCount', '--');
   setMetric('edgeCount', '--');
   setMetric('crossCount', '--');
@@ -635,6 +645,23 @@ function showFallback(message) {
   document.getElementById('detailPanel').textContent = 'Trace details are unavailable while the raw SVG fallback is active.';
   scale = 1;
   applyScale();
+  fetch(rawURL, { cache: 'no-store', headers: authHeaders() })
+    .then(response => {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.text();
+    })
+    .then(svg => {
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+      canvas.innerHTML = '<iframe class="fallback-frame" src="' + url.replace(/"/g, '&quot;') + '" title="Raw trace SVG fallback"></iframe>';
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    })
+    .catch(error => {
+      const hint = error.message.indexOf('401') >= 0 || error.message.indexOf('403') >= 0
+        ? 'Trace SVG requires the same API key saved in the Dashboard.'
+        : 'Raw SVG fallback failed: ' + error.message + '.';
+      canvas.innerHTML = '<div class="card status error">' + escapeHTML(hint) + '</div>';
+      updateAuthNotice(hint);
+    });
 }
 function setMetric(id, value) { document.getElementById(id).textContent = String(value); }
 function setTypeFilter(type) {
