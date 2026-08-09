@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -2618,8 +2619,11 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		"const API_KEY_STORAGE = 'providapt_api_key'",
 		"sessionStorage.getItem(API_KEY_STORAGE) || localStorage.getItem(API_KEY_STORAGE)",
 		"function authHeaders()",
+		"function traceFetchURL()",
+		"new URL(rawURL, window.location.origin).toString()",
+		"encodeURIComponent(alertID)",
 		"'X-API-Key': apiKey",
-		"fetch(rawURL, { cache: 'no-store', headers: authHeaders() })",
+		"fetch(traceFetchURL(), { cache: 'no-store', headers: authHeaders() })",
 		"Loading authenticated raw SVG fallback",
 		"Trace SVG requires the same API key saved in the Dashboard.",
 		"applyLayoutMode('compact')",
@@ -2631,11 +2635,33 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		"ProvidAPT Trace Investigation",
 		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5&format=markdown",
 		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5",
-		"/api/v1/alerts/p:100/svg",
+		"/api/v1/alerts/p%3A100/svg",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("viewer missing %q in body: %s", want, body)
 		}
+	}
+}
+
+func TestAlertSVGViewerEscapesCompositeAlertID(t *testing.T) {
+	ts := testServer(t)
+	compositeID := "agent:localhost.localdomain-80fb20b3:p:29479"
+	w := apiGet(ts, "/api/v1/alerts/"+url.PathEscape(compositeID)+"/svg/view")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		"/api/v1/alerts/agent%3Alocalhost.localdomain-80fb20b3%3Ap%3A29479/svg",
+		"new URL(rawURL, window.location.origin).toString()",
+		"encodeURIComponent(alertID)",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("composite viewer missing %q in body: %s", want, body)
+		}
+	}
+	if strings.Contains(body, "/api/v1/alerts/"+compositeID+"/svg") {
+		t.Fatalf("composite viewer should not embed unescaped raw SVG URL: %s", body)
 	}
 }
 

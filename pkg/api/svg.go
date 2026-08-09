@@ -101,7 +101,7 @@ func generateAlertSVGWithLayout(alertID string, graph *provenance.Graph, mode st
 }
 
 func renderTraceSVGViewer(alertID string) []byte {
-	encodedID := url.PathEscape(alertID)
+	encodedID := strings.ReplaceAll(url.QueryEscape(alertID), "+", "%20")
 	rawPath := "/api/v1/alerts/" + encodedID + "/svg"
 	reportPath := "/api/v1/investigation/report?node=" + url.QueryEscape(alertID) + "&direction=backward&depth=5"
 	reportMarkdownPath := reportPath + "&format=markdown"
@@ -378,7 +378,7 @@ const canvas = document.getElementById('canvas');
 const wrap = document.getElementById('canvasWrap');
 const layoutState = { mode: 'tree', typeFilter: 'all', collapsedTypes: new Set(), searchQuery: '', pathFocus: new Set() };
 
-fetch(rawURL, { cache: 'no-store', headers: authHeaders() })
+fetch(traceFetchURL(), { cache: 'no-store', headers: authHeaders() })
   .then(response => {
     if (!response.ok) throw new Error('HTTP ' + response.status);
     return response.text();
@@ -395,6 +395,13 @@ fetch(rawURL, { cache: 'no-store', headers: authHeaders() })
 
 function authHeaders() {
   return apiKey ? { 'X-API-Key': apiKey } : {};
+}
+function traceFetchURL() {
+  try {
+    return new URL(rawURL, window.location.origin).toString();
+  } catch (error) {
+    return '/api/v1/alerts/' + encodeURIComponent(alertID) + '/svg';
+  }
 }
 function updateAuthNotice(message) {
   const status = document.getElementById('viewerStatus');
@@ -645,7 +652,7 @@ function showFallback(message) {
   document.getElementById('detailPanel').textContent = 'Trace details are unavailable while the raw SVG fallback is active.';
   scale = 1;
   applyScale();
-  fetch(rawURL, { cache: 'no-store', headers: authHeaders() })
+  fetch(traceFetchURL(), { cache: 'no-store', headers: authHeaders() })
     .then(response => {
       if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.text();
