@@ -1,6 +1,6 @@
 # Final Release Runbook
 
-This runbook moves a release candidate to a final, immutable commercial release.
+This runbook moves a release candidate to a final, immutable open-source release.
 
 ## 1. Confirm Release Scope
 
@@ -34,7 +34,7 @@ git tag -a v<version> -m "ProvidAPT v<version>"
 git push origin v<version>
 ```
 
-## 4. Build Commercial Artifacts
+## 4. Build Open Source Artifacts
 
 ```bash
 VERSION=v<version> \
@@ -44,7 +44,7 @@ GO_TAGS=bpf \
 RUN_SCANS=1 \
 BUILD_CONTAINER=1 \
 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container \
-make release-commercial
+make release-open-source
 ```
 
 Expected artifacts:
@@ -94,6 +94,10 @@ PACKAGE_SMOKE_MODE=docker make package-smoke-matrix
 ```bash
 make github-actions-evidence
 
+# Also archive the final Actions evidence into the release record:
+make github-actions-evidence \
+  RELEASE_EVIDENCE=docs/project/release-evidence-v<version>.md
+
 make release-gates \
   CI_EVIDENCE=build/ci/github-actions-evidence.json
 
@@ -123,6 +127,11 @@ The generated `build/customer-release/customer-release-gate.json` is the
 machine-readable final delivery decision. `customer-release-gate.md` is the
 operator-facing blocker list. `release-blocker-backlog.json` converts each
 blocked or warning section into an owner-ready action item.
+
+Release gates require vulnerability scan evidence for the current commit. When
+`RUN_SCANS=1 make release-open-source` runs govulncheck, Grype, or Trivy, it
+writes `build/security/scan-manifest.json`; stale or missing scan manifests
+block final readiness until scans are rerun for the final release commit/tag.
 
 ## 8. Assemble Handoff
 

@@ -31,7 +31,6 @@ COPY --from=builder /src/build/bin/providapt-verify /usr/local/bin/providapt-ver
 COPY --from=builder /src/build/bin/providapt-deanon /usr/local/bin/providapt-deanon
 COPY --from=builder /src/build/bin/providapt-heal /usr/local/bin/providapt-heal
 COPY --from=builder /src/build/bin/providapt-sign /usr/local/bin/providapt-sign
-COPY --from=builder /src/build/bin/providapt-auth-server /usr/local/bin/providapt-auth-server
 COPY --from=builder /src/build/ebpf/ /usr/local/lib/providapt/ebpf/
 COPY build/providapt.toml /etc/providapt/providapt.toml
 

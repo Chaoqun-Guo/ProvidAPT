@@ -68,7 +68,7 @@ func checkSBOMs(report *Report, paths []string) {
 			Name:          "release_sbom",
 			Status:        StatusWarn,
 			Message:       "no readable SBOM files were validated",
-			FixSuggestion: "Attach at least one generated SPDX or CycloneDX SBOM before commercial sign-off.",
+			FixSuggestion: "Attach at least one generated SPDX or CycloneDX SBOM before release sign-off.",
 		})
 	}
 }

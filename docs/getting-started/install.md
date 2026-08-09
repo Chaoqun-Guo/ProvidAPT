@@ -15,7 +15,6 @@ ProvidAPT is an eBPF-based Linux system provenance monitoring tool designed for 
 - [5. Quick Verification](#5-quick-verification)
 - [6. Performance Tuning](#6-performance-tuning)
 - [7. Troubleshooting](#7-troubleshooting)
-- [Commercial Linux Installation](commercial-install.md)
 
 ---
 
@@ -720,25 +719,16 @@ Default behavior:
 - only the most recent 5 bundle directories/zip archives are retained
 - archive downloads still pass through existing control-plane auth/RBAC checks
 
-#### License and Upgrade Controls
+#### Upgrade Controls
 
-Operator-facing control-plane endpoints now include:
+Operator-facing upgrade endpoints include:
 
-- `GET /api/v1/control/license`
-- `POST /api/v1/control/license`
 - `GET /api/v1/control/upgrade`
 - `POST /api/v1/control/upgrade`
 
-Recommended environment variables for commercial deployments:
+Recommended environment variables for open-source deployments:
 
 ```bash
-export PROVIDAPT_LICENSE_PUBLIC_KEY_PATH=/etc/providapt/license.pub
-export PROVIDAPT_LICENSE_REVOCATION_URL=https://licenses.example.com/revocations.json
-export PROVIDAPT_LICENSE_REVOCATION_CACHE=/var/lib/providapt/revocations.json
-export PROVIDAPT_LICENSE_REVOCATION_SIG_URL=https://licenses.example.com/revocations.json.sig
-export PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE=/var/lib/providapt/revocations.json.sig
-export PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS=14
-
 export PROVIDAPT_UPGRADE_DOWNLOAD_URL=https://downloads.example.com/providapt.tar.gz
 export PROVIDAPT_UPGRADE_PACKAGE_PATH=/var/lib/providapt/releases/providapt.tar.gz
 export PROVIDAPT_UPGRADE_EXPECTED_SHA256=<64-char-hex>
@@ -749,11 +739,10 @@ export PROVIDAPT_UPGRADE_ROLLBACK_PLAN="snapshot VM before rollout"
 
 Recommended operator flow:
 
-1. Validate license status from the control plane
-2. Confirm `revocation_verified=true` when remote revocation is enabled
-3. Trigger upgrade `download`
-4. Trigger upgrade `preflight`
-5. Approve rollout only when `preflight_ready=true`
+1. Confirm the current version from the control plane
+2. Trigger upgrade `download`
+3. Trigger upgrade `preflight`
+4. Approve rollout only when `preflight_ready=true`
 
 ---
 

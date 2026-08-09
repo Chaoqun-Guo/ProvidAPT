@@ -103,9 +103,9 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         "",
         "## Operator Wiring",
         "",
-        "- Set `PROVIDAPT_AUTH_UPGRADE_DOWNLOAD_URL` to the download URL.",
-        "- Set `PROVIDAPT_AUTH_UPGRADE_SHA256` to the SHA256 value.",
-        "- Set `PROVIDAPT_AUTH_UPGRADE_SIGNATURE_URL` when the signature file is published.",
+        "- Set `PROVIDAPT_UPGRADE_DOWNLOAD_URL` to the download URL.",
+        "- Set `PROVIDAPT_UPGRADE_SHA256` to the SHA256 value.",
+        "- Set `PROVIDAPT_UPGRADE_SIGNATURE_URL` when the signature file is published.",
         "- Set `PROVIDAPT_UPGRADE_SIGNING_KEY` on agents when HMAC signatures are used.",
         "",
     ]

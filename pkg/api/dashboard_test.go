@@ -7,11 +7,19 @@ import (
 	"testing"
 )
 
+func dashboardHTMLDocument() string {
+	return dashboardHTML
+}
+
+func dashboardTestSurface() string {
+	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" + dashboardJS
+}
+
 func TestDashboardAlertWorkflowSeparators(t *testing.T) {
-	if strings.Contains(dashboardHTML, " \u8def ") {
+	if strings.Contains(dashboardTestSurface(), " \u8def ") {
 		t.Fatal("alert workflow dashboard should not render mojibake separators")
 	}
-	if !strings.Contains(dashboardHTML, " · ") {
+	if !strings.Contains(dashboardTestSurface(), " · ") {
 		t.Fatal("alert workflow dashboard should render readable separators")
 	}
 }
@@ -30,7 +38,7 @@ func TestDashboardAlertWorkflowTraceLinks(t *testing.T) {
 		"Open Events",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("alert workflow dashboard missing trace link content %q", item)
 		}
 	}
@@ -47,7 +55,7 @@ func TestDashboardAgentMonitoringFields(t *testing.T) {
 		"graph_nodes",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing agent monitoring content %q", item)
 		}
 	}
@@ -64,7 +72,7 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"loadAlerts",
 	}
 	for _, item := range forbidden {
-		if strings.Contains(dashboardHTML, item) {
+		if strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard should not render main provenance graph content %q", item)
 		}
 	}
@@ -109,7 +117,7 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"text-overflow:ellipsis",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing investigation console content %q", item)
 		}
 	}
@@ -121,20 +129,12 @@ func TestDashboardResponsiveOverflowGuards(t *testing.T) {
 		"flex-wrap: wrap",
 		".header-right",
 		"flex: 1 1 420px",
-		".auth-strip",
-		"flex: 1 1 520px",
-		"display: flex",
 		"flex-wrap: wrap",
-		".auth-remember",
-		".auth-strip button",
 		"max-width: 118px",
 		".alert-msg",
 		"overflow-wrap: anywhere",
 		".delivery-inline-actions button",
 		"max-width: 160px",
-		".top-license",
-		"max-width: min(100%, 250px)",
-		".license-pill .label",
 		"display: none",
 		`.dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid`,
 		"minmax(min(100%, 168px), 1fr)",
@@ -144,7 +144,6 @@ func TestDashboardResponsiveOverflowGuards(t *testing.T) {
 		".dashboard-panel .workflow-filter-bar",
 		"minmax(min(100%, 112px), 1fr)",
 		"overflow-wrap: anywhere",
-		".activation-input-grid",
 		"@media (max-width: 1279px)",
 	}
 	for _, item := range expected {
@@ -154,31 +153,47 @@ func TestDashboardResponsiveOverflowGuards(t *testing.T) {
 	}
 }
 
-func TestDashboardAuthStripLayoutIsResponsive(t *testing.T) {
+func TestDashboardOpenSourceHeaderHasNoKeyPanel(t *testing.T) {
 	forbidden := []string{
 		"grid-template-columns: minmax(190px, 1fr) repeat(5, minmax(72px, max-content))",
 		"grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(72px, max-content))",
 		"min-width:160px",
+		"auth-strip",
+		"apiKeyInput",
+		"providapt_api_key",
 	}
 	for _, item := range forbidden {
-		if strings.Contains(dashboardHTML, item) || strings.Contains(dashboardResponsiveCSS, item) {
-			t.Fatalf("dashboard auth strip should not use brittle fixed action columns %q", item)
+		if strings.Contains(dashboardTestSurface(), item) || strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("open-source dashboard should not contain key-panel artifact %q", item)
 		}
 	}
 
 	expected := []string{
-		`<label class="auth-remember"`,
-		"width: min(100%, 860px)",
-		"width: min(100%, 520px)",
-		"flex: 1 1 220px",
-		"input::placeholder",
-		"text-overflow:ellipsis",
+		"Open-source build ready",
+		"openUpgradePage",
 		"@media (max-width: 760px)",
-		"grid-template-columns: 1fr 1fr",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) && !strings.Contains(dashboardResponsiveCSS, item) {
-			t.Fatalf("dashboard auth strip missing responsive rule %q", item)
+		if !strings.Contains(dashboardTestSurface(), item) && !strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("open-source dashboard missing compact header rule %q", item)
+		}
+	}
+}
+
+func TestDashboardOpenSourceBuildRemovesRemovedControlPlaneFeatures(t *testing.T) {
+	forbidden := []string{
+		"activ" + "ation",
+		"Activ" + "ation",
+		"lic" + "ense",
+		"Lic" + "ense",
+		"apiKey",
+		"API Key",
+		"X-API-Key",
+		"/api/v1/control/" + "lic" + "ense",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardTestSurface(), item) {
+			t.Fatalf("open-source dashboard should not contain %q", item)
 		}
 	}
 }
@@ -193,7 +208,7 @@ func TestDashboardModuleActions(t *testing.T) {
 		"not implemented",
 	}
 	for _, item := range forbidden {
-		if strings.Contains(dashboardHTML, item) {
+		if strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard should not contain placeholder interaction %q", item)
 		}
 	}
@@ -226,11 +241,7 @@ func TestDashboardModuleActions(t *testing.T) {
 		"showDeploymentDiagnostics('storage')",
 		"kernel_attachment_mode",
 		"control_plane_state_backend",
-		"activationState",
 		"topVersion",
-		"openLicenseUpgradePage('activation')",
-		"openLicenseUpgradePage('upgrade')",
-		"License Activation",
 		"Version Update",
 		"providaptDashboardPanelOrder",
 		"initializePanelLayout",
@@ -281,13 +292,6 @@ func TestDashboardModuleActions(t *testing.T) {
 		"runComplianceAction('test_siem')",
 		"native connector",
 		"readiness",
-		"prepareLicenseAction('request_activation')",
-		"Request Activation",
-		"prepareLicenseAction('activate_online')",
-		"data-module=\"license-activation\"",
-		"activation server",
-		"activation-input-grid",
-		"server-side approval",
 		"prepareUpgradeAction('discover')",
 		"data-module=\"version-update\"",
 		"Release manifest URL",
@@ -296,7 +300,7 @@ func TestDashboardModuleActions(t *testing.T) {
 		"/api/v1/control/compliance",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing module action %q", item)
 		}
 	}
@@ -333,7 +337,7 @@ func TestDashboardDetailDrawerIsolation(t *testing.T) {
 		"button.dataset.actionKind = kind",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing detail drawer isolation content %q", item)
 		}
 	}
@@ -357,7 +361,7 @@ func TestDashboardPolicyCenterWorkbenchLayout(t *testing.T) {
 		"renderMetricCards",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing policy center workbench layout content %q", item)
 		}
 	}
@@ -378,7 +382,7 @@ func TestDashboardSemanticButtonClasses(t *testing.T) {
 		"Export or download evidence",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing semantic button class content %q", item)
 		}
 	}
@@ -398,7 +402,7 @@ func TestDashboardCyberIDSTheme(t *testing.T) {
 		"Electric Red",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing cyber IDS theme content %q", item)
 		}
 	}
@@ -412,14 +416,12 @@ func TestDashboardModuleScopedActions(t *testing.T) {
 		"data-module=\"delivery-health\" data-module-action=\"replay-all\"",
 		"data-module=\"compliance-siem\" data-module-action=\"export-audit\"",
 		"data-module=\"alert-workflow\" data-module-action=\"bulk-close\"",
-		"data-module=\"license-activation\" data-module-action=\"request-activation\"",
-		"data-module=\"license-activation\" data-module-action=\"activate-online\"",
 		"data-module=\"version-update\" data-module-action=\"discover\"",
 		"hasAttribute('data-ui-close')",
 		"moduleName + ': ' + moduleAction",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing module-scoped action content %q", item)
 		}
 	}
@@ -453,7 +455,7 @@ func TestDashboardGroundTruthPanel(t *testing.T) {
 		"onchange=\"updateGroundTruthFileName()\"",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing ground truth content %q", item)
 		}
 	}
@@ -468,7 +470,7 @@ func TestDashboardAlertAnnotationButtons(t *testing.T) {
 		"false_positive",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing alert annotation content %q", item)
 		}
 	}
@@ -480,47 +482,12 @@ func TestDashboardAdminActionsGiveFeedback(t *testing.T) {
 		"if (currentRole !== 'admin') return;",
 	}
 	for _, item := range forbidden {
-		if strings.Contains(dashboardHTML, item) {
+		if strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard has silent admin guard %q", item)
 		}
 	}
-	if !strings.Contains(dashboardHTML, "requires admin role") {
+	if !strings.Contains(dashboardTestSurface(), "requires admin role") {
 		t.Fatal("dashboard should explain admin-only actions")
-	}
-}
-
-func TestDashboardAPIKeyAuthenticationUI(t *testing.T) {
-	expected := []string{
-		"apiKeyInput",
-		"apiKeyToggle",
-		"apiKeyPanel",
-		"toggleAPIKeyPanel",
-		"apiKeyPanelOpen = false",
-		".auth-strip.is-collapsed",
-		".auth-strip.needs-key .auth-key-secondary",
-		"auth-key-primary",
-		"auth-key-secondary",
-		"providapt_api_key",
-		"testAPIKeyPermissions",
-		"copyStatusCurl",
-		"showRBACPermissions",
-		"apiKeyRemember",
-		"sessionStorage.setItem(API_KEY_STORAGE, apiKey)",
-		"localStorage.setItem(API_KEY_STORAGE, apiKey)",
-		"function authHeaders",
-		"'X-API-Key': apiKey",
-		"function openProtectedEndpoint",
-		"function installProtectedAPILinkHandler",
-		"downloadWithAuth('/api/v1/control/support/download'",
-		"downloadWithAuth('/api/v1/control/backup/download'",
-		"downloadWithAuth('/api/v1/control/policies/bundle'",
-		"downloadAuditCSV",
-		"format: 'csv'",
-	}
-	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
-			t.Fatalf("dashboard missing API key auth content %q", item)
-		}
 	}
 }
 
@@ -535,14 +502,14 @@ func TestDashboardAPIErrorObservability(t *testing.T) {
 		"function reportAPIError",
 		"function clearAPIStatus",
 		"function apiErrorHint",
-		"Check the API key and role permissions.",
+		"Check local API access and role permissions.",
 		"Check daemon health, network access, and server logs.",
 		"Control plane overview unavailable.",
 		"Workflow alerts unavailable.",
 		"Delivery health unavailable.",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing API error observability content %q", item)
 		}
 	}
@@ -557,7 +524,7 @@ func TestDashboardActionableEmptyStates(t *testing.T) {
 		"Delivery action history unavailable. Check delivery queue storage and server logs.",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing actionable empty-state content %q", item)
 		}
 	}
@@ -579,32 +546,8 @@ func TestDashboardPolicyValidationGuidance(t *testing.T) {
 		"Sigma validation passed; draft unchanged",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing policy validation guidance %q", item)
-		}
-	}
-}
-
-func TestDashboardCommercialWorkflowEnhancements(t *testing.T) {
-	expected := []string{
-		"bulkFleetEnrollment('approved')",
-		"bulkFleetEnrollment('quarantined')",
-		"No agents match the current group/tag filter for bulk fleet action",
-		"bulk precheck",
-		"supportBundleRange",
-		"supportBundleIncludes",
-		"supportBundleRedaction",
-		"compact-input-grid",
-		"policy-editor compact",
-		"Prepare cutover blocked: restore a backup to staging first",
-		"function showDeliveryGroup",
-		"showReleaseReadiness",
-		"showAuditSearch",
-		"siem test",
-	}
-	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
-			t.Fatalf("dashboard missing commercial workflow enhancement %q", item)
 		}
 	}
 }
@@ -616,7 +559,7 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"data-dashboard-section=\"investigate\"",
 		"data-dashboard-section=\"respond\"",
 		"data-dashboard-section=\"platform\"",
-		"data-dashboard-section=\"commercial\"",
+		"data-dashboard-section=\"govern\"",
 		"switchDashboardSection",
 		"dashboardPanelSection",
 		"providaptDashboardSection",
@@ -630,7 +573,7 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"Deployment Diagnostics",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing workspace navigation refactor content %q", item)
 		}
 	}
@@ -661,7 +604,7 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 		"updateSidebarPosture",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing structured IDS console content %q", item)
 		}
 	}
@@ -681,44 +624,13 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 		"Operations Summary",
 	}
 	for _, panel := range panels {
-		if !strings.Contains(dashboardHTML, "<h2>"+panel+"</h2>") {
+		if !strings.Contains(dashboardTestSurface(), "<h2>"+panel+"</h2>") {
 			t.Fatalf("dashboard missing panel %q", panel)
 		}
 	}
 }
 
-func TestDashboardCompactPlatformHeader(t *testing.T) {
-	expected := []string{
-		"platform-header",
-		"platform-brand",
-		"platform-meta",
-		"platform-button",
-		"platform-action-status",
-		"actionStatus",
-		"license-pill activation",
-		"license-pill version",
-		"Open license activation",
-		"Open version update",
-		"header-refresh",
-		"licenseUpgradeStatus",
-	}
-	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
-			t.Fatalf("dashboard missing compact platform header content %q", item)
-		}
-	}
-	if strings.Contains(dashboardHTML, "top-upgrade-actions") {
-		t.Fatalf("dashboard should not render the old large upgrade action area")
-	}
-	if strings.Contains(dashboardHTML, "Clicked: ") {
-		t.Fatalf("dashboard should not show verbose click feedback in the header")
-	}
-	if strings.Contains(dashboardHTML, "document.getElementById('refreshInfo');\n  if (info)") {
-		t.Fatalf("interaction feedback should not write into the refresh timestamp")
-	}
-}
-
-func TestDashboardCommercialWorkbenchInteractions(t *testing.T) {
+func TestDashboardGovernanceWorkbenchInteractions(t *testing.T) {
 	expected := []string{
 		"workflow-filter-bar",
 		"workflowFilterStatus",
@@ -737,8 +649,8 @@ func TestDashboardCommercialWorkbenchInteractions(t *testing.T) {
 		"showAttackRouteMap",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
-			t.Fatalf("dashboard missing commercial workbench interaction %q", item)
+		if !strings.Contains(dashboardTestSurface(), item) {
+			t.Fatalf("dashboard missing governance workbench interaction %q", item)
 		}
 	}
 }
@@ -763,7 +675,7 @@ func TestDashboardUsabilityAndProfessionalViews(t *testing.T) {
 		"dashboard-theme-contrast",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing usability or professional view %q", item)
 		}
 	}
@@ -791,7 +703,7 @@ func TestDashboardPanelResizeInteractions(t *testing.T) {
 		"drag · resize",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing panel resize interaction %q", item)
 		}
 	}
@@ -811,21 +723,23 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 		"scrollReserve = body.querySelector",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing adaptive panel resize content %q", item)
 		}
 	}
-	if strings.Contains(dashboardHTML, "minHeight: 560") {
+	if strings.Contains(dashboardTestSurface(), "minHeight: 560") {
 		t.Fatal("dashboard panel double-click resize should use adaptive content height, not fixed 560px")
 	}
-	if strings.Contains(dashboardHTML, "Math.max(300") {
+	if strings.Contains(dashboardTestSurface(), "Math.max(300") {
 		t.Fatal("dashboard panel drag resize should use adaptive minimum height, not fixed 300px")
 	}
 }
 
 func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
-	if !strings.Contains(dashboardHTML, `href="/assets/dashboard-responsive.css"`) {
-		t.Fatal("dashboard should link the responsive CSS asset")
+	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard.js"`} {
+		if !strings.Contains(dashboardHTMLDocument(), asset) {
+			t.Fatalf("dashboard should link asset %s", asset)
+		}
 	}
 	expected := []string{
 		"@media (min-width: 1280px) and (max-width: 1439px)",
@@ -848,17 +762,28 @@ func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
 
 func TestDashboardResponsiveCSSAsset(t *testing.T) {
 	ts := testServer(t)
-	req := httptest.NewRequest(http.MethodGet, "/assets/dashboard-responsive.css", nil)
-	w := httptest.NewRecorder()
-	ts.mux.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("responsive css status = %d", w.Code)
+	cases := []struct {
+		path        string
+		contentType string
+		marker      string
+	}{
+		{"/assets/dashboard.css", "text/css", "--ids-bg-0"},
+		{"/assets/dashboard-responsive.css", "text/css", "repeat(3, minmax(480px, 1fr))"},
+		{"/assets/dashboard.js", "application/javascript", "function refresh()"},
 	}
-	if !strings.Contains(w.Header().Get("Content-Type"), "text/css") {
-		t.Fatalf("responsive css content type = %q", w.Header().Get("Content-Type"))
-	}
-	if !strings.Contains(w.Body.String(), "repeat(3, minmax(480px, 1fr))") {
-		t.Fatalf("responsive css missing ultrawide layout: %s", w.Body.String())
+	for _, tc := range cases {
+		req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+		w := httptest.NewRecorder()
+		ts.mux.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s status = %d", tc.path, w.Code)
+		}
+		if !strings.Contains(w.Header().Get("Content-Type"), tc.contentType) {
+			t.Fatalf("%s content type = %q", tc.path, w.Header().Get("Content-Type"))
+		}
+		if !strings.Contains(w.Body.String(), tc.marker) {
+			t.Fatalf("%s missing marker %q", tc.path, tc.marker)
+		}
 	}
 }
 
@@ -894,13 +819,12 @@ func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 		"retrying leader",
 		"postJSON('/api/v1/control/support'",
 		"postJSON('/api/v1/control/backup'",
-		"postJSON('/api/v1/control/license'",
-		"postJSON('/api/v1/control/upgrade'",
+		"/api/v1/control/upgrade",
 		"postJSON('/api/v1/control/policies'",
 		"postJSON('/api/v1/control/deliveries'",
 	}
 	for _, item := range expected {
-		if !strings.Contains(dashboardHTML, item) {
+		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing leader retry content %q", item)
 		}
 	}
@@ -908,13 +832,12 @@ func TestDashboardLeaderRetryForControlWrites(t *testing.T) {
 	forbidden := []string{
 		"fetch('/api/v1/control/support'",
 		"fetch('/api/v1/control/backup'",
-		"fetch('/api/v1/control/license'",
 		"fetch('/api/v1/control/upgrade'",
 		"fetch('/api/v1/control/policies'",
 		"fetch('/api/v1/control/deliveries'",
 	}
 	for _, item := range forbidden {
-		if strings.Contains(dashboardHTML, item) {
+		if strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard should use postJSON leader retry instead of direct fetch %q", item)
 		}
 	}

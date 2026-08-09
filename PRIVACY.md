@@ -37,7 +37,6 @@ GitHub, Docker registries, SIEM platforms, ticketing systems, or cloud storage.
 ## Related Documents
 
 - `DPA.md`
-- `EULA.md`
 - `SECURITY.md`
 - `docs/compliance/security-privacy.md`
 - `docs/compliance/privacy-impact.md`

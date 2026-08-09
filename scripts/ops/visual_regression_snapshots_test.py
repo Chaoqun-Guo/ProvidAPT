@@ -27,7 +27,49 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
 
     def test_default_dashboard_viewports_cover_target_resolutions(self):
         mod = load_module()
-        self.assertEqual(mod.DEFAULT_VIEWPORTS, ["1366x768", "1920x1080", "2560x1080"])
+        self.assertEqual(mod.DEFAULT_VIEWPORTS, ["390x844", "1366x768", "1920x1080", "2560x1080"])
+        self.assertEqual(mod.DEFAULT_DASHBOARD_ASSERTIONS["max_horizontal_overflow_px"], 2)
+
+    def test_dashboard_dom_assertions_mark_overflow_failures(self):
+        mod = load_module()
+
+        class FakePage:
+            def evaluate(self, _script):
+                return {
+                    "horizontal_overflow_px": 12,
+                    "element_overflows": [{"overflow_px": 9, "selector": ".wide"}],
+                    "text_overflows": [{"overflow_px": 7, "selector": ".label"}],
+                }
+
+        result = mod.dashboard_dom_assertions(FakePage())
+
+        self.assertEqual(result["status"], "fail")
+        self.assertEqual(result["max_element_overflow_px"], 9)
+        self.assertEqual(result["max_text_overflow_px"], 7)
+
+    def test_trace_viewer_dom_assertions_require_svg_and_exports(self):
+        mod = load_module()
+
+        class FakePage:
+            def evaluate(self, _script):
+                return {
+                    "has_svg": False,
+                    "svg_width": 0,
+                    "svg_height": 0,
+                    "layout_modes": ["tree"],
+                    "has_png_export": True,
+                    "has_svg_export": True,
+                    "has_raw_svg": False,
+                    "has_report_export": True,
+                    "has_summary": True,
+                    "has_selected_panel": True,
+                }
+
+        result = mod.trace_viewer_dom_assertions(FakePage())
+
+        self.assertEqual(result["status"], "fail")
+        self.assertIn("svg missing", result["failures"])
+        self.assertIn("layout modes missing: compact,grouped,timeline", result["failures"])
 
     def test_dry_run_writes_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:

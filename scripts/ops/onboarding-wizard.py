@@ -56,6 +56,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     checklist_path = out_dir / "onboarding-checklist.md"
     manifest_path = out_dir / "onboarding-manifest.json"
     config_path.write_text(config_yaml(args), encoding="utf-8")
+    checks = environment_checks(args)
     checklist = f"""# ProvidAPT First-Run Onboarding Checklist
 
 - Confirm Linux kernel supports selected attachment mode.
@@ -65,6 +66,10 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 - Start server on REST port `{args.rest_port}` and gRPC port `{args.grpc_port}`.
 - Open dashboard and confirm all agents report healthy.
 - Run `make enterprise-readiness` before customer handoff.
+
+## Environment Checks
+
+{chr(10).join(f"- `{item['command']}`" for item in checks)}
 """
     checklist_path.write_text(checklist, encoding="utf-8")
     manifest = {
@@ -74,6 +79,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
         "rest_port": args.rest_port,
         "grpc_port": args.grpc_port,
         "postgres": bool(args.postgres_dsn),
+        "environment_checks": checks,
         "outputs": {
             "config": str(config_path),
             "checklist": str(checklist_path),
@@ -81,6 +87,19 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return manifest
+
+
+def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
+    checks = [
+        {"name": "tailscale", "command": "tailscale status", "purpose": "verify tailnet connectivity"},
+        {"name": "ssh", "command": "ssh -o BatchMode=yes <user>@<vm-host> true", "purpose": "verify passwordless VM access"},
+        {"name": "api", "command": f"curl -fsS http://127.0.0.1:{args.rest_port}/api/v1/status", "purpose": "verify REST API health"},
+        {"name": "tls", "command": "make ops-tls-check CERTS=\"build/tls/server.crt build/tls/agent.crt\"", "purpose": "verify certificate validity"},
+        {"name": "secrets", "command": "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env", "purpose": "verify required secret references"},
+    ]
+    if args.postgres_dsn:
+        checks.append({"name": "postgres", "command": "make ops-postgres-drill", "purpose": "verify backup and restore path"})
+    return checks
 
 
 def main() -> int:

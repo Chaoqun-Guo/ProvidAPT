@@ -117,7 +117,7 @@ backup:
   interval: 6h
   retain_archives: 8
   min_free_bytes: 1073741824
-  allow_activation: false
+  allow_cutover: false
 
 compliance:
   retention_days: 365
@@ -142,16 +142,6 @@ siem:
   min_severity: WARNING
   outbox_dir: /var/log/providapt/siem-outbox
   flush_interval: 30s
-
-license:
-  path: /etc/providapt/license.yaml
-  public_key_path: /etc/providapt/license.pub
-  revocation_url: https://licenses.example.com/providapt/revocations.json
-  revocation_sig_url: https://licenses.example.com/providapt/revocations.json.sig
-  revocation_cache: /var/lib/providapt/revocations.json
-  revocation_sig_cache: /var/lib/providapt/revocations.json.sig
-  grace_period_days: 14
-  max_agents: 0
 
 upgrade:
   download_url: https://downloads.example.com/providapt/providapt-current.tar.gz

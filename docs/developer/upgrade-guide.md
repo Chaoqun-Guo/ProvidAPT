@@ -10,7 +10,7 @@ This guide covers upgrade preparation for the current maintained release line.
 ## Pre-Upgrade Checklist
 
 1. Confirm a recent backup of the data directory
-2. Verify license status and revocation state
+2. Verify current version, artifact hash, and rollback readiness
 3. Prepare the rollback plan and package checksum
 4. Confirm the target host has required kernel, BTF, and libbpf prerequisites
 
@@ -72,12 +72,12 @@ Outputs:
 | `build/upgrade-artifacts/latest.json` | Manifest consumed by `/v1/releases/latest` and the dashboard |
 | `build/upgrade-artifacts/upgrade-artifact.md` | Operator-readable release evidence |
 
-Wire the activation server to the generated values:
+Publish the generated values through your open-source release manifest or artifact host:
 
 ```bash
-export PROVIDAPT_AUTH_UPGRADE_DOWNLOAD_URL=http://auth.example.com:19090/artifacts/providapt-linux-amd64.tar.gz
-export PROVIDAPT_AUTH_UPGRADE_SHA256=<expected_sha256>
-export PROVIDAPT_AUTH_UPGRADE_SIGNATURE_URL=http://auth.example.com:19090/artifacts/providapt-linux-amd64.tar.gz.sig
+export PROVIDAPT_UPGRADE_DOWNLOAD_URL=https://downloads.example.com/providapt-linux-amd64.tar.gz
+export PROVIDAPT_UPGRADE_SHA256=<expected_sha256>
+export PROVIDAPT_UPGRADE_SIGNATURE_URL=https://downloads.example.com/providapt-linux-amd64.tar.gz.sig
 ```
 
 Then run:

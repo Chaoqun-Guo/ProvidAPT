@@ -20,11 +20,11 @@ This file records the evidence required before publishing or handing off the `v1
 
 | Gate | Command / Source | Result | Evidence Location |
 | --- | --- | --- | --- |
-| eBPF build | `BUILD_EBPF=1 GO_TAGS=bpf make release-commercial` | PASS: BPF objects compiled and packaged | `dist/release-readiness.md` |
+| eBPF build | `BUILD_EBPF=1 GO_TAGS=bpf make release-open-source` | PASS: BPF objects compiled and packaged | `dist/release-readiness.md` |
 | userspace build | Go `1.25.12` Linux build with `GO_TAGS=bpf` | PASS: daemon and CLI binaries built with real BPF loader | `dist/release-readiness.md` |
 | Go vulnerability scan | `govulncheck -tags=bpf ./...` | PASS: no reachable vulnerabilities found | `build/security/govulncheck.txt` |
 | package smoke | `PACKAGE_SMOKE_MODE=host make package-smoke-matrix` | PASS: Debian install/config/remove/purge, RPM metadata/extract, tarball executable check | `build/package-smoke/` |
-| release readiness | `providaptctl -release-check` through `make release-commercial` | PASS: commercial ready | `dist/release-readiness.md` |
+| release readiness | `providaptctl -release-check` through `make release-open-source` | PASS: release signoff ready | `dist/release-readiness.md` |
 
 ## Artifact Evidence
 
@@ -45,7 +45,7 @@ This file records the evidence required before publishing or handing off the `v1
 - This candidate was built from the current working tree and records commit evidence as `6e459ff0-worktree`; create a clean commit and rebuild before immutable public publication.
 - Grype and Trivy were unavailable in the Linux rerun environment because Docker registry / Docker socket access was unavailable; Security approval is required if govulncheck-only evidence is accepted.
 - Container image archive was not generated. For air-gapped Docker handoff, rerun with `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container`.
-- Customer-specific API keys, license files, CORS origins, TLS certificates, SIEM tokens, and encryption keys must be replaced before production deployment.
+- Deployment-specific API keys, CORS origins, TLS certificates, SIEM tokens, and encryption keys must be replaced before production deployment.
 
 ## Final Decision
 

@@ -144,14 +144,6 @@
         "apply_command": { "type": "string" },
         "rollback_command": { "type": "string" }
       }
-    },
-    "license": {
-      "type": "object",
-      "additionalProperties": true,
-      "properties": {
-        "path": { "type": "string" },
-        "public_key_path": { "type": "string" }
-      }
     }
   }
 }

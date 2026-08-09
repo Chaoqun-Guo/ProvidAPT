@@ -17,7 +17,7 @@ import (
 	"testing"
 )
 
-func TestRunReportsCommercialWarnings(t *testing.T) {
+func TestRunReportsReleaseWarnings(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "providapt.toml")
 	evidencePath := filepath.Join(dir, "release-evidence.md")
@@ -32,8 +32,6 @@ storage:
   key_file: /etc/providapt/key
 support_bundle:
   retain_archives: 5
-license:
-  path: /etc/providapt/license.json
 `)
 	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
 		t.Fatal(err)
@@ -54,10 +52,10 @@ license:
 		t.Fatalf("unexpected failures: %+v", report.Checks)
 	}
 	if report.Warnings == 0 {
-		t.Fatalf("expected commercial warnings: %+v", report.Checks)
+		t.Fatalf("expected release warnings: %+v", report.Checks)
 	}
-	if report.CommercialReady {
-		t.Fatal("expected commercial_ready=false with warnings")
+	if report.StrictReleaseReady {
+		t.Fatal("expected strict_release_ready=false with warnings")
 	}
 	if !report.ReleaseReady {
 		t.Fatal("expected release_ready=true without failures")
@@ -86,7 +84,7 @@ func TestRunFailsInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestRunCommercialReady(t *testing.T) {
+func TestRunStrictReleaseReady(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "providapt.toml")
 	evidencePath := filepath.Join(dir, "release-evidence.md")
@@ -103,8 +101,6 @@ storage:
 support_bundle:
   redact_archives: true
   retain_archives: 5
-license:
-  path: /etc/providapt/license.json
 `)
 	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
 		t.Fatal(err)
@@ -121,8 +117,8 @@ license:
 		BuildDate:    "2026-07-08T00:00:00Z",
 	})
 
-	if !report.CommercialReady {
-		t.Fatalf("expected commercial ready: %+v", report)
+	if !report.StrictReleaseReady {
+		t.Fatalf("expected release signoff ready: %+v", report)
 	}
 	if report.Summary() == "" {
 		t.Fatal("summary should not be empty")
@@ -146,8 +142,6 @@ storage:
 support_bundle:
   redact_archives: true
   retain_archives: 5
-license:
-  path: /etc/providapt/license.json
 `)
 	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
 		t.Fatal(err)
@@ -168,8 +162,8 @@ license:
 	if check.Status != StatusWarn || !strings.Contains(check.Message, "abcdef0") {
 		t.Fatalf("expected stale evidence warning: %+v", check)
 	}
-	if report.CommercialReady {
-		t.Fatal("expected commercial_ready=false with stale release evidence")
+	if report.StrictReleaseReady {
+		t.Fatal("expected strict_release_ready=false with stale release evidence")
 	}
 }
 
@@ -184,8 +178,6 @@ output:
 storage:
   encrypt: true
   key_file: /etc/providapt/key
-license:
-  path: /etc/providapt/license.json
 `)
 	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
 		t.Fatal(err)
@@ -229,8 +221,8 @@ license:
 	if report.HasFailures() {
 		t.Fatalf("unexpected failures: %+v", report.Checks)
 	}
-	if !report.CommercialReady {
-		t.Fatalf("expected commercial ready with accepted warnings: %+v", report)
+	if !report.StrictReleaseReady {
+		t.Fatalf("expected release signoff ready with accepted warnings: %+v", report)
 	}
 }
 
@@ -276,8 +268,6 @@ storage:
 support_bundle:
   redact_archives: true
   retain_archives: 5
-license:
-  path: /etc/providapt/license.json
 `)
 	if err := os.WriteFile(cfgPath, cfg, 0644); err != nil {
 		t.Fatal(err)
@@ -294,7 +284,7 @@ license:
 		BuildDate:  "2026-07-08T00:00:00Z",
 	})
 
-	if report.HasFailures() || !report.CommercialReady {
+	if report.HasFailures() || !report.StrictReleaseReady {
 		t.Fatalf("expected external gate waiver to be ignored by releasecheck: %+v", report)
 	}
 	if report.Warnings != 0 || report.Waived != 0 {
@@ -785,8 +775,8 @@ func TestRunWarnsOnStaleHandoffPackage(t *testing.T) {
 	if check.Status != StatusWarn || !strings.Contains(check.Message, "stale release text") {
 		t.Fatalf("expected stale handoff warning: %+v", check)
 	}
-	if report.CommercialReady {
-		t.Fatal("expected commercial_ready=false with stale handoff")
+	if report.StrictReleaseReady {
+		t.Fatal("expected strict_release_ready=false with stale handoff")
 	}
 }
 

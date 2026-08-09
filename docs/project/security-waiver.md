@@ -52,4 +52,4 @@ Close the waiver when one of the following is true:
 - the release is rejected and not delivered
 - Security approves the waiver for the exact target delivery
 
-Record the closure decision in `docs/project/commercial-approval-record.md`.
+Record the closure decision in `docs/project/release-approval-record.md`.

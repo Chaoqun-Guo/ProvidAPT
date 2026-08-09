@@ -1,6 +1,6 @@
 # Customer Acceptance Test
 
-This document defines a practical acceptance test for a commercial ProvidAPT delivery.
+This document defines a practical acceptance test for a open-source ProvidAPT deployment.
 
 ## Scope
 
@@ -45,4 +45,4 @@ rm -f /tmp/providapt-cat.out
 - All release-blocking tests pass.
 - Any production or detection issues have owner, severity, workaround, and target date.
 - Production secrets are injected through the customer's secret-management process.
-- External approvals are recorded in the commercial approval record.
+- Release approvals are recorded in the release approval record.

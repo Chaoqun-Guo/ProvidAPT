@@ -6,8 +6,8 @@ This file records engineering-facing milestones for the current maintained relea
 
 ### Release Engineering
 
-- Added `govulncheck` reachable-code vulnerability scanning to `scripts/release/commercial-release.sh`.
-- Required archive, Debian, RPM, Helm, and monitoring artifacts by default for commercial readiness.
+- Added `govulncheck` reachable-code vulnerability scanning to `scripts/release/open-source-release.sh`.
+- Required archive, Debian, RPM, Helm, and monitoring artifacts by default for open-source readiness.
 - Added host-mode package smoke testing for limited Linux validation hosts without Docker.
 - Upgraded the release build baseline to Go `1.25.12` and documented the security scan rerun.
 - Added release evidence, security scan summary, external approval request, and production configuration templates for customer handoff.
@@ -16,7 +16,7 @@ This file records engineering-facing milestones for the current maintained relea
 
 - `govulncheck -tags=bpf ./...` on the Linux rerun host reported no reachable vulnerabilities.
 - Host-mode package smoke passed for Debian install/config/remove/purge, RPM metadata/extraction, and tarball executable checks.
-- Release readiness reported commercial ready with 16 passed checks, 0 warnings, 0 waived, and 0 failed.
+- Release readiness reported release signoff ready with 16 passed checks, 0 warnings, 0 waived, and 0 failed.
 ## v1.2.2 (2026-06-09)
 
 ### Release Engineering
@@ -38,7 +38,7 @@ This file records engineering-facing milestones for the current maintained relea
 
 ### Product and Operations
 
-- Added fleet, policy, alert, license, support-bundle, and upgrade control-plane workflows suitable for commercial operations
+- Added fleet, policy, alert, support-bundle, and upgrade control-plane workflows suitable for open-source operations
 - Added stronger audit coverage across control-plane mutations and operational downloads
 - Added release-oriented documentation for project layout, release validation, and release notes
 

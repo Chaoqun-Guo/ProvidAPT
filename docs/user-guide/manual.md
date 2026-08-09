@@ -165,8 +165,6 @@ Frequently used control-plane endpoints:
 - `POST /api/v1/control/compliance`
 - `GET /api/v1/control/security`
 - `POST /api/v1/control/security`
-- `GET /api/v1/control/license`
-- `POST /api/v1/control/license`
 - `GET /api/v1/control/upgrade`
 - `POST /api/v1/control/upgrade`
 
@@ -182,7 +180,7 @@ Use the console as the daily operator entry point:
 
 | Area | Purpose | Typical Action |
 | --- | --- | --- |
-| Summary bar | Version, activation, fleet size, memory, node, and edge counters | Confirm the system is healthy before investigations |
+| Summary bar | Version, fleet size, memory, node, and edge counters | Confirm the system is healthy before investigations |
 | Agent Overview | Fleet state, host metadata, kernel, OS, uptime, and report age | Filter stale or offline agents and open host details |
 | Policy Center | Draft, validate, diff, publish, and rollback policies | Review policy changes before pushing to agents |
 | Delivery Health | SIEM, audit, support bundle, and evidence delivery state | Retry failed delivery or inspect outbox pressure |

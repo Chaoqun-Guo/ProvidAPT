@@ -132,7 +132,7 @@ fi
 
 %changelog
 * Thu Jul 16 2026 ProvidAPT Team <dev@providapt.io> - %{version}-%{release}
-- Binary commercial release package
+- Binary open-source release package
 SPEC
 
 mkdir -p "$PROJECT_DIR/build/dist"

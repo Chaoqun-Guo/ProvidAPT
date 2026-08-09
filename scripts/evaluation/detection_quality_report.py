@@ -78,7 +78,7 @@ def build_report(coverage: dict[str, Any], alert_quality: dict[str, Any]) -> dic
     if missed_techniques:
         recommendations.append("Review missed techniques: " + ", ".join(row["key"] for row in missed_techniques[:8]))
     if not recommendations:
-        recommendations.append("Detection quality is within the configured commercial readiness targets.")
+        recommendations.append("Detection quality is within the configured open-source readiness targets.")
     status = "pass" if recall >= 80 and precision >= 70 and reviewed >= 80 else "review_required"
     return {
         "schema": SCHEMA,

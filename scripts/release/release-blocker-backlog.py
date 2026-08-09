@@ -66,7 +66,7 @@ def recommended_action(section_name: str) -> str:
         "production_readiness": "Run production-readiness-gate after secrets, TLS, PostgreSQL, and fleet evidence are available.",
         "ml_readiness": "Run ml-readiness-gate after VM capture, ground-truth matching, training, and evaluation.",
         "operations_readiness": "Run operations-readiness-gate after soak, fleet, upgrade, SIEM, and RBAC evidence are available.",
-        "commercialization_readiness": "Run commercialization-readiness-gate after onboarding, docs, approval, and plugin evidence are available.",
+        "open_source_readiness": "Run open-source-readiness-gate after onboarding, docs, approval, and plugin evidence are available.",
         "legal_documents": "Complete legal/privacy documents and remove unresolved placeholders.",
         "delivery_documents": "Complete customer handoff, support, upgrade, and install documentation.",
     }.get(section_name, "Assign an owner and attach passing evidence.")

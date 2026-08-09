@@ -111,12 +111,44 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def archive_to_release_evidence(report: dict[str, Any], path: Path) -> None:
+    start = "<!-- PROVIDAPT:GITHUB_ACTIONS_EVIDENCE:START -->"
+    end = "<!-- PROVIDAPT:GITHUB_ACTIONS_EVIDENCE:END -->"
+    section = "\n".join([
+        start,
+        "## GitHub Actions Final Evidence",
+        "",
+        f"- Status: `{report['status']}`",
+        f"- Commit: `{report.get('full_commit', '')}`",
+        f"- Generated at: `{report['generated_at']}`",
+        "",
+        "| Workflow | Status | Conclusion | URL |",
+        "| --- | --- | --- | --- |",
+        *[
+            f"| {run_row.get('workflowName', '')} | {run_row.get('status', '')} | {run_row.get('conclusion', '')} | {run_row.get('url', '')} |"
+            for run_row in report.get("runs", [])
+        ],
+        end,
+        "",
+    ])
+    existing = path.read_text(encoding="utf-8") if path.exists() else "# ProvidAPT Release Evidence\n\n"
+    if start in existing and end in existing:
+        before = existing.split(start, 1)[0].rstrip()
+        after = existing.split(end, 1)[1].lstrip()
+        updated = before + "\n\n" + section + after
+    else:
+        updated = existing.rstrip() + "\n\n" + section
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(updated, encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Collect structured GitHub Actions evidence for the current commit.")
     parser.add_argument("--repo", default=".")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--out-json", default="build/ci/github-actions-evidence.json")
     parser.add_argument("--out-md", default="build/ci/github-actions-evidence.md")
+    parser.add_argument("--release-evidence", default="", help="Append/update GitHub Actions evidence section in a release evidence Markdown file")
     args = parser.parse_args()
     report = collect(Path(args.repo).resolve(), args.limit)
     out_json = Path(args.out_json)
@@ -125,6 +157,8 @@ def main() -> int:
     out_md.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     out_md.write_text(render_markdown(report), encoding="utf-8")
+    if args.release_evidence:
+        archive_to_release_evidence(report, Path(args.release_evidence))
     print(f"status={report['status']} runs={len(report.get('runs', []))}")
     return 1 if report["status"] == "blocked" else 0
 

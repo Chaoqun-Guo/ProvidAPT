@@ -52,7 +52,7 @@ class CustomerReleaseGateTest(unittest.TestCase):
             "production_readiness_gate": str(self.write_json("production.json", {"status": "pass"})),
             "ml_readiness_gate": str(self.write_json("ml.json", {"status": "pass"})),
             "operations_readiness_gate": str(self.write_json("operations.json", {"status": "pass"})),
-            "commercialization_readiness_gate": str(self.write_json("commercialization.json", {"status": "pass"})),
+            "open_source_readiness_gate": str(self.write_json("open-source-readiness.json", {"status": "pass"})),
             "legal_doc": [str(self.write_text("legal.md", "approved\n"))],
             "delivery_doc": [str(self.write_text("delivery.md", "approved\n"))],
             "allow_skipped_ci": False,
@@ -86,7 +86,7 @@ class CustomerReleaseGateTest(unittest.TestCase):
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["sections"]["dist_artifacts"]["status"], "pass")
         self.assertEqual(report["sections"]["artifact_signing"]["status"], "pass")
-        self.assertIn("Customer Release Gate", subject.render_markdown(report))
+        self.assertIn("Open Source Release Gate", subject.render_markdown(report))
 
     def test_build_report_blocks_on_missing_dist_artifact(self):
         self.populate_dist_and_smoke()

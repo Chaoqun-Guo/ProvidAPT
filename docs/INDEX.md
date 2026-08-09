@@ -20,7 +20,7 @@ the work in front of you, then follow the linked runbooks for deeper detail.
 - Release checklist: [developer/release-readiness.md](developer/release-readiness.md)
 - Release candidate notes: [developer/release-notes-v1.2.3-rc.1.md](developer/release-notes-v1.2.3-rc.1.md)
 - Current handoff and remaining work: [project/macbook-ai-development-handoff.md](project/macbook-ai-development-handoff.md)
-- Commercial release checklist: [project/commercial-release-checklist.md](project/commercial-release-checklist.md)
+- Open-source release checklist: [project/open-source-release-checklist.md](project/open-source-release-checklist.md)
 - Operations runbook and readiness gates: [user-guide/operations.md](user-guide/operations.md)
 
 ## Documentation Maintenance Rules

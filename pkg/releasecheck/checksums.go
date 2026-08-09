@@ -129,7 +129,7 @@ func checkArtifactHashes(report *Report, entries []checksumEntry, artifactsDir s
 				Name:          "release_artifact_hashes",
 				Status:        StatusFail,
 				Message:       fmt.Sprintf("cannot hash artifact %q: %v", entry.Artifact, err),
-				FixSuggestion: "Build all artifacts listed in checksums.txt before commercial sign-off.",
+				FixSuggestion: "Build all artifacts listed in checksums.txt before release sign-off.",
 			})
 			return
 		}
@@ -179,7 +179,7 @@ func checkArtifactMatrix(report *Report, entries []checksumEntry, requiredTypes 
 			Name:          "release_artifact_matrix",
 			Status:        StatusFail,
 			Message:       fmt.Sprintf("checksum manifest is missing required artifact type(s): %s", strings.Join(missing, ", ")),
-			FixSuggestion: "Build and include every required commercial artifact in checksums.txt before release sign-off.",
+			FixSuggestion: "Build and include every required release artifact in checksums.txt before release sign-off.",
 		})
 		return
 	}

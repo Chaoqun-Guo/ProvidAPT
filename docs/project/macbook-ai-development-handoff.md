@@ -48,7 +48,12 @@ Claude, or another coding agent.
 ### Control Plane Dashboard
 
 - Main dashboard route: `/dashboard`
-- Dashboard HTML implementation: `pkg/api/dashboard.html`
+- Dashboard shell: `pkg/api/dashboard.html`
+- Dashboard primary CSS: `pkg/api/static/dashboard.css`
+- Dashboard responsive CSS: `pkg/api/static/dashboard-responsive.css`
+- Dashboard JS: `pkg/api/static/dashboard.js`
+- Trace Viewer CSS: `pkg/api/static/trace-viewer.css`
+- Trace Viewer JS: `pkg/api/static/trace-viewer.js`
 - Recent fixes:
   - Uniform button sizing and visual hierarchy.
   - Compact `Operations Summary`.
@@ -81,9 +86,17 @@ Claude, or another coding agent.
   - Visual regression screenshot capture is available through
     `make visual-regression-snapshots` for dashboard and Trace Viewer evidence,
     and `make visual-regression-gate` gates captured screenshots/baselines.
-  - Dashboard responsive viewport rules are split into
-    `pkg/api/static/dashboard-responsive.css` and served as an embedded static
-    stylesheet.
+  - Dashboard captures include DOM overflow assertions for horizontal document
+    overflow, element bounds, and text overflow at `390x844`, `1366x768`,
+    `1920x1080`, and `2560x1080`.
+  - Trace Viewer captures include browser DOM assertions for rendered SVG,
+    layout modes, PNG/SVG/raw export controls, and report links across the same
+    viewport set.
+  - Dashboard HTML, primary CSS, responsive CSS, and JS are split into embedded
+    static assets served from `/dashboard`, `/assets/dashboard.css`,
+    `/assets/dashboard-responsive.css`, and `/assets/dashboard.js`.
+  - Trace Viewer CSS and JS are split into embedded static assets served from
+    `/assets/trace-viewer.css` and `/assets/trace-viewer.js`.
 
 ### Capture, Enrichment, and ML Pipeline
 
@@ -202,14 +215,15 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
   Trace Viewer; path-only focus from a selected node is available. Continue
   refining very large trace ergonomics and baseline visual regression coverage.
 - Keep visual regression baselines current for dashboard and Trace Viewer
-  exports.
+  exports; Dashboard screenshot manifests now include DOM overflow assertions.
 
 ### Dashboard UX
 
-- Continue reviewing every module panel for overflow at `1366x768`,
-  `1920x1080`, and ultrawide resolutions.
-- Convert large inline dashboard HTML into structured templates or static assets
-  when feasible; responsive CSS has started moving to embedded static assets.
+- Continue reviewing every module panel for overflow at mobile `390x844`,
+  `1366x768`, `1920x1080`, and ultrawide `2560x1080` resolutions.
+- Dashboard CSS and JavaScript are now split out of the HTML shell into
+  embedded static assets; continue moving repeated markup toward structured
+  templates if the panel count grows further.
 
 ### Detection and ML
 
@@ -217,6 +231,9 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
   UID/GID, PID/PPID, network tuple, and event type. Use
   `make capture-enrichment-field-gate EVENTS=...` to produce JSON/Markdown
   coverage evidence from VM or evaluation NDJSON.
+- Use `make collect-vm-capture-evidence PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave"`
+  to collect real three-VM NDJSON release evidence over SSH/SCP and run the
+  capture/enrichment field gate on the gathered files.
 - Keep benign and attack datasets separated with explicit manifests.
 - Dataset versioning, split support, label balance, and output hash inventory
   can be gated with `make dataset-split-gate DATASET_MANIFEST=...`.
@@ -230,25 +247,36 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
 - Analyst TP/FP feedback is persisted to `alert-feedback.ndjson`, exportable via
   `/api/v1/control/alerts/feedback`, and consumable by alert-quality,
   graph-dataset, detection-quality, and model-closed-loop evaluation reports.
+  `model-closed-loop REQUIRE_FEEDBACK=1` now requires at least one reviewed
+  feedback label (`true_positive`, `false_positive`, `benign`, or `duplicate`).
+- Model promotion can be gated with `make model-lifecycle-gate`, which combines
+  closed-loop readiness, deploy-gate pass status, stable drift evidence,
+  minimum feedback/reviewed-label volume, baseline duration, and named owner
+  approval evidence.
 
-### Commercial Readiness
+### Open Source Readiness
 
-- Activation server integration now has
-  `make activation-server-gate CUSTOMER_REGISTRY=... ACTIVATION_AUDIT=...`
-  for customer registry, fingerprint scoping, issued/rejected audit, hashed
-  activation-code audit evidence, and optional live server probes. Commercial
-  readiness consumes this evidence through `ACTIVATION_SERVER_GATE=...`.
+- ProvidAPT is now an open-source distribution: paid-edition UI/API entry points should remain removed.
 - Artifact signing has an explicit release gate:
   `make artifact-signing-gate REQUIRED_ARTIFACTS="archive deb rpm helm monitoring"`.
   The customer-release gate consumes this evidence through its
   `artifact_signing` section.
 - RBAC, audit, multi-tenant scope, and policy approval workflow have an
   explicit `make policy-approval-gate` evidence check.
+- Customer-environment certification can be aggregated with
+  `make customer-env-certification-gate` for delegated admin, tenant isolation,
+  audit export, SIEM/SOAR certification, staged upgrade controls, 24-hour soak,
+  TLS/state backend/backup evidence, plugin governance, and onboarding checks.
 - Backup/restore/cutover evidence has `make backup-readiness-gate`.
 - Support bundle redaction/audit evidence has `make support-bundle-gate`.
 - Runtime deployment diagnostics evidence has `make deployment-diagnostics-gate`.
 - Operations readiness consumes policy approval, backup, support bundle, and
   deployment diagnostics gate outputs.
+- Formal public-release closure now requires current-commit GitHub Actions
+  evidence archived with `RELEASE_EVIDENCE=...`, current-commit security scan
+  manifests, final tag artifacts/checksums/SBOMs/signatures, and named
+  Product/Security/Legal/Support/Sales Engineering approvals. The local gates
+  enforce the evidence; they do not replace real owner signatures.
 
 ## Useful Documentation Entry Points
 

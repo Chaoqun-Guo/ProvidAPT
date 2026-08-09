@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect commercial release gate status without requiring privileged tools."""
+"""Collect open-source release gate status without requiring privileged tools."""
 
 from __future__ import annotations
 
@@ -50,11 +50,23 @@ def command_gate(command: str, package_hint: str) -> Gate:
     return Gate(command, "blocked", f"{command} is not installed", f"Install {package_hint} or run this gate in approved CI")
 
 
-def scan_evidence_gate(name: str, paths: Iterable[Path], next_action: str) -> Gate:
+def scan_evidence_gate(name: str, paths: Iterable[Path], next_action: str, scan_manifest: Path | None = None, commit: str = "") -> Gate:
     present = [path for path in paths if path.exists() and path.stat().st_size > 0]
     if present:
         evidence = ", ".join(str(path) for path in present)
-        return Gate(name, "pass", f"{name} evidence is present", evidence=evidence)
+        if scan_manifest is not None:
+            if not scan_manifest.exists() or scan_manifest.stat().st_size == 0:
+                return Gate(name, "blocked", f"{name} evidence has no current scan manifest", "Re-run scans for the final release commit", evidence)
+            try:
+                manifest = json.loads(scan_manifest.read_text(encoding="utf-8-sig"))
+            except json.JSONDecodeError:
+                return Gate(name, "blocked", f"{scan_manifest} is not valid JSON", "Regenerate scan manifest for this commit", evidence)
+            manifest_commit = str(manifest.get("full_commit") or manifest.get("commit") or "")
+            if commit and manifest_commit and manifest_commit != commit:
+                return Gate(name, "blocked", f"{name} evidence is for {manifest_commit}, not {commit}", "Re-run scans for the final release commit", evidence)
+            if commit and not manifest_commit:
+                return Gate(name, "blocked", f"{name} scan manifest does not record a commit", "Regenerate scan manifest for this commit", evidence)
+        return Gate(name, "pass", f"{name} evidence is present for the current commit", evidence=evidence)
     expected = ", ".join(str(path) for path in paths)
     return Gate(name, "blocked", f"{name} evidence is missing: {expected}", next_action)
 
@@ -156,11 +168,13 @@ def ci_gate(repo: Path, commit: str, evidence_paths: Iterable[Path] = ()) -> Gat
 
 def approval_gate(path: Path) -> Gate:
     if not path.exists():
-        return Gate("external_approvals", "blocked", f"Approval record missing: {path}", "Create and sign commercial approval record")
+        return Gate("external_approvals", "blocked", f"Approval record missing: {path}", "Create and sign open-source release approval record")
     text = path.read_text(encoding="utf-8", errors="replace").lower()
     pending_markers = ["requires owner signoff", "requires approval", "external owner required", "pending", "not signed", "tbd", "blocked until"]
     if any(marker in text for marker in pending_markers):
         return Gate("external_approvals", "blocked", "Approval record still contains pending markers", "Record named decisions before release", str(path))
+    if "delegate" in text or "approved_with_risk" in text:
+        return Gate("external_approvals", "blocked", "Approval record still uses delegate or approved_with_risk decisions", "Attach named Product, Security, Legal, Support, and Sales Engineering approvals before GA/public release", str(path))
     return Gate("external_approvals", "pass", "Approval record has no obvious pending markers", evidence=str(path))
 
 
@@ -171,7 +185,7 @@ def artifact_gate(dist: Path, commit: str = "", version: str = "") -> Gate:
     missing = [path for path in [checksums, signature] if not path.exists() or path.stat().st_size == 0]
     if missing or len(sboms) < 2:
         details = ", ".join(str(path) for path in missing) or "SBOM pair"
-        return Gate("final_artifacts", "blocked", f"Final artifact evidence is incomplete: {details}", "Run make release-commercial from the final release commit")
+        return Gate("final_artifacts", "blocked", f"Final artifact evidence is incomplete: {details}", "Run make release-open-source from the final release commit")
     readiness = dist / "release-readiness.md"
     if readiness.exists():
         text = readiness.read_text(encoding="utf-8", errors="replace")
@@ -180,7 +194,7 @@ def artifact_gate(dist: Path, commit: str = "", version: str = "") -> Gate:
         if version and version not in text:
             return Gate("final_artifacts", "blocked", f"Release readiness evidence does not reference current version {version}", "Regenerate dist from the current release version", str(readiness))
     else:
-        return Gate("final_artifacts", "blocked", f"Release readiness evidence missing: {readiness}", "Run make release-commercial from the final release commit")
+        return Gate("final_artifacts", "blocked", f"Release readiness evidence missing: {readiness}", "Run make release-open-source from the final release commit")
     return Gate("final_artifacts", "pass", "Checksums, signature, SBOM, and current commit evidence are present", evidence=str(dist))
 
 
@@ -188,9 +202,10 @@ def collect(repo: Path, dist: Path, security_dir: Path, ci_evidence: Iterable[Pa
     commit = git_value(repo, ["rev-parse", "--short", "HEAD"])
     full_commit = git_value(repo, ["rev-parse", "HEAD"])
     version = git_value(repo, ["describe", "--tags", "--always"])
-    govuln = scan_evidence_gate("govulncheck_evidence", [security_dir / "govulncheck.txt", security_dir / "govulncheck.json"], "Run govulncheck and store outputs under build/security")
-    grype = scan_evidence_gate("grype_evidence", [security_dir / "grype-source.json"], "Run grype source scan or record a security waiver")
-    trivy = scan_evidence_gate("trivy_evidence", [security_dir / "trivy-fs.json"], "Run trivy filesystem scan or record a security waiver")
+    scan_manifest = security_dir / "scan-manifest.json"
+    govuln = scan_evidence_gate("govulncheck_evidence", [security_dir / "govulncheck.txt", security_dir / "govulncheck.json"], "Run govulncheck and store outputs under build/security", scan_manifest, full_commit)
+    grype = scan_evidence_gate("grype_evidence", [security_dir / "grype-source.json"], "Run grype source scan or record a security waiver", scan_manifest, full_commit)
+    trivy = scan_evidence_gate("trivy_evidence", [security_dir / "trivy-fs.json"], "Run trivy filesystem scan or record a security waiver", scan_manifest, full_commit)
     gates = [
         Gate("github_actions", "skipped", "GitHub Actions evidence intentionally skipped for this local release-blocking closure", evidence="--skip-ci")
         if skip_ci else ci_gate(repo, full_commit, ci_evidence),
@@ -200,7 +215,7 @@ def collect(repo: Path, dist: Path, security_dir: Path, ci_evidence: Iterable[Pa
         waiver_gate("govulncheck_evidence", waiver_paths, ["govulncheck_evidence"], govuln),
         waiver_gate("grype_evidence", waiver_paths, ["grype_evidence"], grype),
         waiver_gate("trivy_evidence", waiver_paths, ["trivy_evidence"], trivy),
-        approval_gate(repo / "docs/project/commercial-approval-record.md"),
+        approval_gate(repo / "docs/project/release-approval-record.md"),
         artifact_gate(dist, commit, version),
     ]
     return {

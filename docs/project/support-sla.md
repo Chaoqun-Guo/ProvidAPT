@@ -1,6 +1,6 @@
 # Support SLA and Escalation Model
 
-This template defines the minimum support model required before a commercial ProvidAPT release is handed to customers.
+This template defines the minimum support model required before an open-source ProvidAPT release is handed to operators.
 
 ## Support Channels
 
@@ -48,7 +48,7 @@ customer secret manager.
 
 ## Release Gate
 
-A commercial release is support-ready only when:
+A open-source release is support-ready only when:
 
 - support contacts are active and monitored
 - severity definitions are published to customer-facing teams

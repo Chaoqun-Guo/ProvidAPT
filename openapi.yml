@@ -479,19 +479,6 @@ paths:
         "200":
           description: Compliance action result
 
-  /api/v1/control/license:
-    get:
-      summary: License status
-      description: Returns current license information and history
-      operationId: getLicenseStatus
-      responses:
-        "200":
-          description: License status
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LicenseStatus"
-
   /api/v1/control/upgrade:
     get:
       summary: Upgrade readiness
@@ -840,34 +827,6 @@ components:
               type: array
               items:
                 type: object
-
-    LicenseStatus:
-      type: object
-      properties:
-        updated_at:
-          type: string
-          format: date-time
-        present:
-          type: boolean
-        license_id:
-          type: string
-        customer:
-          type: string
-        edition:
-          type: string
-        max_agents:
-          type: integer
-        reporting_agents:
-          type: integer
-        seats_available:
-          type: integer
-        seat_limit_exceeded:
-          type: boolean
-        expires_at:
-          type: string
-          format: date-time
-        signature_verified:
-          type: boolean
 
     UpgradeReadiness:
       type: object

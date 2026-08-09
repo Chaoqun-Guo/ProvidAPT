@@ -39,11 +39,8 @@ func TestDefaultConfig(t *testing.T) {
 	if !cfg.SupportBundle.RedactArchives {
 		t.Error("support redact_archives should be true by default")
 	}
-	if cfg.License.SigningKey != "" {
-		t.Error("license signing_key should be empty by default")
-	}
 	if cfg.Compliance.ApprovalTTL != "24h" || cfg.Compliance.ReportInterval != "24h" {
-		t.Fatalf("commercial compliance defaults = %#v", cfg.Compliance)
+		t.Fatalf("compliance defaults = %#v", cfg.Compliance)
 	}
 	if cfg.Upgrade.CanaryPercent != 10 {
 		t.Fatalf("upgrade canary default = %d", cfg.Upgrade.CanaryPercent)
@@ -639,20 +636,8 @@ func TestSupportBundleEnvOverrides(t *testing.T) {
 	}
 }
 
-func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
-	os.Setenv("PROVIDAPT_LICENSE_PATH", "/etc/providapt/license.yaml")
-	os.Setenv("PROVIDAPT_LICENSE_ACTIVATION_URL", "http://auth-server:19090/v1/activate")
-	os.Setenv("PROVIDAPT_LICENSE_SIGNING_KEY", "env:PROVIDAPT_LICENSE_HMAC")
-	os.Setenv("PROVIDAPT_LICENSE_HMAC", "shared-secret")
-	os.Setenv("PROVIDAPT_LICENSE_REVOKED_IDS", "lic-1, lic-2")
-	os.Setenv("PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS", "14")
-	os.Setenv("PROVIDAPT_LICENSE_MAX_AGENTS", "25")
-	os.Setenv("PROVIDAPT_LICENSE_PUBLIC_KEY_PATH", "/etc/providapt/license.pub")
-	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_URL", "https://licenses.example.com/revocations.json")
-	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_CACHE", "/var/lib/providapt/revocations.json")
-	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_SIG_URL", "https://licenses.example.com/revocations.json.sig")
-	os.Setenv("PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE", "/var/lib/providapt/revocations.json.sig")
-	os.Setenv("PROVIDAPT_UPGRADE_MANIFEST_URL", "http://auth-server:19090/v1/releases/latest")
+func TestUpgradeEnvOverrides(t *testing.T) {
+	os.Setenv("PROVIDAPT_UPGRADE_MANIFEST_URL", "https://downloads.example.com/providapt/releases/latest.json")
 	os.Setenv("PROVIDAPT_UPGRADE_DOWNLOAD_URL", "https://downloads.example.com/providapt.tar.gz")
 	os.Setenv("PROVIDAPT_UPGRADE_PACKAGE_PATH", "/tmp/providapt-upgrade.tar.gz")
 	os.Setenv("PROVIDAPT_UPGRADE_EXPECTED_SHA256", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
@@ -664,18 +649,6 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	os.Setenv("PROVIDAPT_UPGRADE_ROLLBACK_COMMAND", "/usr/local/bin/providapt-upgrade rollback")
 	os.Setenv("PROVIDAPT_UPGRADE_CANARY_PERCENT", "20")
 	defer func() {
-		os.Unsetenv("PROVIDAPT_LICENSE_PATH")
-		os.Unsetenv("PROVIDAPT_LICENSE_ACTIVATION_URL")
-		os.Unsetenv("PROVIDAPT_LICENSE_SIGNING_KEY")
-		os.Unsetenv("PROVIDAPT_LICENSE_HMAC")
-		os.Unsetenv("PROVIDAPT_LICENSE_REVOKED_IDS")
-		os.Unsetenv("PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
-		os.Unsetenv("PROVIDAPT_LICENSE_MAX_AGENTS")
-		os.Unsetenv("PROVIDAPT_LICENSE_PUBLIC_KEY_PATH")
-		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_URL")
-		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_CACHE")
-		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_SIG_URL")
-		os.Unsetenv("PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE")
 		os.Unsetenv("PROVIDAPT_UPGRADE_MANIFEST_URL")
 		os.Unsetenv("PROVIDAPT_UPGRADE_DOWNLOAD_URL")
 		os.Unsetenv("PROVIDAPT_UPGRADE_PACKAGE_PATH")
@@ -693,40 +666,7 @@ func TestLicenseAndUpgradeEnvOverrides(t *testing.T) {
 	applyEnvOverrides(cfg)
 	resolveSecrets(cfg)
 
-	if cfg.License.Path != "/etc/providapt/license.yaml" {
-		t.Fatalf("license path = %q", cfg.License.Path)
-	}
-	if cfg.License.ActivationURL != "http://auth-server:19090/v1/activate" {
-		t.Fatalf("license activation_url = %q", cfg.License.ActivationURL)
-	}
-	if cfg.License.SigningKey != "shared-secret" {
-		t.Fatalf("license signing key = %q", cfg.License.SigningKey)
-	}
-	if cfg.License.PublicKeyPath != "/etc/providapt/license.pub" {
-		t.Fatalf("license public key path = %q", cfg.License.PublicKeyPath)
-	}
-	if len(cfg.License.RevokedIDs) != 2 || cfg.License.RevokedIDs[0] != "lic-1" {
-		t.Fatalf("license revoked_ids = %#v", cfg.License.RevokedIDs)
-	}
-	if cfg.License.GracePeriodDays != 14 {
-		t.Fatalf("license grace period = %d", cfg.License.GracePeriodDays)
-	}
-	if cfg.License.MaxAgents != 25 {
-		t.Fatalf("license max agents = %d", cfg.License.MaxAgents)
-	}
-	if cfg.License.RevocationURL != "https://licenses.example.com/revocations.json" {
-		t.Fatalf("license revocation_url = %q", cfg.License.RevocationURL)
-	}
-	if cfg.License.RevocationCache != "/var/lib/providapt/revocations.json" {
-		t.Fatalf("license revocation_cache = %q", cfg.License.RevocationCache)
-	}
-	if cfg.License.RevocationSigURL != "https://licenses.example.com/revocations.json.sig" {
-		t.Fatalf("license revocation_sig_url = %q", cfg.License.RevocationSigURL)
-	}
-	if cfg.License.RevocationSigCache != "/var/lib/providapt/revocations.json.sig" {
-		t.Fatalf("license revocation_sig_cache = %q", cfg.License.RevocationSigCache)
-	}
-	if cfg.Upgrade.ManifestURL != "http://auth-server:19090/v1/releases/latest" {
+	if cfg.Upgrade.ManifestURL != "https://downloads.example.com/providapt/releases/latest.json" {
 		t.Fatalf("upgrade manifest_url = %q", cfg.Upgrade.ManifestURL)
 	}
 	if cfg.Upgrade.DownloadURL != "https://downloads.example.com/providapt.tar.gz" {
@@ -763,14 +703,6 @@ func TestValidateUpgradeChecksum(t *testing.T) {
 	cfg.Upgrade.ExpectedSHA256 = "not-a-sha"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected error for invalid upgrade.expected_sha256")
-	}
-}
-
-func TestValidateLicenseGracePeriod(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.License.GracePeriodDays = -1
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected error for negative license grace_period_days")
 	}
 }
 
@@ -1033,7 +965,7 @@ siem:
 	}
 }
 
-func TestValidateCommercialP2Config(t *testing.T) {
+func TestValidateProductionReadinessConfig(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Compliance.RetentionDays = -1
 	if err := cfg.Validate(); err == nil {

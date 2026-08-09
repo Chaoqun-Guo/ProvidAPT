@@ -1,6 +1,6 @@
-# Commercial Feature Gap Register
+# Open Source Readiness Gap Register
 
-This register tracks remaining product capabilities that improve commercial readiness beyond the current release gates.
+This register tracks remaining capabilities that improve the public open-source release beyond the current release gates.
 
 ## Release Blocking
 
@@ -8,15 +8,15 @@ This register tracks remaining product capabilities that improve commercial read
 | --- | --- | --- |
 | CI governance | Authenticated GitHub Actions evidence is not captured in the repository | Release record links to passing CI runs for the final commit |
 | Vulnerability scanning | Grype and Trivy evidence is not closed for the current commit | Security has either clean scan outputs or an approved waiver |
-| External approval | Product, Security, Legal, Support, and Sales Engineering approvals are not signed | `commercial-approval-record.md` contains named decisions |
+| Release approval | Engineering, Security, Legal/project-owner, and Maintainer approvals are not signed | `release-approval-record.md` contains named decisions |
 | Final artifacts | Current `dist/` artifacts were generated before the latest commit | Final artifacts, checksums, SBOMs, signatures, and handoff bundle are rebuilt from the release tag |
 
 Current closure progress:
 
 - Release gate collection accepts external GitHub Actions evidence via `--ci-evidence`.
 - Grype/Trivy/govulncheck gates accept structured or Markdown waiver evidence via `--waiver`.
-- Final artifact generation remains tied to `make release-commercial` from the final release tag.
-- Named Product, Security, Legal, Support, and Sales Engineering decisions still require real owner signoff.
+- Final artifact generation remains tied to `make release-open-source` from the final release tag.
+- Named Engineering, Security, Legal/project-owner, and Maintainer decisions still require real owner signoff.
 
 ## Production Operations
 
@@ -61,8 +61,10 @@ Current closure progress:
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Trace Viewer supports path-only focus from a selected node, node-type filtering, file/network folding, and layout modes for tree, compact, timeline, and grouped views.
+- Trace SVG layout pressure evidence can be collected against real alerts through `make trace-svg-stress`, including per-layout latency, SVG dimensions, node/edge counts, and folded cluster counts.
 - Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
 - Alert workflow feedback is persisted to an append-only `alert-feedback.ndjson` ledger, merged back into dashboard alert views after restart, exported through `/api/v1/control/alerts/feedback`, consumed by `make alert-quality ALERT_FEEDBACK=...`, recorded in graph dataset manifests through `make graph-dataset ALERT_FEEDBACK=...`, merged into `make detection-quality`, and accepted by `make model-closed-loop REQUIRE_FEEDBACK=1` from either a feedback file or dataset manifest evidence.
+- Three-VM capture/enrichment evidence can be collected over SSH/SCP through `make collect-vm-capture-evidence`, which copies real `providapt-*.ndjson` files and runs `capture-enrichment-field-gate` on the gathered release evidence.
 
 ## Enterprise Integration
 
@@ -75,6 +77,11 @@ Current closure progress:
 
 Current closure progress:
 
+- Customer environment certification is aggregated through
+  `make customer-env-certification-gate`, covering RBAC delegated admin,
+  tenant isolation, audit export, SIEM/SOAR certification, upgrade rollout,
+  soak duration, Secret/TLS/PostgreSQL/backup readiness, plugin governance,
+  and onboarding checks.
 - Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, SIEM/SOAR delivery checks, upgrade rollout evidence, and detection quality through `make enterprise-readiness`.
 - Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
 - Policy approval readiness gates RBAC status, tenant scoping, approval workflow, required approval actions, and approval audit evidence through `make policy-approval-gate`.
@@ -99,7 +106,13 @@ Current closure progress:
 - Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
 - Long-duration soak samples can be appended from a status endpoint or captured JSON through `make soak-sample`.
 - Model registry, dataset drift, feature-schema compatibility, and deployable model artifact SHA-256 checks are available for training provenance.
-- First-run onboarding bundles generate a starter config, checklist, and manifest through `make onboarding-wizard`.
-- Plugin release gating validates plugin manifests, semantic versions, supported plugin types, signature evidence, and rollback instructions through `make plugin-release-gate`.
+- Model lifecycle promotion is gated through `make model-lifecycle-gate`, requiring closed-loop readiness, deploy-gate pass status, stable drift evidence, sufficient analyst feedback/reviewed labels, a minimum baseline window, and optional named owner approval.
+- First-run onboarding bundles generate a starter config, checklist,
+  Tailscale/SSH/API/TLS/secrets/PostgreSQL environment checks, and manifest
+  through `make onboarding-wizard`.
+- Plugin release gating validates plugin manifests, semantic versions,
+  supported plugin types, permission declarations, distribution policy,
+  signature evidence, and rollback instructions through
+  `make plugin-release-gate`.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
 - Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.

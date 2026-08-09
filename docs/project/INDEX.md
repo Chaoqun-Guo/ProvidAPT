@@ -1,6 +1,6 @@
 # Project Documentation
 
-This section collects engineering documentation for repository governance, layout, release consistency, and commercial delivery.
+This section collects engineering documentation for repository governance, layout, release consistency, and open-source delivery.
 
 ## Documents
 
@@ -13,8 +13,8 @@ This section collects engineering documentation for repository governance, layou
 | [macbook-ai-development-handoff.md](macbook-ai-development-handoff.md) | Current development handoff, implemented gates, and remaining work |
 | [release-evidence-v1.2.2.md](release-evidence-v1.2.2.md) | Release evidence template for `v1.2.2` |
 | [release-evidence-v1.2.3-rc.1.md](release-evidence-v1.2.3-rc.1.md) | Release candidate evidence for `v1.2.3-rc.1` |
-| [commercial-release-checklist.md](commercial-release-checklist.md) | Commercial release delivery checklist |
-| [release-artifact-matrix.md](release-artifact-matrix.md) | Required commercial release artifacts and verification rules |
+| [open-source-release-checklist.md](open-source-release-checklist.md) | Open-source release delivery checklist |
+| [release-artifact-matrix.md](release-artifact-matrix.md) | Required open-source release artifacts and verification rules |
 | [release-security-scan-summary-v1.2.2.md](release-security-scan-summary-v1.2.2.md) | Security scan evidence for v1.2.2 |
 | [release-security-scan-summary-v1.2.3-rc.1.md](release-security-scan-summary-v1.2.3-rc.1.md) | Security scan evidence for the v1.2.3 release candidate |
 | [security-scan-waiver-summary.md](security-scan-waiver-summary.md) | Summary of accepted scan waivers and closure expectations |
@@ -25,15 +25,15 @@ This section collects engineering documentation for repository governance, layou
 | [production-readiness.md](production-readiness.md) | Production deployment readiness checklist |
 | [sizing-guide.md](sizing-guide.md) | Initial capacity planning guidance for agents, control plane, and PostgreSQL |
 | [third-party-notices.md](third-party-notices.md) | Third-party notice and SBOM review template |
-| [export-control.md](export-control.md) | Export-control workflow for international commercial delivery |
+| [export-control.md](export-control.md) | Export-control workflow for international open-source delivery |
 | [support-sla.md](support-sla.md) | Support severity, SLA, and escalation model |
 | [customer-handoff.md](customer-handoff.md) | POC, onboarding, and production handoff checklist |
-| [commercial-approval-record.md](commercial-approval-record.md) | Final commercial release approval record |
-| [commercial-feature-gap-register.md](commercial-feature-gap-register.md) | Prioritized commercial feature and release gap register |
+| [release-approval-record.md](release-approval-record.md) | Final open-source release approval record |
+| [open-source-readiness-gap-register.md](open-source-readiness-gap-register.md) | Prioritized open-source readiness gap register |
 
 ## Usage Guidance
 
 1. Review `project-layout.md` before adding new documents.
 2. Use `../INDEX.md` and `documentation-audit.md` to find the right documentation entry point.
 3. Run the checks in `release-docs-consistency-check.md` before release.
-4. Complete the release evidence, artifact matrix, handoff checklist, SLA, and approval record before commercial delivery.
+4. Complete the release evidence, artifact matrix, handoff checklist, SLA, and approval record before open-source delivery.

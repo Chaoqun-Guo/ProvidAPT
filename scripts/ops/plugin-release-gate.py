@@ -49,6 +49,26 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
     entrypoint = str(manifest.get("entrypoint") or manifest.get("import_path") or "").strip()
     if not entrypoint:
         warnings.append("entrypoint/import_path is not set; compile-time registration must be documented")
+    permissions = manifest.get("permissions")
+    if permissions is None:
+        warnings.append("permissions are not declared; plugin permission model should be explicit before production distribution")
+        permissions = []
+    elif not isinstance(permissions, list):
+        failures.append("permissions must be a list")
+        permissions = []
+    else:
+        for permission in permissions:
+            text = str(permission).strip()
+            if text in {"*", "*:*", "admin", "root"}:
+                failures.append(f"unsafe plugin permission: {text}")
+            elif not text:
+                failures.append("plugin permission entries must not be empty")
+    distribution = manifest.get("distribution")
+    if not isinstance(distribution, dict):
+        warnings.append("distribution policy is not declared")
+        distribution = {}
+    if distribution and not str(distribution.get("channel") or "").strip():
+        failures.append("distribution.channel is required when distribution policy is declared")
     signature_present = bool(signature_path and signature_path.exists() and signature_path.stat().st_size > 0)
     if not signature_present and not allow_unsigned:
         failures.append("plugin signature evidence is required")
@@ -68,6 +88,8 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
             "providapt_min_version": manifest.get("providapt_min_version", ""),
             "providapt_max_version": manifest.get("providapt_max_version", ""),
             "entrypoint": entrypoint,
+            "permissions": permissions,
+            "distribution": distribution,
         },
         "failures": failures,
         "warnings": warnings,
@@ -88,6 +110,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Version: `{report['plugin']['version']}`",
         f"- Manifest SHA-256: `{report['manifest_sha256']}`",
         f"- Signature present: `{report['signature_present']}`",
+        f"- Permissions: `{json.dumps(report['plugin'].get('permissions', []), sort_keys=True)}`",
         "",
     ]
     if report["failures"]:

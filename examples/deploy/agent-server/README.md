@@ -1,6 +1,6 @@
 # Agent and Server Topology
 
-This example shows the intended commercial topology: one control-plane server monitors and configures multiple Linux agents.
+This example shows the intended open-source topology: one control-plane server monitors and configures multiple Linux agents.
 
 ## Roles
 

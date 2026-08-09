@@ -13,7 +13,7 @@ Release: `v1.2.3-rc.1`
 - `docs/developer/release-notes-v1.2.3-rc.1.md`
 - `docs/developer/release-readiness.md`
 - `docs/project/documentation-audit.md`
-- `docs/project/commercial-release-checklist.md`
+- `docs/project/open-source-release-checklist.md`
 - `docs/project/release-evidence-v1.2.3-rc.1.md`
 - `docs/project/release-security-scan-summary-v1.2.3-rc.1.md`
 - `docs/project/external-approval-request-v1.2.3-rc.1.md`
@@ -43,7 +43,6 @@ Release: `v1.2.3-rc.1`
 - Visual regression: `make visual-regression-snapshots`, `make visual-regression-gate`
 - Capture/enrichment coverage: `make capture-enrichment-field-gate`
 - Artifact signing: `make artifact-signing-gate`
-- Activation server: `make activation-server-gate`
 - Policy approval: `make policy-approval-gate`
 - Backup readiness: `make backup-readiness-gate`
 - Support bundle: `make support-bundle-gate`

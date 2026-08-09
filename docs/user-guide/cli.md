@@ -15,7 +15,7 @@ Primary CLI for daemon management and operational checks.
 | Restart | `-restart` | Stop then start |
 | Config | `-config <path>` | Specify config file |
 | Diagnose | `-diagnose` | Collect diagnostic bundle |
-| Release Check | `-release-check` | Run commercial handoff readiness checks |
+| Release Check | `-release-check` | Run open-source handoff readiness checks |
 | Purge | `-purge` | Purge stored data |
 | eBPF Inspect | `-bpf` | Inspect eBPF programs and pinned maps |
 | Verify Store | `-verify` | Check Pebble store consistency |
@@ -68,9 +68,9 @@ checks that the package references the current version and commit and does not
 contain stale approval markers from an older generated handoff.
 
 `-release-required-artifacts` validates that the checksum manifest includes the
-commercial artifact matrix. The default gate requires `archive`, `deb`, `rpm`,
+release artifact matrix. The default gate requires `archive`, `deb`, `rpm`,
 `helm`, and `monitoring`; pass an empty value to disable this gate for
-non-commercial builds.
+local development builds.
 
 `-release-checksums-signature` validates that a detached signature file for the
 checksum manifest is present and non-empty. Recognized evidence formats include
@@ -97,19 +97,11 @@ Control-plane support APIs:
 - `POST /api/v1/control/support`
 - `GET /api/v1/control/support/download`
 - `GET /api/v1/control/audit?category=admin&source=supportbundle`
-- `GET /api/v1/control/license`
-- `POST /api/v1/control/license`
 - `GET /api/v1/control/upgrade`
 - `POST /api/v1/control/upgrade`
 
 Key environment variables:
 
-- `PROVIDAPT_LICENSE_PUBLIC_KEY_PATH`
-- `PROVIDAPT_LICENSE_REVOCATION_URL`
-- `PROVIDAPT_LICENSE_REVOCATION_CACHE`
-- `PROVIDAPT_LICENSE_REVOCATION_SIG_URL`
-- `PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE`
-- `PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS`
 - `PROVIDAPT_UPGRADE_DOWNLOAD_URL`
 - `PROVIDAPT_UPGRADE_PACKAGE_PATH`
 - `PROVIDAPT_UPGRADE_EXPECTED_SHA256`

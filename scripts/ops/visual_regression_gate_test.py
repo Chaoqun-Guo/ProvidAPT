@@ -47,13 +47,14 @@ class VisualRegressionGateTest(unittest.TestCase):
             "path": str(image),
             "status": "captured",
             "sha256": "a" * 64,
+            "dom_assertions": {"status": "pass"},
         }
 
     def args(self, manifest, **overrides):
         values = {
             "manifest": str(manifest),
             "required_page": ["dashboard", "trace-viewer"],
-            "required_viewport": ["1366x768", "1920x1080", "2560x1080"],
+            "required_viewport": ["390x844", "1366x768", "1920x1080", "2560x1080"],
             "require_captured": True,
             "require_files": True,
             "require_hash": True,
@@ -63,7 +64,7 @@ class VisualRegressionGateTest(unittest.TestCase):
         return Namespace(**values)
 
     def test_passes_complete_captured_manifest(self):
-        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["1366x768", "1920x1080", "2560x1080"]]
+        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "pass")
 
@@ -72,18 +73,26 @@ class VisualRegressionGateTest(unittest.TestCase):
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "blocked")
         self.assertIn("missing screenshot: trace-viewer 2560x1080", "\n".join(report["failures"]))
+        self.assertIn("missing screenshot: dashboard 390x844", "\n".join(report["failures"]))
 
     def test_blocks_changed_baseline_by_default(self):
-        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["1366x768", "1920x1080", "2560x1080"]]
+        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
         manifest = self.write_manifest(screenshots, [{"page": "dashboard", "viewport": "1366x768", "status": "changed"}])
         report = subject.build_report(self.args(manifest))
         self.assertEqual(report["status"], "blocked")
 
     def test_can_warn_on_changed_baseline(self):
-        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["1366x768", "1920x1080", "2560x1080"]]
+        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
         manifest = self.write_manifest(screenshots, [{"page": "dashboard", "viewport": "1366x768", "status": "changed"}])
         report = subject.build_report(self.args(manifest, block_changed=False))
         self.assertEqual(report["status"], "warn")
+
+    def test_blocks_failed_dom_assertions(self):
+        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
+        screenshots[0]["dom_assertions"] = {"status": "fail"}
+        report = subject.build_report(self.args(self.write_manifest(screenshots)))
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("DOM assertions failed", "\n".join(report["failures"]))
 
 
 if __name__ == "__main__":

@@ -129,5 +129,5 @@ make plugin-release-gate \
   ALLOW_UNSIGNED_PLUGIN=1
 ```
 
-Commercial releases should keep plugin manifests, signatures, gate reports, and
+Open-source releases should keep plugin manifests, signatures, gate reports, and
 rollback instructions with the release evidence bundle.

@@ -73,13 +73,13 @@ EXAMPLES
         Check status with a non-default config path.
 
     providaptctl -release-check -config /etc/providapt/providapt.toml
-        Run commercial release readiness checks for handoff.
+        Run open-source release readiness checks for handoff.
 
     providaptctl -release-check -release-check-out release-readiness.md
         Write a Markdown or JSON release readiness evidence report.
 
     providaptctl -release-check -release-waivers release-waivers.json
-        Apply reviewed warning waivers during commercial readiness checks.
+        Apply reviewed warning waivers during open-source release checks.
 
     providaptctl -release-check -release-checksums dist/checksums.txt
         Validate release artifact checksum manifest format.
@@ -94,7 +94,7 @@ EXAMPLES
         Verify handoff evidence references the current release and has no stale approval markers.
 
     providaptctl -release-check -release-required-artifacts archive,deb,rpm,helm,monitoring
-        Require commercial artifact types to be present in checksums.txt.
+        Require open-source release artifact types to be present in checksums.txt.
 
     providaptctl -release-check -release-sbom dist/sbom.spdx.json,dist/sbom.cdx.json
         Validate SPDX or CycloneDX SBOM evidence files.
@@ -141,7 +141,7 @@ func main() {
 		restoreFlag       = flag.Bool("restore", false, "Restore store from tar.gz backup")
 		restoreIn         = flag.String("restore-in", "", "Backup input path (.tar.gz)")
 		configCheck       = flag.Bool("config-check", false, "Validate config file and exit")
-		releaseCheck      = flag.Bool("release-check", false, "Run commercial release readiness checks")
+		releaseCheck      = flag.Bool("release-check", false, "Run open-source release readiness checks")
 		evidencePath      = flag.String("release-evidence", "docs/project/release-evidence-v1.2.2.md", "Release evidence file path")
 		waiverPath        = flag.String("release-waivers", "", "Release warning waiver JSON file")
 		checksumsPath     = flag.String("release-checksums", "", "Release artifact checksums file")
@@ -502,10 +502,10 @@ func cmdReleaseCheck(cfgPath, evidencePath, waiverPath, checksumsPath, checksums
 	}
 	table.Render()
 
-	if report.CommercialReady {
-		clioutput.Printf("%s\n", clioutput.Okf("Commercial release checks passed"))
+	if report.StrictReleaseReady {
+		clioutput.Printf("%s\n", clioutput.Okf("Open-source release checks passed"))
 	} else if report.ReleaseReady {
-		clioutput.Printf("%s\n", clioutput.Warnf("Release checks passed with commercial warnings"))
+		clioutput.Printf("%s\n", clioutput.Warnf("Release checks passed with warnings"))
 	} else {
 		clioutput.Printf("%s\n", clioutput.Errf("Release checks failed"))
 		return 2

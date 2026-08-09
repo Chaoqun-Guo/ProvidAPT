@@ -69,7 +69,7 @@ curl -X POST http://<server>:18080/api/v1/control/backup \
   -d '{"action":"restore_staging"}'
 ```
 
-Validate the staged data before activation. Use `prepare_cutover` only during an approved maintenance window:
+Validate the staged data before cutover. Use `prepare_cutover` only during an approved maintenance window:
 
 ```bash
 curl -X POST http://<server>:18080/api/v1/control/backup \

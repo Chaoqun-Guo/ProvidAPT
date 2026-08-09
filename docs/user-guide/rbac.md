@@ -32,7 +32,7 @@ curl -H "Authorization: Bearer admin-key" http://localhost:18080/api/v1/status
 | --- | --- | --- |
 | `admin` | platform administrator | full control-plane access |
 | `operator` | managed-service operator | scoped fleet, alert, upgrade, and read-only investigation operations |
-| `analyst` | SOC analyst | read-only graph, alert, fleet, policy, delivery, license, and upgrade views |
+| `analyst` | SOC analyst | read-only graph, alert, fleet, policy, delivery, and upgrade views |
 | `auditor` | compliance reviewer | read-only audit, status, dashboard, and compliance evidence views |
 
 ## Custom Roles

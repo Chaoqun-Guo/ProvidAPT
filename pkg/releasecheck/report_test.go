@@ -14,14 +14,14 @@ import (
 
 func TestRenderMarkdown(t *testing.T) {
 	report := Report{
-		GeneratedAt:     time.Date(2026, 7, 8, 1, 2, 3, 0, time.UTC),
-		ConfigPath:      "/etc/providapt/providapt.toml",
-		Version:         "1.2.2",
-		Commit:          "abc123",
-		BuildDate:       "2026-07-08T00:00:00Z",
-		ReleaseReady:    true,
-		CommercialReady: true,
-		Passed:          1,
+		GeneratedAt:        time.Date(2026, 7, 8, 1, 2, 3, 0, time.UTC),
+		ConfigPath:         "/etc/providapt/providapt.toml",
+		Version:            "1.2.2",
+		Commit:             "abc123",
+		BuildDate:          "2026-07-08T00:00:00Z",
+		ReleaseReady:       true,
+		StrictReleaseReady: true,
+		Passed:             1,
 		Checks: []Check{{
 			Name:    "config_valid",
 			Status:  StatusPass,

@@ -8,7 +8,6 @@ This section helps you install, evaluate, deploy, and run ProvidAPT in different
 | --- | --- |
 | [quick-start.md](quick-start.md) | Fast path from install to dashboard, alerts, and provenance trace |
 | [install.md](install.md) | Installation guide |
-| [commercial-install.md](commercial-install.md) | Commercial Linux install, uninstall, and upgrade preflight |
 | [docker-compose.md](docker-compose.md) | Docker Compose deployment and operations |
 | [helm.md](helm.md) | Helm install, upgrade, rollback, and uninstall workflows |
 | [deployment.md](deployment.md) | Deployment guide |

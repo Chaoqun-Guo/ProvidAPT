@@ -412,74 +412,6 @@ type ComplianceActionResult struct {
 type ComplianceStatusFunc func() ComplianceStatus
 type ComplianceActionFunc func(req ComplianceActionRequest) (ComplianceActionResult, error)
 
-type LicenseStatus struct {
-	UpdatedAt           string               `json:"updated_at"`
-	Path                string               `json:"path,omitempty"`
-	LicenseID           string               `json:"license_id,omitempty"`
-	Present             bool                 `json:"present"`
-	SizeBytes           int64                `json:"size_bytes,omitempty"`
-	ModifiedAt          string               `json:"modified_at,omitempty"`
-	Customer            string               `json:"customer,omitempty"`
-	Edition             string               `json:"edition,omitempty"`
-	MaxAgents           int                  `json:"max_agents,omitempty"`
-	ReportingAgents     int                  `json:"reporting_agents,omitempty"`
-	SeatsAvailable      int                  `json:"seats_available,omitempty"`
-	SeatLimitExceeded   bool                 `json:"seat_limit_exceeded"`
-	MachineFingerprint  string               `json:"machine_fingerprint,omitempty"`
-	BoundFingerprint    string               `json:"bound_fingerprint,omitempty"`
-	BindingVerified     bool                 `json:"binding_verified"`
-	IssuedAt            string               `json:"issued_at,omitempty"`
-	ExpiresAt           string               `json:"expires_at,omitempty"`
-	DaysRemaining       int                  `json:"days_remaining,omitempty"`
-	Expired             bool                 `json:"expired"`
-	GracePeriodDays     int                  `json:"grace_period_days,omitempty"`
-	InGracePeriod       bool                 `json:"in_grace_period"`
-	Revoked             bool                 `json:"revoked"`
-	RevocationSource    string               `json:"revocation_source,omitempty"`
-	RevocationVerified  bool                 `json:"revocation_verified"`
-	RevocationCheckedAt string               `json:"revocation_checked_at,omitempty"`
-	SignaturePresent    bool                 `json:"signature_present"`
-	SignatureVerified   bool                 `json:"signature_verified"`
-	CurrentVersion      string               `json:"current_version,omitempty"`
-	ActivationURL       string               `json:"activation_url,omitempty"`
-	LastValidatedAt     string               `json:"last_validated_at,omitempty"`
-	LastError           string               `json:"last_error,omitempty"`
-	History             []ControlActionAudit `json:"history,omitempty"`
-}
-
-type LicenseStatusFunc func() LicenseStatus
-
-type LicenseActionRequest struct {
-	Action         string `json:"action"`
-	LicenseData    string `json:"license_data,omitempty"`
-	LicensePath    string `json:"license_path,omitempty"`
-	ActivationCode string `json:"activation_code,omitempty"`
-	ActivationURL  string `json:"activation_url,omitempty"`
-	Customer       string `json:"customer,omitempty"`
-	Edition        string `json:"edition,omitempty"`
-	MaxAgents      int    `json:"max_agents,omitempty"`
-	ValidityDays   int    `json:"validity_days,omitempty"`
-	Note           string `json:"note,omitempty"`
-	Actor          string `json:"actor,omitempty"`
-	Role           string `json:"role,omitempty"`
-}
-
-type LicenseActionResult struct {
-	Status            string `json:"status"`
-	Message           string `json:"message,omitempty"`
-	RequestID         string `json:"request_id,omitempty"`
-	ActivationKey     string `json:"activation_key,omitempty"`
-	ValidatedAt       string `json:"validated_at,omitempty"`
-	ExpiresAt         string `json:"expires_at,omitempty"`
-	GracePeriodDays   int    `json:"grace_period_days,omitempty"`
-	InGracePeriod     bool   `json:"in_grace_period"`
-	Revoked           bool   `json:"revoked"`
-	SignatureVerified bool   `json:"signature_verified"`
-	BindingVerified   bool   `json:"binding_verified"`
-}
-
-type LicenseActionFunc func(req LicenseActionRequest) (LicenseActionResult, error)
-
 type UpgradeReadiness struct {
 	UpdatedAt         string               `json:"updated_at"`
 	CurrentVersion    string               `json:"current_version,omitempty"`
@@ -903,8 +835,6 @@ type Server struct {
 	auditFn                  AuditQueryFunc
 	complianceFn             ComplianceStatusFunc
 	complianceAct            ComplianceActionFunc
-	licenseFn                LicenseStatusFunc
-	licenseAct               LicenseActionFunc
 	upgradeFn                UpgradeReadinessFunc
 	upgradeAct               UpgradeActionFunc
 	policyFn                 PolicyCenterFunc
@@ -1019,14 +949,6 @@ func (s *Server) SetComplianceStatusFunc(fn ComplianceStatusFunc) {
 
 func (s *Server) SetComplianceActionFunc(fn ComplianceActionFunc) {
 	s.complianceAct = fn
-}
-
-func (s *Server) SetLicenseStatusFunc(fn LicenseStatusFunc) {
-	s.licenseFn = fn
-}
-
-func (s *Server) SetLicenseActionFunc(fn LicenseActionFunc) {
-	s.licenseAct = fn
 }
 
 func (s *Server) SetUpgradeReadinessFunc(fn UpgradeReadinessFunc) {
@@ -1206,33 +1128,7 @@ func (s *Server) SetDefaultControlHandlers() {
 		}
 	}
 
-	// 5. License Status - check for license file at common paths.
-	s.licenseFn = func() LicenseStatus {
-		ls := LicenseStatus{
-			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-			Present:   false,
-			History:   []ControlActionAudit{},
-		}
-		for _, p := range []string{
-			"/etc/providapt/license.pem",
-			"/etc/providapt/license.lic",
-			"/usr/local/etc/providapt/license.pem",
-		} {
-			if fi, err := os.Stat(p); err == nil {
-				ls.Present = true
-				ls.Path = p
-				ls.SizeBytes = fi.Size()
-				ls.ModifiedAt = fi.ModTime().UTC().Format(time.RFC3339)
-				ls.CurrentVersion = ver
-				ls.LastValidatedAt = time.Now().UTC().Format(time.RFC3339)
-				ls.SignaturePresent = strings.HasSuffix(p, ".pem")
-				break
-			}
-		}
-		return ls
-	}
-
-	// 6. Upgrade Readiness - show current version.
+	// 5. Upgrade Readiness - show current version.
 	s.upgradeFn = func() UpgradeReadiness {
 		ur := UpgradeReadiness{
 			UpdatedAt:      time.Now().UTC().Format(time.RFC3339),
@@ -1416,7 +1312,6 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/control/security", s.jsonHandler(s.handleSecurity))
 	mux.HandleFunc("/api/v1/control/audit", s.jsonHandler(s.handleAuditFeed))
 	mux.HandleFunc("/api/v1/control/compliance", s.jsonHandler(s.handleCompliance))
-	mux.HandleFunc("/api/v1/control/license", s.jsonHandler(s.handleLicenseStatus))
 	mux.HandleFunc("/api/v1/control/upgrade", s.jsonHandler(s.handleUpgradeReadiness))
 	mux.HandleFunc("/api/v1/control/policies", s.jsonHandler(s.handlePolicies))
 	mux.HandleFunc("/api/v1/control/policies/bundle", s.handlePolicyBundleDownload)
@@ -1432,7 +1327,11 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/v1/evaluation/ground-truth", s.jsonHandler(s.handleGroundTruth))
 	mux.HandleFunc("/api/v1/evaluation/correlation", s.jsonHandler(s.handleGroundTruthCorrelation))
 	mux.HandleFunc("/api/v1/investigation/report", s.jsonHandler(s.handleInvestigationReport))
+	mux.HandleFunc("/assets/dashboard.css", s.handleDashboardCSS)
 	mux.HandleFunc("/assets/dashboard-responsive.css", s.handleDashboardResponsiveCSS)
+	mux.HandleFunc("/assets/dashboard.js", s.handleDashboardJS)
+	mux.HandleFunc("/assets/trace-viewer.css", s.handleTraceViewerCSS)
+	mux.HandleFunc("/assets/trace-viewer.js", s.handleTraceViewerJS)
 	mux.HandleFunc("/dashboard", s.handleDashboard)
 	mux.HandleFunc("/", s.handleDashboard)
 	mux.HandleFunc("/api/v1/events/recent", s.jsonHandler(s.handleEventRecent))
@@ -2220,50 +2119,6 @@ func (s *Server) handleCompliance(w http.ResponseWriter, r *http.Request) error 
 			req.Actor = CurrentActor(r)
 		}
 		result, err := s.complianceAct(req)
-		if err != nil {
-			return err
-		}
-		return json.NewEncoder(w).Encode(result)
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
-	}
-}
-
-func (s *Server) handleLicenseStatus(w http.ResponseWriter, r *http.Request) error {
-	switch r.Method {
-	case http.MethodGet:
-		status := LicenseStatus{
-			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-			History:   []ControlActionAudit{},
-		}
-		if s.licenseFn != nil {
-			status = s.licenseFn()
-			if status.UpdatedAt == "" {
-				status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-			}
-			if status.History == nil {
-				status.History = []ControlActionAudit{}
-			}
-		}
-		return json.NewEncoder(w).Encode(status)
-	case http.MethodPost:
-		if s.licenseAct == nil {
-			w.WriteHeader(http.StatusNotImplemented)
-			return json.NewEncoder(w).Encode(map[string]string{"error": "license actions not enabled"})
-		}
-		if !s.requireLeaderForControlWrite(w) {
-			return nil
-		}
-		var req LicenseActionRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			return fmt.Errorf("decode license action: %w", err)
-		}
-		req.Role = CurrentRole(r)
-		if req.Actor == "" {
-			req.Actor = CurrentActor(r)
-		}
-		result, err := s.licenseAct(req)
 		if err != nil {
 			return err
 		}

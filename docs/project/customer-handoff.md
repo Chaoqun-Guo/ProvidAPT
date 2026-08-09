@@ -8,7 +8,6 @@ This checklist turns a release candidate into a repeatable customer delivery pac
 | --- | --- | --- |
 | Customer scope and success criteria confirmed | Product / SE | record before handoff |
 | Supported platforms and kernel prerequisites reviewed | Engineering / SE | record before handoff |
-| License entitlement and expiry confirmed | Sales / Legal | record before handoff |
 | Deployment topology selected | SE / Customer | record before handoff |
 | Data handling and privacy requirements reviewed | Legal / Security | record before handoff |
 
@@ -16,7 +15,6 @@ This checklist turns a release candidate into a repeatable customer delivery pac
 
 - installation package or air-gapped bundle
 - release notes and known limitations
-- license file or offline activation instructions
 - installation and upgrade guide
 - rollback and backup procedures
 - first-alert investigation workflow
@@ -38,7 +36,7 @@ This checklist turns a release candidate into a repeatable customer delivery pac
 ## Production Handoff
 
 1. Confirm release artifact checksums and signatures.
-2. Import or validate customer license.
+2. Verify release artifacts, checksums, and upgrade signature material.
 3. Install control plane and agents.
 4. Confirm fleet health, environment details, and policy status.
 5. Configure SIEM or notification integration.

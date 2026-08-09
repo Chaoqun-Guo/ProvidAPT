@@ -6,19 +6,19 @@ All notable changes to ProvidAPT are documented here.
 
 ### Added
 
-- Added commercial release handoff evidence for `v1.2.3-rc.1`, including release evidence, security scan summary, external approval request, and a hardened production configuration template.
+- Added open-source release handoff evidence for `v1.2.3-rc.1`, including release evidence, security scan summary, external approval request, and a hardened production configuration template.
 - Added monitoring bundle validation to the release artifact matrix and release readiness workflow.
 - Added host-mode package smoke testing for Debian, RPM, and tarball artifacts.
 
 ### Changed
 
 - Upgraded the release toolchain baseline to Go `1.25.12`.
-- Expanded commercial release checks to require archive, Debian, RPM, Helm, and monitoring artifacts by default.
+- Expanded open-source release checks to require archive, Debian, RPM, Helm, and monitoring artifacts by default.
 - Updated eBPF event ABI documentation to match the current 340-byte raw event layout.
 
 ### Security
 
-- Added `govulncheck` reachable-code vulnerability scanning to the commercial release script.
+- Added `govulncheck` reachable-code vulnerability scanning to the open-source release script.
 - Rebuilt the release candidate with Go `1.25.12`; the Linux rerun reported no reachable vulnerabilities.
 - Recorded Grype/Trivy as pending external Security waiver or rerun because Docker registry / socket access was unavailable in the rerun environment.
 ## v1.2.2 (2026-06-09)

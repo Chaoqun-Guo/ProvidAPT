@@ -53,11 +53,14 @@ class ReleaseGateStatusTest(unittest.TestCase):
         stale = gates.artifact_gate(dist, "def456", "v1")
         self.assertEqual(stale.status, "blocked")
 
-    def test_scan_evidence_accepts_any_nonempty_file(self):
+    def test_scan_evidence_accepts_nonempty_file_with_current_manifest(self):
         path = self.tmp_root / "scan.json"
         self.assertEqual(gates.scan_evidence_gate("scan", [path], "run").status, "blocked")
         path.write_text("{}\n", encoding="utf-8")
-        self.assertEqual(gates.scan_evidence_gate("scan", [path], "run").status, "pass")
+        manifest = self.tmp_root / "scan-manifest.json"
+        manifest.write_text(json.dumps({"full_commit": "abc"}), encoding="utf-8")
+        self.assertEqual(gates.scan_evidence_gate("scan", [path], "run", manifest, "abc").status, "pass")
+        self.assertEqual(gates.scan_evidence_gate("scan", [path], "run", manifest, "def").status, "blocked")
 
     def test_waiver_gate_accepts_structured_waiver(self):
         waiver = self.tmp_root / "waivers.json"
@@ -123,6 +126,12 @@ class ReleaseGateStatusTest(unittest.TestCase):
         approval = self.tmp_root / "approval.md"
         approval.write_text("Product requires approval from external owner required\n", encoding="utf-8")
         self.assertEqual(gates.approval_gate(approval).status, "blocked")
+
+    def test_approval_gate_blocks_delegate_and_risk_decisions_for_final_release(self):
+        approval = self.tmp_root / "approval.md"
+        approval.write_text("Product | Release Engineering delegate | approved_with_risk\n", encoding="utf-8")
+        result = gates.approval_gate(approval)
+        self.assertEqual(result.status, "blocked")
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ curl -H "Authorization: Bearer admin-key" http://localhost:18080/api/v1/status
 | --- | --- |
 | `admin` | Full access to all endpoints and operational actions. |
 | `operator` | Scoped fleet, alert, upgrade, and read-only investigation operations for managed-service use. |
-| `analyst` | Read-only graph, alert, fleet, policy, delivery, license, and upgrade views; no administrative mutations. |
+| `analyst` | Read-only graph, alert, fleet, policy, delivery, and upgrade views; no administrative mutations. |
 | `auditor` | Read-only audit, status, dashboard, and compliance evidence views. |
 
 Custom roles can be declared with explicit method/path permissions:

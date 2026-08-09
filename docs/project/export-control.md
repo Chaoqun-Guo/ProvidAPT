@@ -1,6 +1,6 @@
 # Export Control Review
 
-This document defines the export-control review workflow for international commercial delivery.
+This document defines the export-control review workflow for international open-source delivery.
 
 ## Product Summary
 
@@ -15,7 +15,7 @@ ProvidAPT is a provenance-driven security monitoring and detection platform. It 
 | Customer | Recorded in the customer approval packet |
 | Deployment model | SaaS, managed appliance, or customer-managed Linux deployment |
 | Cryptographic features reviewed | TLS, signatures, hashing, checksums, authentication, and integrity verification |
-| Restricted-party screening completed | Required before shipment, activation, or production deployment |
+| Restricted-party screening completed | Required before shipment or production deployment |
 
 ## Cryptographic Functions
 

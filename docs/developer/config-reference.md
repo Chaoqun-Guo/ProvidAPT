@@ -104,7 +104,7 @@ output:
 | `secrets.vault` | config-managed Vault material map used by `vault:<key>` references |
 
 Sensitive fields such as `policy.api_key`, `siem.token`,
-`license.signing_key`, and notification credentials can use:
+`upgrade.signing_key`, and notification credentials can use:
 
 ```yaml
 secrets:
@@ -152,7 +152,7 @@ history when enabled.
 | `siem.min_severity` | minimum event severity |
 | `siem.outbox_dir` | retry queue path |
 
-## Upgrade and License
+## Upgrade
 
 | Field | Purpose |
 | --- | --- |
@@ -161,7 +161,5 @@ history when enabled.
 | `upgrade.signature_path` | package signature |
 | `upgrade.apply_command` | operator-approved apply command |
 | `upgrade.rollback_command` | operator-approved rollback command |
-| `license.path` | license document path |
-| `license.public_key_path` | license public key |
 
 See `examples/config/providapt.production.yaml` for a production-oriented template.

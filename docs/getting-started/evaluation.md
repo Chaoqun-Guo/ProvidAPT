@@ -368,7 +368,9 @@ checks:
 - Precision, recall, and F1 meet release thresholds.
 - The model artifact is registered.
 - Optional drift evidence does not require review.
-- Optional operator feedback is attached when `REQUIRE_FEEDBACK=1` is set.
+- When `REQUIRE_FEEDBACK=1` is set, operator feedback must be attached and must
+  include at least one reviewed label: `true_positive`, `false_positive`,
+  `benign`, or `duplicate`.
 
 Outputs:
 
@@ -380,6 +382,37 @@ Outputs:
 `make ml-training-pipeline` now runs this closed-loop report after model
 registration. Store it with the dataset manifest, model artifact, training
 metrics, feature schema, drift report, and alert feedback ledger.
+
+## Model Lifecycle Gate
+
+Before promoting a model beyond evaluation, combine the closed-loop report,
+deployment gate, drift evidence, long-enough baseline, analyst feedback volume,
+and named owner approvals:
+
+```bash
+make model-lifecycle-gate \
+  MODEL_CLOSED_LOOP_JSON=build/evaluation/model-closed-loop.json \
+  MODEL_DEPLOY_GATE_JSON=build/evaluation/model-deploy-gate.json \
+  MODEL_DRIFT_JSON=build/evaluation/model-drift.json \
+  MODEL_APPROVAL=docs/project/model-promotion-approval.json \
+  REQUIRE_MODEL_APPROVAL=1 \
+  MIN_FEEDBACK_RECORDS=25 \
+  MIN_REVIEWED_LABELS=10 \
+  MIN_BASELINE_DAYS=7 \
+  OUT_DIR=build/evaluation
+```
+
+`MODEL_APPROVAL` is JSON with named `model_owner`, `security`, and `soc_lead`
+decisions. Delegate or placeholder approvals block promotion. The gate also
+blocks when drift requires review, the deployment gate is not passing, reviewed
+feedback is too sparse, or the baseline window is too short.
+
+Outputs:
+
+| File | Purpose |
+| --- | --- |
+| `model-lifecycle-gate.json` | Machine-readable model lifecycle promotion decision |
+| `model-lifecycle-gate.md` | Human-readable promotion blocker report |
 
 ## ML Readiness Gate
 

@@ -28,7 +28,7 @@ make build-userspace
 sudo make install-local
 ```
 
-For commercial packages, use the release artifact matching the target distribution:
+For release packages, use the release artifact matching the target distribution:
 
 ```bash
 sudo apt install ./providapt_<version>_amd64.deb
@@ -45,7 +45,7 @@ sudo cp examples/config/providapt.local.toml /etc/providapt/providapt.toml
 providaptctl -config-check -config /etc/providapt/providapt.toml
 ```
 
-For production, replace every customer-specific value in `examples/config/providapt.production.yaml`, including API keys, TLS paths, CORS origins, SIEM token, license paths, and upgrade signatures.
+For production, replace every customer-specific value in `examples/config/providapt.production.yaml`, including API keys, TLS paths, CORS origins, SIEM token, and upgrade signatures.
 
 ## 4. Start the Services
 

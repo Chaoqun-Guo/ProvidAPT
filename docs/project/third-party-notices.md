@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-This document tracks third-party notice obligations for commercial delivery. It is a release-review companion to generated SBOM artifacts.
+This document tracks third-party notice obligations for open-source delivery. It is a release-review companion to generated SBOM artifacts.
 
 ## Sources of Truth
 
@@ -33,4 +33,4 @@ Notice: <required notice text or link>
 
 ## Publication Rule
 
-Do not publish final commercial artifacts until Legal has approved the generated SBOMs and required notices.
+Do not publish final release artifacts until Legal has approved the generated SBOMs and required notices.

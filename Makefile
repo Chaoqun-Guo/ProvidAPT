@@ -1,11 +1,11 @@
-.PHONY: all build build-core build-ebpf build-userspace build-auth-server generate-ebpf install install-local
+.PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet verify-vm-config probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-commercial github-actions-evidence release-gates artifact-signing-gate customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-auth-server docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate capture-enrichment-field-gate activation-server-gate security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate commercialization-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates artifact-signing-gate customer-release-gate release-blocker-backlog package-smoke-matrix create-user docker-build docker-run help
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate
 
 SHELL := /bin/bash
 
@@ -84,13 +84,7 @@ build-userspace:
 	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-deanon ./cmd/cli/providapt-deanon
 	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-heal ./cmd/cli/providapt-heal
 	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-sign ./cmd/cli/providapt-sign
-	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-auth-server ./cmd/authserver
 	@echo "Built userspace binaries into $(BIN_OUT)"
-
-build-auth-server:
-	@mkdir -p $(BIN_OUT)
-	$(GO) build $(GO_TAG_ARGS) $(LDFLAGS) -o $(BIN_OUT)/providapt-auth-server ./cmd/authserver
-	@echo "Built auth server into $(BIN_OUT)"
 
 install-local: create-user build-core
 	install -d $(CONFIG)
@@ -250,11 +244,11 @@ dist-all: build-userspace
 
 dist: dist-all
 
-release-commercial:
-	bash scripts/release/commercial-release.sh
+release-open-source:
+	bash scripts/release/open-source-release.sh
 
 github-actions-evidence:
-	python3 scripts/release/github-actions-evidence.py --repo . --limit "$(or $(CI_RUN_LIMIT),20)" --out-json "$(or $(OUT_DIR),build/ci)/github-actions-evidence.json" --out-md "$(or $(OUT_DIR),build/ci)/github-actions-evidence.md"
+	python3 scripts/release/github-actions-evidence.py --repo . --limit "$(or $(CI_RUN_LIMIT),20)" --out-json "$(or $(OUT_DIR),build/ci)/github-actions-evidence.json" --out-md "$(or $(OUT_DIR),build/ci)/github-actions-evidence.md" $(if $(RELEASE_EVIDENCE),--release-evidence "$(RELEASE_EVIDENCE)")
 
 release-gates:
 	python3 scripts/release/release_gate_status.py $(if $(SKIP_CI),--skip-ci) $(if $(RELEASE_WAIVER),--waiver "$(RELEASE_WAIVER)") $(if $(CI_EVIDENCE),--ci-evidence "$(CI_EVIDENCE)")
@@ -263,7 +257,7 @@ artifact-signing-gate:
 	python3 scripts/release/artifact-signing-gate.py --dist-dir "$(or $(DIST_DIR),dist)" --checksums "$(or $(CHECKSUMS),$(or $(DIST_DIR),dist)/checksums.txt)" --signature "$(or $(SIGNATURE),$(or $(DIST_DIR),dist)/checksums.txt.sig)" $(foreach artifact,$(REQUIRED_ARTIFACTS),--required-artifact "$(artifact)") --out-json "$(or $(OUT_DIR),build/artifact-signing)/artifact-signing-gate.json" --out-md "$(or $(OUT_DIR),build/artifact-signing)/artifact-signing-gate.md"
 
 customer-release-gate:
-	python3 scripts/release/customer-release-gate.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --dist-dir "$(or $(DIST_DIR),dist)" --artifact-signing-gate "$(or $(ARTIFACT_SIGNING_GATE),build/artifact-signing/artifact-signing-gate.json)" --package-smoke-dir "$(or $(PACKAGE_SMOKE_DIR),build/package-smoke)" --production-readiness-gate "$(or $(PRODUCTION_READINESS_GATE),build/production-readiness/production-readiness-gate.json)" --ml-readiness-gate "$(or $(ML_READINESS_GATE),build/ml-readiness/ml-readiness-gate.json)" --operations-readiness-gate "$(or $(OPERATIONS_READINESS_GATE),build/operations-readiness/operations-readiness-gate.json)" --commercialization-readiness-gate "$(or $(COMMERCIALIZATION_READINESS_GATE),build/commercialization-readiness/commercialization-readiness-gate.json)" $(if $(ALLOW_SKIPPED_CI),--allow-skipped-ci) --out-json "$(or $(OUT_DIR),build/customer-release)/customer-release-gate.json" --out-md "$(or $(OUT_DIR),build/customer-release)/customer-release-gate.md"
+	python3 scripts/release/customer-release-gate.py --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --dist-dir "$(or $(DIST_DIR),dist)" --artifact-signing-gate "$(or $(ARTIFACT_SIGNING_GATE),build/artifact-signing/artifact-signing-gate.json)" --package-smoke-dir "$(or $(PACKAGE_SMOKE_DIR),build/package-smoke)" --production-readiness-gate "$(or $(PRODUCTION_READINESS_GATE),build/production-readiness/production-readiness-gate.json)" --ml-readiness-gate "$(or $(ML_READINESS_GATE),build/ml-readiness/ml-readiness-gate.json)" --operations-readiness-gate "$(or $(OPERATIONS_READINESS_GATE),build/operations-readiness/operations-readiness-gate.json)" --open-source-readiness-gate "$(or $(OPEN_SOURCE_READINESS_GATE),build/open-source-readiness/open-source-readiness-gate.json)" $(if $(ALLOW_SKIPPED_CI),--allow-skipped-ci) --out-json "$(or $(OUT_DIR),build/customer-release)/customer-release-gate.json" --out-md "$(or $(OUT_DIR),build/customer-release)/customer-release-gate.md"
 
 release-blocker-backlog:
 	python3 scripts/release/release-blocker-backlog.py --customer-release-gate "$(or $(CUSTOMER_RELEASE_GATE),build/customer-release/customer-release-gate.json)" --out-json "$(or $(OUT_DIR),build/customer-release)/release-blocker-backlog.json" --out-md "$(or $(OUT_DIR),build/customer-release)/release-blocker-backlog.md"
@@ -349,8 +343,11 @@ production-readiness-gate:
 operations-readiness-gate:
 	python3 scripts/ops/operations-readiness-gate.py --production-readiness-gate "$(or $(PRODUCTION_READINESS_GATE),build/production-readiness/production-readiness-gate.json)" --ml-readiness-gate "$(or $(ML_READINESS_GATE),build/ml-readiness/ml-readiness-gate.json)" --fleet-verification "$(or $(FLEET_VERIFICATION),build/deploy/vm-fleet-verification.json)" --soak-readiness "$(or $(SOAK_READINESS),build/performance/soak-readiness.json)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT),build/upgrade/rollout-plan.json)" --siem-verify "$(or $(SIEM_VERIFY),build/siem/siem-verification.json)" --rbac-audit "$(or $(RBAC_AUDIT),build/rbac/rbac-audit.json)" --policy-approval-gate "$(or $(POLICY_APPROVAL_GATE),build/policy-approval/policy-approval-gate.json)" --backup-readiness-gate "$(or $(BACKUP_READINESS_GATE),build/backup/backup-readiness-gate.json)" --support-bundle-gate "$(or $(SUPPORT_BUNDLE_GATE),build/support/support-bundle-gate.json)" --deployment-diagnostics-gate "$(or $(DEPLOYMENT_DIAGNOSTICS_GATE),build/deploy/deployment-diagnostics-gate.json)" --install-delivery-check "$(or $(INSTALL_DELIVERY_CHECK),build/install-delivery/install-delivery-check.json)" --observability-pack-check "$(or $(OBSERVABILITY_PACK_CHECK),build/observability/observability-pack-check.json)" --security-hardening-gate "$(or $(SECURITY_HARDENING_GATE),build/security-hardening/security-hardening-gate.json)" --visual-regression-gate "$(or $(VISUAL_REGRESSION_GATE),build/visual-regression/visual-regression-gate.json)" --capture-enrichment-gate "$(or $(CAPTURE_ENRICHMENT_GATE),build/capture-quality/capture-enrichment-field-gate.json)" --out-json "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/operations-readiness)/operations-readiness-gate.md"
 
-commercialization-readiness-gate:
-	python3 scripts/ops/commercialization-readiness-gate.py --operations-readiness-gate "$(or $(OPERATIONS_READINESS_GATE),build/operations-readiness/operations-readiness-gate.json)" --enterprise-readiness "$(or $(ENTERPRISE_READINESS),build/enterprise-readiness.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" --activation-server-gate "$(or $(ACTIVATION_SERVER_GATE),build/activation/activation-server-gate.json)" $(if $(PLUGIN_GATE),--plugin-gate "$(PLUGIN_GATE)") --external-approval "$(or $(EXTERNAL_APPROVAL),docs/project/external-approval-request-v1.2.3-rc.1.md)" --out-json "$(or $(OUT_DIR),build/commercialization-readiness)/commercialization-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/commercialization-readiness)/commercialization-readiness-gate.md"
+customer-env-certification-gate:
+	python3 scripts/ops/customer-environment-certification-gate.py --rbac-audit "$(or $(RBAC_AUDIT),build/rbac/rbac-audit.json)" --policy-approval-gate "$(or $(POLICY_APPROVAL_GATE),build/policy-approval/policy-approval-gate.json)" $(if $(AUDIT_EXPORT),--audit-export "$(AUDIT_EXPORT)") $(if $(ROLE_REVIEW),--role-review "$(ROLE_REVIEW)") $(if $(REQUIRE_DELEGATED_ADMIN),--require-delegated-admin) $(if $(REQUIRE_AUDIT_EXPORT),--require-audit-export) $(if $(REQUIRE_ROLE_REVIEW),--require-role-review) --min-tenants "$(or $(MIN_TENANTS),1)" --min-tenant-scoped-keys "$(or $(MIN_TENANT_SCOPED_KEYS),1)" --siem-verify "$(or $(SIEM_VERIFY),build/siem/siem-verification.json)" $(if $(SIEM_CERTIFICATION),--siem-certification "$(SIEM_CERTIFICATION)") $(if $(REQUIRE_SIEM_CERTIFICATION),--require-siem-certification) --min-siem-delivered "$(or $(MIN_SIEM_DELIVERED),1)" --max-siem-dead-letter "$(or $(MAX_SIEM_DEAD_LETTER),0)" --upgrade-rollout "$(or $(UPGRADE_ROLLOUT),build/upgrade/rollout-plan.json)" $(if $(REQUIRE_AGENT_GROUPS),--require-agent-groups) --soak-readiness "$(or $(SOAK_READINESS),build/performance/soak-readiness.json)" --min-soak-hours "$(or $(SOAK_MIN_HOURS),24)" --max-dropped-events "$(or $(SOAK_MAX_DROPPED_EVENTS),0)" --production-readiness-gate "$(or $(PRODUCTION_READINESS_GATE),build/production-readiness/production-readiness-gate.json)" --deployment-diagnostics-gate "$(or $(DEPLOYMENT_DIAGNOSTICS_GATE),build/deploy/deployment-diagnostics-gate.json)" --backup-readiness-gate "$(or $(BACKUP_READINESS_GATE),build/backup/backup-readiness-gate.json)" $(if $(REQUIRE_TLS),--require-tls) $(if $(REQUIRE_STATE_BACKEND),--require-state-backend) $(if $(PLUGIN_GATE),--plugin-gate "$(PLUGIN_GATE)") $(if $(REQUIRE_PLUGIN_GATE),--require-plugin-gate) $(if $(REQUIRE_PLUGIN_SIGNATURE),--require-plugin-signature) $(if $(REQUIRE_PLUGIN_PERMISSIONS),--require-plugin-permissions) --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" --min-onboarding-checks "$(or $(MIN_ONBOARDING_CHECKS),5)" $(foreach check,$(REQUIRED_ONBOARDING_CHECKS),--required-onboarding-check "$(check)") --out-json "$(or $(OUT_DIR),build/customer-certification)/customer-environment-certification-gate.json" --out-md "$(or $(OUT_DIR),build/customer-certification)/customer-environment-certification-gate.md"
+
+open-source-readiness-gate:
+	python3 scripts/ops/open-source-readiness-gate.py --operations-readiness-gate "$(or $(OPERATIONS_READINESS_GATE),build/operations-readiness/operations-readiness-gate.json)" --enterprise-readiness "$(or $(ENTERPRISE_READINESS),build/enterprise-readiness.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" $(if $(PLUGIN_GATE),--plugin-gate "$(PLUGIN_GATE)") --external-approval "$(or $(EXTERNAL_APPROVAL),docs/project/external-approval-request-v1.2.3-rc.1.md)" --out-json "$(or $(OUT_DIR),build/open-source-readiness)/open-source-readiness-gate.json" --out-md "$(or $(OUT_DIR),build/open-source-readiness)/open-source-readiness-gate.md"
 
 soak-sample:
 	@if [ -z "$(STATUS_URL)" ] && [ -z "$(STATUS_JSON)" ]; then echo 'usage: make soak-sample STATUS_URL=http://localhost:18080/api/v1/status [SOAK_STARTED_AT_EPOCH=...] [OUT=build/performance/soak-samples.json]'; exit 2; fi
@@ -418,13 +415,18 @@ visual-regression-snapshots:
 visual-regression-gate:
 	python3 scripts/ops/visual-regression-gate.py --manifest "$(or $(VISUAL_REGRESSION_MANIFEST),build/visual-regression/visual-regression-snapshots.json)" $(if $(ALLOW_PLANNED_VISUALS),--allow-planned --allow-missing-files --allow-missing-hash) $(if $(WARN_ON_VISUAL_CHANGED),--warn-on-changed) --out-json "$(or $(OUT_DIR),build/visual-regression)/visual-regression-gate.json" --out-md "$(or $(OUT_DIR),build/visual-regression)/visual-regression-gate.md"
 
+trace-svg-stress:
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make trace-svg-stress PROVIDAPT_SERVER_URL=http://127.0.0.1:18080 ALERT_IDS="p:100 p:200" [OUT_DIR=build/trace-stress]'; exit 2; fi
+	python3 scripts/ops/trace-svg-stress.py --server "$(PROVIDAPT_SERVER_URL)" $(foreach alert,$(ALERT_IDS),--alert-id "$(alert)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --max-latency-ms "$(or $(MAX_LATENCY_MS),1500)" --min-node-count "$(or $(MIN_TRACE_NODES),1)" --out-json "$(or $(OUT_DIR),build/trace-stress)/trace-svg-stress.json" --out-md "$(or $(OUT_DIR),build/trace-stress)/trace-svg-stress.md"
+
 capture-enrichment-field-gate:
 	@if [ -z "$(EVENTS)" ]; then echo 'usage: make capture-enrichment-field-gate EVENTS=path/events.ndjson [OUT_DIR=build/capture-quality]'; exit 2; fi
 	python3 scripts/ops/capture-enrichment-field-gate.py $(foreach event,$(EVENTS),--events "$(event)") --min-events "$(or $(MIN_EVENTS),1)" --min-event-type-rate "$(or $(MIN_EVENT_TYPE_RATE),100)" --min-pid-rate "$(or $(MIN_PID_RATE),95)" --min-ppid-rate "$(or $(MIN_PPID_RATE),80)" --min-uid-rate "$(or $(MIN_UID_RATE),95)" --min-gid-rate "$(or $(MIN_GID_RATE),95)" --min-cmdline-rate "$(or $(MIN_CMDLINE_RATE),10)" --min-exe-path-rate "$(or $(MIN_EXE_PATH_RATE),10)" --min-pathname-rate "$(or $(MIN_PATHNAME_RATE),80)" --min-network-tuple-rate "$(or $(MIN_NETWORK_TUPLE_RATE),80)" --out-json "$(or $(OUT_DIR),build/capture-quality)/capture-enrichment-field-gate.json" --out-md "$(or $(OUT_DIR),build/capture-quality)/capture-enrichment-field-gate.md"
 
-activation-server-gate:
-	@if [ -z "$(CUSTOMER_REGISTRY)" ]; then echo 'usage: make activation-server-gate CUSTOMER_REGISTRY=customers.json ACTIVATION_AUDIT=activations.jsonl [AUTH_SERVER_URL=...]'; exit 2; fi
-	python3 scripts/ops/activation-server-gate.py --customer-registry "$(CUSTOMER_REGISTRY)" --activation-audit "$(or $(ACTIVATION_AUDIT),build/auth/activations.jsonl)" $(if $(ALLOW_MISSING_ACTIVATION_AUDIT),--allow-missing-audit) $(if $(AUTH_SERVER_URL),--server "$(AUTH_SERVER_URL)") $(if $(AUTH_API_KEY),--api-key "$(AUTH_API_KEY)") $(if $(ACTIVATION_CODE),--activation-code "$(ACTIVATION_CODE)") $(if $(MACHINE_FINGERPRINT),--machine-fingerprint "$(MACHINE_FINGERPRINT)") $(if $(NEGATIVE_FINGERPRINT),--negative-fingerprint "$(NEGATIVE_FINGERPRINT)") --out-json "$(or $(OUT_DIR),build/activation)/activation-server-gate.json" --out-md "$(or $(OUT_DIR),build/activation)/activation-server-gate.md"
+collect-vm-capture-evidence:
+	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ]; then echo 'usage: make collect-vm-capture-evidence PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" [REMOTE_DIR=/var/log/providapt]'; exit 2; fi
+	python3 scripts/ops/collect-vm-capture-evidence.py $(foreach host,$(PROVIDAPT_VM_HOSTS),--host "$(host)") --remote-dir "$(or $(REMOTE_DIR),/var/log/providapt)" --timeout-seconds "$(or $(SSH_TIMEOUT_SECONDS),15)" --gate-timeout-seconds "$(or $(CAPTURE_GATE_TIMEOUT_SECONDS),60)" --max-files "$(or $(MAX_VM_EVENT_FILES),5)" --lines-per-file "$(or $(VM_EVENT_LINES),5000)" --network-lines "$(or $(VM_NETWORK_LINES),200)" --out-dir "$(or $(OUT_DIR),build/vm-capture-evidence)" $(if $(SKIP_CAPTURE_GATE),--skip-gate)
+
 
 probe:
 	@bash build/kernel_probe.sh
@@ -505,6 +507,10 @@ model-deploy-gate:
 	@if [ -z "$(MODEL_REGISTRY)" ] || [ -z "$(MODEL_NAME)" ] || [ -z "$(MODEL_VERSION)" ]; then echo 'usage: make model-deploy-gate MODEL_REGISTRY=build/model-registry.json MODEL_NAME=detector MODEL_VERSION=1.0.0'; exit 2; fi
 	python3 scripts/evaluation/model_deploy_gate.py --registry "$(MODEL_REGISTRY)" --model-name "$(MODEL_NAME)" --model-version "$(MODEL_VERSION)" $(if $(DETECTION_QUALITY_JSON),--detection-quality "$(DETECTION_QUALITY_JSON)") $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(FEATURE_SCHEMA_CHECK_JSON),--feature-schema-check "$(FEATURE_SCHEMA_CHECK_JSON)") --min-precision "$(or $(MIN_PRECISION),70)" --min-recall "$(or $(MIN_RECALL),80)" --out-json "$(or $(OUT_DIR),build/evaluation)/model-deploy-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-deploy-gate.md"
 
+model-lifecycle-gate:
+	@if [ -z "$(MODEL_CLOSED_LOOP_JSON)" ] || [ -z "$(MODEL_DEPLOY_GATE_JSON)" ]; then echo 'usage: make model-lifecycle-gate MODEL_CLOSED_LOOP_JSON=... MODEL_DEPLOY_GATE_JSON=... [MODEL_APPROVAL=...]'; exit 2; fi
+	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop "$(MODEL_CLOSED_LOOP_JSON)" --deploy-gate "$(MODEL_DEPLOY_GATE_JSON)" $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(MODEL_APPROVAL),--approval "$(MODEL_APPROVAL)") --min-feedback-records "$(or $(MIN_FEEDBACK_RECORDS),25)" --min-reviewed-labels "$(or $(MIN_REVIEWED_LABELS),10)" --min-baseline-days "$(or $(MIN_BASELINE_DAYS),7)" $(if $(REQUIRE_MODEL_APPROVAL),--require-approval) --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
+
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 
@@ -513,9 +519,6 @@ loader-smoke:
 
 docker-build:
 	docker build -t providapt:latest -f build/docker/Dockerfile.ubuntu .
-
-docker-auth-server:
-	docker compose up -d auth-server
 
 upgrade-artifact:
 	@if [ -z "$(ARTIFACT)" ] || [ -z "$(VERSION)" ] || [ -z "$(BASE_URL)" ]; then echo 'usage: make upgrade-artifact ARTIFACT=dist/providapt.tar.gz VERSION=v1.2.4 BASE_URL=http://host:19090/artifacts [SIGNING_KEY=secret]'; exit 2; fi
@@ -590,12 +593,12 @@ help:
 	@echo '  make dist-deb         Build the .deb package'
 	@echo '  make dist-rpm         Build the .rpm package'
 	@echo '  make dist-tar         Build the portable tarball'
-	@echo '  make release-commercial Build commercial release artifacts, SBOMs, checksums, scans, and readiness report'
+	@echo '  make release-open-source Build open-source release artifacts, SBOMs, checksums, scans, and readiness report'
 	@echo '  make github-actions-evidence Collect structured GitHub Actions evidence'
 	@echo '  make release-gates     Collect CI, scanner, approval, and artifact gate status'
 	@echo '  make artifact-signing-gate Validate checksums, artifact hashes, and signature evidence'
-	@echo '  make customer-release-gate Aggregate customer-release evidence and blockers'
-	@echo '  make release-blocker-backlog Convert customer-release blockers to action items'
+	@echo '  make customer-release-gate Aggregate open-source release evidence and blockers'
+	@echo '  make release-blocker-backlog Convert release blockers to action items'
 	@echo '  make package-smoke-matrix Test dist packages in Ubuntu/Rocky containers'
 	@echo ''
 	@echo 'Operations:'
@@ -613,19 +616,21 @@ help:
 	@echo '  make backup-readiness-gate Gate backup, restore, and cutover evidence'
 	@echo '  make support-bundle-gate Gate support bundle redaction and audit evidence'
 	@echo '  make deployment-diagnostics-gate Gate runtime deployment diagnostics evidence'
+	@echo '  make trace-svg-stress PROVIDAPT_SERVER_URL=... ALERT_IDS="..." Stress Trace SVG layouts'
+	@echo '  make collect-vm-capture-evidence PROVIDAPT_VM_HOSTS="..." Collect VM NDJSON and gate field enrichment'
 	@echo '  make install-delivery-check Validate installer, config, service, and handoff docs'
 	@echo '  make observability-pack-check Validate Prometheus, alert rules, dashboard, and live metrics'
 	@echo '  make visual-regression-snapshots Capture dashboard and trace viewer screenshots'
 	@echo '  make visual-regression-gate Gate captured visual regression evidence'
 	@echo '  make capture-enrichment-field-gate EVENTS=... Gate capture/enrichment field coverage'
-	@echo '  make activation-server-gate CUSTOMER_REGISTRY=... Gate activation registry and audit evidence'
 	@echo '  make security-hardening-gate Validate production config and systemd hardening'
 	@echo '  make scheduled-report-plan Generate executive/compliance report schedule'
 	@echo '  make enterprise-readiness Aggregate release, secret, PostgreSQL, and detection evidence'
 	@echo '  make operations-readiness-gate      Aggregate production operations readiness evidence'
-	@echo '  make commercialization-readiness-gate      Aggregate commercialization readiness evidence'
+	@echo '  make open-source-readiness-gate Aggregate open-source readiness evidence'
 	@echo '  make soak-sample STATUS_URL=... Append one long-duration soak sample'
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... Plan staged upgrades'
 	@echo '  make onboarding-wizard Generate first-run config and checklist'
 	@echo '  make plugin-release-gate PLUGIN_MANIFEST=... Validate plugin signing and compatibility'
+	@echo '  make customer-env-certification-gate Aggregate customer environment certification evidence'

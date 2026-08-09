@@ -10,7 +10,7 @@ from typing import Any
 
 
 SCHEMA = "providapt.visual_regression_gate.v1"
-TARGET_VIEWPORTS = {"1366x768", "1920x1080", "2560x1080"}
+TARGET_VIEWPORTS = {"390x844", "1366x768", "1920x1080", "2560x1080"}
 TARGET_PAGES = {"dashboard", "trace-viewer"}
 
 
@@ -52,6 +52,9 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                 failures.append(f"{page} {viewport} screenshot file is missing or empty: {path}")
             if args.require_hash and not item.get("sha256"):
                 failures.append(f"{page} {viewport} screenshot hash is missing")
+            assertions = item.get("dom_assertions") if isinstance(item.get("dom_assertions"), dict) else {}
+            if assertions and assertions.get("status") != "pass":
+                failures.append(f"{page} {viewport} DOM assertions failed")
     if manifest.get("failures"):
         failures.extend(str(item) for item in manifest.get("failures") or [])
     comparisons = [item for item in manifest.get("comparisons", []) if isinstance(item, dict)]

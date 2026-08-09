@@ -32,6 +32,8 @@ class PluginReleaseGateTest(unittest.TestCase):
             "type": "detection",
             "providapt_min_version": "1.2.0",
             "entrypoint": "pkg/plugin/sigma",
+            "permissions": ["rules:read", "alerts:write"],
+            "distribution": {"channel": "signed-bundle"},
         }), encoding="utf-8")
         signature.write_text("sig\n", encoding="utf-8")
         report = plugin_gate.validate_manifest(plugin_gate.load_json(manifest), manifest, signature, False)
@@ -49,6 +51,21 @@ class PluginReleaseGateTest(unittest.TestCase):
         report = plugin_gate.validate_manifest(plugin_gate.load_json(manifest), manifest, None, False)
         self.assertEqual(report["status"], "blocked")
         self.assertIn("plugin signature evidence is required", report["failures"])
+
+    def test_unsafe_plugin_permission_blocks(self):
+        manifest = self.tmp / "plugin.json"
+        signature = self.tmp / "plugin.json.sig"
+        manifest.write_text(json.dumps({
+            "name": "unsafe",
+            "version": "1.0.0",
+            "type": "enrichment",
+            "providapt_min_version": "1.2.0",
+            "permissions": ["*"],
+        }), encoding="utf-8")
+        signature.write_text("sig\n", encoding="utf-8")
+        report = plugin_gate.validate_manifest(plugin_gate.load_json(manifest), manifest, signature, False)
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("unsafe plugin permission", "\n".join(report["failures"]))
 
 
 if __name__ == "__main__":

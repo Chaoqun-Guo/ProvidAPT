@@ -6,7 +6,7 @@ package loader
 import "fmt"
 
 // lsm_manager.go — Manages per-hook enable/disable at runtime.
-// This allows selective activation of heavyweight hooks.
+// This allows selective enabling of heavyweight hooks.
 
 // HookID identifies a specific LSM hook by name.
 type HookID string

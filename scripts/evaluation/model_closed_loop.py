@@ -63,14 +63,20 @@ def feedback_summary(path: str | None, manifest: dict[str, Any] | None = None) -
                 "path": "",
                 "records": int(manifest_feedback.get("feedback_entry_count") or 0),
                 "labels": manifest_feedback.get("feedback_by_classification", {}),
+                "alert_count": int(manifest_feedback.get("feedback_alert_count") or 0),
+                "reviewed": int(manifest_feedback.get("feedback_reviewed_count") or 0),
+                "needs_review": int(manifest_feedback.get("feedback_needs_review_count") or 0),
                 "source": "dataset_manifest",
             }
-        return {"path": "", "records": 0, "labels": {}, "source": "none"}
+        return {"path": "", "records": 0, "labels": {}, "alert_count": 0, "reviewed": 0, "needs_review": 0, "source": "none"}
     target = Path(path)
     if not target.exists():
-        return {"path": str(target), "records": 0, "labels": {}, "missing": True}
+        return {"path": str(target), "records": 0, "labels": {}, "alert_count": 0, "reviewed": 0, "needs_review": 0, "missing": True}
     labels: dict[str, int] = {}
+    actions: dict[str, int] = {}
+    alert_ids: set[str] = set()
     records = 0
+    invalid_json = 0
     with target.open("r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             line = line.strip()
@@ -80,11 +86,38 @@ def feedback_summary(path: str | None, manifest: dict[str, Any] | None = None) -
             try:
                 item = json.loads(line)
             except json.JSONDecodeError:
-                labels["invalid_json"] = labels.get("invalid_json", 0) + 1
+                invalid_json += 1
                 continue
-            label = str(item.get("label") or item.get("verdict") or item.get("status") or "unlabeled").lower()
+            label = normalize_feedback_label(item.get("classification") or item.get("label") or item.get("verdict") or item.get("status"))
             labels[label] = labels.get(label, 0) + 1
-    return {"path": str(target), "records": records, "labels": labels, "source": "feedback_file"}
+            action = str(item.get("action") or "unknown").lower().strip() or "unknown"
+            actions[action] = actions.get(action, 0) + 1
+            alert_id = str(item.get("alert_id") or "").strip()
+            if alert_id:
+                alert_ids.add(alert_id)
+    reviewed = sum(labels.get(key, 0) for key in ("true_positive", "false_positive", "benign", "duplicate"))
+    return {
+        "path": str(target),
+        "records": records,
+        "labels": dict(sorted(labels.items())),
+        "actions": dict(sorted(actions.items())),
+        "alert_count": len(alert_ids),
+        "reviewed": reviewed,
+        "needs_review": labels.get("needs_review", 0),
+        "invalid_json": invalid_json,
+        "source": "feedback_file",
+    }
+
+
+def normalize_feedback_label(value: Any) -> str:
+    normalized = str(value or "").lower().strip().replace("-", "_").replace(" ", "_")
+    if normalized == "tp":
+        return "true_positive"
+    if normalized == "fp":
+        return "false_positive"
+    if normalized in {"true_positive", "false_positive", "benign", "duplicate", "needs_review"}:
+        return normalized
+    return "needs_review"
 
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
@@ -111,6 +144,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         gates.append(gate("drift", drift_ok, f"drift status is {drift.get('status', 'unknown')}"))
     if args.require_feedback:
         gates.append(gate("operator_feedback", feedback["records"] > 0, "operator feedback is attached"))
+        gates.append(gate("reviewed_feedback_labels", feedback.get("reviewed", 0) > 0, "operator feedback includes reviewed TP/FP/benign/duplicate labels"))
     failed = [item for item in gates if item["status"] == "fail"]
     recommendations = []
     if precision < args.min_precision:

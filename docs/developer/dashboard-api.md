@@ -2,17 +2,26 @@
 
 The dashboard is backed by REST endpoints under `/api/v1/`.
 
+The UI shell is embedded from `pkg/api/dashboard.html`. Primary styles,
+responsive viewport rules, and JavaScript are embedded separately from
+`pkg/api/static/dashboard.css`, `pkg/api/static/dashboard-responsive.css`, and
+`pkg/api/static/dashboard.js`.
+
+The Trace Viewer shell is rendered by `pkg/api/svg.go`; its styles and
+JavaScript are embedded separately from `pkg/api/static/trace-viewer.css` and
+`pkg/api/static/trace-viewer.js`.
+
 ## Main Panels
 
 | Dashboard Area | Primary Endpoint | Purpose |
 | --- | --- | --- |
-| Summary bar | `/api/v1/status`, `/api/v1/control/overview` | health, version, counters, activation |
+| Summary bar | `/api/v1/status`, `/api/v1/control/overview` | health, version, and runtime counters |
 | Agent Overview | `/api/v1/control/fleet` | agent state, metadata, enrollment |
 | Policy Center | `/api/v1/control/policies` | draft, diff, validate, publish, rollback |
 | Delivery Health | `/api/v1/control/compliance` | SIEM, retention, reports, approvals |
 | Alert Workflow | `/api/v1/alerts`, `/api/v1/control/alerts`, `/api/v1/control/alerts/feedback` | triage, assignment, silence, close, reopen, analyst feedback export |
 | Investigation | `/api/v1/investigation/report`, `/api/v1/graph/export` | trace, SVG/Markdown export, graph filters |
-| License / Upgrade | `/api/v1/control/license`, `/api/v1/control/upgrade` | activation, renewal, preflight, apply, rollback |
+| Upgrade | `/api/v1/control/upgrade` | manifest discovery, preflight, apply, rollback |
 
 ## Mutation Pattern
 
@@ -45,3 +54,12 @@ detector training review, and customer SOC handoff.
 - Counters should act as filters when a corresponding list exists.
 - Empty states should explain whether no data exists or the configured data path is missing.
 - Failed requests should display the server error and suggested operator action.
+
+## Visual Regression
+
+`make visual-regression-snapshots` captures Dashboard and Trace Viewer
+screenshots at `390x844`, `1366x768`, `1920x1080`, and `2560x1080`.
+Dashboard captures include DOM overflow checks. Trace Viewer captures verify
+that browser-rendered SVG, layout controls, PNG/SVG/raw export controls, and
+report links are usable before `make visual-regression-gate` accepts the
+manifest.

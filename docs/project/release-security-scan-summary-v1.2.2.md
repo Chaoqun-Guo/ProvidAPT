@@ -13,6 +13,6 @@ Commit: `27ecd239`
 
 ## Notes
 
-- Source-only scans exclude generated `dist/`, `build/`, `.git/`, and local `.tmp-*` cache directories and are the commercial source gate.
+- Source-only scans exclude generated `dist/`, `build/`, `.git/`, and local `.tmp-*` cache directories and are the open-source source gate.
 - `golang.org/x/net` and `golang.org/x/text` were upgraded to address the source dependency findings reported before this pass.
-- `dist/release-readiness.md` reports `commercial ready: 16 passed, 0 warnings, 0 waived, 0 failed`.
+- `dist/release-readiness.md` reports `release signoff ready: 16 passed, 0 warnings, 0 waived, 0 failed`.

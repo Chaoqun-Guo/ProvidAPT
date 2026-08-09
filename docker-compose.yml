@@ -76,13 +76,8 @@ services:
       PROVIDAPT_SECRETS_BASE_DIR: "/run/secrets"
       PROVIDAPT_TLS_ROTATION_CHECK: "24h"
       PROVIDAPT_TLS_ROTATION_RENEW_BEFORE: "720h"
-      PROVIDAPT_LICENSE_ACTIVATION_URL: "http://127.0.0.1:19090/v1/activate"
-      PROVIDAPT_LICENSE_REVOCATION_URL: "http://127.0.0.1:19090/v1/revocations"
-      PROVIDAPT_UPGRADE_MANIFEST_URL: "http://127.0.0.1:19090/v1/releases/latest"
     depends_on:
       postgres:
-        condition: service_healthy
-      auth-server:
         condition: service_healthy
     restart: unless-stopped
     stop_grace_period: 30s
@@ -99,34 +94,6 @@ services:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U providapt -d providapt"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-
-  auth-server:
-    build:
-      context: .
-      dockerfile: build/docker/Dockerfile.authserver
-    image: providapt-auth-server:latest
-    container_name: providapt-auth-server
-    network_mode: host
-    environment:
-      PROVIDAPT_AUTH_ADDR: ":19090"
-      PROVIDAPT_AUTH_ARTIFACT_DIR: "/var/lib/providapt-auth/artifacts"
-      PROVIDAPT_AUTH_CUSTOMER: "ProvidAPT Trial"
-      PROVIDAPT_AUTH_EDITION: "enterprise"
-      PROVIDAPT_AUTH_MAX_AGENTS: "100"
-      PROVIDAPT_AUTH_VALID_DAYS: "365"
-      PROVIDAPT_AUTH_LICENSE_SIGNING_KEY: "providapt-dev-license-key"
-      PROVIDAPT_AUTH_STATE_PATH: "/var/lib/providapt-auth/state/activations.jsonl"
-      PROVIDAPT_AUTH_RELEASE_VERSION: "v1.2.3"
-      PROVIDAPT_AUTH_UPGRADE_DOWNLOAD_URL: "http://127.0.0.1:19090/artifacts/providapt.tar.gz"
-    volumes:
-      - providapt-artifacts:/var/lib/providapt-auth/artifacts:ro
-      - providapt-auth-state:/var/lib/providapt-auth/state
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:19090/health >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -160,8 +127,6 @@ services:
 
 volumes:
   providapt-log:
-  providapt-artifacts:
-  providapt-auth-state:
   postgres-data:
   prometheus-data:
   grafana-data:

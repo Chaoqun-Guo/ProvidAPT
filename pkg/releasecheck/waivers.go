@@ -51,7 +51,7 @@ func applyWaivers(report *Report, path string) {
 				Name:          "release_waivers",
 				Status:        StatusFail,
 				Message:       "waiver entries require check, reason, and approved_by",
-				FixSuggestion: "Complete every waiver entry before commercial sign-off.",
+				FixSuggestion: "Complete every waiver entry before release sign-off.",
 			})
 			return
 		}

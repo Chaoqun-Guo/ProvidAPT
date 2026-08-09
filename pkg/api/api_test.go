@@ -197,7 +197,7 @@ func TestAPIAuthAllowsDashboardShellWithoutKey(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)
 
-	for _, path := range []string{"/dashboard", "/", "/assets/dashboard-responsive.css", "/api/v1/alerts/p%3A100/svg/view"} {
+	for _, path := range []string{"/dashboard", "/", "/assets/dashboard.css", "/assets/dashboard-responsive.css", "/assets/dashboard.js", "/assets/trace-viewer.css", "/assets/trace-viewer.js", "/api/v1/alerts/p%3A100/svg/view"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		w := apiServe(ts, req)
 		if w.Code != http.StatusOK {
@@ -1094,121 +1094,6 @@ func TestRBACAuditorAuditFeedAllowed(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/audit?category=admin&source=supportbundle", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
-func TestLicenseEndpoint(t *testing.T) {
-	ts := testServer(t)
-	ts.SetLicenseStatusFunc(func() LicenseStatus {
-		return LicenseStatus{
-			UpdatedAt:          "2026-06-08T03:00:00Z",
-			Path:               "/etc/providapt/license.key",
-			LicenseID:          "lic-enterprise-001",
-			Present:            true,
-			SizeBytes:          128,
-			ModifiedAt:         "2026-06-08T02:59:00Z",
-			Customer:           "Acme Corp",
-			Edition:            "enterprise",
-			ExpiresAt:          "2026-12-31T00:00:00Z",
-			GracePeriodDays:    14,
-			RevocationSource:   "remote:https://licenses.example.com/revocations.json",
-			RevocationVerified: true,
-			SignaturePresent:   true,
-			SignatureVerified:  true,
-			CurrentVersion:     "1.2.3",
-			LastValidatedAt:    "2026-06-08T03:00:00Z",
-			History: []ControlActionAudit{{
-				Action:      "license_validate",
-				Actor:       "SecOps On-Call (admin)",
-				Role:        RoleAdmin,
-				Status:      "validated",
-				Message:     "license file validated",
-				PerformedAt: "2026-06-08T03:00:00Z",
-			}},
-		}
-	})
-
-	w := apiGet(ts, "/api/v1/control/license")
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp["present"] != true {
-		t.Fatalf("present = %v", resp["present"])
-	}
-	if resp["path"] != "/etc/providapt/license.key" {
-		t.Fatalf("path = %v", resp["path"])
-	}
-	if resp["customer"] != "Acme Corp" {
-		t.Fatalf("customer = %v", resp["customer"])
-	}
-	if resp["license_id"] != "lic-enterprise-001" {
-		t.Fatalf("license_id = %v", resp["license_id"])
-	}
-}
-
-func TestLicenseActionInjectsActorAndRole(t *testing.T) {
-	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
-	var gotReq LicenseActionRequest
-	ts.SetLicenseActionFunc(func(req LicenseActionRequest) (LicenseActionResult, error) {
-		gotReq = req
-		return LicenseActionResult{
-			Status:            "validated",
-			Message:           "license file validated",
-			ValidatedAt:       "2026-06-08T03:00:00Z",
-			ExpiresAt:         "2026-12-31T00:00:00Z",
-			GracePeriodDays:   14,
-			SignatureVerified: true,
-		}, nil
-	})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/license", bytes.NewBufferString(`{"action":"validate","note":"pre-maintenance check"}`))
-	req.Header.Set("X-API-Key", "admin-key")
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-	if gotReq.Role != RoleAdmin {
-		t.Fatalf("role = %q", gotReq.Role)
-	}
-	if gotReq.Actor != "SecOps On-Call (admin)" {
-		t.Fatalf("actor = %q", gotReq.Actor)
-	}
-	if gotReq.Note != "pre-maintenance check" {
-		t.Fatalf("note = %q", gotReq.Note)
-	}
-}
-
-func TestRBACAnalystLicenseActionDenied(t *testing.T) {
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/license", bytes.NewBufferString(`{"action":"validate"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
-func TestRBACAuditorLicenseAllowed(t *testing.T) {
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/license", nil)
 	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
@@ -2599,6 +2484,11 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 	body := w.Body.String()
 	for _, want := range []string{
 		"ProvidAPT Trace Viewer",
+		`href="/assets/trace-viewer.css"`,
+		`src="/assets/trace-viewer.js"`,
+		`id="traceViewerApp"`,
+		`data-raw-url="/api/v1/alerts/p%3A100/svg"`,
+		`data-alert-id="p:100"`,
 		"Zoom In",
 		"Fit Width",
 		"All Types",
@@ -2607,6 +2497,18 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		"Path Only",
 		"Expand All",
 		"Selected Element",
+		"applyLayoutMode('compact')",
+		"applyLayoutMode('timeline')",
+		"applyLayoutMode('grouped')",
+		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5&format=markdown",
+		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5",
+		"/api/v1/alerts/p%3A100/svg",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("viewer missing %q in body: %s", want, body)
+		}
+	}
+	for _, want := range []string{
 		"bindTraceDetails",
 		"setTypeFilter",
 		"toggleTypeCollapse",
@@ -2616,29 +2518,19 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		"exportPNG",
 		"downloadInlineSVG",
 		"copyReportSnippet",
-		"const API_KEY_STORAGE = 'providapt_api_key'",
-		"sessionStorage.getItem(API_KEY_STORAGE) || localStorage.getItem(API_KEY_STORAGE)",
-		"function authHeaders()",
 		"function traceFetchURL()",
 		"new URL(rawURL, window.location.origin).toString()",
 		"encodeURIComponent(alertID)",
-		"'X-API-Key': apiKey",
-		"fetch(traceFetchURL(), { cache: 'no-store', headers: authHeaders() })",
-		"Loading authenticated raw SVG fallback",
-		"Trace SVG requires the same API key saved in the Dashboard.",
-		"applyLayoutMode('compact')",
-		"applyLayoutMode('timeline')",
-		"applyLayoutMode('grouped')",
+		"fetch(traceFetchURL(), { cache: 'no-store' })",
+		"Loading raw SVG fallback",
+		"Trace SVG requires access to the local ProvidAPT API.",
 		"mode-active",
 		"updateLayoutButtons",
 		"rerouteEdges",
 		"ProvidAPT Trace Investigation",
-		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5&format=markdown",
-		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5",
-		"/api/v1/alerts/p%3A100/svg",
 	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("viewer missing %q in body: %s", want, body)
+		if !strings.Contains(traceViewerJS, want) && !strings.Contains(traceViewerCSS, want) {
+			t.Fatalf("trace viewer static assets missing %q", want)
 		}
 	}
 }
@@ -2653,11 +2545,15 @@ func TestAlertSVGViewerEscapesCompositeAlertID(t *testing.T) {
 	body := w.Body.String()
 	for _, want := range []string{
 		"/api/v1/alerts/agent%3Alocalhost.localdomain-80fb20b3%3Ap%3A29479/svg",
-		"new URL(rawURL, window.location.origin).toString()",
-		"encodeURIComponent(alertID)",
+		`data-alert-id="agent:localhost.localdomain-80fb20b3:p:29479"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("composite viewer missing %q in body: %s", want, body)
+		}
+	}
+	for _, want := range []string{"new URL(rawURL, window.location.origin).toString()", "encodeURIComponent(alertID)"} {
+		if !strings.Contains(traceViewerJS, want) {
+			t.Fatalf("trace viewer JS missing %q", want)
 		}
 	}
 	if strings.Contains(body, "/api/v1/alerts/"+compositeID+"/svg") {

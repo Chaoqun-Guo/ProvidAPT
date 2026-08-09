@@ -36,6 +36,8 @@ type ProcessEnricher struct {
 	now       func() time.Time
 }
 
+var procRoot = "/proc"
+
 func NewProcessEnricher() *ProcessEnricher {
 	return &ProcessEnricher{
 		cache:     make(map[uint32]ProcessContext),
@@ -165,20 +167,45 @@ func (e *Event) Enrich() {
 		}
 	}
 	if e.PID > 0 {
-		if target, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(int(e.PID)), "exe")); err == nil && target != "" {
+		procDir := filepath.Join(procRoot, strconv.Itoa(int(e.PID)))
+		if e.PPID == 0 {
+			e.PPID = readProcStatPPID(filepath.Join(procDir, "stat"))
+		}
+		if target, err := os.Readlink(filepath.Join(procDir, "exe")); err == nil && target != "" {
 			e.ExePath = target
 		}
-		if data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(int(e.PID)), "cmdline")); err == nil {
+		if data, err := os.ReadFile(filepath.Join(procDir, "cmdline")); err == nil {
 			cmdline := strings.ReplaceAll(strings.TrimRight(string(data), "\x00"), "\x00", " ")
 			e.Cmdline = strings.TrimSpace(cmdline)
 			if e.Cmdline != "" {
 				e.CmdlineSource = "procfs"
 			}
 		}
-		if target, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(int(e.PID)), "cwd")); err == nil && target != "" {
+		if target, err := os.Readlink(filepath.Join(procDir, "cwd")); err == nil && target != "" {
 			e.Cwd = target
 		}
 	}
+}
+
+func readProcStatPPID(path string) uint32 {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	text := strings.TrimSpace(string(data))
+	endComm := strings.LastIndex(text, ")")
+	if endComm < 0 || endComm+2 >= len(text) {
+		return 0
+	}
+	fields := strings.Fields(strings.TrimSpace(text[endComm+1:]))
+	if len(fields) < 2 {
+		return 0
+	}
+	ppid, err := strconv.ParseUint(fields[1], 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint32(ppid)
 }
 
 func resolveOpenFDPath(pid uint32, devMajor uint32, devMinor uint32, inode uint64) string {
@@ -241,9 +268,7 @@ func inferPathFromCmdline(pathname string, cmdline string) string {
 		if candidate == "" || !strings.Contains(candidate, "/") {
 			continue
 		}
-		if strings.HasPrefix(candidate, "file://") {
-			candidate = strings.TrimPrefix(candidate, "file://")
-		}
+		candidate = strings.TrimPrefix(candidate, "file://")
 		if !pathpkg.IsAbs(candidate) {
 			continue
 		}

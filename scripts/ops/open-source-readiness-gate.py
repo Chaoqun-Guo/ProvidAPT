@@ -8,15 +8,14 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "providapt.commercialization_readiness.v1"
+SCHEMA = "providapt.open_source_readiness.v1"
 DEFAULT_REQUIRED_DOCS = [
-    "docs/project/commercial-release-checklist.md",
-    "docs/project/customer-handoff.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
     "docs/project/final-release-runbook.md",
     "docs/project/production-readiness.md",
-    "docs/project/support-sla.md",
     "docs/project/third-party-notices.md",
-    "docs/getting-started/commercial-install.md",
     "docs/getting-started/evaluation.md",
     "docs/developer/release-readiness.md",
     "PRIVACY.md",
@@ -105,23 +104,6 @@ def approval_detail(path_value: str) -> dict[str, Any]:
     }
 
 
-def activation_detail(report: dict[str, Any]) -> dict[str, Any]:
-    if not report:
-        return {"status": "blocked", "failures": ["activation server gate evidence is missing"]}
-    status = status_value(report, {"pass", "warn"})
-    registry = report.get("registry") if isinstance(report.get("registry"), dict) else {}
-    audit = report.get("audit") if isinstance(report.get("audit"), dict) else {}
-    live_probe = report.get("live_probe") if isinstance(report.get("live_probe"), dict) else {}
-    return {
-        "status": status,
-        "entitlements": registry.get("entitlements", 0),
-        "audit_records": audit.get("records", 0),
-        "live_probe": live_probe.get("status", "missing"),
-        "failures": report.get("failures", []) if status == "blocked" else [],
-        "warnings": report.get("warnings", []) if status == "warn" else [],
-    }
-
-
 def overall_status(sections: dict[str, dict[str, Any]]) -> str:
     statuses = [section.get("status") for section in sections.values()]
     if any(status == "blocked" for status in statuses):
@@ -138,9 +120,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "operations_readiness": {"status": status_value(load_json(Path(args.operations_readiness_gate)), {"pass", "warn"})},
         "enterprise_readiness": {"status": status_value(load_json(Path(args.enterprise_readiness)), {"pass", "warn"})},
         "onboarding_bundle": onboarding_detail(load_json(Path(args.onboarding_manifest))),
-        "activation_server": activation_detail(load_json(Path(args.activation_server_gate))),
         "plugin_release_gates": plugin_detail(plugin_reports),
-        "commercial_documentation": validate_docs(docs),
+        "open_source_documentation": validate_docs(docs),
         "external_approval": approval_detail(args.external_approval),
     }
     return {
@@ -153,7 +134,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# ProvidAPT Commercialization Readiness",
+        "# ProvidAPT Open Source Readiness",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -189,16 +170,15 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Aggregate commercialization, documentation, onboarding, and plugin readiness evidence.")
+    parser = argparse.ArgumentParser(description="Aggregate open-source release, documentation, onboarding, and plugin readiness evidence.")
     parser.add_argument("--operations-readiness-gate", default="build/operations-readiness/operations-readiness-gate.json")
     parser.add_argument("--enterprise-readiness", default="build/enterprise-readiness.json")
     parser.add_argument("--onboarding-manifest", default="build/onboarding/onboarding-manifest.json")
-    parser.add_argument("--activation-server-gate", default="build/activation/activation-server-gate.json")
     parser.add_argument("--plugin-gate", action="append", default=[])
     parser.add_argument("--required-doc", action="append", default=[])
     parser.add_argument("--external-approval", default="docs/project/external-approval-request-v1.2.3-rc.1.md")
-    parser.add_argument("--out-json", default="build/commercialization-readiness/commercialization-readiness-gate.json")
-    parser.add_argument("--out-md", default="build/commercialization-readiness/commercialization-readiness-gate.md")
+    parser.add_argument("--out-json", default="build/open-source-readiness/open-source-readiness-gate.json")
+    parser.add_argument("--out-md", default="build/open-source-readiness/open-source-readiness-gate.md")
     args = parser.parse_args()
     report = build_report(args)
     out_json = Path(args.out_json)

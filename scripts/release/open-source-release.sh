@@ -6,6 +6,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 VERSION="${VERSION:-$(cd "$PROJECT_DIR" && git describe --tags --always 2>/dev/null || echo dev)}"
 COMMIT="${COMMIT:-$(cd "$PROJECT_DIR" && git rev-parse --short HEAD 2>/dev/null || echo none)}"
+FULL_COMMIT="${FULL_COMMIT:-$(cd "$PROJECT_DIR" && git rev-parse HEAD 2>/dev/null || echo none)}"
 DATE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 DIST_DIR="${DIST_DIR:-$PROJECT_DIR/dist}"
 BUILD_DIR="${BUILD_DIR:-$PROJECT_DIR/build}"
@@ -281,6 +282,21 @@ run_vulnerability_scans() {
 	else
 		warn "trivy not installed; filesystem vulnerability scan skipped"
 	fi
+	cat > "$report_dir/scan-manifest.json" <<EOF
+{
+  "schema": "providapt.security_scan_manifest.v1",
+  "generated_at": "$DATE",
+  "version": "$VERSION",
+  "commit": "$COMMIT",
+  "full_commit": "$FULL_COMMIT",
+  "reports": {
+    "govulncheck_text": "$(test -s "$report_dir/govulncheck.txt" && echo present || echo missing)",
+    "govulncheck_json": "$(test -s "$report_dir/govulncheck.json" && echo present || echo missing)",
+    "grype_source": "$(test -s "$report_dir/grype-source.json" && echo present || echo missing)",
+    "trivy_fs": "$(test -s "$report_dir/trivy-fs.json" && echo present || echo missing)"
+  }
+}
+EOF
 }
 
 build_container_image() {
@@ -350,8 +366,6 @@ control_plane:
 storage:
   encrypt: true
   key_file: /etc/providapt/storage.key
-license:
-  path: /etc/providapt/license.yaml
 support_bundle:
   redact_archives: true
   retain_archives: 5
@@ -384,20 +398,18 @@ Status: generated release candidate evidence
 - Vulnerability scans: ${RUN_SCANS}
 - Package smoke matrix: run separately with package-smoke-matrix
 
-## Commercial Approval
+## Open Source Release Approval
 
-- Product: generated evidence requires owner signoff
 - Engineering: generated evidence requires owner signoff
 - Security: generated evidence requires owner signoff
 - Legal: generated evidence requires owner signoff
 - Support: generated evidence requires owner signoff
-- Sales engineering: generated evidence requires owner signoff
 
 ## Known Limitations
 
-- Customer-specific API keys, license files, CORS origins, and encryption keys must be replaced before production deployment.
+- Deployment-specific API keys, CORS origins, TLS material, SIEM tokens, and encryption keys must be replaced before production deployment.
 - Detached checksum signature should be produced with customer-approved signing infrastructure for final publication.
-- The built-in providapt-sign tool creates verifiable Ed25519 checksum signatures for air-gapped or customer-managed signing workflows.
+- The built-in providapt-sign tool creates verifiable Ed25519 checksum signatures for air-gapped or operator-managed signing workflows.
 EOF
 	fi
 	local args=(
@@ -419,7 +431,7 @@ EOF
 }
 
 main() {
-	log "Preparing commercial release workspace"
+	log "Preparing open-source release workspace"
 	rm -rf "$DIST_DIR"
 	mkdir -p "$DIST_DIR" "$BUILD_DIR"
 
@@ -466,7 +478,7 @@ main() {
 	log "Running release readiness check"
 	run_release_check
 
-	log "Commercial release artifacts ready"
+	log "Open-source release artifacts ready"
 	ls -lh "$DIST_DIR"
 }
 

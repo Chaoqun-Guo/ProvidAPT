@@ -11,7 +11,6 @@ This document defines retention guidance for ProvidAPT operational data. Final r
 | audit records | admin actions, policy changes, support downloads | Compliance / Security | compliance requirement, often 180-365 days |
 | support bundles | diagnostic archives | Support | delete after case closure unless evidence hold applies |
 | SIEM outbox | queued delivery payloads | Security Operations | delete after confirmed delivery or expiry |
-| license and activation | entitlement, machine fingerprint | Commercial Operations | contract term plus audit requirement |
 
 ## Configuration
 

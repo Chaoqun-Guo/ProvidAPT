@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package releasecheck validates the operational settings expected before a
-// commercial ProvidAPT handoff or release candidate sign-off.
+// open-source ProvidAPT handoff or release candidate sign-off.
 package releasecheck
 
 import (
@@ -80,7 +80,7 @@ type Report struct {
 	Waived                 int       `json:"waived"`
 	Failed                 int       `json:"failed"`
 	ReleaseReady           bool      `json:"release_ready"`
-	CommercialReady        bool      `json:"commercial_ready"`
+	StrictReleaseReady     bool      `json:"strict_release_ready"`
 }
 
 // Run executes all release readiness checks.
@@ -104,7 +104,7 @@ func Run(opts Options) Report {
 	cfg, configLoaded := checkConfig(&report, opts.ConfigPath)
 	checkVersionMetadata(&report, opts.Version, opts.Commit, opts.BuildDate)
 	if configLoaded {
-		checkCommercialConfig(&report, cfg)
+		checkOpenSourceConfig(&report, cfg)
 	}
 	checkReleaseEvidence(&report, opts.EvidencePath, opts.Version, opts.Commit)
 	checkChecksums(&report, opts.ChecksumsPath, opts.ArtifactsDir, report.RequiredArtifactTypes)
@@ -114,15 +114,15 @@ func Run(opts Options) Report {
 	applyWaivers(&report, opts.WaiverPath)
 
 	report.ReleaseReady = report.Failed == 0
-	report.CommercialReady = report.Failed == 0 && report.Warnings == 0
+	report.StrictReleaseReady = report.Failed == 0 && report.Warnings == 0
 	return report
 }
 
 // Summary returns a compact human-readable report summary.
 func (r Report) Summary() string {
 	state := "not ready"
-	if r.CommercialReady {
-		state = "commercial ready"
+	if r.StrictReleaseReady {
+		state = "release signoff ready"
 	} else if r.ReleaseReady {
 		state = "ready with warnings"
 	}
@@ -183,7 +183,7 @@ func checkConfig(report *Report, path string) (*config.Config, bool) {
 	return cfg, true
 }
 
-func checkCommercialConfig(report *Report, cfg *config.Config) {
+func checkOpenSourceConfig(report *Report, cfg *config.Config) {
 	if strings.TrimSpace(cfg.Output.Dir) == "" {
 		add(report, Check{
 			Name:          "output_dir",
@@ -254,16 +254,6 @@ func checkCommercialConfig(report *Report, cfg *config.Config) {
 		})
 	}
 
-	if strings.TrimSpace(cfg.License.Path) == "" {
-		add(report, Check{
-			Name:          "license_path",
-			Status:        StatusWarn,
-			Message:       "license.path is not configured",
-			FixSuggestion: "Set license.path to the release license fixture or customer license before delivery.",
-		})
-	} else {
-		add(report, Check{Name: "license_path", Status: StatusPass, Message: fmt.Sprintf("license path configured: %s", cfg.License.Path)})
-	}
 }
 
 func checkVersionMetadata(report *Report, version, commit, date string) {
@@ -295,7 +285,7 @@ func checkReleaseEvidence(report *Report, path, version, commit string) {
 			Name:          "release_evidence",
 			Status:        status,
 			Message:       message,
-			FixSuggestion: "Create or provide docs/project/release-evidence-v1.2.2.md before commercial sign-off.",
+			FixSuggestion: "Create or provide docs/project/release-evidence-v1.2.2.md before release sign-off.",
 		})
 		return
 	}
@@ -316,7 +306,7 @@ func checkReleaseEvidence(report *Report, path, version, commit string) {
 			Name:          "release_evidence",
 			Status:        StatusWarn,
 			Message:       fmt.Sprintf("release evidence does not reference current commit %s", commit),
-			FixSuggestion: "Regenerate release evidence from the current commit before commercial sign-off.",
+			FixSuggestion: "Regenerate release evidence from the current commit before release sign-off.",
 		})
 		return
 	}
@@ -326,7 +316,7 @@ func checkReleaseEvidence(report *Report, path, version, commit string) {
 			Name:          "release_evidence",
 			Status:        StatusWarn,
 			Message:       fmt.Sprintf("release evidence does not reference current version %s", version),
-			FixSuggestion: "Regenerate release evidence from the current version before commercial sign-off.",
+			FixSuggestion: "Regenerate release evidence from the current version before release sign-off.",
 		})
 		return
 	}
@@ -408,7 +398,7 @@ func readHandoffDir(path string) (string, error) {
 	var b strings.Builder
 	candidates := []string{
 		"MANIFEST.md",
-		filepath.Join("docs", "project", "commercial-approval-record.md"),
+		filepath.Join("docs", "project", "release-approval-record.md"),
 		filepath.Join("docs", "project", "customer-handoff.md"),
 		filepath.Join("docs", "project", "external-approval-request-v1.2.3-rc.1.md"),
 	}
@@ -464,7 +454,7 @@ func readHandoffZip(path string) (string, error) {
 func isHandoffTextEntry(name string) bool {
 	return strings.HasSuffix(name, "/MANIFEST.md") ||
 		name == "MANIFEST.md" ||
-		strings.HasSuffix(name, "/docs/project/commercial-approval-record.md") ||
+		strings.HasSuffix(name, "/docs/project/release-approval-record.md") ||
 		strings.HasSuffix(name, "/docs/project/customer-handoff.md") ||
 		strings.HasSuffix(name, "/docs/project/external-approval-request-v1.2.3-rc.1.md")
 }

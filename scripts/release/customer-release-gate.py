@@ -8,13 +8,11 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "providapt.customer_release_gate.v1"
+SCHEMA = "providapt.open_source_release_gate.v1"
 PASS_STATUSES = {"pass", "waived", "available", "planned"}
 WARN_STATUSES = {"warn", "warning", "skipped"}
 REQUIRED_LEGAL_DOCS = [
     "LICENSE",
-    "EULA.md",
-    "DPA.md",
     "PRIVACY.md",
     "SECURITY.md",
     "CLA.md",
@@ -24,9 +22,9 @@ REQUIRED_LEGAL_DOCS = [
 REQUIRED_DELIVERY_DOCS = [
     "docs/project/release-artifact-matrix.md",
     "docs/project/customer-handoff.md",
-    "docs/project/support-sla.md",
     "docs/user-guide/upgrade-rollback.md",
-    "docs/getting-started/commercial-install.md",
+    "docs/getting-started/install.md",
+    "docs/getting-started/docker-compose.md",
 ]
 
 
@@ -219,7 +217,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "production_readiness": readiness_detail(load_json(Path(args.production_readiness_gate)), "production readiness"),
         "ml_readiness": readiness_detail(load_json(Path(args.ml_readiness_gate)), "ML readiness"),
         "operations_readiness": readiness_detail(load_json(Path(args.operations_readiness_gate)), "operations readiness", allow_warn=True),
-        "commercialization_readiness": readiness_detail(load_json(Path(args.commercialization_readiness_gate)), "commercialization readiness", allow_warn=True),
+        "open_source_readiness": readiness_detail(load_json(Path(args.open_source_readiness_gate)), "open source readiness", allow_warn=True),
         "legal_documents": docs_detail(args.legal_doc or REQUIRED_LEGAL_DOCS),
         "delivery_documents": docs_detail(args.delivery_doc or REQUIRED_DELIVERY_DOCS),
     }
@@ -233,7 +231,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# ProvidAPT Customer Release Gate",
+        "# ProvidAPT Open Source Release Gate",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -263,7 +261,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Aggregate customer-release evidence for commercial delivery.")
+    parser = argparse.ArgumentParser(description="Aggregate release evidence for open-source delivery.")
     parser.add_argument("--release-gates", default="build/release-gate-status.json")
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument("--artifact-signing-gate", default="build/artifact-signing/artifact-signing-gate.json")
@@ -271,7 +269,7 @@ def main() -> int:
     parser.add_argument("--production-readiness-gate", default="build/production-readiness/production-readiness-gate.json")
     parser.add_argument("--ml-readiness-gate", default="build/ml-readiness/ml-readiness-gate.json")
     parser.add_argument("--operations-readiness-gate", default="build/operations-readiness/operations-readiness-gate.json")
-    parser.add_argument("--commercialization-readiness-gate", default="build/commercialization-readiness/commercialization-readiness-gate.json")
+    parser.add_argument("--open-source-readiness-gate", default="build/open-source-readiness/open-source-readiness-gate.json")
     parser.add_argument("--legal-doc", action="append", default=[])
     parser.add_argument("--delivery-doc", action="append", default=[])
     parser.add_argument("--allow-skipped-ci", action="store_true")

@@ -41,6 +41,11 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("auth_enabled: true", config)
         loaded = json.loads((self.tmp / "onboarding-manifest.json").read_text(encoding="utf-8"))
         self.assertTrue(loaded["postgres"])
+        check_names = {item["name"] for item in loaded["environment_checks"]}
+        self.assertIn("tailscale", check_names)
+        self.assertIn("ssh", check_names)
+        self.assertIn("api", check_names)
+        self.assertIn("postgres", check_names)
 
 
 if __name__ == "__main__":

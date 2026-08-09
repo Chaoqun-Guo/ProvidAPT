@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,12 @@ from urllib.parse import quote
 
 
 SCHEMA = "providapt.visual_regression_snapshots.v1"
-DEFAULT_VIEWPORTS = ["1366x768", "1920x1080", "2560x1080"]
+DEFAULT_VIEWPORTS = ["390x844", "1366x768", "1920x1080", "2560x1080"]
+DEFAULT_DASHBOARD_ASSERTIONS = {
+    "max_horizontal_overflow_px": 2,
+    "max_element_overflow_px": 2,
+    "max_text_overflow_px": 2,
+}
 
 
 def utc_now() -> str:
@@ -121,6 +127,21 @@ def capture(report: dict[str, Any], api_key: str, timeout_ms: int) -> dict[str, 
                 )
                 try:
                     page.goto(shot["url"], wait_until="networkidle", timeout=timeout_ms)
+                    if shot["page"] == "dashboard":
+                        shot["dom_assertions"] = dashboard_dom_assertions(page)
+                        if shot["dom_assertions"].get("status") != "pass":
+                            viewport_name = str((shot.get("viewport") or {}).get("name", "viewport"))
+                            failures.append(
+                                f"dashboard {viewport_name}: DOM overflow assertions failed "
+                                f"(horizontal={shot['dom_assertions'].get('horizontal_overflow_px')}, "
+                                f"element={shot['dom_assertions'].get('max_element_overflow_px')}, "
+                                f"text={shot['dom_assertions'].get('max_text_overflow_px')})"
+                            )
+                    if shot["page"] == "trace-viewer":
+                        shot["dom_assertions"] = trace_viewer_dom_assertions(page)
+                        if shot["dom_assertions"].get("status") != "pass":
+                            viewport_name = str((shot.get("viewport") or {}).get("name", "viewport"))
+                            failures.append(f"trace-viewer {viewport_name}: DOM assertions failed ({', '.join(shot['dom_assertions'].get('failures', []))})")
                     page.screenshot(path=shot["path"], full_page=True)
                     shot["status"] = "captured"
                 except Exception as exc:  # pragma: no cover - depends on live browser/server state
@@ -133,6 +154,123 @@ def capture(report: dict[str, Any], api_key: str, timeout_ms: int) -> dict[str, 
     report["failures"] = failures
     report["status"] = "pass" if not failures else "blocked"
     return report
+
+
+def dashboard_dom_assertions(page: Any) -> dict[str, Any]:
+    script = """
+    () => {
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      const body = document.body;
+      const root = document.documentElement;
+      const scrollWidth = Math.max(body ? body.scrollWidth : 0, root ? root.scrollWidth : 0);
+      const horizontalOverflowPx = Math.max(0, scrollWidth - viewportWidth);
+      const elementOverflows = [];
+      const textOverflows = [];
+      const ignored = new Set(['SCRIPT', 'STYLE', 'META', 'LINK', 'TITLE']);
+      document.querySelectorAll('body *').forEach((el) => {
+        if (!el || ignored.has(el.tagName) || el.hidden) return;
+        const style = window.getComputedStyle(el);
+        if (!style || style.display === 'none' || style.visibility === 'hidden') return;
+        const rect = el.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const leftOverflow = Math.max(0, -rect.left);
+        const rightOverflow = Math.max(0, rect.right - viewportWidth);
+        const overflowPx = Math.max(leftOverflow, rightOverflow);
+        if (overflowPx > 2 && style.position !== 'fixed') {
+          elementOverflows.push({
+            selector: el.id ? '#' + el.id : (el.className ? String(el.tagName).toLowerCase() + '.' + String(el.className).trim().split(/\\s+/).slice(0, 3).join('.') : String(el.tagName).toLowerCase()),
+            overflow_px: Math.round(overflowPx),
+            text: (el.textContent || '').trim().slice(0, 80)
+          });
+        }
+        const textOverflowPx = Math.max(0, el.scrollWidth - el.clientWidth);
+        if (textOverflowPx > 2 && rect.width > 0 && style.overflowX !== 'auto' && style.overflowX !== 'scroll') {
+          const text = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+          if (text.length > 0) {
+            textOverflows.push({
+              selector: el.id ? '#' + el.id : String(el.tagName).toLowerCase(),
+              overflow_px: Math.round(textOverflowPx),
+              text: text.slice(0, 80)
+            });
+          }
+        }
+      });
+      return {
+        viewport_width: viewportWidth,
+        scroll_width: scrollWidth,
+        horizontal_overflow_px: Math.round(horizontalOverflowPx),
+        element_overflows: elementOverflows.slice(0, 20),
+        text_overflows: textOverflows.slice(0, 20)
+      };
+    }
+    """
+    result = page.evaluate(script)
+    result = result if isinstance(result, dict) else {}
+    horizontal = int(result.get("horizontal_overflow_px") or 0)
+    element_max = max([int(item.get("overflow_px") or 0) for item in result.get("element_overflows", [])] or [0])
+    text_max = max([int(item.get("overflow_px") or 0) for item in result.get("text_overflows", [])] or [0])
+    thresholds = dict(DEFAULT_DASHBOARD_ASSERTIONS)
+    passed = (
+        horizontal <= thresholds["max_horizontal_overflow_px"]
+        and element_max <= thresholds["max_element_overflow_px"]
+        and text_max <= thresholds["max_text_overflow_px"]
+    )
+    result.update(
+        {
+            "status": "pass" if passed else "fail",
+            "thresholds": thresholds,
+            "max_element_overflow_px": element_max,
+            "max_text_overflow_px": text_max,
+        }
+    )
+    return result
+
+
+def trace_viewer_dom_assertions(page: Any) -> dict[str, Any]:
+    script = """
+    () => {
+      const text = document.body ? document.body.innerText : '';
+      const layoutModes = Array.from(document.querySelectorAll('[data-layout-mode]')).map(el => el.getAttribute('data-layout-mode'));
+      const buttons = Array.from(document.querySelectorAll('button, a.tool-link')).map(el => (el.textContent || '').trim());
+      const svg = document.querySelector('#canvas svg');
+      return {
+        has_svg: Boolean(svg),
+        svg_width: svg ? Number(svg.getAttribute('width') || 0) : 0,
+        svg_height: svg ? Number(svg.getAttribute('height') || 0) : 0,
+        layout_modes: layoutModes,
+        has_png_export: buttons.includes('PNG'),
+        has_svg_export: buttons.includes('SVG'),
+        has_raw_svg: buttons.includes('Raw SVG'),
+        has_report_export: buttons.includes('Report'),
+        has_summary: text.includes('Trace Summary'),
+        has_selected_panel: text.includes('Selected Element')
+      };
+    }
+    """
+    result = page.evaluate(script)
+    result = result if isinstance(result, dict) else {}
+    failures: list[str] = []
+    if not result.get("has_svg"):
+        failures.append("svg missing")
+    if int(result.get("svg_width") or 0) <= 0 or int(result.get("svg_height") or 0) <= 0:
+        failures.append("svg dimensions missing")
+    modes = set(result.get("layout_modes") or [])
+    missing_modes = sorted({"tree", "compact", "timeline", "grouped"} - modes)
+    if missing_modes:
+        failures.append("layout modes missing: " + ",".join(missing_modes))
+    for key, label in [
+        ("has_png_export", "PNG export missing"),
+        ("has_svg_export", "SVG export missing"),
+        ("has_raw_svg", "raw SVG link missing"),
+        ("has_report_export", "report export missing"),
+        ("has_summary", "summary panel missing"),
+        ("has_selected_panel", "selected panel missing"),
+    ]:
+        if not result.get(key):
+            failures.append(label)
+    result["failures"] = failures
+    result["status"] = "pass" if not failures else "fail"
+    return result
 
 
 def file_inventory(path_value: str) -> dict[str, Any]:
@@ -198,7 +336,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Capture dashboard and trace viewer screenshots for visual regression review.")
     parser.add_argument("--server", required=True, help="ProvidAPT base URL, for example http://127.0.0.1:18080")
     parser.add_argument("--alert-id", default="p:100")
-    parser.add_argument("--api-key", default="")
+    parser.add_argument("--api-key", default=os.environ.get("PROVIDAPT_API_KEY", ""))
     parser.add_argument("--out-dir", default="build/visual-regression")
     parser.add_argument("--baseline", default="", help="Existing visual-regression-snapshots.json to compare against")
     parser.add_argument("--viewport", action="append", type=parse_viewport, dest="viewports")

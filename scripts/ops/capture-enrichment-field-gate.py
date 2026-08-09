@@ -102,9 +102,11 @@ def field_summary(events: list[dict[str, Any]]) -> dict[str, Any]:
         "exe_path": sum(has_field(event, ("process.exe_path", "payload.exe_path", "exe_path", "enrich.exe_path")) for event in events),
         "pathname": sum(has_field(event, ("payload.pathname", "pathname", "file.path")) for event in file_events),
         "network_tuple": sum(
-            has_field(event, ("network.src_ip", "payload.src_ip", "src_ip", "network.source.ip"))
-            and has_field(event, ("network.dst_ip", "payload.dst_ip", "dst_ip", "network.destination.ip"))
-            and has_field(event, ("network.dst_port", "payload.dst_port", "dst_port", "network.destination.port"))
+            has_field(event, ("network.src_ip", "payload.src_ip", "payload.saddr", "src_ip", "saddr", "network.source.ip"))
+            and has_field(event, ("network.dst_ip", "payload.dst_ip", "payload.daddr", "dst_ip", "daddr", "network.destination.ip"))
+            and has_field(event, ("network.src_port", "payload.src_port", "payload.sport", "src_port", "sport", "network.source.port"))
+            and has_field(event, ("network.dst_port", "payload.dst_port", "payload.dport", "dst_port", "dport", "network.destination.port"))
+            and has_field(event, ("network.protocol", "payload.protocol", "protocol"))
             for event in network_events
         ),
     }

@@ -4,7 +4,7 @@ Date: 2026-07-17
 Release: `v1.2.2`
 Status: Release candidate evidence captured
 
-This file records the evidence required before publishing or handing off a commercial ProvidAPT release candidate.
+This file records the evidence required before publishing or handing off an open-source ProvidAPT release candidate.
 
 ## Release Identity
 
@@ -20,7 +20,7 @@ This file records the evidence required before publishing or handing off a comme
 
 | Gate | Command / Source | Result | Evidence Location |
 | --- | --- | --- | --- |
-| eBPF build | `BUILD_EBPF=1 GO_TAGS=bpf` commercial release build | PASS: BPF objects compiled and packaged | `dist/release-readiness.md` |
+| eBPF build | `BUILD_EBPF=1 GO_TAGS=bpf` open-source release build | PASS: BPF objects compiled and packaged | `dist/release-readiness.md` |
 | userspace build | Go 1.25 Linux Docker build with `CGO_ENABLED=0 GO_TAGS=bpf` | PASS: daemon built with real BPF loader, not stub | `dist/release-readiness.md` |
 | Go tests | `go test ./pkg/controlplaneha ./pkg/api ./pkg/config ./pkg/releasecheck ./cmd/cli/providapt-sign` | PASS | Local validation log |
 | Go vet | Release-scoped CI gate | Scheduled for remote CI after push | `.github/workflows/ci.yml` |
@@ -50,13 +50,13 @@ This file records the evidence required before publishing or handing off a comme
 | `192.168.150.131` | CentOS agent | PASS: `lsm` includes `bpf`, kernel 4.18 uses `kprobe_fallback`, `providapt.service` active, status API healthy on `:8080` |
 | `192.168.150.132` | Ubuntu control plane/server | PASS: `lsm` includes `bpf`, LSM attachment active, `providapt.service` active, status API healthy on `:8080` |
 
-## Commercial Approval
+## Open Source Approval
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
 | Product | Product owner | Candidate accepted | Customer-visible scope documented |
 | Security | Security owner | Candidate accepted | SBOM, checksum signature, and source scan summary generated |
-| Legal | Legal owner | Documentation prepared | Final EULA/DPA review remains an external approval activity |
+| Legal | Legal owner | Documentation prepared | Final Apache-2.0, DPA, and privacy review remains an external approval activity |
 | Support | Support owner | Candidate accepted | SLA and handoff materials prepared |
 | Sales engineering | Sales engineering owner | Candidate accepted | POC and onboarding material prepared |
 
@@ -64,7 +64,7 @@ This file records the evidence required before publishing or handing off a comme
 
 - The CentOS 4.18 validation host runs in compatibility mode with `kprobe_fallback`; Linux 5.11+ remains recommended for full BPF LSM coverage.
 - CI status could not be read from this workstation because GitHub CLI is not authenticated; remote CI remains the external source of truth after push.
-- Customer-specific API keys, license files, CORS origins, and encryption keys must be replaced before production deployment.
+- Deployment-specific API keys, CORS origins, and encryption keys must be replaced before production deployment.
 
 ## Final Decision
 

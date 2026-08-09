@@ -196,11 +196,11 @@ type Config struct {
 	} `json:"support_bundle" yaml:"support_bundle"`
 
 	Backup struct {
-		Enabled         bool   `json:"enabled" yaml:"enabled"`
-		Interval        string `json:"interval" yaml:"interval"`
-		RetainArchives  int    `json:"retain_archives" yaml:"retain_archives"`
-		MinFreeBytes    int64  `json:"min_free_bytes" yaml:"min_free_bytes"`
-		AllowActivation bool   `json:"allow_activation" yaml:"allow_activation"`
+		Enabled        bool   `json:"enabled" yaml:"enabled"`
+		Interval       string `json:"interval" yaml:"interval"`
+		RetainArchives int    `json:"retain_archives" yaml:"retain_archives"`
+		MinFreeBytes   int64  `json:"min_free_bytes" yaml:"min_free_bytes"`
+		AllowCutover   bool   `json:"allow_cutover" yaml:"allow_cutover"`
 	} `json:"backup" yaml:"backup"`
 
 	Compliance struct {
@@ -225,20 +225,6 @@ type Config struct {
 		OutboxDir     string `json:"outbox_dir" yaml:"outbox_dir"`
 		FlushInterval string `json:"flush_interval" yaml:"flush_interval"`
 	} `json:"siem" yaml:"siem"`
-
-	License struct {
-		Path               string   `json:"path" yaml:"path"`
-		ActivationURL      string   `json:"activation_url" yaml:"activation_url"`
-		SigningKey         string   `json:"signing_key" yaml:"signing_key"`
-		PublicKeyPath      string   `json:"public_key_path" yaml:"public_key_path"`
-		RevokedIDs         []string `json:"revoked_ids" yaml:"revoked_ids"`
-		RevocationURL      string   `json:"revocation_url" yaml:"revocation_url"`
-		RevocationCache    string   `json:"revocation_cache" yaml:"revocation_cache"`
-		RevocationSigURL   string   `json:"revocation_sig_url" yaml:"revocation_sig_url"`
-		RevocationSigCache string   `json:"revocation_sig_cache" yaml:"revocation_sig_cache"`
-		GracePeriodDays    int      `json:"grace_period_days" yaml:"grace_period_days"`
-		MaxAgents          int      `json:"max_agents" yaml:"max_agents"`
-	} `json:"license" yaml:"license"`
 
 	Upgrade struct {
 		ManifestURL     string `json:"manifest_url" yaml:"manifest_url"`
@@ -404,7 +390,6 @@ func DefaultConfig() *Config {
 	c.SIEM.Format = "json"
 	c.SIEM.MinSeverity = "INFO"
 	c.SIEM.FlushInterval = "30s"
-	c.License.GracePeriodDays = 0
 	c.Upgrade.CanaryPercent = 10
 	return c
 }
@@ -458,7 +443,6 @@ func resolveSecrets(cfg *Config) {
 	resolver.resolve(&cfg.Notify.JiraAPIToken, "PROVIDAPT_NOTIFY_JIRA_API_TOKEN")
 	resolver.resolve(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
 	resolver.resolve(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
-	resolver.resolve(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
 	resolver.resolve(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
 	resolver.resolve(&cfg.SIEM.Token, "PROVIDAPT_SIEM_TOKEN")
 }
@@ -733,12 +717,6 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("siem.flush_interval: %w", err)
 		}
 	}
-	if c.License.GracePeriodDays < 0 {
-		return fmt.Errorf("license.grace_period_days must be non-negative")
-	}
-	if c.License.MaxAgents < 0 {
-		return fmt.Errorf("license.max_agents must be non-negative")
-	}
 	if checksum := strings.TrimSpace(c.Upgrade.ExpectedSHA256); checksum != "" {
 		if len(checksum) != 64 {
 			return fmt.Errorf("upgrade.expected_sha256 must be a 64-character hex digest")
@@ -826,15 +804,6 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Notify.ServiceNowUser, "PROVIDAPT_NOTIFY_SERVICENOW_USER")
 	overrideString(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
 	overrideString(&cfg.Notify.ServiceNowTable, "PROVIDAPT_NOTIFY_SERVICENOW_TABLE")
-	overrideString(&cfg.License.Path, "PROVIDAPT_LICENSE_PATH")
-	overrideString(&cfg.License.ActivationURL, "PROVIDAPT_LICENSE_ACTIVATION_URL")
-	overrideString(&cfg.License.SigningKey, "PROVIDAPT_LICENSE_SIGNING_KEY")
-	overrideString(&cfg.License.PublicKeyPath, "PROVIDAPT_LICENSE_PUBLIC_KEY_PATH")
-	overrideStringSlice(&cfg.License.RevokedIDs, "PROVIDAPT_LICENSE_REVOKED_IDS")
-	overrideString(&cfg.License.RevocationURL, "PROVIDAPT_LICENSE_REVOCATION_URL")
-	overrideString(&cfg.License.RevocationCache, "PROVIDAPT_LICENSE_REVOCATION_CACHE")
-	overrideString(&cfg.License.RevocationSigURL, "PROVIDAPT_LICENSE_REVOCATION_SIG_URL")
-	overrideString(&cfg.License.RevocationSigCache, "PROVIDAPT_LICENSE_REVOCATION_SIG_CACHE")
 	overrideString(&cfg.Upgrade.ManifestURL, "PROVIDAPT_UPGRADE_MANIFEST_URL")
 	overrideString(&cfg.Upgrade.DownloadURL, "PROVIDAPT_UPGRADE_DOWNLOAD_URL")
 	overrideString(&cfg.Upgrade.PackagePath, "PROVIDAPT_UPGRADE_PACKAGE_PATH")
@@ -880,7 +849,7 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.Analyzer.RequireMLDeployGate, "PROVIDAPT_ANALYZER_REQUIRE_ML_DEPLOY_GATE")
 	overrideBool(&cfg.SupportBundle.RedactArchives, "PROVIDAPT_SUPPORT_REDACT_ARCHIVES")
 	overrideBool(&cfg.Backup.Enabled, "PROVIDAPT_BACKUP_ENABLED")
-	overrideBool(&cfg.Backup.AllowActivation, "PROVIDAPT_BACKUP_ALLOW_ACTIVATION")
+	overrideBool(&cfg.Backup.AllowCutover, "PROVIDAPT_BACKUP_ALLOW_CUTOVER")
 	overrideBool(&cfg.Compliance.RequireApprovals, "PROVIDAPT_COMPLIANCE_REQUIRE_APPROVALS")
 	overrideBool(&cfg.SIEM.Enabled, "PROVIDAPT_SIEM_ENABLED")
 
@@ -893,8 +862,6 @@ func applyEnvOverrides(cfg *Config) {
 	overrideInt(&cfg.AI.MaxPromptBytes, "PROVIDAPT_AI_MAX_PROMPT_BYTES")
 	overrideInt(&cfg.Notify.MaxAttempts, "PROVIDAPT_NOTIFY_MAX_ATTEMPTS")
 	overrideInt(&cfg.SupportBundle.RetainArchives, "PROVIDAPT_SUPPORT_RETAIN_ARCHIVES")
-	overrideInt(&cfg.License.GracePeriodDays, "PROVIDAPT_LICENSE_GRACE_PERIOD_DAYS")
-	overrideInt(&cfg.License.MaxAgents, "PROVIDAPT_LICENSE_MAX_AGENTS")
 	overrideInt(&cfg.Backup.RetainArchives, "PROVIDAPT_BACKUP_RETAIN_ARCHIVES")
 	overrideInt(&cfg.Compliance.RetentionDays, "PROVIDAPT_COMPLIANCE_RETENTION_DAYS")
 	overrideInt(&cfg.Compliance.MaxAuditEntries, "PROVIDAPT_COMPLIANCE_MAX_AUDIT_ENTRIES")

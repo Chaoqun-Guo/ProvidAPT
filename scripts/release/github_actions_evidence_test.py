@@ -47,6 +47,25 @@ class GitHubActionsEvidenceTest(unittest.TestCase):
         path.write_text(json.dumps(data), encoding="utf-8")
         self.assertEqual(json.loads(path.read_text())["schema"], subject.SCHEMA)
 
+    def test_archive_to_release_evidence_replaces_managed_section(self):
+        path = self.tmp / "release-evidence.md"
+        path.write_text("# Evidence\n\nExisting section\n", encoding="utf-8")
+        report = {
+            "schema": subject.SCHEMA,
+            "generated_at": "2026-07-28T00:00:00Z",
+            "status": "pass",
+            "full_commit": "abc",
+            "runs": [{"workflowName": "CI", "status": "completed", "conclusion": "success", "url": "https://example.test"}],
+        }
+
+        subject.archive_to_release_evidence(report, path)
+        subject.archive_to_release_evidence({**report, "status": "blocked", "runs": []}, path)
+
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("Existing section", text)
+        self.assertEqual(text.count("PROVIDAPT:GITHUB_ACTIONS_EVIDENCE:START"), 1)
+        self.assertIn("Status: `blocked`", text)
+
 
 if __name__ == "__main__":
     unittest.main()

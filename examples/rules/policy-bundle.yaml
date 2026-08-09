@@ -1,6 +1,6 @@
 version: 1
 metadata:
-  name: linux-commercial-baseline
+  name: linux-open-source-baseline
   owner: security-operations
   description: Example policy bundle combining process, file, network, and container rules.
 rules:

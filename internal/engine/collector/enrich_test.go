@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
@@ -42,6 +44,27 @@ func TestProcessEnricherCachesProcessContext(t *testing.T) {
 	}
 	if fileEvent.PPID != 100 {
 		t.Fatalf("cached ppid = %d", fileEvent.PPID)
+	}
+}
+
+func TestProcessEnricherReadsPPIDFromProcStat(t *testing.T) {
+	oldProcRoot := procRoot
+	t.Cleanup(func() { procRoot = oldProcRoot })
+	root := t.TempDir()
+	procRoot = root
+	pidDir := filepath.Join(root, "4247")
+	if err := os.MkdirAll(pidDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pidDir, "stat"), []byte("4247 (worker thread) S 1234 1 1 0 -1 0\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	event := &Event{Type: syscall.EventFileOpen, PID: 4247, Pathname: "/tmp/x"}
+	NewProcessEnricher().Enrich(event)
+
+	if event.PPID != 1234 {
+		t.Fatalf("procfs ppid = %d, want 1234", event.PPID)
 	}
 }
 

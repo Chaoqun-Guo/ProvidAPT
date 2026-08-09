@@ -1,10 +1,10 @@
 # Release Artifact Matrix
 
-This matrix defines the minimum customer-ready artifact set for a commercial ProvidAPT release.
+This matrix defines the minimum operator-ready artifact set for an open-source ProvidAPT release.
 
 The root `dist/` directory is the canonical publication directory for release
 handoff. Package builders may temporarily stage package files under
-`build/dist/`, but `scripts/release/commercial-release.sh` copies those files to
+`build/dist/`, but `scripts/release/open-source-release.sh` copies those files to
 `dist/` and removes the staging directory by default to avoid duplicate large
 artifacts. Set `KEEP_BUILD_DIST=1` only when debugging package builders.
 
@@ -31,7 +31,7 @@ artifacts. Set `KEEP_BUILD_DIST=1` only when debugging package builders.
 ## Verification Commands
 
 ```bash
-make release-commercial
+make release-open-source
 make package-smoke-matrix
 make github-actions-evidence
 make customer-release-gate
@@ -48,7 +48,7 @@ make customer-release-gate \
   PRODUCTION_READINESS_GATE=build/production-readiness/production-readiness-gate.json \
   ML_READINESS_GATE=build/ml-readiness/ml-readiness-gate.json \
   OPERATIONS_READINESS_GATE=build/operations-readiness/operations-readiness-gate.json \
-  COMMERCIALIZATION_READINESS_GATE=build/commercialization-readiness/commercialization-readiness-gate.json
+  OPEN_SOURCE_READINESS_GATE=build/open-source-readiness/open-source-readiness-gate.json
 
 # To replace a controlled local CI waiver with real GitHub Actions evidence:
 make github-actions-evidence
@@ -79,7 +79,7 @@ providaptctl -release-check \
 - `make release-blocker-backlog` must produce zero release-blocking tasks before final publication.
 - Every published install artifact and SBOM in `dist/` must appear in `checksums.txt`; signature files, public keys, and readiness reports are release evidence and are excluded.
 - Every entry in `checksums.txt` must resolve to an existing file and match its SHA-256 digest.
-- Required commercial artifact types are `archive`, `deb`, `rpm`, `helm`, and `monitoring` unless a signed release waiver is present.
+- Required release artifact types are `archive`, `deb`, `rpm`, `helm`, and `monitoring` unless a signed release waiver is present.
 - SBOM files must be generated in SPDX JSON and CycloneDX JSON formats.
 - Container and Helm artifacts must include immutable version metadata.
 - Set `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container` when producing an offline customer handoff that includes a Docker image archive.
@@ -92,7 +92,7 @@ The offline customer bundle must include:
 - release packages and container image archive
 - Helm chart and default values
 - SBOMs, checksums, checksum signature, and checksum public key when applicable
-- offline license instructions
+- open-source license, NOTICE, and third-party notices
 - upgrade and rollback instructions
 - installation, operations, API, and support documentation
 - known limitations and accepted-risk notices

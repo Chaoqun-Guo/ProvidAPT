@@ -23,27 +23,9 @@
   flex-wrap: wrap;
 }
 
-.auth-strip {
-  flex: 1 1 520px;
-  display: flex;
-  flex-wrap: wrap;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
 
-.auth-strip.is-collapsed {
-  display: none !important;
-}
 
-.auth-strip.needs-key {
-  flex-basis: 420px;
-  width: min(100%, 520px);
-}
 
-.auth-strip.needs-key .auth-key-secondary {
-  display: none !important;
-}
 
 .api-key-toggle {
   flex: 0 0 auto;
@@ -51,31 +33,14 @@
   max-width: 118px;
 }
 
-.auth-strip input {
-  flex: 1 1 220px;
-  min-width: 0;
-}
 
-.auth-strip input::placeholder {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .auth-remember {
   flex: 0 0 auto;
   min-width: 0;
 }
 
-.auth-strip button {
-  flex: 1 1 72px;
-  min-width: 0;
-  max-width: 118px;
-}
 
-.auth-strip.needs-key button {
-  flex: 0 0 78px;
-  max-width: 92px;
-}
 
 .alert-item {
   overflow: hidden;
@@ -98,26 +63,9 @@
   text-overflow: ellipsis;
 }
 
-.top-license {
-  flex: 0 1 auto;
-  max-width: min(100%, 250px);
-}
 
-.license-pill {
-  flex: 1 1 118px;
-  min-width: 86px;
-  max-width: 150px;
-}
 
-.license-pill .label {
-  flex: 0 1 auto;
-  min-width: 0;
-}
 
-.license-pill .value {
-  flex: 1 1 auto;
-  min-width: 0;
-}
 
 .dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
@@ -166,7 +114,6 @@
   text-overflow: ellipsis;
 }
 
-.activation-input-grid,
 .compact-input-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
 }
@@ -203,26 +150,8 @@
     gap: 6px;
     justify-content: flex-start;
   }
-  .auth-strip {
-    flex: 1 1 100%;
-    order: 3;
-  }
   .platform-button {
     flex: 1 1 74px;
-  }
-  .top-license {
-    max-width: 212px;
-  }
-  .license-pill {
-    flex-basis: 100px;
-    min-width: 92px;
-    max-width: 106px;
-  }
-  .license-pill .label {
-    display: none;
-  }
-  .license-pill .value {
-    max-width: 100%;
   }
   .dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 154px), 1fr));
@@ -237,7 +166,6 @@
 @media (max-width: 1279px) {
   .workspace-tabs,
   .workspace-tools,
-  .auth-strip,
   .header-right {
     width: 100%;
     justify-content: flex-start;
@@ -245,26 +173,11 @@
   .workspace-tabs button,
   .workspace-tools button,
   .platform-button,
-  .auth-strip button {
-    flex: 1 1 92px;
-    max-width: none;
-  }
 }
 
 @media (max-width: 760px) {
-  .auth-strip {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-  .auth-strip.needs-key {
-    width: 100%;
-  }
-  .auth-strip input,
   .auth-remember {
     grid-column: 1 / -1;
-  }
-  .auth-strip.needs-key button {
-    max-width: none;
   }
 }
 
@@ -394,7 +307,6 @@ header.platform-header {
 }
 
 .status-badge,
-.license-pill,
 .api-key-toggle,
 .platform-button,
 .workspace-tabs button,
@@ -423,12 +335,6 @@ header.platform-header {
 .workflow-filter-bar button,
 .ground-truth-toolbar button,
 .detail-drawer button,
-.auth-strip button {
-  background: var(--forensic-surface-2) !important;
-  border-color: var(--forensic-line-strong) !important;
-  color: var(--forensic-text) !important;
-  box-shadow: none !important;
-}
 
 .platform-button:hover,
 .workspace-tabs button:hover,
@@ -441,11 +347,6 @@ header.platform-header {
 .workflow-filter-bar button:hover,
 .ground-truth-toolbar button:hover,
 .detail-drawer button:hover,
-.auth-strip button:hover {
-  border-color: var(--forensic-cyan) !important;
-  color: #f4fbfd !important;
-  transform: translateY(-1px);
-}
 
 button.btn-primary,
 .workspace-tabs button.active,
@@ -470,13 +371,7 @@ button[data-action-kind="warning"] {
   color: #ffe2ab !important;
 }
 
-.auth-strip {
-  background: rgba(16, 22, 29, 0.92);
-  border-color: var(--forensic-line);
-  border-radius: 8px;
-}
 
-.auth-strip input,
 input,
 textarea,
 select {

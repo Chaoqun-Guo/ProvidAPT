@@ -6,7 +6,7 @@ Version: `v1.2.1`
 
 ## Summary
 
-This release moves ProvidAPT into a cleaner commercial-release posture by aligning release automation, product documentation, deployment defaults, and release-scoped quality gates.
+This release moves ProvidAPT into a cleaner open-source-release posture by aligning release automation, product documentation, deployment defaults, and release-scoped quality gates.
 
 ## Highlights
 

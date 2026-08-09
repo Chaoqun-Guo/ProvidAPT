@@ -6,7 +6,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/hmac"
@@ -185,11 +184,6 @@ type securityState struct {
 	summary api.SecurityStatus
 }
 
-type licenseState struct {
-	mu      sync.RWMutex
-	summary api.LicenseStatus
-}
-
 type upgradeState struct {
 	mu      sync.RWMutex
 	summary api.UpgradeReadiness
@@ -211,40 +205,6 @@ type approvalStore struct {
 type persistedApprovals struct {
 	Counter uint64               `json:"counter"`
 	Items   []api.ChangeApproval `json:"items"`
-}
-
-type licenseDocument struct {
-	ID                 string `json:"id" yaml:"id"`
-	ActivationKey      string `json:"activation_key,omitempty" yaml:"activation_key,omitempty"`
-	Customer           string `json:"customer" yaml:"customer"`
-	Edition            string `json:"edition" yaml:"edition"`
-	MaxAgents          int    `json:"max_agents" yaml:"max_agents"`
-	MachineFingerprint string `json:"machine_fingerprint" yaml:"machine_fingerprint"`
-	IssuedAt           string `json:"issued_at" yaml:"issued_at"`
-	ExpiresAt          string `json:"expires_at" yaml:"expires_at"`
-	Signature          string `json:"signature" yaml:"signature"`
-}
-
-type revocationPayload struct {
-	RevokedIDs []string `json:"revoked_ids" yaml:"revoked_ids"`
-}
-
-type activationServerRequest struct {
-	ActivationCode     string `json:"activation_code"`
-	Customer           string `json:"customer,omitempty"`
-	Edition            string `json:"edition,omitempty"`
-	MaxAgents          int    `json:"max_agents,omitempty"`
-	MachineFingerprint string `json:"machine_fingerprint"`
-	ValidDays          int    `json:"valid_days,omitempty"`
-}
-
-type activationServerResponse struct {
-	Status        string          `json:"status"`
-	Message       string          `json:"message"`
-	RequestID     string          `json:"request_id,omitempty"`
-	ActivationKey string          `json:"activation_key,omitempty"`
-	LicenseData   string          `json:"license_data"`
-	License       licenseDocument `json:"license"`
 }
 
 type upgradeManifestDocument struct {
@@ -391,30 +351,6 @@ func (s *securityState) snapshot() api.SecurityStatus {
 }
 
 func (s *securityState) update(summary api.SecurityStatus) {
-	if s == nil {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.summary = summary
-}
-
-func (s *licenseState) snapshot() api.LicenseStatus {
-	if s == nil {
-		return api.LicenseStatus{}
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := s.summary
-	if out.History != nil {
-		history := make([]api.ControlActionAudit, len(out.History))
-		copy(history, out.History)
-		out.History = history
-	}
-	return out
-}
-
-func (s *licenseState) update(summary api.LicenseStatus) {
 	if s == nil {
 		return
 	}
@@ -651,103 +587,6 @@ func (s *approvalStore) expireLocked(now time.Time) {
 	}
 }
 
-func parseLicenseDocument(data []byte) (licenseDocument, error) {
-	var doc licenseDocument
-	trimmed := strings.TrimSpace(string(data))
-	if trimmed == "" {
-		return doc, fmt.Errorf("license file is empty")
-	}
-	if strings.HasPrefix(trimmed, "{") {
-		if err := json.Unmarshal(data, &doc); err != nil {
-			return doc, err
-		}
-		return doc, nil
-	}
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return doc, err
-	}
-	return doc, nil
-}
-
-func licenseSignaturePayload(doc licenseDocument) string {
-	parts := []string{
-		"id=" + strings.TrimSpace(doc.ID),
-		"customer=" + strings.TrimSpace(doc.Customer),
-		"edition=" + strings.TrimSpace(doc.Edition),
-		"machine_fingerprint=" + strings.TrimSpace(doc.MachineFingerprint),
-		"issued_at=" + strings.TrimSpace(doc.IssuedAt),
-		"expires_at=" + strings.TrimSpace(doc.ExpiresAt),
-	}
-	if strings.TrimSpace(doc.ActivationKey) != "" {
-		parts = append([]string{parts[0], "activation_key=" + strings.TrimSpace(doc.ActivationKey)}, parts[1:]...)
-	}
-	if doc.MaxAgents > 0 {
-		parts = append(parts, "max_agents="+strconv.Itoa(doc.MaxAgents))
-	}
-	return strings.Join(parts, "\n")
-}
-
-func verifyLicenseSignature(doc licenseDocument, signingKey string) bool {
-	if strings.TrimSpace(doc.Signature) == "" || strings.TrimSpace(signingKey) == "" {
-		return false
-	}
-	mac := hmac.New(sha256.New, []byte(signingKey))
-	_, _ = mac.Write([]byte(licenseSignaturePayload(doc)))
-	expected := hex.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(strings.ToLower(strings.TrimSpace(doc.Signature))), []byte(expected))
-}
-
-func requestLicenseActivation(endpoint string, req activationServerRequest) (activationServerResponse, error) {
-	return postActivationServerRequest(endpoint, req, true)
-}
-
-func submitLicenseActivationRequest(endpoint string, req activationServerRequest) (activationServerResponse, error) {
-	return postActivationServerRequest(activationRequestEndpoint(endpoint), req, false)
-}
-
-func postActivationServerRequest(endpoint string, req activationServerRequest, requireLicenseData bool) (activationServerResponse, error) {
-	var result activationServerResponse
-	trimmedEndpoint := strings.TrimSpace(endpoint)
-	if trimmedEndpoint == "" {
-		return result, fmt.Errorf("license activation_url not configured")
-	}
-	body, err := json.Marshal(req)
-	if err != nil {
-		return result, err
-	}
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Post(trimmedEndpoint, "application/json", bytes.NewReader(body))
-	if err != nil {
-		return result, fmt.Errorf("contact activation server: %w", err)
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	if err != nil {
-		return result, fmt.Errorf("read activation response: %w", err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return result, fmt.Errorf("activation server returned %s: %s", resp.Status, strings.TrimSpace(string(data)))
-	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		return result, fmt.Errorf("decode activation response: %w", err)
-	}
-	if requireLicenseData && strings.TrimSpace(result.LicenseData) == "" {
-		return result, fmt.Errorf("activation response missing license_data")
-	}
-	return result, nil
-}
-
-func activationRequestEndpoint(endpoint string) string {
-	trimmed := strings.TrimSpace(endpoint)
-	if strings.HasSuffix(trimmed, "/v1/activate") {
-		return strings.TrimSuffix(trimmed, "/v1/activate") + "/v1/activation-requests"
-	}
-	if strings.HasSuffix(trimmed, "/v1") {
-		return strings.TrimRight(trimmed, "/") + "/activation-requests"
-	}
-	return strings.TrimRight(trimmed, "/") + "/activation-requests"
-}
-
 func fetchUpgradeManifest(endpoint string) (upgradeManifestDocument, error) {
 	var manifest upgradeManifestDocument
 	trimmedEndpoint := strings.TrimSpace(endpoint)
@@ -852,155 +691,6 @@ func verifyEd25519Signature(signaturePath, publicKeyPath, message string) (prese
 		return true, false, err
 	}
 	return true, ed25519.Verify(pub, []byte(message), signature), nil
-}
-
-func verifyEd25519InlineSignature(signatureValue, publicKeyPath, message string) (present bool, verified bool, err error) {
-	signatureValue = strings.TrimSpace(signatureValue)
-	if signatureValue == "" {
-		return false, false, nil
-	}
-	var signature []byte
-	if decoded, decodeErr := hex.DecodeString(signatureValue); decodeErr == nil {
-		signature = decoded
-	} else if decoded, decodeErr := base64.StdEncoding.DecodeString(signatureValue); decodeErr == nil {
-		signature = decoded
-	} else {
-		return true, false, fmt.Errorf("unsupported signature encoding")
-	}
-	pub, err := loadEd25519PublicKey(publicKeyPath)
-	if err != nil {
-		return true, false, err
-	}
-	return true, ed25519.Verify(pub, []byte(message), signature), nil
-}
-
-func parseFlexibleTime(value string) (time.Time, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return time.Time{}, fmt.Errorf("empty time")
-	}
-	layouts := []string{time.RFC3339, "2006-01-02"}
-	for _, layout := range layouts {
-		if parsed, err := time.Parse(layout, value); err == nil {
-			return parsed, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("unsupported time format: %s", value)
-}
-
-func loadRevokedIDs(cfg *config.Config) ([]string, string, bool, error) {
-	base := make([]string, 0, len(cfg.License.RevokedIDs))
-	base = append(base, cfg.License.RevokedIDs...)
-	revocationURL := strings.TrimSpace(cfg.License.RevocationURL)
-	cachePath := strings.TrimSpace(cfg.License.RevocationCache)
-	sigURL := strings.TrimSpace(cfg.License.RevocationSigURL)
-	sigCache := strings.TrimSpace(cfg.License.RevocationSigCache)
-	if revocationURL == "" {
-		if len(base) == 0 {
-			return base, "", false, nil
-		}
-		return dedupeStrings(base), "config:license.revoked_ids", false, nil
-	}
-
-	parsePayload := func(data []byte) ([]string, error) {
-		var payload revocationPayload
-		if err := json.Unmarshal(data, &payload); err == nil {
-			return payload.RevokedIDs, nil
-		}
-		if err := yaml.Unmarshal(data, &payload); err == nil {
-			return payload.RevokedIDs, nil
-		}
-		var direct []string
-		if err := json.Unmarshal(data, &direct); err == nil {
-			return direct, nil
-		}
-		if err := yaml.Unmarshal(data, &direct); err == nil {
-			return direct, nil
-		}
-		return nil, fmt.Errorf("unsupported revocation payload")
-	}
-
-	fetchRemote := func(url string) ([]byte, error) {
-		client := &http.Client{Timeout: 2 * time.Second}
-		resp, err := client.Get(url)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return nil, fmt.Errorf("revocation fetch status %d", resp.StatusCode)
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		return body, nil
-	}
-
-	writeCache := func(path string, body []byte) {
-		if strings.TrimSpace(path) == "" {
-			return
-		}
-		_ = os.MkdirAll(filepath.Dir(path), 0755)
-		_ = os.WriteFile(path, body, 0644)
-	}
-
-	if strings.HasPrefix(strings.ToLower(revocationURL), "http://") || strings.HasPrefix(strings.ToLower(revocationURL), "https://") {
-		if body, err := fetchRemote(revocationURL); err == nil {
-			if sigURL == "" && strings.TrimSpace(cfg.License.PublicKeyPath) != "" {
-				sigURL = revocationURL + ".sig"
-			}
-			if sigCache == "" && cachePath != "" {
-				sigCache = cachePath + ".sig"
-			}
-			if strings.TrimSpace(cfg.License.PublicKeyPath) != "" && sigURL != "" {
-				sigBody, sigErr := fetchRemote(sigURL)
-				if sigErr != nil {
-					return dedupeStrings(base), "config:license.revoked_ids", false, sigErr
-				}
-				writeCache(sigCache, sigBody)
-				if err := os.WriteFile(filepath.Join(os.TempDir(), "providapt-revocation.sig"), sigBody, 0644); err == nil {
-					tmpSig := filepath.Join(os.TempDir(), "providapt-revocation.sig")
-					defer os.Remove(tmpSig)
-					present, verified, verifyErr := verifyEd25519Signature(tmpSig, cfg.License.PublicKeyPath, string(body))
-					if verifyErr != nil || !present || !verified {
-						if verifyErr == nil {
-							verifyErr = fmt.Errorf("revocation signature mismatch")
-						}
-						return dedupeStrings(base), "config:license.revoked_ids", false, verifyErr
-					}
-				}
-			}
-			writeCache(cachePath, body)
-			if ids, parseErr := parsePayload(body); parseErr == nil {
-				return dedupeStrings(append(base, ids...)), "remote:" + revocationURL, strings.TrimSpace(cfg.License.PublicKeyPath) != "", nil
-			} else {
-				return dedupeStrings(base), "config:license.revoked_ids", false, parseErr
-			}
-		} else if cachePath != "" {
-			if cached, readErr := os.ReadFile(cachePath); readErr == nil {
-				if strings.TrimSpace(cfg.License.PublicKeyPath) != "" && sigCache != "" {
-					present, verified, verifyErr := verifyEd25519Signature(sigCache, cfg.License.PublicKeyPath, string(cached))
-					if verifyErr != nil || !present || !verified {
-						return dedupeStrings(base), "config:license.revoked_ids", false, err
-					}
-				}
-				if ids, parseErr := parsePayload(cached); parseErr == nil {
-					return dedupeStrings(append(base, ids...)), "cache:" + cachePath, strings.TrimSpace(cfg.License.PublicKeyPath) != "", nil
-				}
-			}
-			return dedupeStrings(base), "config:license.revoked_ids", false, err
-		} else {
-			return dedupeStrings(base), "config:license.revoked_ids", false, err
-		}
-	}
-
-	if fileData, err := os.ReadFile(revocationURL); err == nil {
-		if ids, parseErr := parsePayload(fileData); parseErr == nil {
-			return dedupeStrings(append(base, ids...)), "file:" + revocationURL, false, nil
-		}
-	}
-	return dedupeStrings(base), "config:license.revoked_ids", false, nil
 }
 
 func dedupeStrings(values []string) []string {
@@ -1495,13 +1185,11 @@ func main() {
 	supportAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	backupAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	securityAudit := newControlActionAuditStore(controlActionHistoryLimit)
-	licenseAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	upgradeAudit := newControlActionAuditStore(controlActionHistoryLimit)
 	approvalBook := newPersistentApprovalStore(filepath.Join(cfg.Output.Dir, "compliance", "approvals.json"), controlActionHistoryLimit)
 	supportState := &supportBundleState{}
 	backupSummaryState := &backupState{}
 	securitySummaryState := &securityState{}
-	licenseSummaryState := &licenseState{}
 	upgradeSummaryState := &upgradeState{}
 	complianceSummaryState := &complianceState{}
 	apiServer.SetAPIAuth(cfg.API.AuthKeys, cfg.API.AuthRoles, cfg.API.AuthIdentities, cfg.API.AuthEnabled)
@@ -2575,308 +2263,6 @@ func main() {
 	defer auditRetentionStop()
 	complianceReportStop := startComplianceReportScheduler(cfg, complianceReportDir, buildComplianceStatus, complianceSummaryState)
 	defer complianceReportStop()
-	reportingAgentCount := func() int {
-		agents := map[string]struct{}{}
-		local := buildTelemetrySummary()
-		if strings.TrimSpace(local.AgentID) != "" {
-			agents[local.AgentID] = struct{}{}
-		}
-		if mgmtServer != nil {
-			for _, agent := range mgmtServer.FleetSnapshot(mgmt.FleetFilter{}) {
-				if strings.TrimSpace(agent.AgentID) != "" {
-					agents[agent.AgentID] = struct{}{}
-				}
-			}
-		}
-		return len(agents)
-	}
-	inspectLicense := func() api.LicenseStatus {
-		summary := api.LicenseStatus{
-			UpdatedAt:          time.Now().UTC().Format(time.RFC3339),
-			Path:               strings.TrimSpace(cfg.License.Path),
-			CurrentVersion:     version.String(),
-			MachineFingerprint: machineFingerprint(),
-			History:            licenseAudit.snapshot(),
-			GracePeriodDays:    cfg.License.GracePeriodDays,
-			MaxAgents:          cfg.License.MaxAgents,
-			ReportingAgents:    reportingAgentCount(),
-			SignaturePresent:   false,
-			SignatureVerified:  false,
-			ActivationURL:      strings.TrimSpace(cfg.License.ActivationURL),
-		}
-		if cached := licenseSummaryState.snapshot(); cached.LastValidatedAt != "" {
-			summary.LastValidatedAt = cached.LastValidatedAt
-			summary.LastError = cached.LastError
-		}
-		if summary.Path == "" {
-			summary.LastError = "license path not configured"
-			return summary
-		}
-		info, err := os.Stat(summary.Path)
-		if err != nil {
-			summary.LastError = err.Error()
-			return summary
-		}
-		summary.Present = true
-		summary.SizeBytes = info.Size()
-		summary.ModifiedAt = info.ModTime().UTC().Format(time.RFC3339)
-		data, err := os.ReadFile(summary.Path)
-		if err != nil {
-			summary.LastError = err.Error()
-			return summary
-		}
-		doc, err := parseLicenseDocument(data)
-		if err != nil {
-			return summary
-		}
-		summary.LicenseID = strings.TrimSpace(doc.ID)
-		summary.Customer = strings.TrimSpace(doc.Customer)
-		summary.Edition = strings.TrimSpace(doc.Edition)
-		if doc.MaxAgents > 0 {
-			summary.MaxAgents = doc.MaxAgents
-		}
-		if summary.MaxAgents > 0 {
-			summary.SeatsAvailable = summary.MaxAgents - summary.ReportingAgents
-			if summary.SeatsAvailable < 0 {
-				summary.SeatLimitExceeded = true
-				if summary.LastError == "" {
-					summary.LastError = "license agent seat limit exceeded"
-				}
-			}
-		}
-		summary.BoundFingerprint = strings.TrimSpace(doc.MachineFingerprint)
-		summary.BindingVerified = summary.BoundFingerprint == "" || strings.EqualFold(summary.BoundFingerprint, summary.MachineFingerprint)
-		if !summary.BindingVerified {
-			summary.LastError = "license machine fingerprint mismatch"
-		}
-		summary.IssuedAt = strings.TrimSpace(doc.IssuedAt)
-		summary.ExpiresAt = strings.TrimSpace(doc.ExpiresAt)
-		summary.SignaturePresent = strings.TrimSpace(doc.Signature) != ""
-		revokedIDs, revocationSource, revocationVerified, revokeErr := loadRevokedIDs(cfg)
-		summary.RevocationCheckedAt = time.Now().UTC().Format(time.RFC3339)
-		summary.RevocationVerified = revocationVerified
-		if revokeErr != nil && summary.LastError == "" {
-			summary.LastError = revokeErr.Error()
-		}
-		for _, revokedID := range revokedIDs {
-			if strings.EqualFold(strings.TrimSpace(revokedID), summary.LicenseID) && summary.LicenseID != "" {
-				summary.Revoked = true
-				summary.RevocationSource = revocationSource
-				summary.LastError = "license has been revoked"
-				break
-			}
-		}
-		if summary.ExpiresAt != "" {
-			expiresAt, parseErr := parseFlexibleTime(summary.ExpiresAt)
-			if parseErr != nil {
-				summary.LastError = parseErr.Error()
-			} else {
-				days := int(time.Until(expiresAt).Hours() / 24)
-				summary.DaysRemaining = days
-				summary.Expired = expiresAt.Before(time.Now())
-				if summary.Expired && summary.GracePeriodDays > 0 {
-					graceDeadline := expiresAt.Add(time.Duration(summary.GracePeriodDays) * 24 * time.Hour)
-					if graceDeadline.After(time.Now()) {
-						summary.InGracePeriod = true
-					}
-				}
-			}
-		}
-		if summary.SignaturePresent {
-			publicKeyPath := strings.TrimSpace(cfg.License.PublicKeyPath)
-			if publicKeyPath != "" {
-				present, verified, verifyErr := verifyEd25519InlineSignature(doc.Signature, publicKeyPath, licenseSignaturePayload(doc))
-				summary.SignaturePresent = present
-				summary.SignatureVerified = verified
-				if verifyErr != nil {
-					summary.LastError = verifyErr.Error()
-				} else if !verified {
-					summary.LastError = "license signature mismatch"
-				}
-			} else if strings.TrimSpace(cfg.License.SigningKey) == "" {
-				summary.LastError = "license signing key not configured"
-			} else {
-				summary.SignatureVerified = verifyLicenseSignature(doc, cfg.License.SigningKey)
-				if !summary.SignatureVerified {
-					summary.LastError = "license signature mismatch"
-				}
-			}
-		}
-		return summary
-	}
-	apiServer.SetLicenseStatusFunc(func() api.LicenseStatus {
-		summary := inspectLicense()
-		licenseSummaryState.update(summary)
-		return summary
-	})
-	apiServer.SetLicenseActionFunc(func(req api.LicenseActionRequest) (api.LicenseActionResult, error) {
-		action := strings.ToLower(strings.TrimSpace(req.Action))
-		if action == "" {
-			action = "validate"
-		}
-		activatedOnline := false
-		if action == "request_activation" || action == "activation_request" {
-			activationURL := firstNonEmpty(strings.TrimSpace(req.ActivationURL), strings.TrimSpace(cfg.License.ActivationURL))
-			activation, err := submitLicenseActivationRequest(activationURL, activationServerRequest{
-				ActivationCode:     strings.TrimSpace(req.ActivationCode),
-				Customer:           strings.TrimSpace(req.Customer),
-				Edition:            strings.TrimSpace(req.Edition),
-				MaxAgents:          req.MaxAgents,
-				MachineFingerprint: machineFingerprint(),
-				ValidDays:          req.ValidityDays,
-			})
-			if err != nil {
-				licenseAudit.record("license_request_activation", req.Actor, req.Role, activationURL, req.Note, "failed", err.Error())
-				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
-			}
-			message := firstNonEmpty(activation.Message, "activation request submitted")
-			licenseAudit.record("license_request_activation", req.Actor, req.Role, activation.RequestID, req.Note, activation.Status, message)
-			logControlAudit(auditStore, "license", "license_request_activation", req.Actor, req.Role, activation.RequestID, req.Note, activation.Status, message)
-			return api.LicenseActionResult{
-				Status:      firstNonEmpty(activation.Status, "pending"),
-				Message:     message,
-				RequestID:   activation.RequestID,
-				ValidatedAt: time.Now().UTC().Format(time.RFC3339),
-			}, nil
-		}
-		if action == "activate" || action == "activate_online" {
-			activationURL := firstNonEmpty(strings.TrimSpace(req.ActivationURL), strings.TrimSpace(cfg.License.ActivationURL))
-			activation, err := requestLicenseActivation(activationURL, activationServerRequest{
-				ActivationCode:     strings.TrimSpace(req.ActivationCode),
-				Customer:           strings.TrimSpace(req.Customer),
-				Edition:            strings.TrimSpace(req.Edition),
-				MaxAgents:          req.MaxAgents,
-				MachineFingerprint: machineFingerprint(),
-				ValidDays:          req.ValidityDays,
-			})
-			if err != nil {
-				licenseAudit.record("license_activate", req.Actor, req.Role, activationURL, req.Note, "failed", err.Error())
-				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
-			}
-			req.LicenseData = activation.LicenseData
-			licenseAudit.record("license_activate", req.Actor, req.Role, activation.License.ID, req.Note, "issued", firstNonEmpty(activation.Message, "license issued"))
-			logControlAudit(auditStore, "license", "license_activate", req.Actor, req.Role, activation.License.ID, req.Note, "issued", firstNonEmpty(activation.Message, "license issued"))
-			action = "import"
-			activatedOnline = true
-		}
-		if action == "import" || action == "renew" || action == "activate_offline" {
-			targetPath := strings.TrimSpace(req.LicensePath)
-			if targetPath == "" {
-				targetPath = strings.TrimSpace(cfg.License.Path)
-			}
-			if targetPath == "" {
-				targetPath = filepath.Join(cfg.Output.Dir, "license.lic")
-				cfg.License.Path = targetPath
-			}
-			if !pathWithin(cfg.Output.Dir, targetPath) && !pathWithin("/etc/providapt", targetPath) {
-				err := fmt.Errorf("license_path must stay within output dir or /etc/providapt")
-				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
-				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
-			}
-			data := strings.TrimSpace(req.LicenseData)
-			if data == "" {
-				err := fmt.Errorf("license_data is required")
-				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
-				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
-			}
-			if err := os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
-				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
-				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
-			}
-			if err := os.WriteFile(targetPath, []byte(data+"\n"), 0640); err != nil {
-				licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "failed", err.Error())
-				return api.LicenseActionResult{Status: "failed", Message: err.Error(), ValidatedAt: time.Now().UTC().Format(time.RFC3339)}, err
-			}
-			cfg.License.Path = targetPath
-			importMessage := "offline license imported"
-			if activatedOnline {
-				importMessage = "online license activated and imported"
-			}
-			licenseAudit.record("license_import", req.Actor, req.Role, targetPath, req.Note, "imported", importMessage)
-			logControlAudit(auditStore, "license", "license_import", req.Actor, req.Role, targetPath, req.Note, "imported", importMessage)
-			action = "validate"
-		}
-		if action != "validate" && action != "refresh" {
-			err := fmt.Errorf("unsupported license action: %s", req.Action)
-			licenseAudit.record("license_validate", req.Actor, req.Role, cfg.License.Path, req.Note, "failed", err.Error())
-			return api.LicenseActionResult{
-				Status:      "failed",
-				Message:     err.Error(),
-				ValidatedAt: time.Now().UTC().Format(time.RFC3339),
-			}, err
-		}
-		summary := inspectLicense()
-		validatedAt := time.Now().UTC().Format(time.RFC3339)
-		summary.LastValidatedAt = validatedAt
-		if summary.Present && summary.BindingVerified && !summary.SeatLimitExceeded && !summary.Revoked && (!summary.Expired || summary.InGracePeriod) && (summary.SignaturePresent == false || summary.SignatureVerified) && (summary.LastError == "" || summary.InGracePeriod) {
-			summary.LastError = ""
-			message := "license file validated"
-			if summary.InGracePeriod {
-				message = "license validated within grace period"
-			}
-			licenseAudit.record("license_validate", req.Actor, req.Role, summary.Path, req.Note, "validated", message)
-			if auditStore != nil {
-				_ = auditStore.Log(audit.Entry{
-					Category: audit.CatAdmin,
-					Severity: "INFO",
-					Message:  message,
-					Source:   "license",
-					Details: map[string]interface{}{
-						"path":                summary.Path,
-						"actor":               req.Actor,
-						"role":                req.Role,
-						"note":                req.Note,
-						"size_bytes":          summary.SizeBytes,
-						"license_id":          summary.LicenseID,
-						"machine_fingerprint": summary.MachineFingerprint,
-						"grace":               summary.InGracePeriod,
-					},
-				})
-			}
-		} else {
-			licenseAudit.record("license_validate", req.Actor, req.Role, summary.Path, req.Note, "failed", summary.LastError)
-			if auditStore != nil {
-				_ = auditStore.Log(audit.Entry{
-					Category: audit.CatAdmin,
-					Severity: "WARNING",
-					Message:  "License validation failed",
-					Source:   "license",
-					Details: map[string]interface{}{
-						"path":  summary.Path,
-						"actor": req.Actor,
-						"role":  req.Role,
-						"note":  req.Note,
-						"error": summary.LastError,
-					},
-				})
-			}
-		}
-		summary.History = licenseAudit.snapshot()
-		licenseSummaryState.update(summary)
-		result := api.LicenseActionResult{
-			Status:            "validated",
-			Message:           "license file validated",
-			ValidatedAt:       validatedAt,
-			ExpiresAt:         summary.ExpiresAt,
-			GracePeriodDays:   summary.GracePeriodDays,
-			InGracePeriod:     summary.InGracePeriod,
-			Revoked:           summary.Revoked,
-			SignatureVerified: summary.SignatureVerified,
-			BindingVerified:   summary.BindingVerified,
-		}
-		if summary.InGracePeriod {
-			result.Message = "license validated within grace period"
-		}
-		if !summary.Present || !summary.BindingVerified || summary.SeatLimitExceeded || summary.Revoked || (summary.Expired && !summary.InGracePeriod) || (summary.SignaturePresent && !summary.SignatureVerified) || (summary.LastError != "" && !summary.InGracePeriod) {
-			result.Status = "failed"
-			result.Message = summary.LastError
-			if result.Message == "" && summary.Expired {
-				result.Message = "license has expired"
-			}
-			return result, fmt.Errorf("%s", result.Message)
-		}
-		return result, nil
-	})
 	apiServer.SetUpgradeReadinessFunc(func() api.UpgradeReadiness {
 		cached := upgradeSummaryState.snapshot()
 		summary := inspectUpgradePackage(
@@ -4908,7 +4294,7 @@ func writeComplianceHTMLReport(dir string, status api.ComplianceStatus) (string,
 	}
 	body := "<!doctype html><html><head><meta charset=\"utf-8\"><title>ProvidAPT Compliance Report</title>" +
 		"<style>body{font-family:Arial,sans-serif;margin:32px;color:#1f2937}h1{color:#0f62fe}table{border-collapse:collapse;width:100%;max-width:960px}th,td{border:1px solid #d0d7de;padding:8px;text-align:left}th{width:220px;background:#f6f8fa}.muted{color:#57606a}</style>" +
-		"</head><body><h1>ProvidAPT Compliance Report</h1><p class=\"muted\">Generated for audit review and commercial release evidence.</p><table>" +
+		"</head><body><h1>ProvidAPT Compliance Report</h1><p class=\"muted\">Generated for audit review and open-source release evidence.</p><table>" +
 		strings.Join(rows, "") + "</table><h2>Recommended Actions</h2>" + recommendations + "</body></html>\n"
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		return "", err

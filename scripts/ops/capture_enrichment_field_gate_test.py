@@ -62,7 +62,7 @@ class CaptureEnrichmentFieldGateTest(unittest.TestCase):
             {
                 "type": "net_connect",
                 "process": {"pid": 100, "ppid": 1, "uid": 1000, "gid": 1000},
-                "payload": {"src_ip": "10.0.0.2", "dst_ip": "10.0.0.3", "dst_port": 443},
+                "payload": {"src_ip": "10.0.0.2", "dst_ip": "10.0.0.3", "src_port": 38112, "dst_port": 443, "protocol": 6},
             },
         ]
 
@@ -70,6 +70,15 @@ class CaptureEnrichmentFieldGateTest(unittest.TestCase):
         path = self.write_events("events.ndjson", self.complete_events())
         report = subject.build_report(self.args(path))
         self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["summary"]["field_rates"]["network_tuple_percent"], 100.0)
+
+    def test_accepts_normalized_kernel_network_payload(self):
+        path = self.write_events("events.ndjson", [{
+            "type": "net_connect",
+            "process": {"pid": 100, "ppid": 1, "uid": 1000, "gid": 1000, "cmdline": "curl http://example", "exe_path": "/usr/bin/curl"},
+            "payload": {"saddr": 1, "daddr": 2, "sport": 12345, "dport": 80, "protocol": 6},
+        }])
+        report = subject.build_report(self.args(path, min_pathname_rate=0))
         self.assertEqual(report["summary"]["field_rates"]["network_tuple_percent"], 100.0)
 
     def test_blocks_missing_required_fields(self):

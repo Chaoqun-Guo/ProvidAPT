@@ -393,10 +393,14 @@ make visual-regression-snapshots \
 ```
 
 The helper writes PNG screenshots plus JSON/Markdown manifests under
-`build/visual-regression/` for `1366x768`, `1920x1080`, and ultrawide
-viewports. Pass `BASELINE=build/visual-regression/visual-regression-snapshots.json`
-to compare current screenshot hashes against a previous manifest. Use
-`DRY_RUN=1` to validate the screenshot plan without launching a browser.
+`build/visual-regression/` for mobile `390x844`, `1366x768`, `1920x1080`,
+and ultrawide `2560x1080` viewports. Dashboard captures run DOM overflow
+assertions for horizontal document overflow, element bounds, and text overflow.
+Trace Viewer captures run browser assertions for rendered SVG presence, layout
+mode controls, PNG/SVG/raw export controls, and report links. Pass
+`BASELINE=build/visual-regression/visual-regression-snapshots.json` to compare
+current screenshot hashes against a previous manifest. Use `DRY_RUN=1` to
+validate the screenshot plan without launching a browser.
 
 Gate captured screenshot evidence before release:
 
@@ -406,11 +410,30 @@ make visual-regression-gate \
 ```
 
 The gate requires captured dashboard and Trace Viewer screenshots for
-`1366x768`, `1920x1080`, and `2560x1080`, verifies screenshot files and hashes
-are present, and blocks baseline changes unless `WARN_ON_VISUAL_CHANGED=1` is
-set for a controlled review. Dashboard responsive rules live in the embedded
-static asset `pkg/api/static/dashboard-responsive.css`, served at
-`/assets/dashboard-responsive.css`.
+`390x844`, `1366x768`, `1920x1080`, and `2560x1080`, verifies screenshot files
+and hashes are present, and blocks failed DOM assertions. Baseline hash changes
+block unless `WARN_ON_VISUAL_CHANGED=1` is set for a controlled review.
+Dashboard responsive rules live in the embedded static assets
+`pkg/api/static/dashboard.css`, `pkg/api/static/dashboard-responsive.css`, and
+`pkg/api/static/dashboard.js`, served at `/assets/dashboard.css`,
+`/assets/dashboard-responsive.css`, and `/assets/dashboard.js`. Trace Viewer
+styles and behavior live in `pkg/api/static/trace-viewer.css` and
+`pkg/api/static/trace-viewer.js`, served at `/assets/trace-viewer.css` and
+`/assets/trace-viewer.js`.
+
+Collect real API stress evidence for larger Trace SVGs and layout modes:
+
+```bash
+make trace-svg-stress \
+  PROVIDAPT_SERVER_URL=http://<server>:18080 \
+  ALERT_IDS="p:100 p:200" \
+  MAX_LATENCY_MS=1500 \
+  MIN_TRACE_NODES=25
+```
+
+The report requests each alert with `tree`, `compact`, `timeline`, and
+`grouped` layouts, then records latency, SVG dimensions, byte size, node count,
+edge count, and folded cluster count under `build/trace-stress/`.
 
 Validate capture/enrichment field coverage from VM or evaluation NDJSON before
 training or customer evidence review:
@@ -425,20 +448,27 @@ The report checks event type, PID/PPID, UID/GID, command line, executable path,
 file pathname, and network tuple coverage, then writes JSON/Markdown evidence
 under `build/capture-quality/`.
 
-Gate activation-server integration evidence before commercialization review:
+For release evidence from the three Tailscale-connected VMs, collect real
+`providapt-*.ndjson` files over SSH/SCP and run the same field gate:
 
 ```bash
-make activation-server-gate \
-  CUSTOMER_REGISTRY=build/auth/customers.json \
-  ACTIVATION_AUDIT=build/auth/activations.jsonl
+make collect-vm-capture-evidence \
+  PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" \
+  REMOTE_DIR=/var/log/providapt \
+  SSH_TIMEOUT_SECONDS=15 \
+  CAPTURE_GATE_TIMEOUT_SECONDS=60 \
+  MAX_VM_EVENT_FILES=5 \
+  VM_EVENT_LINES=5000 \
+  VM_NETWORK_LINES=200 \
+  OUT_DIR=build/vm-capture-evidence
 ```
 
-For a live auth server probe, add `AUTH_SERVER_URL`, `ACTIVATION_CODE`, and a
-test `MACHINE_FINGERPRINT`; add `NEGATIVE_FINGERPRINT` when the registry should
-reject an unentitled machine. The gate validates entitlement completeness,
-fingerprint scoping, issued/rejected audit records, hashed activation-code
-audit evidence, and optional live activation responses without writing raw
-activation codes to its report.
+This command samples the latest VM event files into `build/vm-capture-evidence/`,
+also extracts recent `net_*` lines from the same files so network tuple coverage
+is exercised, aggregates them into a local evidence directory, and writes
+`vm-capture-evidence.json`, `vm-capture-evidence.md`,
+`capture-enrichment-field-gate.json`, and
+`capture-enrichment-field-gate.md`. Do not commit the copied NDJSON files.
 
 Aggregate enterprise delivery evidence after release gates, secret backend
 handoff, PostgreSQL drills, detection quality, RBAC audit, and scheduled report
@@ -501,12 +531,43 @@ deployment diagnostics, installation handoff, observability pack, visual
 regression, capture/enrichment coverage, or security hardening evidence is
 missing or failed.
 
-Close commercialization readiness with activation evidence included:
+Close open-source readiness after operations, enterprise, onboarding, and release evidence are generated:
 
 ```bash
-make commercialization-readiness-gate \
-  ACTIVATION_SERVER_GATE=build/activation/activation-server-gate.json
+make open-source-readiness-gate
 ```
+
+For customer or production-environment certification, aggregate harder
+environment-specific evidence into one gate:
+
+```bash
+make customer-env-certification-gate \
+  RBAC_AUDIT=build/rbac/rbac-audit.json \
+  POLICY_APPROVAL_GATE=build/policy-approval/policy-approval-gate.json \
+  AUDIT_EXPORT=build/audit/audit-export.csv \
+  ROLE_REVIEW=docs/project/role-review.md \
+  SIEM_VERIFY=build/siem/siem-verification.json \
+  SIEM_CERTIFICATION=build/siem/customer-siem-certification.json \
+  UPGRADE_ROLLOUT=build/upgrade/rollout-plan.json \
+  SOAK_READINESS=build/performance/soak-readiness.json \
+  PRODUCTION_READINESS_GATE=build/production-readiness/production-readiness-gate.json \
+  DEPLOYMENT_DIAGNOSTICS_GATE=build/deploy/deployment-diagnostics-gate.json \
+  BACKUP_READINESS_GATE=build/backup/backup-readiness-gate.json \
+  ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json \
+  REQUIRE_DELEGATED_ADMIN=1 \
+  REQUIRE_AUDIT_EXPORT=1 \
+  REQUIRE_ROLE_REVIEW=1 \
+  REQUIRE_SIEM_CERTIFICATION=1 \
+  REQUIRE_TLS=1 \
+  REQUIRE_STATE_BACKEND=1 \
+  REQUIRED_ONBOARDING_CHECKS="tailscale ssh api tls"
+```
+
+This gate blocks missing or stale proof for delegated admin/custom roles,
+cross-tenant scoping, audit export, SIEM/SOAR retry/backpressure/field mapping,
+fleet canary/pause/resume/rollback planning, 24-hour soak budgets, TLS/state
+backend/backup evidence, plugin signing and permission models, and onboarding
+environment checks.
 
 For large investigations, the dashboard graph summary groups nodes into
 clusters and high-degree hubs. Use `Inspect` to view a collapsed cluster,
@@ -532,7 +593,8 @@ make onboarding-wizard \
 ```
 
 The onboarding bundle includes a production-oriented starter config, checklist,
-and manifest that can be attached to customer handoff evidence.
+environment checks for Tailscale/SSH/API/TLS/secrets/PostgreSQL, and manifest
+that can be attached to customer handoff evidence.
 
 ## 9. Commercialization Readiness
 
@@ -545,10 +607,10 @@ make plugin-release-gate \
   PLUGIN_SIGNATURE=plugins/example/plugin.json.sig
 ```
 
-Close commercialization readiness with the commercialization readiness gate:
+Close open-source readiness with the open-source readiness gate:
 
 ```bash
-make commercialization-readiness-gate \
+make open-source-readiness-gate \
   OPERATIONS_READINESS_GATE=build/operations-readiness/operations-readiness-gate.json \
   ENTERPRISE_READINESS=build/enterprise-readiness.json \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json \
@@ -556,7 +618,7 @@ make commercialization-readiness-gate \
   EXTERNAL_APPROVAL=docs/project/external-approval-request-v1.2.3-rc.1.md
 ```
 
-The commercialization readiness gate verifies customer handoff documentation, onboarding artifacts,
+The open-source readiness gate verifies customer handoff documentation, onboarding artifacts,
 external approval evidence, enterprise readiness, and optional plugin release
 gates. Missing plugin evidence is a warning when no plugins are shipped; failed
 plugin evidence blocks release.

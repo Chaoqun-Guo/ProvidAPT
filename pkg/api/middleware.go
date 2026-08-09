@@ -256,9 +256,6 @@ func allowed(role, method, path string, rolePermissions map[string][]string) boo
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/deliveries") {
 			return false
 		}
-		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/license") {
-			return false
-		}
 		if method == http.MethodPost && strings.HasPrefix(path, "/api/v1/control/upgrade") {
 			return false
 		}
@@ -283,6 +280,8 @@ func allowed(role, method, path string, rolePermissions map[string][]string) boo
 				strings.HasPrefix(path, "/api/v1/control/deliveries") ||
 				strings.HasPrefix(path, "/api/v1/control/upgrade") ||
 				strings.HasPrefix(path, "/api/v1/investigation/report") ||
+				strings.HasPrefix(path, "/assets/dashboard") ||
+				strings.HasPrefix(path, "/assets/trace-viewer") ||
 				strings.HasPrefix(path, "/dashboard") ||
 				path == "/"
 		}
@@ -310,13 +309,14 @@ func allowed(role, method, path string, rolePermissions map[string][]string) boo
 			strings.HasPrefix(path, "/api/v1/control/compliance") ||
 			strings.HasPrefix(path, "/api/v1/control/security") ||
 			strings.HasPrefix(path, "/api/v1/control/audit") ||
-			strings.HasPrefix(path, "/api/v1/control/license") ||
 			strings.HasPrefix(path, "/api/v1/control/upgrade") ||
 			strings.HasPrefix(path, "/api/v1/control/policies") ||
 			strings.HasPrefix(path, "/api/v1/control/alerts") ||
 			strings.HasPrefix(path, "/api/v1/control/deliveries") ||
 			strings.HasPrefix(path, "/api/v1/alerts") ||
 			strings.HasPrefix(path, "/api/v1/investigation/report") ||
+			strings.HasPrefix(path, "/assets/dashboard") ||
+			strings.HasPrefix(path, "/assets/trace-viewer") ||
 			strings.HasPrefix(path, "/dashboard") ||
 			path == "/"
 	default:
@@ -331,7 +331,9 @@ func isPublicDashboardPath(method, path string) bool {
 	if strings.HasPrefix(path, "/api/v1/alerts/") && strings.HasSuffix(path, "/svg/view") {
 		return true
 	}
-	return path == "/" || path == "/dashboard" || path == "/assets/dashboard-responsive.css"
+	return path == "/" || path == "/dashboard" ||
+		path == "/assets/dashboard.css" || path == "/assets/dashboard-responsive.css" || path == "/assets/dashboard.js" ||
+		path == "/assets/trace-viewer.css" || path == "/assets/trace-viewer.js"
 }
 
 func allowedByCustomPermissions(role, method, path string, rolePermissions map[string][]string) bool {

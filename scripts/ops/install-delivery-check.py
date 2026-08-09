@@ -12,7 +12,7 @@ SCHEMA = "providapt.install_delivery_check.v1"
 REQUIRED_BINS = ["providaptd", "providaptctl", "providapt-verify"]
 REQUIRED_DOCS = [
     "docs/getting-started/install.md",
-    "docs/getting-started/commercial-install.md",
+    "docs/getting-started/docker-compose.md",
     "docs/user-guide/operations.md",
     "docs/user-guide/troubleshooting.md",
 ]

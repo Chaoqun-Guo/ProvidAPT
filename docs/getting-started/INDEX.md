@@ -9,10 +9,9 @@ This section explains how to install, evaluate, deploy, and operate ProvidAPT in
 | [quick-start.md](quick-start.md) | Fast path from install to dashboard, alerts, and provenance trace |
 | [ubuntu-development.md](ubuntu-development.md) | Ubuntu development environment setup and daily workflow |
 | [install.md](install.md) | Installation guide for source and package-based installs |
-| [commercial-install.md](commercial-install.md) | Commercial Linux installation, removal, upgrade, and preflight checks |
+| [install.md](install.md) | Linux installation, removal, upgrade, and preflight checks |
 | [secret-management.md](secret-management.md) | Production secret injection and validation |
 | [docker-compose.md](docker-compose.md) | Docker Compose deployment and operations |
-| [license-activation-server.md](license-activation-server.md) | Docker-based activation, revocation, and upgrade manifest service |
 | [helm.md](helm.md) | Helm install, upgrade, rollback, and uninstall workflows |
 | [deployment.md](deployment.md) | Production deployment guide |
 | [evaluation.md](evaluation.md) | Customer evaluation and proof-of-concept guide |
