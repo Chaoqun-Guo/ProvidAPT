@@ -442,6 +442,8 @@ func TestDashboardGroundTruthPanel(t *testing.T) {
 		"providapt.attack_coverage.v1",
 		"/api/v1/evaluation/ground-truth?limit=500",
 		"/api/v1/evaluation/correlation?limit=200",
+		"Server ground truth requires local API access. Use Load Local JSONL for local evidence files.",
+		"Server correlation requires local API access; using browser-loaded ground truth when available.",
 		"parseGroundTruthJSONL",
 		"renderGroundTruthRecord",
 		"renderGroundTruthCorrelation",
@@ -502,7 +504,8 @@ func TestDashboardAPIErrorObservability(t *testing.T) {
 		"function reportAPIError",
 		"function clearAPIStatus",
 		"function apiErrorHint",
-		"function isBackgroundControlRead",
+		"function isBackgroundProtectedRead",
+		"function isBackgroundProtectedPath",
 		"function isAuthzError",
 		"Check local API access and role permissions.",
 		"Check daemon health, network access, and server logs.",
@@ -517,10 +520,12 @@ func TestDashboardAPIErrorObservability(t *testing.T) {
 	}
 }
 
-func TestDashboardControlReadAuthzIsModuleScoped(t *testing.T) {
+func TestDashboardProtectedReadAuthzIsModuleScoped(t *testing.T) {
 	expected := []string{
-		"const suppressAuthError = opts.quietAuth || isBackgroundControlRead(url)",
+		"const suppressAuthError = opts.quietAuth || isBackgroundProtectedRead(url)",
 		"if (!(suppressAuthError && isAuthzError(e)))",
+		"pathname === '/api/v1/evaluation/ground-truth'",
+		"pathname === '/api/v1/evaluation/correlation'",
 		"Policy center requires local API access with policy permissions.",
 		"Policy center is restricted by local API permissions.",
 	}

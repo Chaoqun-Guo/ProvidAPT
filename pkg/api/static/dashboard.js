@@ -34,7 +34,7 @@ function migrateDashboardLayoutStorage() {
 
 async function fetchJSON(url, options) {
   const opts = options || {};
-  const suppressAuthError = opts.quietAuth || isBackgroundControlRead(url);
+  const suppressAuthError = opts.quietAuth || isBackgroundProtectedRead(url);
   rememberLastRequest('GET', url);
   try {
     const r = await fetch(url, { headers: authHeaders() });
@@ -56,13 +56,20 @@ function isAuthzError(err) {
   return !!err && (err.status === 401 || err.status === 403);
 }
 
-function isBackgroundControlRead(url) {
+function isBackgroundProtectedRead(url) {
   try {
     const parsed = new URL(url, window.location.origin);
-    return parsed.origin === window.location.origin && parsed.pathname.indexOf('/api/v1/control/') === 0;
+    return parsed.origin === window.location.origin && isBackgroundProtectedPath(parsed.pathname);
   } catch (e) {
-    return String(url || '').indexOf('/api/v1/control/') === 0;
+    const value = String(url || '');
+    return isBackgroundProtectedPath(value.split('?')[0]);
   }
+}
+
+function isBackgroundProtectedPath(pathname) {
+  return pathname.indexOf('/api/v1/control/') === 0 ||
+    pathname === '/api/v1/evaluation/ground-truth' ||
+    pathname === '/api/v1/evaluation/correlation';
 }
 
 async function postJSON(url, payload) {
@@ -1971,6 +1978,10 @@ async function loadGroundTruth() {
     renderGroundTruth();
   } catch (e) {
     latestGroundTruth = { records: [], phases: {}, files: [] };
+    if (isAuthzError(e)) {
+      renderGroundTruth('Server ground truth requires local API access. Use Load Local JSONL for local evidence files.');
+      return;
+    }
     renderGroundTruth('Server ground truth unavailable: ' + e.message + '. Use Load Local JSONL for local evidence files.');
   }
 }
@@ -2328,6 +2339,11 @@ async function showGroundTruthCorrelation() {
     renderGroundTruthCorrelation(data);
     return;
   } catch (e) {
+    if (isAuthzError(e)) {
+      setInvestigationLoading('Server correlation requires local API access; using browser-loaded ground truth when available.');
+      renderLocalGroundTruthCorrelation();
+      return;
+    }
     setInvestigationLoading('Server correlation unavailable; using browser-loaded ground truth: ' + e.message);
   }
   renderLocalGroundTruthCorrelation();
