@@ -502,6 +502,8 @@ func TestDashboardAPIErrorObservability(t *testing.T) {
 		"function reportAPIError",
 		"function clearAPIStatus",
 		"function apiErrorHint",
+		"function isBackgroundControlRead",
+		"function isAuthzError",
 		"Check local API access and role permissions.",
 		"Check daemon health, network access, and server logs.",
 		"Control plane overview unavailable.",
@@ -511,6 +513,20 @@ func TestDashboardAPIErrorObservability(t *testing.T) {
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing API error observability content %q", item)
+		}
+	}
+}
+
+func TestDashboardControlReadAuthzIsModuleScoped(t *testing.T) {
+	expected := []string{
+		"const suppressAuthError = opts.quietAuth || isBackgroundControlRead(url)",
+		"if (!(suppressAuthError && isAuthzError(e)))",
+		"Policy center requires local API access with policy permissions.",
+		"Policy center is restricted by local API permissions.",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardTestSurface(), item) {
+			t.Fatalf("dashboard missing module-scoped authz handling %q", item)
 		}
 	}
 }

@@ -32,19 +32,36 @@ function migrateDashboardLayoutStorage() {
   localStorage.setItem('providaptDashboardLayoutVersion', DASHBOARD_LAYOUT_VERSION);
 }
 
-async function fetchJSON(url) {
+async function fetchJSON(url, options) {
+  const opts = options || {};
+  const suppressAuthError = opts.quietAuth || isBackgroundControlRead(url);
   rememberLastRequest('GET', url);
   try {
     const r = await fetch(url, { headers: authHeaders() });
-    if (r.status === 401 || r.status === 403) {
+    if ((r.status === 401 || r.status === 403) && !suppressAuthError) {
       updateAPIStatus('Authentication required or insufficient role');
     }
     if (!r.ok) throw await responseError(r, url);
     clearAPIStatus();
     return r.json();
   } catch (e) {
-    reportAPIError('GET', url, e);
+    if (!(suppressAuthError && isAuthzError(e))) {
+      reportAPIError('GET', url, e);
+    }
     throw e;
+  }
+}
+
+function isAuthzError(err) {
+  return !!err && (err.status === 401 || err.status === 403);
+}
+
+function isBackgroundControlRead(url) {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.origin === window.location.origin && parsed.pathname.indexOf('/api/v1/control/') === 0;
+  } catch (e) {
+    return String(url || '').indexOf('/api/v1/control/') === 0;
   }
 }
 
@@ -1082,7 +1099,22 @@ async function loadPolicies() {
       }
     }
   } catch (e) {
+    if (isAuthzError(e)) {
+      latestPolicies = { restricted: true };
+      setText('pCurrentVersion', 'restricted');
+      setText('pDraftState', '--');
+      setText('pActiveRules', '--');
+      setText('pHistoryCount', '--');
+      setText('pDeploymentStatus', 'restricted');
+      const historyList = document.getElementById('policyHistoryList');
+      if (historyList) {
+        historyList.innerHTML = '<div class="loading">Policy center requires local API access with policy permissions.</div>';
+      }
+      setModuleStatus('policy-center', 'Policy center is restricted by local API permissions.');
+      return;
+    }
     document.getElementById('pCurrentVersion').textContent = 'err';
+    setModuleStatus('policy-center', 'Policy center unavailable: ' + e.message);
   }
 }
 
