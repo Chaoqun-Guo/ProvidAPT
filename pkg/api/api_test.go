@@ -196,12 +196,18 @@ func TestAPIAuthAllowsDashboardShellWithoutKey(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)
 
-	for _, path := range []string{"/dashboard", "/", "/assets/dashboard-responsive.css"} {
+	for _, path := range []string{"/dashboard", "/", "/assets/dashboard-responsive.css", "/api/v1/alerts/p%3A100/svg/view"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		w := apiServe(ts, req)
 		if w.Code != http.StatusOK {
 			t.Fatalf("%s status code = %d, want %d", path, w.Code, http.StatusOK)
 		}
+	}
+
+	rawSVGReq := httptest.NewRequest(http.MethodGet, "/api/v1/alerts/p%3A100/svg", nil)
+	rawSVG := apiServe(ts, rawSVGReq)
+	if rawSVG.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated raw SVG status code = %d, want %d", rawSVG.Code, http.StatusUnauthorized)
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)

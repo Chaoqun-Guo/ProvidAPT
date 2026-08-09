@@ -328,6 +328,9 @@ func isPublicDashboardPath(method, path string) bool {
 	if method != http.MethodGet && method != http.MethodHead {
 		return false
 	}
+	if strings.HasPrefix(path, "/api/v1/alerts/") && strings.HasSuffix(path, "/svg/view") {
+		return true
+	}
 	return path == "/" || path == "/dashboard" || path == "/assets/dashboard-responsive.css"
 }
 
