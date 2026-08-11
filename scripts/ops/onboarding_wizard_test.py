@@ -34,6 +34,7 @@ class OnboardingWizardTest(unittest.TestCase):
             log_retain_bytes=268435456,
             alert_retain_bytes=67108864,
             postgres_dsn="postgres://providapt:pw@db/providapt",
+            check_results="",
         ))
         self.assertEqual(manifest["schema"], onboarding.SCHEMA)
         config = (self.tmp / "providapt.onboarding.yaml").read_text(encoding="utf-8")
@@ -41,6 +42,8 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("auth_enabled: true", config)
         loaded = json.loads((self.tmp / "onboarding-manifest.json").read_text(encoding="utf-8"))
         self.assertTrue(loaded["postgres"])
+        self.assertEqual(loaded["status"], "warn")
+        self.assertIn("report", loaded["outputs"])
         check_names = {item["name"] for item in loaded["environment_checks"]}
         self.assertIn("tailscale", check_names)
         self.assertIn("ssh", check_names)
@@ -52,6 +55,36 @@ class OnboardingWizardTest(unittest.TestCase):
         checklist = (self.tmp / "onboarding-checklist.md").read_text(encoding="utf-8")
         self.assertIn("Next:", checklist)
         self.assertIn("dashboard", checklist)
+        report = (self.tmp / "onboarding-report.md").read_text(encoding="utf-8")
+        self.assertIn("ProvidAPT Onboarding Report", report)
+
+    def test_merges_check_results_into_onboarding_report(self):
+        results = self.tmp / "results.json"
+        results.write_text(json.dumps({
+            "checks": [
+                {"name": "tailscale", "status": "pass", "observed": "3 peers online", "evidence": "tailscale status"},
+                {"name": "api", "status": "fail", "observed": "connection refused"},
+            ]
+        }), encoding="utf-8")
+        manifest = onboarding.build_bundle(Namespace(
+            out_dir=str(self.tmp),
+            mode="standalone",
+            rest_port=18080,
+            grpc_port=50051,
+            log_dir="/var/log/providapt",
+            log_retain_bytes=268435456,
+            alert_retain_bytes=67108864,
+            postgres_dsn="",
+            check_results=str(results),
+        ))
+        self.assertEqual(manifest["status"], "blocked")
+        self.assertEqual(manifest["check_summary"]["fail"], 1)
+        api = next(item for item in manifest["environment_checks"] if item["name"] == "api")
+        self.assertEqual(api["status"], "fail")
+        self.assertEqual(api["observed"], "connection refused")
+        report = (self.tmp / "onboarding-report.md").read_text(encoding="utf-8")
+        self.assertIn("connection refused", report)
+        self.assertIn("3 peers online", report)
 
 
 if __name__ == "__main__":

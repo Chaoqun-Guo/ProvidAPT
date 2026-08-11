@@ -5,6 +5,7 @@ import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 
 SCHEMA = "providapt.onboarding_bundle.v1"
@@ -54,9 +55,12 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     out_dir.mkdir(parents=True, exist_ok=True)
     config_path = out_dir / "providapt.onboarding.yaml"
     checklist_path = out_dir / "onboarding-checklist.md"
+    report_path = out_dir / "onboarding-report.md"
     manifest_path = out_dir / "onboarding-manifest.json"
     config_path.write_text(config_yaml(args), encoding="utf-8")
-    checks = environment_checks(args)
+    check_results = load_check_results(getattr(args, "check_results", ""))
+    checks = apply_check_results(environment_checks(args), check_results)
+    summary = check_summary(checks)
     checklist = f"""# ProvidAPT First-Run Onboarding Checklist
 
 - Confirm Linux kernel supports selected attachment mode.
@@ -72,17 +76,22 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 {chr(10).join(f"- **{item['name']}** ({item['severity']}): `{item['command']}` - {item['purpose']}. Next: {item['next_step']}" for item in checks)}
 """
     checklist_path.write_text(checklist, encoding="utf-8")
+    report_path.write_text(render_report(args, checks, summary), encoding="utf-8")
     manifest = {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "status": onboarding_status(summary),
         "mode": args.mode,
         "rest_port": args.rest_port,
         "grpc_port": args.grpc_port,
         "postgres": bool(args.postgres_dsn),
+        "check_results_path": getattr(args, "check_results", ""),
+        "check_summary": summary,
         "environment_checks": checks,
         "outputs": {
             "config": str(config_path),
             "checklist": str(checklist_path),
+            "report": str(report_path),
         },
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -101,6 +110,97 @@ def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
     if args.postgres_dsn:
         checks.append(check("postgres", "make ops-postgres-drill", "verify backup and restore path", "Set PROVIDAPT_DATABASE_DSN and optional PROVIDAPT_RESTORE_DSN before the drill."))
     return checks
+
+
+def load_check_results(path_value: str) -> dict[str, dict[str, Any]]:
+    if not path_value:
+        return {}
+    path = Path(path_value)
+    if not path.exists() or path.stat().st_size == 0:
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    entries = data.get("checks", data) if isinstance(data, dict) else data
+    if not isinstance(entries, list):
+        return {}
+    results: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or entry.get("check") or "").strip()
+        if not name:
+            continue
+        status = str(entry.get("status") or "").strip().lower()
+        if status not in {"pass", "warn", "fail", "unknown", "skipped"}:
+            status = "unknown"
+        results[name] = {
+            "status": status,
+            "observed": str(entry.get("observed") or entry.get("message") or "").strip(),
+            "evidence": str(entry.get("evidence") or entry.get("path") or "").strip(),
+        }
+    return results
+
+
+def apply_check_results(checks: list[dict[str, str]], results: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
+    enriched: list[dict[str, str]] = []
+    for item in checks:
+        check_item = dict(item)
+        result = results.get(item["name"], {})
+        check_item["status"] = str(result.get("status") or "unknown")
+        check_item["observed"] = str(result.get("observed") or "")
+        check_item["evidence"] = str(result.get("evidence") or "")
+        enriched.append(check_item)
+    return enriched
+
+
+def check_summary(checks: list[dict[str, str]]) -> dict[str, int]:
+    summary = {"pass": 0, "warn": 0, "fail": 0, "unknown": 0, "skipped": 0, "total": len(checks)}
+    for item in checks:
+        status = item.get("status", "unknown")
+        if status not in summary:
+            status = "unknown"
+        summary[status] += 1
+    return summary
+
+
+def onboarding_status(summary: dict[str, int]) -> str:
+    if summary.get("fail", 0) > 0:
+        return "blocked"
+    if summary.get("warn", 0) > 0 or summary.get("unknown", 0) > 0 or summary.get("skipped", 0) > 0:
+        return "warn"
+    return "pass"
+
+
+def render_report(args: argparse.Namespace, checks: list[dict[str, str]], summary: dict[str, int]) -> str:
+    lines = [
+        "# ProvidAPT Onboarding Report",
+        "",
+        f"- Status: `{onboarding_status(summary)}`",
+        f"- Mode: `{args.mode}`",
+        f"- REST port: `{args.rest_port}`",
+        f"- gRPC port: `{args.grpc_port}`",
+        f"- Checks: `{summary['pass']} pass / {summary['warn']} warn / {summary['fail']} fail / {summary['unknown']} unknown / {summary['skipped']} skipped`",
+        "",
+        "| Check | Status | Severity | Purpose | Observed | Evidence | Next Step |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for item in checks:
+        lines.append(
+            "| {name} | {status} | {severity} | {purpose} | {observed} | {evidence} | {next_step} |".format(
+                name=escape_cell(item.get("name", "")),
+                status=escape_cell(item.get("status", "")),
+                severity=escape_cell(item.get("severity", "")),
+                purpose=escape_cell(item.get("purpose", "")),
+                observed=escape_cell(item.get("observed", "")),
+                evidence=escape_cell(item.get("evidence", "")),
+                next_step=escape_cell(item.get("next_step", "")),
+            )
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def escape_cell(value: str) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
 
 
 def check(name: str, command: str, purpose: str, next_step: str, severity: str = "required") -> dict[str, str]:
@@ -123,6 +223,7 @@ def main() -> int:
     parser.add_argument("--log-retain-bytes", type=int, default=268435456)
     parser.add_argument("--alert-retain-bytes", type=int, default=67108864)
     parser.add_argument("--postgres-dsn", default="")
+    parser.add_argument("--check-results", default="", help="Optional JSON check result list to merge into the onboarding report.")
     args = parser.parse_args()
     manifest = build_bundle(args)
     print(json.dumps(manifest, indent=2, sort_keys=True))

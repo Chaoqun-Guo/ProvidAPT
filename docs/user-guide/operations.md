@@ -602,6 +602,27 @@ The onboarding bundle includes a production-oriented starter config, checklist,
 environment checks for Tailscale/SSH/API/TLS/secrets/PostgreSQL, and manifest
 that can be attached to customer handoff evidence.
 
+After running the environment checks, merge observed results into the
+onboarding report:
+
+```json
+{
+  "checks": [
+    {"name": "tailscale", "status": "pass", "observed": "all VM peers online"},
+    {"name": "api", "status": "fail", "observed": "connection refused"}
+  ]
+}
+```
+
+```bash
+make onboarding-wizard \
+  OUT_DIR=build/onboarding \
+  CHECK_RESULTS=build/onboarding/check-results.json
+```
+
+The generated `onboarding-report.md` summarizes pass/warn/fail/unknown counts
+and records the next step for each failed or unverified check.
+
 ## 9. Commercialization Readiness
 
 Validate plugin release evidence before enabling customer-specific detection,
