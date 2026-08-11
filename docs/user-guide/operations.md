@@ -397,7 +397,10 @@ The helper writes PNG screenshots plus JSON/Markdown manifests under
 and ultrawide `2560x1080` viewports. Dashboard captures run DOM overflow
 assertions for horizontal document overflow, element bounds, and text overflow.
 Trace Viewer captures run browser assertions for rendered SVG presence, layout
-mode controls, PNG/SVG/raw export controls, and report links. Pass
+mode controls, PNG/SVG/raw export controls, and report links. The manifest also
+records coverage by page, viewport, viewport class, and missing default
+viewports so release evidence can show whether the full baseline matrix was
+captured. Pass
 `BASELINE=build/visual-regression/visual-regression-snapshots.json` to compare
 current screenshot hashes against a previous manifest. Use `DRY_RUN=1` to
 validate the screenshot plan without launching a browser.
@@ -411,7 +414,7 @@ make visual-regression-gate \
 
 The gate requires captured dashboard and Trace Viewer screenshots for
 `390x844`, `1366x768`, `1920x1080`, and `2560x1080`, verifies screenshot files
-and hashes are present, and blocks failed DOM assertions. Baseline hash changes
+and hashes are present, and requires passing DOM assertions. Baseline hash changes
 block unless `WARN_ON_VISUAL_CHANGED=1` is set for a controlled review.
 Dashboard responsive rules live in the embedded static assets
 `pkg/api/static/dashboard.css`, `pkg/api/static/dashboard-responsive.css`, and
@@ -426,14 +429,16 @@ Collect real API stress evidence for larger Trace SVGs and layout modes:
 ```bash
 make trace-svg-stress \
   PROVIDAPT_SERVER_URL=http://<server>:18080 \
-  ALERT_IDS="p:100 p:200" \
   MAX_LATENCY_MS=1500 \
   MIN_TRACE_NODES=25
 ```
 
-The report requests each alert with `tree`, `compact`, `timeline`, and
-`grouped` layouts, then records latency, SVG dimensions, byte size, node count,
-edge count, and folded cluster count under `build/trace-stress/`.
+When `ALERT_IDS` is omitted, the helper discovers up to three alert IDs from
+`/api/v1/control/alerts`; set `TRACE_DISCOVER_LIMIT=N` to adjust this. The
+report requests each alert with `tree`, `compact`, `timeline`, and `grouped`
+layouts, then records latency, SVG dimensions, byte size, node count, edge
+count, folded cluster count, and whether alerts were provided or discovered
+under `build/trace-stress/`.
 
 Validate capture/enrichment field coverage from VM or evaluation NDJSON before
 training or customer evidence review:
@@ -531,7 +536,8 @@ deployment diagnostics, installation handoff, observability pack, visual
 regression, capture/enrichment coverage, or security hardening evidence is
 missing or failed.
 
-Close open-source readiness after operations, enterprise, onboarding, and release evidence are generated:
+Close open-source readiness after release gates, operations, enterprise,
+model lifecycle, visual baseline, onboarding, and plugin evidence are generated:
 
 ```bash
 make open-source-readiness-gate
@@ -611,14 +617,40 @@ Close open-source readiness with the open-source readiness gate:
 
 ```bash
 make open-source-readiness-gate \
+  RELEASE_GATES_JSON=build/release-gate-status.json \
   OPERATIONS_READINESS_GATE=build/operations-readiness/operations-readiness-gate.json \
   ENTERPRISE_READINESS=build/enterprise-readiness.json \
+  MODEL_LIFECYCLE_GATE=build/evaluation/model-lifecycle-gate.json \
+  VISUAL_REGRESSION_SNAPSHOTS=build/visual-regression/visual-regression-snapshots.json \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json \
   PLUGIN_GATE=build/plugins/plugin-release-gate.json \
   EXTERNAL_APPROVAL=docs/project/external-approval-request-v1.2.3-rc.1.md
 ```
 
-The open-source readiness gate verifies customer handoff documentation, onboarding artifacts,
-external approval evidence, enterprise readiness, and optional plugin release
-gates. Missing plugin evidence is a warning when no plugins are shipped; failed
-plugin evidence blocks release.
+The open-source readiness gate verifies release gate status, operations and
+enterprise readiness, model promotion packet evidence, visual browser baseline
+coverage, onboarding artifacts, open-source documentation, external approval
+evidence, and optional plugin release gates. Missing optional local evidence is
+a warning for planning runs; supplied evidence that is failed or incomplete
+blocks release.
+
+Convert the open-source readiness result into owner-facing action items:
+
+```bash
+make open-source-readiness-backlog \
+  OPEN_SOURCE_READINESS_GATE=build/open-source-readiness/open-source-readiness-gate.json
+```
+
+Aggregate the local open-source milestone package after the readiness and
+backlog reports are generated:
+
+```bash
+make open-source-development-backlog LOCAL_ONLY=1
+make open-source-milestone ALLOW_MISSING=1
+```
+
+The milestone package includes readiness, readiness backlog, development
+backlog, release gate status, release evidence consistency, model lifecycle, and
+visual baseline evidence. `ALLOW_MISSING=1` is useful during local development
+because it records absent external evidence as warnings instead of blocking the
+milestone package. Omit it for final release closure.

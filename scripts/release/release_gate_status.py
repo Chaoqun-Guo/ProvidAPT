@@ -50,6 +50,15 @@ def command_gate(command: str, package_hint: str) -> Gate:
     return Gate(command, "blocked", f"{command} is not installed", f"Install {package_hint} or run this gate in approved CI")
 
 
+def scan_manifest_report_key(name: str) -> str:
+    mapping = {
+        "govulncheck_evidence": "govulncheck_json",
+        "grype_evidence": "grype_source",
+        "trivy_evidence": "trivy_fs",
+    }
+    return mapping.get(name, name)
+
+
 def scan_evidence_gate(name: str, paths: Iterable[Path], next_action: str, scan_manifest: Path | None = None, commit: str = "") -> Gate:
     present = [path for path in paths if path.exists() and path.stat().st_size > 0]
     if present:
@@ -61,11 +70,21 @@ def scan_evidence_gate(name: str, paths: Iterable[Path], next_action: str, scan_
                 manifest = json.loads(scan_manifest.read_text(encoding="utf-8-sig"))
             except json.JSONDecodeError:
                 return Gate(name, "blocked", f"{scan_manifest} is not valid JSON", "Regenerate scan manifest for this commit", evidence)
+            if manifest.get("schema") != "providapt.security_scan_manifest.v1":
+                return Gate(name, "blocked", f"{scan_manifest} has an unknown security scan schema", "Regenerate scan manifest for this commit", evidence)
+            if not str(manifest.get("generated_at") or "").strip():
+                return Gate(name, "blocked", f"{scan_manifest} does not record generation time", "Regenerate scan manifest for this commit", evidence)
             manifest_commit = str(manifest.get("full_commit") or manifest.get("commit") or "")
             if commit and manifest_commit and manifest_commit != commit:
                 return Gate(name, "blocked", f"{name} evidence is for {manifest_commit}, not {commit}", "Re-run scans for the final release commit", evidence)
             if commit and not manifest_commit:
                 return Gate(name, "blocked", f"{name} scan manifest does not record a commit", "Regenerate scan manifest for this commit", evidence)
+            reports = manifest.get("reports")
+            if not isinstance(reports, dict):
+                return Gate(name, "blocked", f"{name} scan manifest does not record report presence", "Regenerate scan manifest for this commit", evidence)
+            report_key = scan_manifest_report_key(name)
+            if str(reports.get(report_key) or "").lower() != "present":
+                return Gate(name, "blocked", f"{name} scan manifest marks {report_key} as missing", "Re-run scans for the final release commit", evidence)
         return Gate(name, "pass", f"{name} evidence is present for the current commit", evidence=evidence)
     expected = ", ".join(str(path) for path in paths)
     return Gate(name, "blocked", f"{name} evidence is missing: {expected}", next_action)

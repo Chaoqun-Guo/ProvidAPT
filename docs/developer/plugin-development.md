@@ -103,9 +103,20 @@ The manifest must include the following fields:
   "version": "1.0.0",
   "type": "detection",
   "providapt_min_version": "1.2.0",
+  "providapt_max_version": "1.3.0",
   "entrypoint": "example-detector.so",
+  "permissions": [
+    "events:read",
+    "alerts:write"
+  ],
+  "distribution": {
+    "channel": "signed-bundle",
+    "artifact": "example-detector-1.0.0.tar.gz",
+    "signature_algorithm": "ed25519"
+  },
   "rollback": [
     "disable example-detector in providapt.toml",
+    "restore the previous signed plugin bundle",
     "restart providaptd"
   ]
 }
@@ -113,12 +124,16 @@ The manifest must include the following fields:
 
 Supported plugin types are `detection`, `scoring`, `threatintel`, and
 `enrichment`. Versions must use semantic versioning, for example `1.0.0`.
+Distributed plugins must declare least-privilege permissions, a signed artifact
+distribution policy, and concrete rollback instructions. The compatibility range
+uses `providapt_min_version` and optional `providapt_max_version`; the minimum
+version must not be greater than the maximum version.
 
 The gate writes:
 
 | File | Purpose |
 | --- | --- |
-| `plugin-release-gate.json` | Machine-readable release decision, manifest hash, and validation findings |
+| `plugin-release-gate.json` | Machine-readable release decision, manifest hash, compatibility, distribution policy, rollback steps, and validation findings |
 | `plugin-release-gate.md` | Operator-readable checklist for approval and rollback |
 
 Unsigned plugins are blocked by default. For internal development only, use:

@@ -101,6 +101,13 @@ make github-actions-evidence \
 make release-gates \
   CI_EVIDENCE=build/ci/github-actions-evidence.json
 
+make artifact-signing-gate
+
+make release-evidence-consistency-gate \
+  VERSION=v<version> \
+  COMMIT=$(git rev-parse --short HEAD) \
+  FULL_COMMIT=$(git rev-parse HEAD)
+
 providaptctl -release-check \
   -release-evidence docs/project/release-evidence-v<version>.md \
   -release-checksums dist/checksums.txt \
@@ -117,21 +124,31 @@ customer-handoff evidence:
 ```bash
 make customer-release-gate \
   RELEASE_GATES_JSON=build/release-gate-status.json \
+  RELEASE_EVIDENCE_CONSISTENCY_GATE=build/release-evidence/release-evidence-consistency-gate.json \
   PACKAGE_SMOKE_DIR=build/package-smoke
 
 make release-blocker-backlog \
   CUSTOMER_RELEASE_GATE=build/customer-release/customer-release-gate.json
 ```
 
+The release evidence consistency gate checks that the dist SBOMs,
+`release-readiness.md`, scan manifest, artifact signing gate, release version,
+and commit all describe the same release build.
+
 The generated `build/customer-release/customer-release-gate.json` is the
-machine-readable final delivery decision. `customer-release-gate.md` is the
-operator-facing blocker list. `release-blocker-backlog.json` converts each
-blocked or warning section into an owner-ready action item.
+machine-readable final delivery decision. It also consumes the release evidence
+consistency gate, so stale or mismatched release metadata blocks final delivery.
+`customer-release-gate.md` is the operator-facing blocker list.
+`release-blocker-backlog.json` converts each blocked or warning section into an
+owner-ready action item.
 
 Release gates require vulnerability scan evidence for the current commit. When
 `RUN_SCANS=1 make release-open-source` runs govulncheck, Grype, or Trivy, it
 writes `build/security/scan-manifest.json`; stale or missing scan manifests
 block final readiness until scans are rerun for the final release commit/tag.
+The manifest must use schema `providapt.security_scan_manifest.v1`, record the
+final full commit, include `generated_at`, and mark each required scanner report
+as `present`.
 
 ## 8. Assemble Handoff
 

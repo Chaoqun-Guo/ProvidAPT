@@ -69,7 +69,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 
 ## Environment Checks
 
-{chr(10).join(f"- `{item['command']}`" for item in checks)}
+{chr(10).join(f"- **{item['name']}** ({item['severity']}): `{item['command']}` - {item['purpose']}. Next: {item['next_step']}" for item in checks)}
 """
     checklist_path.write_text(checklist, encoding="utf-8")
     manifest = {
@@ -91,15 +91,26 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 
 def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
     checks = [
-        {"name": "tailscale", "command": "tailscale status", "purpose": "verify tailnet connectivity"},
-        {"name": "ssh", "command": "ssh -o BatchMode=yes <user>@<vm-host> true", "purpose": "verify passwordless VM access"},
-        {"name": "api", "command": f"curl -fsS http://127.0.0.1:{args.rest_port}/api/v1/status", "purpose": "verify REST API health"},
-        {"name": "tls", "command": "make ops-tls-check CERTS=\"build/tls/server.crt build/tls/agent.crt\"", "purpose": "verify certificate validity"},
-        {"name": "secrets", "command": "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env", "purpose": "verify required secret references"},
+        check("tailscale", "tailscale status", "verify tailnet connectivity", "Fix Tailscale login, DNS, or ACLs before VM checks."),
+        check("ssh", "ssh -o BatchMode=yes <user>@<vm-host> true", "verify passwordless VM access", "Install or repair SSH keys for every target VM."),
+        check("api", f"curl -fsS http://127.0.0.1:{args.rest_port}/api/v1/status", "verify REST API health", "Start providaptd and confirm local firewall rules."),
+        check("dashboard", f"curl -fsS http://127.0.0.1:{args.rest_port}/dashboard", "verify dashboard shell is reachable", "Check REST bind address, auth settings, and reverse proxy routing."),
+        check("tls", "make ops-tls-check CERTS=\"build/tls/server.crt build/tls/agent.crt\"", "verify certificate validity", "Run make ops-tls-bootstrap for lab certificates or install production certificates."),
+        check("secrets", "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env", "verify required secret references", "Generate a template with make ops-secret-template and replace placeholders."),
     ]
     if args.postgres_dsn:
-        checks.append({"name": "postgres", "command": "make ops-postgres-drill", "purpose": "verify backup and restore path"})
+        checks.append(check("postgres", "make ops-postgres-drill", "verify backup and restore path", "Set PROVIDAPT_DATABASE_DSN and optional PROVIDAPT_RESTORE_DSN before the drill."))
     return checks
+
+
+def check(name: str, command: str, purpose: str, next_step: str, severity: str = "required") -> dict[str, str]:
+    return {
+        "name": name,
+        "command": command,
+        "purpose": purpose,
+        "next_step": next_step,
+        "severity": severity,
+    }
 
 
 def main() -> int:

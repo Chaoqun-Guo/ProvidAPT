@@ -58,6 +58,7 @@ class VisualRegressionGateTest(unittest.TestCase):
             "require_captured": True,
             "require_files": True,
             "require_hash": True,
+            "require_dom_assertions": True,
             "block_changed": True,
         }
         values.update(overrides)
@@ -93,6 +94,19 @@ class VisualRegressionGateTest(unittest.TestCase):
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "blocked")
         self.assertIn("DOM assertions failed", "\n".join(report["failures"]))
+
+    def test_blocks_missing_dom_assertions_by_default(self):
+        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
+        screenshots[0].pop("dom_assertions")
+        report = subject.build_report(self.args(self.write_manifest(screenshots)))
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("DOM assertions are missing", "\n".join(report["failures"]))
+
+    def test_can_allow_missing_dom_assertions_for_planning(self):
+        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
+        screenshots[0].pop("dom_assertions")
+        report = subject.build_report(self.args(self.write_manifest(screenshots), require_dom_assertions=False))
+        self.assertEqual(report["status"], "pass")
 
 
 if __name__ == "__main__":

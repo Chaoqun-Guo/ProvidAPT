@@ -407,12 +407,18 @@ decisions. Delegate or placeholder approvals block promotion. The gate also
 blocks when drift requires review, the deployment gate is not passing, reviewed
 feedback is too sparse, or the baseline window is too short.
 
+The JSON output includes a `promotion_packet` section with the promotion
+decision, model identity, input evidence SHA-256 hashes, evidence count, and
+next actions for any blocker. Keep this packet with the model artifact and
+release evidence so a promoted model can be traced back to exact closed-loop,
+deployment, drift, and approval inputs.
+
 Outputs:
 
 | File | Purpose |
 | --- | --- |
-| `model-lifecycle-gate.json` | Machine-readable model lifecycle promotion decision |
-| `model-lifecycle-gate.md` | Human-readable promotion blocker report |
+| `model-lifecycle-gate.json` | Machine-readable model lifecycle promotion packet |
+| `model-lifecycle-gate.md` | Human-readable promotion blocker and evidence report |
 
 ## ML Readiness Gate
 

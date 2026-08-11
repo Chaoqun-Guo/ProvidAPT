@@ -38,6 +38,37 @@ def request_svg(server: str, alert_id: str, layout: str, api_key: str, timeout: 
         return int(resp.status), body, elapsed
 
 
+def request_json(server: str, path: str, api_key: str, timeout: float) -> dict[str, Any]:
+    base = server.rstrip("/")
+    req = Request(f"{base}{path}")
+    if api_key:
+        req.add_header("X-API-Key", api_key)
+    opener = build_opener(ProxyHandler({}))
+    with opener.open(req, timeout=timeout) as resp:
+        body = resp.read().decode("utf-8", errors="replace")
+    data = json.loads(body)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: expected JSON object")
+    return data
+
+
+def discover_alert_ids(server: str, api_key: str, timeout: float, limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    data = request_json(server, "/api/v1/control/alerts", api_key, timeout)
+    alerts = data.get("alerts") if isinstance(data.get("alerts"), list) else []
+    ids: list[str] = []
+    for alert in alerts:
+        if not isinstance(alert, dict):
+            continue
+        alert_id = str(alert.get("id") or alert.get("alert_id") or "").strip()
+        if alert_id and alert_id not in ids:
+            ids.append(alert_id)
+        if len(ids) >= limit:
+            break
+    return ids
+
+
 def svg_stats(svg: str) -> dict[str, Any]:
     node_count = len(re.findall(r'data-node-id="', svg))
     edge_count = len(re.findall(r'data-source="', svg))
@@ -66,9 +97,18 @@ def extract_number(text: str, pattern: str) -> float:
 
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
-    alert_ids = args.alert_id or ["p:100"]
-    results: list[dict[str, Any]] = []
     failures: list[str] = []
+    discovered = False
+    alert_ids = list(args.alert_id or [])
+    if not alert_ids:
+        discovered = True
+        try:
+            alert_ids = discover_alert_ids(args.server, args.api_key, args.timeout_seconds, args.discover_limit)
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            failures.append(f"alert discovery failed: {exc}")
+    if not alert_ids:
+        failures.append("no alert IDs supplied or discovered")
+    results: list[dict[str, Any]] = []
     for alert_id in alert_ids:
         for layout in args.layout:
             result: dict[str, Any] = {"alert_id": alert_id, "layout": layout}
@@ -103,6 +143,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "generated_at": utc_now(),
         "status": "blocked" if failures else "pass",
         "server": args.server,
+        "alert_source": "discovered" if discovered else "provided",
+        "alert_ids": alert_ids,
         "thresholds": {
             "max_latency_ms": args.max_latency_ms,
             "min_node_count": args.min_node_count,
@@ -120,6 +162,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Status: `{report['status']}`",
         f"- Server: `{report['server']}`",
+        f"- Alert source: `{report.get('alert_source', 'provided')}`",
+        f"- Alert IDs: `{', '.join(report.get('alert_ids', [])) or 'none'}`",
         "",
         "| Alert | Layout | HTTP | Latency ms | Nodes | Edges | Clusters | Bytes | Dimensions |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
@@ -142,6 +186,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Collect real API stress evidence for Trace SVG layouts.")
     parser.add_argument("--server", required=True)
     parser.add_argument("--alert-id", action="append", default=[])
+    parser.add_argument("--discover-limit", type=int, default=3, help="Discover up to N alert IDs from /api/v1/control/alerts when --alert-id is omitted")
     parser.add_argument("--layout", action="append", choices=LAYOUTS, default=list(LAYOUTS))
     parser.add_argument("--api-key", default=os.environ.get("PROVIDAPT_API_KEY", ""))
     parser.add_argument("--max-latency-ms", type=float, default=1500.0)

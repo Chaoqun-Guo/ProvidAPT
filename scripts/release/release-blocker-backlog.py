@@ -28,7 +28,7 @@ def severity_for(status: str) -> str:
     return "informational"
 
 
-def build_backlog(report: dict[str, Any]) -> dict[str, Any]:
+def build_backlog(report: dict[str, Any], source_label: str = "release") -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
     for section_name, section in (report.get("sections") or {}).items():
         if not isinstance(section, dict):
@@ -51,6 +51,7 @@ def build_backlog(report: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "source_label": source_label,
         "source_status": report.get("status", "unknown"),
         "task_count": len(tasks),
         "tasks": tasks,
@@ -62,6 +63,7 @@ def recommended_action(section_name: str) -> str:
         "release_gates": "Attach passing CI, scanner, approval, and artifact gate evidence.",
         "dist_artifacts": "Rebuild final release artifacts and regenerate checksums, signatures, SBOMs, and readiness report.",
         "artifact_signing": "Run artifact-signing-gate and fix checksum, artifact hash, or signature evidence failures.",
+        "release_evidence_consistency": "Run release-evidence-consistency-gate and regenerate stale dist, scan, signing, SBOM, or release readiness evidence.",
         "package_smoke": "Run package smoke tests on approved disposable Linux hosts or containers.",
         "production_readiness": "Run production-readiness-gate after secrets, TLS, PostgreSQL, and fleet evidence are available.",
         "ml_readiness": "Run ml-readiness-gate after VM capture, ground-truth matching, training, and evaluation.",
@@ -69,6 +71,14 @@ def recommended_action(section_name: str) -> str:
         "open_source_readiness": "Run open-source-readiness-gate after onboarding, docs, approval, and plugin evidence are available.",
         "legal_documents": "Complete legal/privacy documents and remove unresolved placeholders.",
         "delivery_documents": "Complete customer handoff, support, upgrade, and install documentation.",
+        "release_gate_status": "Attach or regenerate current release gate status evidence for CI, scans, approvals, and artifacts.",
+        "enterprise_readiness": "Run enterprise-readiness after release, secrets, PostgreSQL, detection, RBAC, reporting, SIEM, and upgrade evidence are available.",
+        "model_lifecycle": "Run model-lifecycle-gate with closed-loop, deploy-gate, drift, baseline, feedback, and approval evidence.",
+        "visual_baselines": "Capture the full Dashboard and Trace Viewer browser baseline matrix and rerun visual-regression-gate.",
+        "onboarding_bundle": "Run onboarding-wizard and verify generated config and checklist outputs.",
+        "plugin_release_gates": "Run plugin-release-gate for each shipped plugin or leave plugin evidence absent only when no plugins are distributed.",
+        "open_source_documentation": "Complete required open-source docs and remove empty or missing files.",
+        "external_approval": "Attach named approval evidence for the release scope.",
     }.get(section_name, "Assign an owner and attach passing evidence.")
 
 
@@ -76,6 +86,7 @@ def render_markdown(backlog: dict[str, Any]) -> str:
     lines = [
         "# ProvidAPT Release Blocker Backlog",
         "",
+        f"- Source: `{backlog.get('source_label', 'release')}`",
         f"- Source status: `{backlog['source_status']}`",
         f"- Task count: `{backlog['task_count']}`",
         f"- Generated at: `{backlog['generated_at']}`",
@@ -92,12 +103,15 @@ def render_markdown(backlog: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Convert customer release gate failures into an actionable blocker backlog.")
+    parser = argparse.ArgumentParser(description="Convert release/readiness gate failures into an actionable blocker backlog.")
+    parser.add_argument("--source-report", default="", help="Generic gate report with sections; overrides --customer-release-gate")
+    parser.add_argument("--source-label", default="release")
     parser.add_argument("--customer-release-gate", default="build/customer-release/customer-release-gate.json")
     parser.add_argument("--out-json", default="build/customer-release/release-blocker-backlog.json")
     parser.add_argument("--out-md", default="build/customer-release/release-blocker-backlog.md")
     args = parser.parse_args()
-    backlog = build_backlog(load_json(Path(args.customer_release_gate)))
+    source_path = Path(args.source_report) if args.source_report else Path(args.customer_release_gate)
+    backlog = build_backlog(load_json(source_path), args.source_label)
     out_json = Path(args.out_json)
     out_md = Path(args.out_md)
     out_json.parent.mkdir(parents=True, exist_ok=True)

@@ -45,7 +45,13 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("tailscale", check_names)
         self.assertIn("ssh", check_names)
         self.assertIn("api", check_names)
+        self.assertIn("dashboard", check_names)
         self.assertIn("postgres", check_names)
+        self.assertTrue(all(item.get("severity") for item in loaded["environment_checks"]))
+        self.assertTrue(all(item.get("next_step") for item in loaded["environment_checks"]))
+        checklist = (self.tmp / "onboarding-checklist.md").read_text(encoding="utf-8")
+        self.assertIn("Next:", checklist)
+        self.assertIn("dashboard", checklist)
 
 
 if __name__ == "__main__":

@@ -156,6 +156,23 @@ def artifact_signing_detail(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def release_evidence_consistency_detail(report: dict[str, Any]) -> dict[str, Any]:
+    if not report:
+        return {
+            "status": "blocked",
+            "failures": ["release evidence consistency gate is missing; run make release-evidence-consistency-gate"],
+        }
+    status = status_of(report)
+    return {
+        "status": status,
+        "source_status": report.get("status", "missing"),
+        "version": report.get("version", ""),
+        "commit": report.get("full_commit") or report.get("commit", ""),
+        "failures": list(report.get("failures") or []) if status == "blocked" else [],
+        "warnings": list(report.get("warnings") or []) if status == "warn" else [],
+    }
+
+
 def docs_detail(paths: list[str]) -> dict[str, Any]:
     missing: list[str] = []
     empty: list[str] = []
@@ -213,6 +230,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "release_gates": release_gate_detail(load_json(Path(args.release_gates)), args.allow_skipped_ci),
         "dist_artifacts": dist_artifact_detail(Path(args.dist_dir)),
         "artifact_signing": artifact_signing_detail(load_json(Path(args.artifact_signing_gate))),
+        "release_evidence_consistency": release_evidence_consistency_detail(load_json(Path(args.release_evidence_consistency_gate))),
         "package_smoke": package_smoke_detail(Path(args.package_smoke_dir)),
         "production_readiness": readiness_detail(load_json(Path(args.production_readiness_gate)), "production readiness"),
         "ml_readiness": readiness_detail(load_json(Path(args.ml_readiness_gate)), "ML readiness"),
@@ -265,6 +283,7 @@ def main() -> int:
     parser.add_argument("--release-gates", default="build/release-gate-status.json")
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument("--artifact-signing-gate", default="build/artifact-signing/artifact-signing-gate.json")
+    parser.add_argument("--release-evidence-consistency-gate", default="build/release-evidence/release-evidence-consistency-gate.json")
     parser.add_argument("--package-smoke-dir", default="build/package-smoke")
     parser.add_argument("--production-readiness-gate", default="build/production-readiness/production-readiness-gate.json")
     parser.add_argument("--ml-readiness-gate", default="build/ml-readiness/ml-readiness-gate.json")

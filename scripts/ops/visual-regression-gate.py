@@ -53,6 +53,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             if args.require_hash and not item.get("sha256"):
                 failures.append(f"{page} {viewport} screenshot hash is missing")
             assertions = item.get("dom_assertions") if isinstance(item.get("dom_assertions"), dict) else {}
+            if args.require_dom_assertions and not assertions:
+                failures.append(f"{page} {viewport} DOM assertions are missing")
             if assertions and assertions.get("status") != "pass":
                 failures.append(f"{page} {viewport} DOM assertions failed")
     if manifest.get("failures"):
@@ -115,6 +117,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--allow-planned", action="store_true", help="Allow dry-run manifests for local planning only")
     parser.add_argument("--allow-missing-files", action="store_true")
     parser.add_argument("--allow-missing-hash", action="store_true")
+    parser.add_argument("--allow-missing-dom-assertions", action="store_true")
     parser.add_argument("--warn-on-changed", action="store_true", help="Warn rather than block when baseline hashes differ")
     parser.add_argument("--out-json", default="build/visual-regression/visual-regression-gate.json")
     parser.add_argument("--out-md", default="build/visual-regression/visual-regression-gate.md")
@@ -122,6 +125,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     args.require_captured = not args.allow_planned
     args.require_files = not args.allow_missing_files
     args.require_hash = not args.allow_missing_hash
+    args.require_dom_assertions = not args.allow_missing_dom_assertions
     args.block_changed = not args.warn_on_changed
     return args
 

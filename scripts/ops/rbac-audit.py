@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import tomllib
@@ -38,6 +39,7 @@ def audit_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
     auth_identities = {str(key): str(value) for key, value in as_map(api.get("auth_identities")).items()}
     auth_tenants = {str(key): str(value) for key, value in as_map(api.get("auth_tenants")).items()}
     custom_permissions = as_map(api.get("auth_permissions"))
+    key_labels = {key: key_fingerprint(key) for key in set(auth_keys) | set(auth_roles) | set(auth_identities) | set(auth_tenants)}
     failures: list[str] = []
     warnings: list[str] = []
     role_counts: dict[str, int] = {}
@@ -48,22 +50,23 @@ def audit_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
     if not auth_keys:
         failures.append("api.auth_keys must define at least one key")
     for key in auth_keys:
+        label = key_labels[key]
         role = auth_roles.get(key, "")
         if not role:
-            failures.append(f"auth key {key} has no assigned role")
+            failures.append(f"auth key {label} has no assigned role")
             continue
         role_counts[role] = role_counts.get(role, 0) + 1
         if role not in SAFE_ROLES and role not in custom_permissions:
-            failures.append(f"auth key {key} uses unknown role {role}")
+            failures.append(f"auth key {label} uses unknown role {role}")
         if role != "admin" and not auth_tenants.get(key):
-            warnings.append(f"non-admin key {key} has no tenant scope")
+            warnings.append(f"non-admin key {label} has no tenant scope")
         if auth_tenants.get(key):
-            tenant_scopes[key] = split_scope(auth_tenants[key])
+            tenant_scopes[label] = split_scope(auth_tenants[key])
         if not auth_identities.get(key):
-            warnings.append(f"auth key {key} has no operator identity")
+            warnings.append(f"auth key {label} has no operator identity")
     for key in auth_roles:
         if key not in auth_keys:
-            warnings.append(f"role mapping exists for unknown key {key}")
+            warnings.append(f"role mapping exists for unknown key {key_labels[key]}")
     for role, permissions in custom_permissions.items():
         if not isinstance(permissions, list):
             failures.append(f"custom role {role} permissions must be a list")
@@ -141,6 +144,10 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 def split_scope(value: str) -> list[str]:
     return [item.strip() for item in re.split(r"[,;]", value) if item.strip()]
+
+
+def key_fingerprint(value: str) -> str:
+    return "key:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
 def main() -> int:

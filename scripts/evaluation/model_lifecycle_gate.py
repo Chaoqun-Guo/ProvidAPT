@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from datetime import datetime, timezone
@@ -23,6 +24,29 @@ def load_json(path: str | None) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise SystemExit(f"{target}: expected JSON object")
     return data
+
+
+def sha256_file(path: str | None) -> str:
+    if not path:
+        return ""
+    target = Path(path)
+    if not target.exists() or not target.is_file():
+        return ""
+    digest = hashlib.sha256()
+    with target.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def evidence_ref(path: str | None, kind: str) -> dict[str, Any]:
+    target = Path(path) if path else None
+    return {
+        "kind": kind,
+        "path": str(target) if target else "",
+        "present": bool(target and target.exists() and target.is_file() and target.stat().st_size > 0),
+        "sha256": sha256_file(path),
+    }
 
 
 def utc_now() -> str:
@@ -70,6 +94,54 @@ def approval_failures(approval: dict[str, Any], require_approval: bool) -> list[
     return failures
 
 
+def model_identity(report: dict[str, Any]) -> dict[str, str]:
+    feature_schema = report.get("feature_schema") if isinstance(report.get("feature_schema"), dict) else {}
+    return {
+        "name": str(report.get("model_name") or report.get("name") or "").strip(),
+        "version": str(report.get("model_version") or report.get("version") or "").strip(),
+        "feature_schema_sha256": str(
+            report.get("feature_schema_sha256")
+            or report.get("feature_schema_hash")
+            or feature_schema.get("sha256")
+            or ""
+        ).strip(),
+    }
+
+
+def identity_failures(closed_loop: dict[str, Any], deploy_gate: dict[str, Any]) -> list[str]:
+    closed = model_identity(closed_loop)
+    deploy = model_identity(deploy_gate)
+    failures: list[str] = []
+    for field in ("name", "version"):
+        if not closed[field]:
+            failures.append(f"closed-loop model {field} is missing")
+        if not deploy[field]:
+            failures.append(f"deploy-gate model {field} is missing")
+        if closed[field] and deploy[field] and closed[field] != deploy[field]:
+            failures.append(f"model {field} mismatch: closed-loop={closed[field]} deploy-gate={deploy[field]}")
+    if closed["feature_schema_sha256"] and deploy["feature_schema_sha256"] and closed["feature_schema_sha256"] != deploy["feature_schema_sha256"]:
+        failures.append("feature schema hash mismatch between closed-loop and deploy-gate evidence")
+    return failures
+
+
+def next_actions(failures: list[str], warnings: list[str]) -> list[str]:
+    actions: list[str] = []
+    text = "\n".join(failures + warnings).lower()
+    if "closed-loop" in text or "feedback" in text or "reviewed feedback" in text:
+        actions.append("collect additional analyst TP/FP/benign/duplicate feedback and rerun make model-closed-loop")
+    if "deploy gate" in text or "model name mismatch" in text or "model version mismatch" in text or "feature schema" in text:
+        actions.append("rerun model registration, feature-schema check, and make model-deploy-gate for the same model identity")
+    if "drift" in text:
+        actions.append("review dataset drift, update baseline evidence, or retrain before promotion")
+    if "baseline days" in text:
+        actions.append("extend the baseline observation window before promotion")
+    if "approval" in text or "named owner" in text:
+        actions.append("attach named model_owner, security, and soc_lead approval evidence")
+    if not actions and warnings:
+        actions.append("attach optional drift evidence for a more complete model promotion packet")
+    return sorted(dict.fromkeys(actions))
+
+
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
     closed_loop = load_json(args.closed_loop)
     deploy_gate = load_json(args.deploy_gate)
@@ -81,6 +153,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         failures.append("model closed-loop report is not ready")
     if deploy_gate.get("status") != "pass":
         failures.append("model deploy gate did not pass")
+    failures.extend(identity_failures(closed_loop, deploy_gate))
     drift_status = str((drift or closed_loop.get("drift") or {}).get("status") or "not_supplied")
     if drift_status in {"review_required", "blocked", "fail"}:
         failures.append(f"dataset drift requires review: {drift_status}")
@@ -95,10 +168,20 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     if days < args.min_baseline_days:
         failures.append(f"baseline days {days} below {args.min_baseline_days}")
     failures.extend(approval_failures(approval, args.require_approval))
+    closed_identity = model_identity(closed_loop)
+    deploy_identity = model_identity(deploy_gate)
+    evidence = [
+        evidence_ref(args.closed_loop, "closed_loop"),
+        evidence_ref(args.deploy_gate, "deploy_gate"),
+        evidence_ref(args.drift_report, "drift_report"),
+        evidence_ref(args.approval, "approval"),
+    ]
+    status = "blocked" if failures else "pass"
     return {
         "schema": SCHEMA,
         "generated_at": utc_now(),
-        "status": "blocked" if failures else "pass",
+        "status": status,
+        "promotion_decision": "approved_for_promotion" if status == "pass" else "promotion_blocked",
         "thresholds": {
             "min_feedback_records": args.min_feedback_records,
             "min_reviewed_labels": args.min_reviewed_labels,
@@ -106,9 +189,12 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "require_approval": args.require_approval,
         },
         "model": {
-            "name": closed_loop.get("model_name", deploy_gate.get("model_name", "")),
-            "version": closed_loop.get("model_version", deploy_gate.get("model_version", "")),
+            "name": closed_identity["name"] or deploy_identity["name"],
+            "version": closed_identity["version"] or deploy_identity["version"],
+            "feature_schema_sha256": closed_identity["feature_schema_sha256"] or deploy_identity["feature_schema_sha256"],
         },
+        "closed_loop_model": closed_identity,
+        "deploy_gate_model": deploy_identity,
         "closed_loop_status": closed_loop.get("status", "missing"),
         "deploy_gate_status": deploy_gate.get("status", "missing"),
         "drift_status": drift_status,
@@ -116,6 +202,22 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "reviewed_labels": reviewed_labels,
         "baseline_days": days,
         "approval_roles": list(APPROVAL_ROLES),
+        "evidence": evidence,
+        "promotion_packet": {
+            "decision": "approved_for_promotion" if status == "pass" else "promotion_blocked",
+            "model": {
+                "name": closed_identity["name"] or deploy_identity["name"],
+                "version": closed_identity["version"] or deploy_identity["version"],
+                "feature_schema_sha256": closed_identity["feature_schema_sha256"] or deploy_identity["feature_schema_sha256"],
+            },
+            "evidence_count": sum(1 for item in evidence if item["present"]),
+            "evidence_sha256": {
+                item["kind"]: item["sha256"]
+                for item in evidence
+                if item["present"] and item["sha256"]
+            },
+            "next_actions": next_actions(failures, warnings),
+        },
         "failures": failures,
         "warnings": warnings,
     }
@@ -134,6 +236,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Feedback records: `{report['feedback_records']}`",
         f"- Reviewed labels: `{report['reviewed_labels']}`",
         f"- Baseline days: `{report['baseline_days']}`",
+        f"- Promotion decision: `{report['promotion_decision']}`",
+        f"- Evidence files: `{report['promotion_packet']['evidence_count']}`",
         "",
     ]
     if report["failures"]:
@@ -144,6 +248,16 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(["## Warnings", ""])
         lines.extend(f"- {item}" for item in report["warnings"])
         lines.append("")
+    if report["promotion_packet"]["next_actions"]:
+        lines.extend(["## Next Actions", ""])
+        lines.extend(f"- {item}" for item in report["promotion_packet"]["next_actions"])
+        lines.append("")
+    lines.extend(["## Evidence", ""])
+    lines.extend(
+        f"- `{item['kind']}`: `{item['path'] or 'not supplied'}` sha256=`{item['sha256'] or 'n/a'}`"
+        for item in report["evidence"]
+    )
+    lines.append("")
     return "\n".join(lines)
 
 

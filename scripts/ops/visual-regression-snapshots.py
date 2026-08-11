@@ -47,6 +47,38 @@ def target_pages(server: str, alert_id: str) -> list[dict[str, str]]:
     ]
 
 
+def viewport_class(viewport: dict[str, Any]) -> str:
+    width = int(viewport.get("width") or 0)
+    height = int(viewport.get("height") or 0)
+    if width < 768:
+        return "mobile"
+    if width >= 2400 and width > height * 2:
+        return "ultrawide"
+    if width >= 1900:
+        return "desktop_1080p"
+    return "desktop_1366"
+
+
+def attach_coverage_summary(report: dict[str, Any]) -> None:
+    screenshots = report.get("screenshots", [])
+    pages = sorted({str(shot.get("page", "")) for shot in screenshots if shot.get("page")})
+    viewports = sorted({str((shot.get("viewport") or {}).get("name", "")) for shot in screenshots if (shot.get("viewport") or {}).get("name")})
+    classes = sorted({viewport_class(shot.get("viewport") or {}) for shot in screenshots})
+    expected_pages = {"dashboard", "trace-viewer"}
+    expected_viewports = set(DEFAULT_VIEWPORTS)
+    captured = [shot for shot in screenshots if shot.get("status") in {"captured", "planned"}]
+    report["coverage"] = {
+        "pages": pages,
+        "viewports": viewports,
+        "viewport_classes": classes,
+        "screenshot_count": len(screenshots),
+        "covered_count": len(captured),
+        "missing_pages": sorted(expected_pages - set(pages)),
+        "missing_default_viewports": sorted(expected_viewports - set(viewports)),
+        "complete_default_matrix": not (expected_pages - set(pages)) and not (expected_viewports - set(viewports)),
+    }
+
+
 def planned_manifest(args: argparse.Namespace) -> dict[str, Any]:
     out_dir = Path(args.out_dir)
     pages = target_pages(args.server, args.alert_id)
@@ -63,7 +95,7 @@ def planned_manifest(args: argparse.Namespace) -> dict[str, Any]:
                     "status": "planned" if args.dry_run else "pending",
                 }
             )
-    return {
+    report = {
         "schema": SCHEMA,
         "generated_at": utc_now(),
         "status": "planned" if args.dry_run else "pending",
@@ -73,6 +105,8 @@ def planned_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "failures": [],
         "warnings": [],
     }
+    attach_coverage_summary(report)
+    return report
 
 
 def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
@@ -87,6 +121,8 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
         f"- Status: `{report['status']}`",
         f"- Server: `{report['server']}`",
         f"- Alert ID: `{report['alert_id']}`",
+        f"- Coverage: `{report.get('coverage', {}).get('covered_count', 0)}/{report.get('coverage', {}).get('screenshot_count', 0)}`",
+        f"- Viewport classes: `{', '.join(report.get('coverage', {}).get('viewport_classes', []))}`",
         "",
         "| Page | Viewport | Status | Path |",
         "| --- | --- | --- | --- |",
@@ -105,6 +141,13 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
         lines.extend(["", "## Baseline Comparison", "", "| Page | Viewport | Status | Detail |", "| --- | --- | --- | --- |"])
         for item in report["comparisons"]:
             lines.append(f"| {item['page']} | {item['viewport']} | {item['status']} | {item.get('detail', '')} |")
+    coverage = report.get("coverage") or {}
+    if coverage.get("missing_pages") or coverage.get("missing_default_viewports"):
+        lines.extend(["", "## Coverage Gaps"])
+        if coverage.get("missing_pages"):
+            lines.append(f"- Missing pages: `{', '.join(coverage['missing_pages'])}`")
+        if coverage.get("missing_default_viewports"):
+            lines.append(f"- Missing default viewports: `{', '.join(coverage['missing_default_viewports'])}`")
     (out_dir / "visual-regression-snapshots.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -330,6 +373,7 @@ def compare_baseline(report: dict[str, Any], baseline_path: str) -> None:
     report["comparisons"] = comparisons
     if any(item["status"] == "changed" for item in comparisons) and report.get("status") == "pass":
         report["status"] = "warn"
+    attach_coverage_summary(report)
 
 
 def parse_args() -> argparse.Namespace:
@@ -354,6 +398,7 @@ def main() -> int:
     if not args.dry_run:
         report = capture(report, args.api_key, args.timeout_ms)
     attach_inventory(report)
+    attach_coverage_summary(report)
     compare_baseline(report, args.baseline)
     write_outputs(report, Path(args.out_dir))
     print(f"status={report['status']} screenshots={len(report['screenshots'])} out_dir={args.out_dir}")

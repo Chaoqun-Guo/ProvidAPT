@@ -34,6 +34,8 @@ auth_identities = { "admin-key" = "ops", "analyst-key" = "soc" }
         report = rbac.audit_config(config, self.tmp / "providapt.toml")
         self.assertEqual(report["status"], "warn")
         self.assertTrue(any("no tenant scope" in item for item in report["warnings"]))
+        self.assertNotIn("analyst-key", json.dumps(report))
+        self.assertIn(rbac.key_fingerprint("analyst-key"), json.dumps(report))
 
     def test_blocks_disabled_auth_and_wildcard(self):
         config = rbac.load_toml(self.write_config("""
@@ -60,7 +62,9 @@ auth_tenants = { "operator-key" = "prod, staging" }
         report = rbac.audit_config(config, self.tmp / "providapt.toml")
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["tenant_count"], 2)
-        self.assertEqual(report["tenant_scopes"]["operator-key"], ["prod", "staging"])
+        label = rbac.key_fingerprint("operator-key")
+        self.assertEqual(report["tenant_scopes"][label], ["prod", "staging"])
+        self.assertNotIn("operator-key", rbac.render_markdown(report))
 
     def write_config(self, text):
         path = self.tmp / "providapt.toml"

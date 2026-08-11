@@ -58,9 +58,37 @@ class ReleaseGateStatusTest(unittest.TestCase):
         self.assertEqual(gates.scan_evidence_gate("scan", [path], "run").status, "blocked")
         path.write_text("{}\n", encoding="utf-8")
         manifest = self.tmp_root / "scan-manifest.json"
-        manifest.write_text(json.dumps({"full_commit": "abc"}), encoding="utf-8")
+        manifest.write_text(json.dumps({
+            "schema": "providapt.security_scan_manifest.v1",
+            "generated_at": "2026-08-11T00:00:00Z",
+            "full_commit": "abc",
+            "reports": {"scan": "present"},
+        }), encoding="utf-8")
         self.assertEqual(gates.scan_evidence_gate("scan", [path], "run", manifest, "abc").status, "pass")
         self.assertEqual(gates.scan_evidence_gate("scan", [path], "run", manifest, "def").status, "blocked")
+
+    def test_scan_evidence_requires_manifest_schema_and_present_report(self):
+        path = self.tmp_root / "govulncheck.json"
+        path.write_text("{}\n", encoding="utf-8")
+        manifest = self.tmp_root / "scan-manifest.json"
+        manifest.write_text(json.dumps({
+            "schema": "providapt.security_scan_manifest.v1",
+            "generated_at": "2026-08-11T00:00:00Z",
+            "full_commit": "abc",
+            "reports": {"govulncheck_json": "missing"},
+        }), encoding="utf-8")
+        missing = gates.scan_evidence_gate("govulncheck_evidence", [path], "run", manifest, "abc")
+        self.assertEqual(missing.status, "blocked")
+        self.assertIn("marks govulncheck_json as missing", missing.message)
+        manifest.write_text(json.dumps({
+            "schema": "unknown",
+            "generated_at": "2026-08-11T00:00:00Z",
+            "full_commit": "abc",
+            "reports": {"govulncheck_json": "present"},
+        }), encoding="utf-8")
+        unknown = gates.scan_evidence_gate("govulncheck_evidence", [path], "run", manifest, "abc")
+        self.assertEqual(unknown.status, "blocked")
+        self.assertIn("unknown security scan schema", unknown.message)
 
     def test_waiver_gate_accepts_structured_waiver(self):
         waiver = self.tmp_root / "waivers.json"

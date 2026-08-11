@@ -14,6 +14,15 @@ SCHEMA = "providapt.plugin_release_gate.v1"
 SEMVER_RE = re.compile(r"^v?\d+\.\d+\.\d+([-.+][A-Za-z0-9.-]+)?$")
 
 
+def parse_semver(value: Any) -> tuple[int, int, int] | None:
+    text = str(value or "").strip()
+    if not SEMVER_RE.match(text):
+        return None
+    core = text.lstrip("v").split("-", 1)[0].split("+", 1)[0]
+    major, minor, patch = core.split(".")
+    return int(major), int(minor), int(patch)
+
+
 def load_json(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
@@ -43,6 +52,12 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
         failures.append("version must be semantic version compatible")
     if manifest.get("providapt_min_version") and not SEMVER_RE.match(str(manifest["providapt_min_version"])):
         failures.append("providapt_min_version must be semantic version compatible")
+    if manifest.get("providapt_max_version") and not SEMVER_RE.match(str(manifest["providapt_max_version"])):
+        failures.append("providapt_max_version must be semantic version compatible")
+    min_version = parse_semver(manifest.get("providapt_min_version"))
+    max_version = parse_semver(manifest.get("providapt_max_version"))
+    if min_version and max_version and min_version > max_version:
+        failures.append("providapt_min_version must not be greater than providapt_max_version")
     plugin_type = str(manifest.get("type", "")).lower()
     if plugin_type not in {"detection", "scoring", "threatintel", "enrichment"}:
         failures.append("type must be detection, scoring, threatintel, or enrichment")
@@ -51,7 +66,7 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
         warnings.append("entrypoint/import_path is not set; compile-time registration must be documented")
     permissions = manifest.get("permissions")
     if permissions is None:
-        warnings.append("permissions are not declared; plugin permission model should be explicit before production distribution")
+        failures.append("permissions are required for plugin distribution")
         permissions = []
     elif not isinstance(permissions, list):
         failures.append("permissions must be a list")
@@ -65,10 +80,26 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
                 failures.append("plugin permission entries must not be empty")
     distribution = manifest.get("distribution")
     if not isinstance(distribution, dict):
-        warnings.append("distribution policy is not declared")
+        failures.append("distribution policy is required")
         distribution = {}
     if distribution and not str(distribution.get("channel") or "").strip():
         failures.append("distribution.channel is required when distribution policy is declared")
+    if distribution and not str(distribution.get("artifact") or "").strip():
+        failures.append("distribution.artifact is required when distribution policy is declared")
+    if distribution and not str(distribution.get("signature_algorithm") or "").strip():
+        warnings.append("distribution.signature_algorithm is not declared")
+    rollback = manifest.get("rollback")
+    if not isinstance(rollback, list) or not rollback:
+        failures.append("rollback instructions are required")
+        rollback_steps: list[str] = []
+    else:
+        rollback_steps = []
+        for step in rollback:
+            text = str(step).strip()
+            if not text:
+                failures.append("rollback steps must not be empty")
+            else:
+                rollback_steps.append(text)
     signature_present = bool(signature_path and signature_path.exists() and signature_path.stat().st_size > 0)
     if not signature_present and not allow_unsigned:
         failures.append("plugin signature evidence is required")
@@ -85,19 +116,17 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
             "name": manifest.get("name", ""),
             "version": manifest.get("version", ""),
             "type": manifest.get("type", ""),
-            "providapt_min_version": manifest.get("providapt_min_version", ""),
-            "providapt_max_version": manifest.get("providapt_max_version", ""),
+            "compatibility": {
+                "providapt_min_version": manifest.get("providapt_min_version", ""),
+                "providapt_max_version": manifest.get("providapt_max_version", ""),
+            },
             "entrypoint": entrypoint,
             "permissions": permissions,
             "distribution": distribution,
         },
         "failures": failures,
         "warnings": warnings,
-        "rollback": [
-            "disable the plugin in providapt.toml",
-            "restore the previous signed plugin manifest",
-            "restart affected agents or wait for next policy poll",
-        ],
+        "rollback": rollback_steps,
     }
 
 
@@ -108,9 +137,12 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Status: `{report['status']}`",
         f"- Plugin: `{report['plugin']['name']}`",
         f"- Version: `{report['plugin']['version']}`",
+        f"- ProvidAPT min version: `{report['plugin']['compatibility']['providapt_min_version']}`",
+        f"- ProvidAPT max version: `{report['plugin']['compatibility']['providapt_max_version'] or 'unbounded'}`",
         f"- Manifest SHA-256: `{report['manifest_sha256']}`",
         f"- Signature present: `{report['signature_present']}`",
         f"- Permissions: `{json.dumps(report['plugin'].get('permissions', []), sort_keys=True)}`",
+        f"- Distribution: `{json.dumps(report['plugin'].get('distribution', {}), sort_keys=True)}`",
         "",
     ]
     if report["failures"]:

@@ -48,6 +48,14 @@ class CustomerReleaseGateTest(unittest.TestCase):
                 "failures": [],
                 "warnings": [],
             })),
+            "release_evidence_consistency_gate": str(self.write_json("release-evidence-consistency.json", {
+                "schema": "providapt.release_evidence_consistency.v1",
+                "status": "pass",
+                "version": "v1.2.3",
+                "full_commit": "a" * 40,
+                "failures": [],
+                "warnings": [],
+            })),
             "package_smoke_dir": str(self.tmp / "package-smoke"),
             "production_readiness_gate": str(self.write_json("production.json", {"status": "pass"})),
             "ml_readiness_gate": str(self.write_json("ml.json", {"status": "pass"})),
@@ -86,6 +94,7 @@ class CustomerReleaseGateTest(unittest.TestCase):
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["sections"]["dist_artifacts"]["status"], "pass")
         self.assertEqual(report["sections"]["artifact_signing"]["status"], "pass")
+        self.assertEqual(report["sections"]["release_evidence_consistency"]["status"], "pass")
         self.assertIn("Open Source Release Gate", subject.render_markdown(report))
 
     def test_build_report_blocks_on_missing_dist_artifact(self):
@@ -100,6 +109,12 @@ class CustomerReleaseGateTest(unittest.TestCase):
         report = subject.build_report(self.make_args(artifact_signing_gate=str(self.tmp / "missing-artifact-signing.json")))
         self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["sections"]["artifact_signing"]["status"], "blocked")
+
+    def test_build_report_blocks_on_missing_release_evidence_consistency_gate(self):
+        self.populate_dist_and_smoke()
+        report = subject.build_report(self.make_args(release_evidence_consistency_gate=str(self.tmp / "missing-release-evidence.json")))
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["sections"]["release_evidence_consistency"]["status"], "blocked")
 
     def test_skipped_ci_can_be_controlled_warning(self):
         self.populate_dist_and_smoke()

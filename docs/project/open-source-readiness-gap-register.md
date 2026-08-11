@@ -39,7 +39,7 @@ Current closure progress:
 - Constrained VM deployment is guarded by ELF, bpf-tag, SHA-256, service-active, and log-budget checks through `make deploy-vms`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
 - Alert quality reporting is available through `make alert-quality ALERTS=...`.
-- RBAC and tenant-scope configuration audits are available through `make ops-rbac-audit PROVIDAPT_CONFIG=...`.
+- RBAC and tenant-scope configuration audits are available through `make ops-rbac-audit PROVIDAPT_CONFIG=...`; reports fingerprint API keys instead of writing raw key material.
 
 ## Detection and Investigation
 
@@ -61,7 +61,7 @@ Current closure progress:
 - Dashboard layout now constrains long paths, hashes, hostnames, alert headlines, and action chips to prevent horizontal overflow.
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Trace Viewer supports path-only focus from a selected node, node-type filtering, file/network folding, and layout modes for tree, compact, timeline, and grouped views.
-- Trace SVG layout pressure evidence can be collected against real alerts through `make trace-svg-stress`, including per-layout latency, SVG dimensions, node/edge counts, and folded cluster counts.
+- Trace SVG layout pressure evidence can be collected against real alerts through `make trace-svg-stress`, including per-layout latency, SVG dimensions, node/edge counts, folded cluster counts, and automatic alert-ID discovery from `/api/v1/control/alerts` when `ALERT_IDS` is omitted.
 - Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
 - Alert workflow feedback is persisted to an append-only `alert-feedback.ndjson` ledger, merged back into dashboard alert views after restart, exported through `/api/v1/control/alerts/feedback`, consumed by `make alert-quality ALERT_FEEDBACK=...`, recorded in graph dataset manifests through `make graph-dataset ALERT_FEEDBACK=...`, merged into `make detection-quality`, and accepted by `make model-closed-loop REQUIRE_FEEDBACK=1` from either a feedback file or dataset manifest evidence.
 - Three-VM capture/enrichment evidence can be collected over SSH/SCP through `make collect-vm-capture-evidence`, which copies real `providapt-*.ndjson` files and runs `capture-enrichment-field-gate` on the gathered release evidence.
@@ -88,6 +88,7 @@ Current closure progress:
 - Support bundle readiness gates archive presence, redaction, export audit, and download evidence through `make support-bundle-gate`.
 - Runtime deployment diagnostics gates API auth, TLS, storage encryption, policy sync, kernel attach, control plane, and support bundle availability through `make deployment-diagnostics-gate`.
 - VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.
+- Open-source development backlog generation is available through `make open-source-development-backlog`, with `LOCAL_ONLY=1` and `PHASE=...` filters for step-by-step local implementation planning.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
 - Upgrade rollout planning produces canary, wave, pause/resume, and rollback evidence through `make upgrade-rollout-plan`.
 - SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.
@@ -106,13 +107,23 @@ Current closure progress:
 - Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
 - Long-duration soak samples can be appended from a status endpoint or captured JSON through `make soak-sample`.
 - Model registry, dataset drift, feature-schema compatibility, and deployable model artifact SHA-256 checks are available for training provenance.
-- Model lifecycle promotion is gated through `make model-lifecycle-gate`, requiring closed-loop readiness, deploy-gate pass status, stable drift evidence, sufficient analyst feedback/reviewed labels, a minimum baseline window, and optional named owner approval.
+- Model lifecycle promotion is gated through `make model-lifecycle-gate`, requiring closed-loop readiness, deploy-gate pass status, stable drift evidence, sufficient analyst feedback/reviewed labels, a minimum baseline window, matching model identity/version/feature schema evidence, and optional named owner approval.
 - First-run onboarding bundles generate a starter config, checklist,
   Tailscale/SSH/API/TLS/secrets/PostgreSQL environment checks, and manifest
   through `make onboarding-wizard`.
 - Plugin release gating validates plugin manifests, semantic versions,
-  supported plugin types, permission declarations, distribution policy,
-  signature evidence, and rollback instructions through
-  `make plugin-release-gate`.
+  supported plugin types, least-privilege permission declarations,
+  compatibility ranges, signed distribution metadata, signature evidence, and
+  concrete rollback instructions through `make plugin-release-gate`.
+- Visual regression gating now requires captured Dashboard and Trace Viewer screenshots, hashes, and passing DOM assertions for each required viewport; dry-run planning must explicitly opt out through `ALLOW_PLANNED_VISUALS=1`.
+- Open-source readiness gating now aggregates release gate status, operations
+  readiness, enterprise readiness, model lifecycle promotion packets, visual
+  browser baseline coverage, onboarding outputs, plugin release gates, required
+  documentation, and approval evidence into one local milestone report.
+- Open-source milestone packaging is available through
+  `make open-source-milestone`, combining readiness, readiness backlog,
+  development backlog, release gate status, release evidence consistency, model
+  lifecycle, and visual baseline evidence into one JSON/Markdown local
+  milestone package.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
 - Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.

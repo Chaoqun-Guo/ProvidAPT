@@ -34,6 +34,8 @@ artifacts. Set `KEEP_BUILD_DIST=1` only when debugging package builders.
 make release-open-source
 make package-smoke-matrix
 make github-actions-evidence
+make artifact-signing-gate
+make release-evidence-consistency-gate
 make customer-release-gate
 
 # Use explicit host mode only on disposable Linux validation hosts when Docker
@@ -44,6 +46,7 @@ PACKAGE_SMOKE_MODE=host make package-smoke-matrix
 # Aggregate all customer-release blockers into one JSON/Markdown report:
 make customer-release-gate \
   RELEASE_GATES_JSON=build/release-gate-status.json \
+  RELEASE_EVIDENCE_CONSISTENCY_GATE=build/release-evidence/release-evidence-consistency-gate.json \
   PACKAGE_SMOKE_DIR=build/package-smoke \
   PRODUCTION_READINESS_GATE=build/production-readiness/production-readiness-gate.json \
   ML_READINESS_GATE=build/ml-readiness/ml-readiness-gate.json \
@@ -79,6 +82,8 @@ providaptctl -release-check \
 - `make release-blocker-backlog` must produce zero release-blocking tasks before final publication.
 - Every published install artifact and SBOM in `dist/` must appear in `checksums.txt`; signature files, public keys, and readiness reports are release evidence and are excluded.
 - Every entry in `checksums.txt` must resolve to an existing file and match its SHA-256 digest.
+- Release readiness, scan manifest, SBOM files, artifact signing evidence,
+  release version, and commit must pass `make release-evidence-consistency-gate`.
 - Required release artifact types are `archive`, `deb`, `rpm`, `helm`, and `monitoring` unless a signed release waiver is present.
 - SBOM files must be generated in SPDX JSON and CycloneDX JSON formats.
 - Container and Helm artifacts must include immutable version metadata.

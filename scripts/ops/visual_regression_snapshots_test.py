@@ -98,6 +98,9 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             self.assertEqual(len(manifest["screenshots"]), 2)
             self.assertTrue(any("/dashboard" in item["url"] for item in manifest["screenshots"]))
             self.assertTrue(any("/api/v1/alerts/p%3A100/svg/view" in item["url"] for item in manifest["screenshots"]))
+            self.assertEqual(manifest["coverage"]["covered_count"], 2)
+            self.assertEqual(manifest["coverage"]["viewport_classes"], ["desktop_1366"])
+            self.assertIn("1920x1080", manifest["coverage"]["missing_default_viewports"])
 
     def test_baseline_compare_marks_changed(self):
         mod = load_module()
@@ -136,6 +139,26 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             mod.compare_baseline(report, str(baseline_path))
             self.assertEqual(report["status"], "warn")
             self.assertEqual(report["comparisons"][0]["status"], "changed")
+
+    def test_coverage_summary_marks_complete_default_matrix(self):
+        mod = load_module()
+        report = {
+            "screenshots": [
+                {
+                    "page": page,
+                    "viewport": mod.parse_viewport(viewport),
+                    "status": "planned",
+                    "path": f"{page}-{viewport}.png",
+                }
+                for page in ["dashboard", "trace-viewer"]
+                for viewport in mod.DEFAULT_VIEWPORTS
+            ]
+        }
+        mod.attach_coverage_summary(report)
+        self.assertTrue(report["coverage"]["complete_default_matrix"])
+        self.assertEqual(report["coverage"]["covered_count"], 8)
+        self.assertIn("mobile", report["coverage"]["viewport_classes"])
+        self.assertIn("ultrawide", report["coverage"]["viewport_classes"])
 
 
 if __name__ == "__main__":

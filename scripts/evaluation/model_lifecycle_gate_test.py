@@ -48,11 +48,12 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "status": "ready",
             "model_name": "graph-detector",
             "model_version": "1.0.0",
+            "feature_schema_sha256": "a" * 64,
             "dataset": {"baseline_days": 14},
             "feedback": {"records": 40, "reviewed": 22},
             "drift": {"status": "stable"},
         })
-        deploy = self.write_json("deploy.json", {"status": "pass"})
+        deploy = self.write_json("deploy.json", {"status": "pass", "model_name": "graph-detector", "model_version": "1.0.0", "feature_schema_sha256": "a" * 64})
         approval = self.write_json("approval.json", {
             "model_owner": {"decision": "approved", "approved_by": "Alice Model"},
             "security": {"decision": "approved", "approved_by": "Sam Security"},
@@ -60,15 +61,21 @@ class ModelLifecycleGateTest(unittest.TestCase):
         })
         report = subject.build_report(self.args(closed_loop=str(closed), deploy_gate=str(deploy), approval=str(approval)))
         self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["promotion_decision"], "approved_for_promotion")
+        self.assertEqual(report["promotion_packet"]["evidence_count"], 3)
+        self.assertEqual(len(report["promotion_packet"]["evidence_sha256"]["closed_loop"]), 64)
+        self.assertEqual(report["promotion_packet"]["next_actions"], [])
 
     def test_blocks_low_feedback_and_delegate_approval(self):
         closed = self.write_json("closed.json", {
             "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
             "dataset": {"baseline_days": 1},
             "feedback": {"records": 3, "reviewed": 1},
             "drift": {"status": "review_required"},
         })
-        deploy = self.write_json("deploy.json", {"status": "pass"})
+        deploy = self.write_json("deploy.json", {"status": "pass", "model_name": "graph-detector", "model_version": "1.0.0"})
         approval = self.write_json("approval.json", {
             "model_owner": {"decision": "approved", "approved_by": "Release delegate"},
         })
@@ -78,6 +85,56 @@ class ModelLifecycleGateTest(unittest.TestCase):
         self.assertIn("feedback records", text)
         self.assertIn("dataset drift", text)
         self.assertIn("named owner", text)
+        actions = "\n".join(report["promotion_packet"]["next_actions"])
+        self.assertIn("collect additional analyst", actions)
+        self.assertIn("attach named", actions)
+
+    def test_blocks_model_identity_mismatch(self):
+        closed = self.write_json("closed.json", {
+            "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "feature_schema_sha256": "a" * 64,
+            "dataset": {"baseline_days": 14},
+            "feedback": {"records": 40, "reviewed": 22},
+            "drift": {"status": "stable"},
+        })
+        deploy = self.write_json("deploy.json", {
+            "status": "pass",
+            "model_name": "graph-detector",
+            "model_version": "2.0.0",
+            "feature_schema_sha256": "b" * 64,
+        })
+        approval = self.write_json("approval.json", {
+            "model_owner": {"decision": "approved", "approved_by": "Alice Model"},
+            "security": {"decision": "approved", "approved_by": "Sam Security"},
+            "soc_lead": {"decision": "approved", "approved_by": "Pat SOC"},
+        })
+        report = subject.build_report(self.args(closed_loop=str(closed), deploy_gate=str(deploy), approval=str(approval)))
+        self.assertEqual(report["status"], "blocked")
+        text = "\n".join(report["failures"])
+        self.assertIn("model version mismatch", text)
+        self.assertIn("feature schema hash mismatch", text)
+
+    def test_markdown_includes_promotion_packet_evidence(self):
+        closed = self.write_json("closed.json", {
+            "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "dataset": {"baseline_days": 14},
+            "feedback": {"records": 40, "reviewed": 22},
+            "drift": {"status": "stable"},
+        })
+        deploy = self.write_json("deploy.json", {
+            "status": "pass",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+        })
+        report = subject.build_report(self.args(closed_loop=str(closed), deploy_gate=str(deploy), require_approval=False))
+        rendered = subject.render_markdown(report)
+        self.assertIn("Promotion decision", rendered)
+        self.assertIn("## Evidence", rendered)
+        self.assertIn("closed_loop", rendered)
 
 
 if __name__ == "__main__":
