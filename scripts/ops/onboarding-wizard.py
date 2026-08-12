@@ -57,6 +57,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     checklist_path = out_dir / "onboarding-checklist.md"
     report_path = out_dir / "onboarding-report.md"
     manifest_path = out_dir / "onboarding-manifest.json"
+    operator_flow_path = out_dir / "onboarding-operator-flow.md"
     result_template_path = out_dir / "onboarding-check-results.template.json"
     config_path.write_text(config_yaml(args), encoding="utf-8")
     check_results = load_check_results(getattr(args, "check_results", ""))
@@ -64,6 +65,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     summary = check_summary(checks)
     actions = next_actions(checks)
     action_summary = onboarding_action_summary(actions)
+    flow = operator_flow(args, checks, action_summary)
     result_template_path.write_text(json.dumps(check_result_template(checks), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     checklist = f"""# ProvidAPT First-Run Onboarding Checklist
 
@@ -76,12 +78,15 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 - Run `make enterprise-readiness` before customer handoff.
 - Fill `onboarding-check-results.template.json` with observed results, then
   rerun `make onboarding-wizard CHECK_RESULTS={result_template_path}`.
+- Follow `onboarding-operator-flow.md` for the staged first-run sequence and
+  copy final observations back into the check-results JSON.
 
 ## Environment Checks
 
 {chr(10).join(f"- **{item['name']}** ({item['severity']}): `{item['command']}` - {item['purpose']}. Next: {item['next_step']}" for item in checks)}
 """
     checklist_path.write_text(checklist, encoding="utf-8")
+    operator_flow_path.write_text(render_operator_flow(flow), encoding="utf-8")
     report_path.write_text(render_report(args, checks, summary, actions, action_summary), encoding="utf-8")
     manifest = {
         "schema": SCHEMA,
@@ -94,12 +99,14 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
         "check_results_path": getattr(args, "check_results", ""),
         "check_summary": summary,
         "environment_checks": checks,
+        "operator_flow": flow,
         "next_actions": actions,
         "action_summary": action_summary,
         "outputs": {
             "config": str(config_path),
             "checklist": str(checklist_path),
             "report": str(report_path),
+            "operator_flow": str(operator_flow_path),
             "check_results_template": str(result_template_path),
         },
     }
@@ -108,9 +115,11 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 
 
 def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
+    vm_targets = vm_hosts(args)
+    ssh_command = " && ".join(f"ssh -o BatchMode=yes {target} true" for target in vm_targets) if vm_targets else "ssh -o BatchMode=yes <user>@<vm-host> true"
     checks = [
         check("tailscale", "tailscale status", "verify tailnet connectivity", "Fix Tailscale login, DNS, or ACLs before VM checks."),
-        check("ssh", "ssh -o BatchMode=yes <user>@<vm-host> true", "verify passwordless VM access", "Install or repair SSH keys for every target VM."),
+        check("ssh", ssh_command, "verify passwordless VM access", "Install or repair SSH keys for every target VM."),
         check("api", f"curl -fsS http://127.0.0.1:{args.rest_port}/api/v1/status", "verify REST API health", "Start providaptd and confirm local firewall rules."),
         check("dashboard", f"curl -fsS http://127.0.0.1:{args.rest_port}/dashboard", "verify dashboard shell is reachable", "Check REST bind address, auth settings, and reverse proxy routing."),
         check("tls", "make ops-tls-check CERTS=\"build/tls/server.crt build/tls/agent.crt\"", "verify certificate validity", "Run make ops-tls-bootstrap for lab certificates or install production certificates."),
@@ -119,6 +128,13 @@ def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
     if args.postgres_dsn:
         checks.append(check("postgres", "make ops-postgres-drill", "verify backup and restore path", "Set PROVIDAPT_DATABASE_DSN and optional PROVIDAPT_RESTORE_DSN before the drill."))
     return checks
+
+
+def vm_hosts(args: argparse.Namespace) -> list[str]:
+    raw = str(getattr(args, "vm_hosts", "") or "").strip()
+    if not raw:
+        return []
+    return [item.strip() for item in raw.replace(",", " ").split() if item.strip()]
 
 
 def load_check_results(path_value: str) -> dict[str, dict[str, Any]]:
@@ -233,6 +249,101 @@ def onboarding_status(summary: dict[str, int]) -> str:
     return "pass"
 
 
+def check_status(checks: list[dict[str, str]], names: list[str]) -> str:
+    selected = [item.get("status", "unknown") for item in checks if item.get("name") in names]
+    if not selected:
+        return "unknown"
+    if any(status == "fail" for status in selected):
+        return "blocked"
+    if any(status in {"warn", "unknown", "skipped"} for status in selected):
+        return "pending"
+    return "ready"
+
+
+def operator_flow(args: argparse.Namespace, checks: list[dict[str, str]], action_summary: dict[str, object]) -> list[dict[str, object]]:
+    targets = vm_hosts(args)
+    target_note = ", ".join(targets) if targets else "<user>@<vm-host>"
+    return [
+        flow_step(
+            "prepare",
+            "Prepare environment",
+            ["make verify-env", "make ops-secret-template"],
+            ["Linux hosts with Tailscale joined", f"VM SSH targets: {target_note}"],
+            "Tailscale and SSH checks are pass or intentionally documented",
+            check_status(checks, ["tailscale", "ssh"]),
+        ),
+        flow_step(
+            "configure",
+            "Generate configuration",
+            ["make onboarding-wizard OUT_DIR=build/onboarding", "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env"],
+            ["PROVIDAPT_API_AUTH_KEYS from the operator secret store", "TLS material or lab bootstrap certificates"],
+            "Config, secrets, and TLS checks are ready for first daemon start",
+            check_status(checks, ["secrets", "tls"]),
+        ),
+        flow_step(
+            "start",
+            "Start control plane",
+            [f"providaptd -config build/onboarding/providapt.onboarding.yaml", f"curl -fsS http://127.0.0.1:{args.rest_port}/api/v1/status"],
+            ["REST and gRPC ports available", "PostgreSQL DSN when configured"],
+            "API check passes and dashboard shell responds",
+            check_status(checks, ["api", "dashboard"]),
+        ),
+        flow_step(
+            "verify",
+            "Verify operations evidence",
+            ["make visual-regression-snapshots PROVIDAPT_SERVER_URL=http://127.0.0.1:18080 DRY_RUN=1", "make open-source-local-closure"],
+            ["Observed check results copied into onboarding-check-results.template.json"],
+            "Onboarding report has no failed checks and unknowns are reduced to accepted warnings",
+            "blocked" if action_summary.get("blocked_checks") else ("pending" if action_summary.get("unknown_checks") else "ready"),
+        ),
+        flow_step(
+            "handoff",
+            "Package handoff evidence",
+            ["make open-source-milestone ALLOW_MISSING=1", "make open-source-evidence-summary ALLOW_MISSING=1"],
+            ["onboarding-manifest.json", "onboarding-report.md", "onboarding-operator-flow.md"],
+            "Manifest, report, and evidence summary are attached to release or lab handoff",
+            "blocked" if action_summary.get("blocked_checks") else ("ready" if not action_summary.get("action_count") else "pending"),
+        ),
+    ]
+
+
+def flow_step(
+    step_id: str,
+    title: str,
+    commands: list[str],
+    inputs: list[str],
+    completion: str,
+    status: str,
+) -> dict[str, object]:
+    return {
+        "id": step_id,
+        "title": title,
+        "status": status,
+        "commands": commands,
+        "inputs": inputs,
+        "completion": completion,
+    }
+
+
+def render_operator_flow(flow: list[dict[str, object]]) -> str:
+    lines = [
+        "# ProvidAPT First-Run Operator Flow",
+        "",
+        "| Step | Status | Completion |",
+        "| --- | --- | --- |",
+    ]
+    for item in flow:
+        lines.append(f"| {escape_cell(str(item['title']))} | `{escape_cell(str(item['status']))}` | {escape_cell(str(item['completion']))} |")
+    for item in flow:
+        lines.extend(["", f"## {item['title']}", "", f"- Status: `{item['status']}`", "- Inputs:"])
+        lines.extend(f"  - {value}" for value in item.get("inputs", []))
+        lines.append("- Commands:")
+        lines.extend(f"  - `{value}`" for value in item.get("commands", []))
+        lines.append(f"- Done when: {item['completion']}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_report(
     args: argparse.Namespace,
     checks: list[dict[str, str]],
@@ -292,6 +403,13 @@ def render_report(
                     next_step=escape_cell(item.get("next_step", "")),
                 )
             )
+    if action_summary.get("top_actions"):
+        lines.extend([
+            "",
+            "## Operator Flow",
+            "",
+            "See `onboarding-operator-flow.md` for the staged first-run sequence.",
+        ])
     lines.append("")
     return "\n".join(lines)
 
@@ -320,6 +438,7 @@ def main() -> int:
     parser.add_argument("--log-retain-bytes", type=int, default=268435456)
     parser.add_argument("--alert-retain-bytes", type=int, default=67108864)
     parser.add_argument("--postgres-dsn", default="")
+    parser.add_argument("--vm-hosts", default="", help="Optional space- or comma-separated SSH targets for concrete VM connectivity checks.")
     parser.add_argument("--check-results", default="", help="Optional JSON check result list to merge into the onboarding report.")
     args = parser.parse_args()
     manifest = build_bundle(args)

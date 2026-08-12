@@ -137,7 +137,9 @@ Current closure progress:
   pass/warn/fail results into `onboarding-report.md` for handoff evidence.
   Onboarding manifests now include `action_summary` with blocked, warning,
   unknown, skipped, status-grouped, and severity-grouped checks for release
-  evidence aggregation.
+  evidence aggregation, plus a staged `operator_flow` covering prepare,
+  configure, start, verify, and handoff work. `ONBOARDING_VM_HOSTS=...` can
+  render concrete SSH connectivity checks for known VM targets.
 - Plugin release gating validates plugin manifests, semantic versions,
   supported plugin types, least-privilege permission declarations,
   compatibility ranges, signed distribution metadata, signature evidence, and

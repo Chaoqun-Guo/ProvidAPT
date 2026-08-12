@@ -621,6 +621,7 @@ Generate a first-run onboarding bundle for a new customer or lab deployment:
 ```bash
 make onboarding-wizard \
   OUT_DIR=build/onboarding \
+  ONBOARDING_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave" \
   POSTGRES_DSN='postgres://providapt:<password>@postgres:5432/providapt?sslmode=require'
 ```
 
@@ -628,7 +629,10 @@ The onboarding bundle includes a production-oriented starter config, checklist,
 environment checks for Tailscale/SSH/API/TLS/secrets/PostgreSQL, and manifest
 that can be attached to customer handoff evidence. It also writes
 `onboarding-check-results.template.json`, a fill-in template containing every
-generated check command.
+generated check command, and `onboarding-operator-flow.md`, a staged first-run
+flow for prepare, configure, start, verify, and handoff work. Set
+`ONBOARDING_VM_HOSTS` to concrete SSH targets when the VM names are already
+known.
 
 After running the environment checks, merge observed results into the
 onboarding report:
@@ -651,8 +655,8 @@ make onboarding-wizard \
 The generated `onboarding-report.md` summarizes pass/warn/fail/unknown counts,
 adds an action summary grouped by check status and severity, and records
 prioritized next actions for each failed or unverified check. The same
-`action_summary` is written to `onboarding-manifest.json` for release evidence
-aggregation.
+`action_summary` and staged `operator_flow` are written to
+`onboarding-manifest.json` for release evidence aggregation.
 
 ## 9. Commercialization Readiness
 

@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import shutil
+import sys
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -10,6 +11,7 @@ SCRIPT = Path(__file__).with_name("onboarding-wizard.py")
 SPEC = importlib.util.spec_from_file_location("onboarding_wizard", SCRIPT)
 onboarding = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
+sys.modules[SPEC.name] = onboarding
 SPEC.loader.exec_module(onboarding)
 
 
@@ -34,6 +36,7 @@ class OnboardingWizardTest(unittest.TestCase):
             log_retain_bytes=268435456,
             alert_retain_bytes=67108864,
             postgres_dsn="postgres://providapt:pw@db/providapt",
+            vm_hosts="ubuntu@vm-ubuntu-master centos@vm-centos-slave",
             check_results="",
         ))
         self.assertEqual(manifest["schema"], onboarding.SCHEMA)
@@ -45,6 +48,10 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertEqual(loaded["status"], "warn")
         self.assertIn("report", loaded["outputs"])
         self.assertIn("check_results_template", loaded["outputs"])
+        self.assertIn("operator_flow", loaded["outputs"])
+        self.assertEqual(len(loaded["operator_flow"]), 5)
+        self.assertEqual(loaded["operator_flow"][-1]["status"], "pending")
+        self.assertIn("ubuntu@vm-ubuntu-master", loaded["environment_checks"][1]["command"])
         self.assertTrue(loaded["next_actions"])
         self.assertEqual(loaded["action_summary"]["action_count"], len(loaded["next_actions"]))
         self.assertIn("api", loaded["action_summary"]["unknown_checks"])
@@ -63,6 +70,9 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("ProvidAPT Onboarding Report", report)
         self.assertIn("Action Summary", report)
         self.assertIn("Next Actions", report)
+        flow = (self.tmp / "onboarding-operator-flow.md").read_text(encoding="utf-8")
+        self.assertIn("First-Run Operator Flow", flow)
+        self.assertIn("Prepare environment", flow)
         template = json.loads((self.tmp / "onboarding-check-results.template.json").read_text(encoding="utf-8"))
         self.assertEqual(template["schema"], "providapt.onboarding_check_results.v1")
         self.assertIn("command", template["checks"][0])
@@ -85,6 +95,7 @@ class OnboardingWizardTest(unittest.TestCase):
             log_retain_bytes=268435456,
             alert_retain_bytes=67108864,
             postgres_dsn="",
+            vm_hosts="",
             check_results=str(results),
         ))
         self.assertEqual(manifest["status"], "blocked")
@@ -102,6 +113,7 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("| fail | api |", report)
         self.assertIn("| warn | tls |", report)
         self.assertIn("Start providaptd", report)
+        self.assertIn("Operator Flow", report)
 
 
 if __name__ == "__main__":
