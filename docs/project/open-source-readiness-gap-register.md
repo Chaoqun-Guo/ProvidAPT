@@ -173,6 +173,10 @@ Current closure progress:
   `make open-source-evidence-summary`, collapsing milestone, readiness backlog,
   visual gate, Trace SVG stress, onboarding, and model lifecycle blockers into
   one short JSON/Markdown executive report.
+- Security scan manifests can be regenerated independently through
+  `make security-scan-manifest`, which accepts govulncheck JSON event streams
+  and records missing Grype/Trivy evidence as blocked rather than silently
+  passing partial scans.
 - Open-source local closure matrices are generated through
   `make open-source-local-closure`, covering the eight remaining release tasks:
   current-commit security scans, final tagged artifacts, browser baselines,
@@ -180,5 +184,10 @@ Current closure progress:
   plugin distribution, and onboarding first-run polish. The matrix separates
   missing tools from missing real-environment inputs and lists the exact next
   command for each task without treating planned evidence as passed evidence.
+- Local release artifact rehearsal now supports macOS-to-Linux cross-builds by
+  default, portable checksum generation, host-side readiness checks, Syft SBOM
+  generation, and ProvidAPT Ed25519 checksum signature verification. Final
+  release closure still requires a real release tag and complete scanner
+  evidence or approved waiver.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
 - Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.

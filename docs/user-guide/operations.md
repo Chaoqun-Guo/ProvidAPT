@@ -754,6 +754,11 @@ manifest, plus model lifecycle promotion evidence when
 `MODEL_LIFECYCLE_GATE` or `build/evaluation/model-lifecycle-gate.json` is
 present. It is the fastest local view of release blockers before opening the
 larger evidence JSON files.
+`make security-scan-manifest` regenerates the current-commit scanner manifest
+from existing `build/security` outputs. It accepts govulncheck JSON event
+streams and marks missing Grype or Trivy reports honestly, so
+`make release-gates` can show which scanner evidence is complete and which
+still needs a database-backed rerun or explicit security waiver.
 `make open-source-local-closure` creates an honest local closure matrix for the
 remaining open-source release tasks: security scans, final artifacts, browser
 baselines, Trace SVG stress, model lifecycle, RBAC/audit hardening, plugin
@@ -761,3 +766,8 @@ distribution, and first-run onboarding. It records missing scanner/SBOM tools
 and missing real-environment inputs separately so release owners can see what
 is ready to run locally and what still needs final-tag, server, alert, model,
 RBAC, or plugin evidence.
+For local macOS release rehearsal, `scripts/release/open-source-release.sh`
+cross-compiles Linux artifacts by default, builds a host `providaptctl` for the
+readiness check, and uses portable checksum generation. Final publication still
+needs an approved release tag, complete Grype/Trivy evidence or waiver, and a
+customer-approved signing key.

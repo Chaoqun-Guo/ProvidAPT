@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 VERSION="${1:-$(cd "$PROJECT_DIR" && git describe --tags --always 2>/dev/null || echo "dev")}"
-ARCH="${2:-$(uname -m)}"
+ARCH="${2:-${GOARCH:-$(uname -m)}}"
 
 PKG_NAME="providapt-${VERSION}-linux-${ARCH}"
 STAGING_DIR=$(mktemp -d)

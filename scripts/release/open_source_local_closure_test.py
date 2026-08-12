@@ -20,7 +20,6 @@ def args(**overrides: str) -> Namespace:
     defaults = {
         "server_url": "",
         "alert_ids": "",
-        "scan_manifest": "",
         "release_tag": "",
         "signature": "",
         "model_closed_loop": "",
@@ -55,7 +54,6 @@ class OpenSourceLocalClosureTest(unittest.TestCase):
         supplied = args(
             server_url="http://127.0.0.1:18080",
             alert_ids="p:1 p:2",
-            scan_manifest="build/security/scan-manifest.json",
             release_tag="v1.0.0",
             signature="dist/checksums.txt.sig",
             model_closed_loop="closed.json",

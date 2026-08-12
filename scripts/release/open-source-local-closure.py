@@ -34,7 +34,6 @@ TASKS = (
         title="Current commit security scans",
         command="RUN_SCANS=1 make release-open-source && make release-gates",
         required_tools=("govulncheck", "grype", "trivy"),
-        required_inputs=("scan_manifest",),
         evidence_paths=("build/security/scan-manifest.json", "build/release-gate-status.json"),
         notes=("Re-run on the final commit; apply explicit waivers only through release-gate waiver evidence.",),
     ),
@@ -277,7 +276,6 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Create an honest local closure matrix for the remaining open-source release tasks.")
     p.add_argument("--server-url", default="")
     p.add_argument("--alert-ids", default="")
-    p.add_argument("--scan-manifest", default="")
     p.add_argument("--release-tag", default="")
     p.add_argument("--signature", default="")
     p.add_argument("--model-closed-loop", default="")

@@ -17,17 +17,22 @@ REQUIRED_ARTIFACTS="${REQUIRED_ARTIFACTS:-archive,deb,rpm,helm,monitoring}"
 SIGN_CHECKSUMS="${SIGN_CHECKSUMS:-auto}"
 RUN_SCANS="${RUN_SCANS:-auto}"
 BUILD_EBPF="${BUILD_EBPF:-1}"
-GO_TAGS="${GO_TAGS:-bpf}"
+GO_TAGS="${GO_TAGS-bpf}"
 BUILD_CONTAINER="${BUILD_CONTAINER:-0}"
 BUILD_HELM_ARCHIVE="${BUILD_HELM_ARCHIVE:-1}"
 PACKAGE_FORMATS="${PACKAGE_FORMATS:-all}"
 CONFIG_PATH="${CONFIG_PATH:-$PROJECT_DIR/examples/config/providapt.local.toml}"
 CGO_ENABLED="${CGO_ENABLED:-0}"
+GOOS="${GOOS:-linux}"
+GOARCH="${GOARCH:-amd64}"
+RELEASE_CHECK_CTL="${RELEASE_CHECK_CTL:-}"
 KEEP_BUILD_DIST="${KEEP_BUILD_DIST:-0}"
 SYFT_IMAGE="${SYFT_IMAGE:-anchore/syft:v1.38.0}"
 GRYPE_IMAGE="${GRYPE_IMAGE:-anchore/grype:v0.104.0}"
 TRIVY_IMAGE="${TRIVY_IMAGE:-aquasec/trivy:0.67.2}"
 export CGO_ENABLED
+export GOOS
+export GOARCH
 export GO_TAGS
 
 log() {
@@ -189,7 +194,14 @@ generate_checksums() {
 			! -name checksums.txt.pub \
 			! -name release-readiness.md \
 			! -name release-readiness.json \
-			-printf '%P\n' | sort | xargs -r sha256sum > checksums.txt
+			-exec basename {} \; | sort | while IFS= read -r artifact; do
+				[ -n "$artifact" ] || continue
+				if command -v sha256sum >/dev/null 2>&1; then
+					sha256sum "$artifact"
+				else
+					shasum -a 256 "$artifact"
+				fi
+			done > checksums.txt
 	)
 }
 
@@ -332,6 +344,35 @@ build_monitoring_bundle() {
 	tar -czf "$archive" -C "$PROJECT_DIR" "${required[@]}"
 }
 
+build_release_check_tool() {
+	if [ -n "$RELEASE_CHECK_CTL" ]; then
+		need_file "$RELEASE_CHECK_CTL"
+		return
+	fi
+	local host_os host_arch
+	host_os="$(go env GOHOSTOS 2>/dev/null || uname | tr '[:upper:]' '[:lower:]')"
+	host_arch="$(go env GOHOSTARCH 2>/dev/null || uname -m)"
+	if [ "$GOOS" = "$host_os" ] && [ "$GOARCH" = "$host_arch" ]; then
+		RELEASE_CHECK_CTL="$BUILD_DIR/bin/providaptctl"
+		return
+	fi
+	mkdir -p "$BUILD_DIR/host-bin"
+	(
+		cd "$PROJECT_DIR"
+		local tag_args=()
+		if [ -n "$GO_TAGS" ]; then
+			tag_args=(-tags "$GO_TAGS")
+		fi
+		local ldflags=(
+			-ldflags
+			"-X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version=$VERSION -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit=$COMMIT -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date=$DATE"
+		)
+		GOOS="$host_os" GOARCH="$host_arch" CGO_ENABLED=0 \
+			go build ${tag_args+"${tag_args[@]}"} "${ldflags[@]}" -o "$BUILD_DIR/host-bin/providaptctl" ./cmd/cli/providaptctl
+	)
+	RELEASE_CHECK_CTL="$BUILD_DIR/host-bin/providaptctl"
+}
+
 run_release_check() {
 	need_file "$DIST_DIR/checksums.txt"
 	need_file "$DIST_DIR/checksums.txt.sig"
@@ -427,7 +468,8 @@ EOF
 	if [ -n "$HANDOFF_PATH" ]; then
 		args+=( -release-handoff "$HANDOFF_PATH" )
 	fi
-	"$BUILD_DIR/bin/providaptctl" "${args[@]}"
+	build_release_check_tool
+	"$RELEASE_CHECK_CTL" "${args[@]}"
 }
 
 main() {

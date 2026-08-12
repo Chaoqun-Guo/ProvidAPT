@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 VERSION="${VERSION:-$(cd "$PROJECT_DIR" && git describe --tags --always 2>/dev/null || echo "dev")}"
 FORMAT="${1:-auto}"
-GO_TAGS="${GO_TAGS:-bpf}"
+GO_TAGS="${GO_TAGS-bpf}"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
