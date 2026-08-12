@@ -749,5 +749,7 @@ development because it records absent external evidence as warnings instead of
 blocking the milestone package. Omit it for final release closure.
 `make open-source-evidence-summary` creates a shorter executive summary from
 the milestone, readiness backlog, visual gate, Trace SVG stress, and onboarding
-manifest. It is the fastest local view of release blockers before opening the
+manifest, plus model lifecycle promotion evidence when
+`MODEL_LIFECYCLE_GATE` or `build/evaluation/model-lifecycle-gate.json` is
+present. It is the fastest local view of release blockers before opening the
 larger evidence JSON files.

@@ -171,7 +171,7 @@ Current closure progress:
   JSON/Markdown local milestone package.
 - Open-source evidence summaries are generated through
   `make open-source-evidence-summary`, collapsing milestone, readiness backlog,
-  visual gate, Trace SVG stress, and onboarding blockers into one short
-  JSON/Markdown executive report.
+  visual gate, Trace SVG stress, onboarding, and model lifecycle blockers into
+  one short JSON/Markdown executive report.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
 - Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.

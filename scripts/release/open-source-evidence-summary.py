@@ -53,6 +53,8 @@ def evidence_row(name: str, path: Path, report: dict[str, Any], allow_missing: b
         row["summary"] = trace_summary(report)
     elif name == "onboarding_manifest":
         row["summary"] = onboarding_summary(report)
+    elif name == "model_lifecycle_gate":
+        row["summary"] = model_lifecycle_summary(report)
     row["blockers"].extend(extract_blockers(name, report, row["summary"]))
     row["warnings"].extend(extract_warnings(name, report, row["summary"]))
     return row
@@ -123,6 +125,31 @@ def onboarding_summary(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def model_lifecycle_summary(report: dict[str, Any]) -> dict[str, Any]:
+    packet = report.get("promotion_packet") if isinstance(report.get("promotion_packet"), dict) else {}
+    readiness = packet.get("readiness_summary") if isinstance(packet.get("readiness_summary"), dict) else {}
+    feedback = readiness.get("feedback") if isinstance(readiness.get("feedback"), dict) else {}
+    evidence = readiness.get("evidence") if isinstance(readiness.get("evidence"), dict) else {}
+    model = readiness.get("model") if isinstance(readiness.get("model"), dict) else report.get("model", {})
+    labels = feedback.get("labels") if isinstance(feedback.get("labels"), dict) else report.get("feedback_labels", {})
+    return {
+        "promotion_decision": readiness.get("decision") or packet.get("decision") or report.get("promotion_decision", ""),
+        "model": {
+            "name": str((model or {}).get("name") or ""),
+            "version": str((model or {}).get("version") or ""),
+        },
+        "drift_status": readiness.get("drift_status") or report.get("drift_status", ""),
+        "baseline_days": readiness.get("baseline_days", report.get("baseline_days", 0)),
+        "feedback_records": feedback.get("records", report.get("feedback_records", 0)),
+        "reviewed_labels": feedback.get("reviewed", report.get("reviewed_labels", 0)),
+        "feedback_labels": labels if isinstance(labels, dict) else {},
+        "blocker_count": readiness.get("blocker_count", len(report.get("failures", []))),
+        "warning_count": readiness.get("warning_count", len(report.get("warnings", []))),
+        "missing_evidence": list(evidence.get("missing") or report.get("missing_evidence") or []),
+        "present_evidence": list(evidence.get("present") or report.get("present_evidence") or []),
+    }
+
+
 def extract_blockers(name: str, report: dict[str, Any], summary: dict[str, Any]) -> list[str]:
     blockers = [str(item) for item in report.get("failures", []) if str(item).strip()]
     if name == "open_source_milestone":
@@ -138,6 +165,10 @@ def extract_blockers(name: str, report: dict[str, Any], summary: dict[str, Any])
         blockers.extend(f"trace stress failed layout: {item}" for item in summary.get("failed_layouts", []))
     if name == "onboarding_manifest":
         blockers.extend(f"onboarding blocked check: {item}" for item in summary.get("blocked_checks", []))
+    if name == "model_lifecycle_gate":
+        blockers.extend(f"model lifecycle missing evidence: {item}" for item in summary.get("missing_evidence", []))
+        if str(summary.get("drift_status") or "").lower() in {"unstable", "blocked", "fail", "failed"}:
+            blockers.append(f"model lifecycle drift is {summary['drift_status']}")
     return blockers
 
 
@@ -152,6 +183,12 @@ def extract_warnings(name: str, report: dict[str, Any], summary: dict[str, Any])
     if name == "onboarding_manifest":
         warnings.extend(f"onboarding warning check: {item}" for item in summary.get("warning_checks", []))
         warnings.extend(f"onboarding unknown check: {item}" for item in summary.get("unknown_checks", []))
+    if name == "model_lifecycle_gate":
+        if summary.get("warning_count", 0):
+            warnings.append(f"model lifecycle warnings: {summary['warning_count']}")
+        decision = str(summary.get("promotion_decision") or "")
+        if decision and decision not in {"approved_for_promotion", "approved"}:
+            warnings.append(f"model lifecycle promotion decision: {decision}")
     return warnings
 
 
@@ -170,6 +207,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "visual_regression_gate": Path(args.visual_regression_gate),
         "trace_svg_stress": Path(args.trace_svg_stress),
         "onboarding_manifest": Path(args.onboarding_manifest),
+        "model_lifecycle_gate": Path(args.model_lifecycle_gate),
     }
     rows = [
         evidence_row(name, path, load_json(path), args.allow_missing)
@@ -201,6 +239,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "make visual-regression-gate",
             "make trace-svg-stress PROVIDAPT_SERVER_URL=http://127.0.0.1:18080",
             "make onboarding-wizard CHECK_RESULTS=build/onboarding/check-results.json",
+            "make model-lifecycle-gate MODEL_CLOSED_LOOP_JSON=... MODEL_DEPLOY_GATE_JSON=...",
         ],
     }
 
@@ -252,6 +291,7 @@ def main() -> int:
     parser.add_argument("--visual-regression-gate", default="build/visual-regression/visual-regression-gate.json")
     parser.add_argument("--trace-svg-stress", default="build/trace-stress/trace-svg-stress.json")
     parser.add_argument("--onboarding-manifest", default="build/onboarding/onboarding-manifest.json")
+    parser.add_argument("--model-lifecycle-gate", default="build/evaluation/model-lifecycle-gate.json")
     parser.add_argument("--allow-missing", action="store_true")
     parser.add_argument("--out-json", default="build/open-source-readiness/open-source-evidence-summary.json")
     parser.add_argument("--out-md", default="build/open-source-readiness/open-source-evidence-summary.md")

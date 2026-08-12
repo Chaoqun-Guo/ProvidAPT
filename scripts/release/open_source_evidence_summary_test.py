@@ -37,6 +37,7 @@ class OpenSourceEvidenceSummaryTest(unittest.TestCase):
             "visual_regression_gate": missing,
             "trace_svg_stress": missing,
             "onboarding_manifest": missing,
+            "model_lifecycle_gate": missing,
             "allow_missing": False,
         }
         values.update(overrides)
@@ -46,7 +47,7 @@ class OpenSourceEvidenceSummaryTest(unittest.TestCase):
         report = subject.build_report(self.args(allow_missing=True))
         self.assertEqual(report["status"], "warn")
         self.assertEqual(report["blocker_count"], 0)
-        self.assertEqual(report["warning_count"], 5)
+        self.assertEqual(report["warning_count"], 6)
         rendered = subject.render_markdown(report)
         self.assertIn("Open Source Evidence Summary", rendered)
         self.assertIn("evidence is missing", rendered)
@@ -99,12 +100,36 @@ class OpenSourceEvidenceSummaryTest(unittest.TestCase):
                 "unknown_checks": ["ssh"],
             },
         })
+        model = self.write_json("model.json", {
+            "status": "warn",
+            "promotion_packet": {
+                "readiness_summary": {
+                    "decision": "review_required",
+                    "model": {"name": "graph-detector", "version": "1.2.0"},
+                    "drift_status": "unstable",
+                    "baseline_days": 3,
+                    "feedback": {
+                        "records": 12,
+                        "reviewed": 8,
+                        "labels": {"true_positive": 4, "false_positive": 4},
+                    },
+                    "blocker_count": 1,
+                    "warning_count": 2,
+                    "evidence": {
+                        "present": ["closed_loop"],
+                        "missing": ["approval", "stable_drift"],
+                    },
+                }
+            },
+            "warnings": ["baseline window below threshold"],
+        })
         report = subject.build_report(self.args(
             open_source_milestone=milestone,
             open_source_readiness_backlog=backlog,
             visual_regression_gate=visual,
             trace_svg_stress=trace,
             onboarding_manifest=onboarding,
+            model_lifecycle_gate=model,
         ))
         self.assertEqual(report["status"], "blocked")
         self.assertGreaterEqual(report["blocker_count"], 5)
@@ -114,10 +139,19 @@ class OpenSourceEvidenceSummaryTest(unittest.TestCase):
         self.assertIn("visual matrix missing screenshots: 2", messages)
         self.assertIn("trace stress failed layout: compact", messages)
         self.assertIn("onboarding blocked check: api", messages)
+        self.assertIn("model lifecycle missing evidence: approval", messages)
+        self.assertIn("model lifecycle drift is unstable", messages)
+        model_row = next(item for item in report["evidence"] if item["name"] == "model_lifecycle_gate")
+        self.assertEqual(model_row["summary"]["model"]["name"], "graph-detector")
+        self.assertEqual(model_row["summary"]["feedback_labels"]["true_positive"], 4)
+        warning_messages = "\n".join(item["message"] for item in report["warnings"])
+        self.assertIn("model lifecycle warnings: 2", warning_messages)
+        self.assertIn("model lifecycle promotion decision: review_required", warning_messages)
         rendered = subject.render_markdown(report)
         self.assertIn("## Blockers", rendered)
         self.assertIn("## Evidence Details", rendered)
         self.assertIn("visual_baselines", rendered)
+        self.assertIn("graph-detector", rendered)
 
 
 if __name__ == "__main__":
