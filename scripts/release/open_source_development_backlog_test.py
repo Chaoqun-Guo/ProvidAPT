@@ -66,7 +66,12 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         self.assertEqual(tasks["onboarding-first-run-polish"]["status"], "done")
         self.assertGreaterEqual(report["by_evidence_status"]["pass"], 1)
         self.assertEqual(report["by_evidence_status"]["warn"], 1)
+        planning = report["planning_summary"]
+        self.assertGreaterEqual(planning["next_local_count"], 1)
+        self.assertIn("model-lifecycle-baseline", planning["next_local_tasks"])
+        self.assertIn("plugin-distribution", planning["by_evidence_key"]["plugin_catalog_gate"])
         rendered = subject.render_markdown(report)
+        self.assertIn("Planning Summary", rendered)
         self.assertIn("visual_regression_gate:pass", rendered)
 
     def test_multi_evidence_tasks_are_aggregated(self):
@@ -91,6 +96,10 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         self.assertEqual(tasks["siem-soar-certification"]["status"], "needs_fix")
         self.assertEqual(tasks["rbac-audit-hardening"]["status"], "needs_fix")
         self.assertEqual(tasks["release-final-artifacts"]["evidence_status"], "pass")
+        planning = report["planning_summary"]
+        self.assertIn("soak-24-72h", planning["external_blockers"])
+        self.assertIn("siem-soar-certification", planning["external_blockers"])
+        self.assertIn("rbac-audit-hardening", planning["by_evidence_key"]["customer_env_certification_gate"])
         rendered = subject.render_markdown(report)
         self.assertIn("artifact_signing_gate:pass", rendered)
         self.assertIn("customer_env_certification_gate:blocked", rendered)

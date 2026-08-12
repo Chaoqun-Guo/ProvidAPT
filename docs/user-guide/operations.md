@@ -705,6 +705,9 @@ mode and marks mapped tasks as `done`, `needs_review`, or `needs_fix` based on
 the supplied gate status. Multi-evidence tasks, such as final artifacts or
 RBAC/customer certification, remain `needs_review` until every mapped evidence
 input is present and passing.
+The generated backlog also includes a `planning_summary` section with the next
+local tasks to work, external blockers, and missing or blocked evidence grouped
+by evidence key.
 
 The milestone package includes readiness, readiness backlog, development
 backlog, release gate status, release evidence consistency, model lifecycle, and

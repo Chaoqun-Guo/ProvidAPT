@@ -97,7 +97,9 @@ Current closure progress:
   `RELEASE_EVIDENCE_CONSISTENCY_GATE`, `ARTIFACT_SIGNING_GATE`,
   `VISUAL_REGRESSION_GATE`, `CAPTURE_ENRICHMENT_GATE`, `SOAK_READINESS`,
   `MODEL_LIFECYCLE_GATE`, `CUSTOMER_ENV_CERTIFICATION_GATE`,
-  `PLUGIN_CATALOG_GATE`, or `ONBOARDING_MANIFEST` are supplied.
+  `PLUGIN_CATALOG_GATE`, or `ONBOARDING_MANIFEST` are supplied. The generated
+  report now includes `planning_summary` to separate next local work from
+  external blockers and group remaining evidence by gate key.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
 - Upgrade rollout planning produces canary, wave, pause/resume, rollback, and
   optional agent-group batch evidence through `make upgrade-rollout-plan

@@ -252,6 +252,36 @@ def apply_evidence_status(tasks: list[dict[str, Any]], evidence_paths: dict[str,
     return updated
 
 
+def planning_summary(tasks: list[dict[str, Any]]) -> dict[str, Any]:
+    remaining = [
+        task for task in tasks
+        if task.get("status") not in {"done"}
+    ]
+    next_local = [
+        task["id"] for task in remaining
+        if task.get("local")
+        and task.get("status") in {"needs_evidence", "needs_review", "needs_fix", "in_progress"}
+    ]
+    external = [
+        task["id"] for task in remaining
+        if not task.get("local") or task.get("status") == "blocked_external"
+    ]
+    by_evidence_key: dict[str, list[str]] = {}
+    for task in remaining:
+        for item in task.get("evidence", []):
+            status = item.get("status")
+            if status in {"missing", "blocked", "warn"}:
+                by_evidence_key.setdefault(item.get("key", "unknown"), []).append(task["id"])
+    return {
+        "remaining_count": len(remaining),
+        "next_local_tasks": next_local[:5],
+        "next_local_count": len(next_local),
+        "external_blockers": external,
+        "external_blocker_count": len(external),
+        "by_evidence_key": {key: sorted(set(value)) for key, value in sorted(by_evidence_key.items())},
+    }
+
+
 def build_report(local_only: bool = False, phase: str = "", evidence_paths: dict[str, str] | None = None) -> dict[str, Any]:
     tasks = selected_tasks(local_only, phase)
     evidence_paths = evidence_paths or {}
@@ -273,6 +303,7 @@ def build_report(local_only: bool = False, phase: str = "", evidence_paths: dict
         "by_phase": by_phase,
         "by_status": by_status,
         "by_evidence_status": by_evidence_status,
+        "planning_summary": planning_summary(tasks),
         "tasks": tasks,
     }
 
@@ -297,6 +328,19 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(f"| status:{status} | {count} |")
     for status, count in sorted(report.get("by_evidence_status", {}).items()):
         lines.append(f"| evidence:{status} | {count} |")
+    planning = report.get("planning_summary") or {}
+    lines.extend([
+        "",
+        "## Planning Summary",
+        "",
+        f"- Remaining tasks: `{planning.get('remaining_count', 0)}`",
+        f"- Next local tasks: `{', '.join(planning.get('next_local_tasks', [])) or 'none'}`",
+        f"- External blockers: `{', '.join(planning.get('external_blockers', [])) or 'none'}`",
+    ])
+    if planning.get("by_evidence_key"):
+        lines.extend(["", "| Evidence Key | Tasks |", "| --- | --- |"])
+        for key, task_ids in planning["by_evidence_key"].items():
+            lines.append(f"| {key} | {', '.join(task_ids)} |")
     lines.extend([
         "",
         "## Tasks",
