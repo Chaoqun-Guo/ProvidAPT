@@ -82,6 +82,9 @@ Current closure progress:
   tenant isolation, audit export, SIEM/SOAR certification, upgrade rollout,
   soak duration, Secret/TLS/PostgreSQL/backup readiness, plugin governance,
   and onboarding checks.
+- Customer environment certification validates audit export structure and role
+  review content, not only file presence: audit exports need records, and role
+  reviews need approved named-owner entries with no pending placeholders.
 - Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, SIEM/SOAR delivery checks, upgrade rollout evidence, and detection quality through `make enterprise-readiness`.
 - Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
 - Policy approval readiness gates RBAC status, tenant scoping, approval workflow, required approval actions, and approval audit evidence through `make policy-approval-gate`.

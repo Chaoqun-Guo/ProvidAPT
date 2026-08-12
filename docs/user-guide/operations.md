@@ -575,6 +575,13 @@ fleet canary/pause/resume/rollback planning, 24-hour soak budgets, TLS/state
 backend/backup evidence, plugin signing and permission models, and onboarding
 environment checks.
 
+Audit export evidence may be CSV or JSON. CSV exports must include at least one
+data row after the header; JSON exports may use a top-level list or `events` /
+`records` array. Role review evidence may be Markdown or JSON, but it must show
+approved role entries with named owners and must not contain pending, TBD,
+placeholder, delegate, or unsigned review markers. Use
+`MIN_AUDIT_EXPORT_ROWS=N` to require a larger audit sample.
+
 For large investigations, the dashboard graph summary groups nodes into
 clusters and high-degree hubs. Use `Inspect` to view a collapsed cluster,
 `Backward` or `Forward` to open a focused trace for a node, and `Export Cluster`

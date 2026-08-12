@@ -31,6 +31,74 @@ def evidence_file(path: str | None) -> dict[str, Any]:
     return {"present": target.exists() and target.stat().st_size > 0, "path": str(target)}
 
 
+def audit_export_detail(path: str | None) -> dict[str, Any]:
+    detail = evidence_file(path)
+    detail.update({"row_count": 0, "status": "missing", "warnings": [], "failures": []})
+    if not detail["present"]:
+        detail["failures"].append("audit export evidence is missing")
+        return detail
+    target = Path(str(detail["path"]))
+    text = target.read_text(encoding="utf-8-sig", errors="replace")
+    stripped = text.strip()
+    if target.suffix.lower() == ".json" or stripped.startswith(("{", "[")):
+        try:
+            data = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            detail["failures"].append(f"audit export JSON is invalid: {exc}")
+            return detail
+        rows = data.get("events", data.get("records", [])) if isinstance(data, dict) else data
+        detail["row_count"] = len(rows) if isinstance(rows, list) else 0
+    else:
+        lines = [line for line in text.splitlines() if line.strip()]
+        detail["row_count"] = max(0, len(lines) - 1) if lines else 0
+    if int(detail["row_count"]) <= 0:
+        detail["failures"].append("audit export has no audit records")
+    detail["status"] = "blocked" if detail["failures"] else "pass"
+    return detail
+
+
+def role_review_detail(path: str | None) -> dict[str, Any]:
+    detail = evidence_file(path)
+    detail.update({"status": "missing", "warnings": [], "failures": [], "reviewed_roles": 0})
+    if not detail["present"]:
+        detail["failures"].append("role review evidence is missing")
+        return detail
+    target = Path(str(detail["path"]))
+    text = target.read_text(encoding="utf-8-sig", errors="replace")
+    lowered = text.lower()
+    pending_markers = ["pending", "tbd", "todo", "placeholder", "delegate", "not signed"]
+    if any(marker in lowered for marker in pending_markers):
+        detail["failures"].append("role review contains unresolved owner or pending markers")
+    if target.suffix.lower() == ".json" or text.strip().startswith(("{", "[")):
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            detail["failures"].append(f"role review JSON is invalid: {exc}")
+            detail["status"] = "blocked"
+            return detail
+        rows = data.get("roles", data.get("reviews", [])) if isinstance(data, dict) else data
+        if isinstance(rows, list):
+            detail["reviewed_roles"] = len(rows)
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                decision = str(row.get("decision") or row.get("status") or "").lower()
+                owner = str(row.get("owner") or row.get("approved_by") or row.get("reviewer") or "").strip()
+                if decision not in {"approved", "pass", "accepted"}:
+                    detail["failures"].append("role review has a non-approved role decision")
+                    break
+                if not owner:
+                    detail["failures"].append("role review role decision is missing a named owner")
+                    break
+    else:
+        approved_lines = [line for line in text.splitlines() if "approved" in line.lower() or "accepted" in line.lower()]
+        detail["reviewed_roles"] = len(approved_lines)
+    if int(detail["reviewed_roles"]) <= 0:
+        detail["failures"].append("role review has no approved role entries")
+    detail["status"] = "blocked" if detail["failures"] else "pass"
+    return detail
+
+
 def status(report: dict[str, Any]) -> str:
     return str(report.get("status") or "").lower()
 
@@ -52,8 +120,8 @@ def section(name: str, ok: bool, failures: list[str], warnings: list[str] | None
 def rbac_section(args: argparse.Namespace) -> dict[str, Any]:
     report = load_json(args.rbac_audit)
     policy = load_json(args.policy_approval_gate)
-    audit_export = evidence_file(args.audit_export)
-    role_review = evidence_file(args.role_review)
+    audit_export = audit_export_detail(args.audit_export)
+    role_review = role_review_detail(args.role_review)
     failures: list[str] = []
     if not passish(report, {"pass", "warn"}):
         failures.append("RBAC audit evidence is missing or blocked")
@@ -65,10 +133,12 @@ def rbac_section(args: argparse.Namespace) -> dict[str, Any]:
         failures.append("delegated admin/custom role evidence is missing")
     if not passish(policy, {"pass", "warn"}):
         failures.append("policy approval gate evidence is missing or blocked")
-    if args.require_audit_export and not audit_export["present"]:
-        failures.append("audit export evidence is missing")
-    if args.require_role_review and not role_review["present"]:
-        failures.append("role review evidence is missing")
+    if args.require_audit_export and audit_export["status"] != "pass":
+        failures.extend(audit_export["failures"])
+    if int(audit_export.get("row_count") or 0) < args.min_audit_export_rows:
+        failures.append(f"audit export rows below {args.min_audit_export_rows}")
+    if args.require_role_review and role_review["status"] != "pass":
+        failures.extend(role_review["failures"])
     return section(
         "rbac_audit_multi_tenant",
         not failures,
@@ -265,6 +335,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--require-role-review", action="store_true")
     parser.add_argument("--min-tenants", type=int, default=1)
     parser.add_argument("--min-tenant-scoped-keys", type=int, default=1)
+    parser.add_argument("--min-audit-export-rows", type=int, default=1)
     parser.add_argument("--siem-verify", default="build/siem/siem-verification.json")
     parser.add_argument("--siem-certification", default="")
     parser.add_argument("--require-siem-certification", action="store_true")

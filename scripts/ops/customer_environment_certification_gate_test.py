@@ -43,9 +43,9 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
         plugin = self.write_json("plugin.json", {"status": "pass", "signature_present": True, "plugin": {"name": "p", "permissions": ["alerts:read"]}})
         onboarding = self.write_json("onboarding.json", {"mode": "standalone", "environment_checks": [{"name": "tailscale"}, {"name": "ssh"}, {"name": "api"}, {"name": "tls"}, {"name": "postgres"}]})
         role_review = self.tmp / "role-review.md"
-        role_review.write_text("approved\n", encoding="utf-8")
+        role_review.write_text("admin approved by Alice Owner\nanalyst approved by Sam Reviewer\n", encoding="utf-8")
         audit_export = self.tmp / "audit.csv"
-        audit_export.write_text("id,timestamp\n", encoding="utf-8")
+        audit_export.write_text("id,timestamp,actor,action\n1,2026-08-12T00:00:00Z,Alice,policy.publish\n", encoding="utf-8")
         values = {
             "rbac_audit": rbac,
             "policy_approval_gate": policy,
@@ -56,6 +56,7 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
             "require_role_review": True,
             "min_tenants": 2,
             "min_tenant_scoped_keys": 2,
+            "min_audit_export_rows": 1,
             "siem_verify": siem,
             "siem_certification": siem_cert,
             "require_siem_certification": True,
@@ -95,6 +96,22 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
         text = "\n".join(report["failures"])
         self.assertIn("target SIEM/SOAR certification evidence is missing", text)
         self.assertIn("soak duration", text)
+
+    def test_blocks_empty_audit_export(self):
+        empty_audit = self.tmp / "empty-audit.csv"
+        empty_audit.write_text("id,timestamp\n", encoding="utf-8")
+        report = subject.build_report(self.args(audit_export=str(empty_audit)))
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("audit export has no audit records", "\n".join(report["failures"]))
+
+    def test_blocks_pending_role_review(self):
+        pending_review = self.tmp / "pending-role-review.md"
+        pending_review.write_text("admin pending delegate approval\n", encoding="utf-8")
+        report = subject.build_report(self.args(role_review=str(pending_review)))
+        self.assertEqual(report["status"], "blocked")
+        text = "\n".join(report["failures"])
+        self.assertIn("role review contains unresolved", text)
+        self.assertIn("role review has no approved role entries", text)
 
 
 if __name__ == "__main__":
