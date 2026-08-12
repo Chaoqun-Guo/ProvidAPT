@@ -648,8 +648,11 @@ make onboarding-wizard \
   CHECK_RESULTS=build/onboarding/check-results.json
 ```
 
-The generated `onboarding-report.md` summarizes pass/warn/fail/unknown counts
-and records prioritized next actions for each failed or unverified check.
+The generated `onboarding-report.md` summarizes pass/warn/fail/unknown counts,
+adds an action summary grouped by check status and severity, and records
+prioritized next actions for each failed or unverified check. The same
+`action_summary` is written to `onboarding-manifest.json` for release evidence
+aggregation.
 
 ## 9. Commercialization Readiness
 

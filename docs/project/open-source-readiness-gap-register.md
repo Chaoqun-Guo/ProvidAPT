@@ -133,6 +133,9 @@ Current closure progress:
   result template, prioritized next actions, and manifest through
   `make onboarding-wizard`; optional `CHECK_RESULTS=...` merges observed
   pass/warn/fail results into `onboarding-report.md` for handoff evidence.
+  Onboarding manifests now include `action_summary` with blocked, warning,
+  unknown, skipped, status-grouped, and severity-grouped checks for release
+  evidence aggregation.
 - Plugin release gating validates plugin manifests, semantic versions,
   supported plugin types, least-privilege permission declarations,
   compatibility ranges, signed distribution metadata, signature evidence, and

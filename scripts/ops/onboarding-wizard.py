@@ -63,6 +63,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     checks = apply_check_results(environment_checks(args), check_results)
     summary = check_summary(checks)
     actions = next_actions(checks)
+    action_summary = onboarding_action_summary(actions)
     result_template_path.write_text(json.dumps(check_result_template(checks), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     checklist = f"""# ProvidAPT First-Run Onboarding Checklist
 
@@ -81,7 +82,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 {chr(10).join(f"- **{item['name']}** ({item['severity']}): `{item['command']}` - {item['purpose']}. Next: {item['next_step']}" for item in checks)}
 """
     checklist_path.write_text(checklist, encoding="utf-8")
-    report_path.write_text(render_report(args, checks, summary, actions), encoding="utf-8")
+    report_path.write_text(render_report(args, checks, summary, actions, action_summary), encoding="utf-8")
     manifest = {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -94,6 +95,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
         "check_summary": summary,
         "environment_checks": checks,
         "next_actions": actions,
+        "action_summary": action_summary,
         "outputs": {
             "config": str(config_path),
             "checklist": str(checklist_path),
@@ -202,6 +204,27 @@ def next_actions(checks: list[dict[str, str]]) -> list[dict[str, str]]:
     return sorted(actions, key=lambda item: (priority.get(item["status"], 5), item["check"]))
 
 
+def onboarding_action_summary(actions: list[dict[str, str]]) -> dict[str, object]:
+    by_status: dict[str, list[str]] = {}
+    by_severity: dict[str, list[str]] = {}
+    for item in actions:
+        check_name = str(item.get("check") or "")
+        status = str(item.get("status") or "unknown")
+        severity = str(item.get("severity") or "unknown")
+        by_status.setdefault(status, []).append(check_name)
+        by_severity.setdefault(severity, []).append(check_name)
+    return {
+        "action_count": len(actions),
+        "blocked_checks": sorted(by_status.get("fail", [])),
+        "warning_checks": sorted(by_status.get("warn", [])),
+        "unknown_checks": sorted(by_status.get("unknown", [])),
+        "skipped_checks": sorted(by_status.get("skipped", [])),
+        "by_status": {key: sorted(value) for key, value in sorted(by_status.items())},
+        "by_severity": {key: sorted(value) for key, value in sorted(by_severity.items())},
+        "top_actions": actions[:5],
+    }
+
+
 def onboarding_status(summary: dict[str, int]) -> str:
     if summary.get("fail", 0) > 0:
         return "blocked"
@@ -210,7 +233,13 @@ def onboarding_status(summary: dict[str, int]) -> str:
     return "pass"
 
 
-def render_report(args: argparse.Namespace, checks: list[dict[str, str]], summary: dict[str, int], actions: list[dict[str, str]]) -> str:
+def render_report(
+    args: argparse.Namespace,
+    checks: list[dict[str, str]],
+    summary: dict[str, int],
+    actions: list[dict[str, str]],
+    action_summary: dict[str, object],
+) -> str:
     lines = [
         "# ProvidAPT Onboarding Report",
         "",
@@ -219,6 +248,7 @@ def render_report(args: argparse.Namespace, checks: list[dict[str, str]], summar
         f"- REST port: `{args.rest_port}`",
         f"- gRPC port: `{args.grpc_port}`",
         f"- Checks: `{summary['pass']} pass / {summary['warn']} warn / {summary['fail']} fail / {summary['unknown']} unknown / {summary['skipped']} skipped`",
+        f"- Next actions: `{action_summary.get('action_count', 0)}`",
         "",
         "| Check | Status | Severity | Purpose | Observed | Evidence | Next Step |",
         "| --- | --- | --- | --- | --- | --- | --- |",
@@ -235,6 +265,16 @@ def render_report(args: argparse.Namespace, checks: list[dict[str, str]], summar
                 next_step=escape_cell(item.get("next_step", "")),
             )
         )
+    if action_summary.get("by_status"):
+        lines.extend([
+            "",
+            "## Action Summary",
+            "",
+            "| Status | Checks |",
+            "| --- | --- |",
+        ])
+        for status, checks_for_status in action_summary["by_status"].items():
+            lines.append(f"| {escape_cell(status)} | {escape_cell(', '.join(checks_for_status))} |")
     if actions:
         lines.extend([
             "",

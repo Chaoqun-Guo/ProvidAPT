@@ -46,6 +46,8 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("report", loaded["outputs"])
         self.assertIn("check_results_template", loaded["outputs"])
         self.assertTrue(loaded["next_actions"])
+        self.assertEqual(loaded["action_summary"]["action_count"], len(loaded["next_actions"]))
+        self.assertIn("api", loaded["action_summary"]["unknown_checks"])
         check_names = {item["name"] for item in loaded["environment_checks"]}
         self.assertIn("tailscale", check_names)
         self.assertIn("ssh", check_names)
@@ -59,6 +61,7 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("dashboard", checklist)
         report = (self.tmp / "onboarding-report.md").read_text(encoding="utf-8")
         self.assertIn("ProvidAPT Onboarding Report", report)
+        self.assertIn("Action Summary", report)
         self.assertIn("Next Actions", report)
         template = json.loads((self.tmp / "onboarding-check-results.template.json").read_text(encoding="utf-8"))
         self.assertEqual(template["schema"], "providapt.onboarding_check_results.v1")
@@ -70,6 +73,7 @@ class OnboardingWizardTest(unittest.TestCase):
             "checks": [
                 {"name": "tailscale", "status": "pass", "observed": "3 peers online", "evidence": "tailscale status"},
                 {"name": "api", "status": "fail", "observed": "connection refused"},
+                {"name": "tls", "status": "warn", "observed": "lab cert expires soon"},
             ]
         }), encoding="utf-8")
         manifest = onboarding.build_bundle(Namespace(
@@ -86,12 +90,17 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertEqual(manifest["status"], "blocked")
         self.assertEqual(manifest["check_summary"]["fail"], 1)
         self.assertEqual(manifest["next_actions"][0]["check"], "api")
+        self.assertEqual(manifest["action_summary"]["blocked_checks"], ["api"])
+        self.assertEqual(manifest["action_summary"]["warning_checks"], ["tls"])
+        self.assertIn("ssh", manifest["action_summary"]["unknown_checks"])
         api = next(item for item in manifest["environment_checks"] if item["name"] == "api")
         self.assertEqual(api["status"], "fail")
         self.assertEqual(api["observed"], "connection refused")
         report = (self.tmp / "onboarding-report.md").read_text(encoding="utf-8")
         self.assertIn("connection refused", report)
         self.assertIn("3 peers online", report)
+        self.assertIn("| fail | api |", report)
+        self.assertIn("| warn | tls |", report)
         self.assertIn("Start providaptd", report)
 
 
