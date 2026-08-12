@@ -100,6 +100,8 @@ Current closure progress:
   `PLUGIN_CATALOG_GATE`, or `ONBOARDING_MANIFEST` are supplied. The generated
   report now includes `planning_summary` to separate next local work from
   external blockers and group remaining evidence by gate key.
+- Open-source readiness blocker backlogs include a section checklist,
+  release-blocking counts, and status summaries alongside owner-facing tasks.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
 - Upgrade rollout planning produces canary, wave, pause/resume, rollback, and
   optional agent-group batch evidence through `make upgrade-rollout-plan

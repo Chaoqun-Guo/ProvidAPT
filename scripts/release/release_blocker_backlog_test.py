@@ -23,7 +23,13 @@ class ReleaseBlockerBacklogTest(unittest.TestCase):
         self.assertEqual(backlog["task_count"], 2)
         self.assertEqual(backlog["source_label"], "customer-release")
         self.assertEqual(backlog["tasks"][0]["severity"], "release_blocking")
-        self.assertIn("Release Blocker Backlog", subject.render_markdown(backlog))
+        self.assertEqual(backlog["checklist_summary"]["section_count"], 3)
+        self.assertEqual(backlog["checklist_summary"]["release_blocking_count"], 1)
+        self.assertIn("ml_readiness", backlog["checklist_summary"]["passing_sections"])
+        rendered = subject.render_markdown(backlog)
+        self.assertIn("Release Blocker Backlog", rendered)
+        self.assertIn("## Checklist", rendered)
+        self.assertIn("| ml_readiness | pass | false | 0 |", rendered)
 
     def test_open_source_readiness_sections_have_specific_actions(self):
         backlog = subject.build_backlog({
@@ -37,6 +43,8 @@ class ReleaseBlockerBacklogTest(unittest.TestCase):
         actions = "\n".join(task["recommended_action"] for task in backlog["tasks"])
         self.assertIn("model-lifecycle-gate", actions)
         self.assertIn("browser baseline matrix", actions)
+        self.assertEqual(backlog["checklist_summary"]["warning_sections"], ["model_lifecycle"])
+        self.assertEqual(backlog["checklist_summary"]["blocked_sections"], ["visual_baselines"])
         self.assertIn("open-source-readiness", subject.render_markdown(backlog))
 
 

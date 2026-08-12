@@ -684,6 +684,9 @@ make open-source-readiness-backlog \
   OPEN_SOURCE_READINESS_GATE=build/open-source-readiness/open-source-readiness-gate.json
 ```
 
+The generated backlog includes a section checklist, status counts, and
+release-blocking section totals in addition to the owner-facing task list.
+
 Aggregate the local open-source milestone package after the readiness and
 backlog reports are generated:
 

@@ -30,13 +30,22 @@ def severity_for(status: str) -> str:
 
 def build_backlog(report: dict[str, Any], source_label: str = "release") -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
+    checklist: list[dict[str, Any]] = []
     for section_name, section in (report.get("sections") or {}).items():
         if not isinstance(section, dict):
             continue
         status = str(section.get("status") or "blocked").lower()
+        messages = list(section.get("failures") or []) + list(section.get("warnings") or [])
+        checklist.append({
+            "section": section_name,
+            "status": status,
+            "severity": severity_for(status),
+            "release_blocking": status == "blocked",
+            "message_count": len(messages),
+            "recommended_action": recommended_action(section_name),
+        })
         if status == "pass":
             continue
-        messages = list(section.get("failures") or []) + list(section.get("warnings") or [])
         if not messages:
             messages = [f"{section_name} is {status}"]
         for index, message in enumerate(messages, start=1):
@@ -54,7 +63,24 @@ def build_backlog(report: dict[str, Any], source_label: str = "release") -> dict
         "source_label": source_label,
         "source_status": report.get("status", "unknown"),
         "task_count": len(tasks),
+        "checklist": checklist,
+        "checklist_summary": checklist_summary(checklist),
         "tasks": tasks,
+    }
+
+
+def checklist_summary(checklist: list[dict[str, Any]]) -> dict[str, Any]:
+    by_status: dict[str, int] = {}
+    for item in checklist:
+        status = str(item.get("status") or "unknown")
+        by_status[status] = by_status.get(status, 0) + 1
+    return {
+        "section_count": len(checklist),
+        "release_blocking_count": sum(1 for item in checklist if item.get("release_blocking")),
+        "by_status": by_status,
+        "passing_sections": sorted(item["section"] for item in checklist if item.get("status") == "pass"),
+        "blocked_sections": sorted(item["section"] for item in checklist if item.get("status") == "blocked"),
+        "warning_sections": sorted(item["section"] for item in checklist if item.get("status") == "warn"),
     }
 
 
@@ -83,17 +109,35 @@ def recommended_action(section_name: str) -> str:
 
 
 def render_markdown(backlog: dict[str, Any]) -> str:
+    summary = backlog.get("checklist_summary") or {}
     lines = [
         "# ProvidAPT Release Blocker Backlog",
         "",
         f"- Source: `{backlog.get('source_label', 'release')}`",
         f"- Source status: `{backlog['source_status']}`",
         f"- Task count: `{backlog['task_count']}`",
+        f"- Sections: `{summary.get('section_count', 0)}`",
+        f"- Release-blocking sections: `{summary.get('release_blocking_count', 0)}`",
         f"- Generated at: `{backlog['generated_at']}`",
+        "",
+        "## Checklist",
+        "",
+        "| Section | Status | Release Blocking | Messages | Recommended Action |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for item in backlog.get("checklist", []):
+        action = str(item["recommended_action"]).replace("|", "\\|")
+        lines.append(
+            f"| {item['section']} | {item['status']} | {str(item['release_blocking']).lower()} | "
+            f"{item['message_count']} | {action} |"
+        )
+    lines.extend([
+        "",
+        "## Tasks",
         "",
         "| ID | Severity | Section | Summary | Recommended Action |",
         "| --- | --- | --- | --- | --- |",
-    ]
+    ])
     for task in backlog["tasks"]:
         summary = str(task["summary"]).replace("|", "\\|")
         action = str(task["recommended_action"]).replace("|", "\\|")
