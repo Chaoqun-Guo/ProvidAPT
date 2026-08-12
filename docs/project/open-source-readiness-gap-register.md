@@ -147,7 +147,8 @@ Current closure progress:
   Snapshot evidence now includes baseline comparison summaries for changed,
   new, skipped, and missing-baseline review; gate evidence now includes
   structured coverage, baseline, required-matrix, screenshot, and DOM assertion
-  summaries.
+  summaries. Snapshot manifests also include a required page/viewport matrix,
+  and gate reports group missing screenshots by exact pair, page, and viewport.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual
   browser baseline coverage/comparison summaries, onboarding outputs, plugin

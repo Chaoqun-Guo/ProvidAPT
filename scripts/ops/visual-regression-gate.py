@@ -43,6 +43,11 @@ def visual_evidence_summary(
     dom_total = 0
     dom_failed = 0
     dom_missing = 0
+    missing_by_page: dict[str, list[str]] = {}
+    missing_by_viewport: dict[str, list[str]] = {}
+    for page, viewport in missing_required:
+        missing_by_page.setdefault(page, []).append(viewport)
+        missing_by_viewport.setdefault(viewport, []).append(page)
     for item in screenshots:
         page, _viewport = screenshot_key(item)
         status = str(item.get("status") or "unknown")
@@ -70,6 +75,8 @@ def visual_evidence_summary(
             "viewports": sorted(required_viewports),
             "missing": [{"page": page, "viewport": viewport} for page, viewport in missing_required],
             "missing_count": len(missing_required),
+            "missing_by_page": {page: sorted(viewports) for page, viewports in sorted(missing_by_page.items())},
+            "missing_by_viewport": {viewport: sorted(pages) for viewport, pages in sorted(missing_by_viewport.items())},
         },
         "screenshots": {
             "total": len(screenshots),
@@ -178,6 +185,21 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     for page in report["required_pages"]:
         lines.append(f"| {page} | {', '.join(report['required_viewports'])} |")
+    missing = report["visual_evidence_summary"]["required_matrix"].get("missing") or []
+    if missing:
+        lines.extend(["", "## Missing Required Matrix", "", "| Page | Viewport |", "| --- | --- |"])
+        for item in missing:
+            lines.append(f"| {item['page']} | {item['viewport']} |")
+        missing_by_page = report["visual_evidence_summary"]["required_matrix"].get("missing_by_page") or {}
+        if missing_by_page:
+            lines.extend(["", "### Missing By Page"])
+            for page, viewports in missing_by_page.items():
+                lines.append(f"- `{page}`: {', '.join(viewports)}")
+        missing_by_viewport = report["visual_evidence_summary"]["required_matrix"].get("missing_by_viewport") or {}
+        if missing_by_viewport:
+            lines.extend(["", "### Missing By Viewport"])
+            for viewport, pages in missing_by_viewport.items():
+                lines.append(f"- `{viewport}`: {', '.join(pages)}")
     if report["failures"]:
         lines.extend(["", "## Failures", ""])
         lines.extend(f"- {item}" for item in report["failures"])

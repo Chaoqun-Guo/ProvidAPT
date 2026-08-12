@@ -101,6 +101,16 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             self.assertEqual(manifest["coverage"]["covered_count"], 2)
             self.assertEqual(manifest["coverage"]["viewport_classes"], ["desktop_1366"])
             self.assertIn("1920x1080", manifest["coverage"]["missing_default_viewports"])
+            self.assertEqual(len(manifest["coverage"]["required_matrix"]), 8)
+            matrix = {
+                (item["page"], item["viewport"]): item
+                for item in manifest["coverage"]["required_matrix"]
+            }
+            self.assertEqual(matrix[("dashboard", "1366x768")]["status"], "planned")
+            self.assertEqual(matrix[("trace-viewer", "390x844")]["status"], "missing")
+            rendered = (Path(tmp) / "visual-regression-snapshots.md").read_text(encoding="utf-8")
+            self.assertIn("Required Matrix", rendered)
+            self.assertIn("| trace-viewer | 390x844 | missing |", rendered)
 
     def test_baseline_compare_marks_changed(self):
         mod = load_module()
@@ -177,6 +187,7 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
         self.assertEqual(report["coverage"]["covered_count"], 8)
         self.assertIn("mobile", report["coverage"]["viewport_classes"])
         self.assertIn("ultrawide", report["coverage"]["viewport_classes"])
+        self.assertTrue(all(item["present"] for item in report["coverage"]["required_matrix"]))
 
 
 if __name__ == "__main__":

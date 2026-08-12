@@ -61,12 +61,35 @@ def viewport_class(viewport: dict[str, Any]) -> str:
 
 def attach_coverage_summary(report: dict[str, Any]) -> None:
     screenshots = report.get("screenshots", [])
+    screenshot_index = {
+        (
+            str(shot.get("page", "")),
+            str((shot.get("viewport") or {}).get("name", "")),
+        ): shot
+        for shot in screenshots
+        if isinstance(shot, dict)
+    }
     pages = sorted({str(shot.get("page", "")) for shot in screenshots if shot.get("page")})
     viewports = sorted({str((shot.get("viewport") or {}).get("name", "")) for shot in screenshots if (shot.get("viewport") or {}).get("name")})
     classes = sorted({viewport_class(shot.get("viewport") or {}) for shot in screenshots})
     expected_pages = {"dashboard", "trace-viewer"}
     expected_viewports = set(DEFAULT_VIEWPORTS)
     captured = [shot for shot in screenshots if shot.get("status") in {"captured", "planned"}]
+    required_matrix = []
+    for page in sorted(expected_pages):
+        for viewport in sorted(expected_viewports):
+            shot = screenshot_index.get((page, viewport), {})
+            required_matrix.append(
+                {
+                    "page": page,
+                    "viewport": viewport,
+                    "status": str(shot.get("status") or "missing"),
+                    "path": str(shot.get("path") or ""),
+                    "present": bool(shot),
+                    "has_dom_assertions": isinstance(shot.get("dom_assertions"), dict),
+                    "has_hash": bool(shot.get("sha256")),
+                }
+            )
     report["coverage"] = {
         "pages": pages,
         "viewports": viewports,
@@ -76,6 +99,7 @@ def attach_coverage_summary(report: dict[str, Any]) -> None:
         "missing_pages": sorted(expected_pages - set(pages)),
         "missing_default_viewports": sorted(expected_viewports - set(viewports)),
         "complete_default_matrix": not (expected_pages - set(pages)) and not (expected_viewports - set(viewports)),
+        "required_matrix": required_matrix,
     }
 
 
@@ -162,6 +186,14 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
                 lines.extend(["", f"### {title}"])
                 lines.extend(f"- {item['page']} {item['viewport']}: {item.get('detail', '')}" for item in items)
     coverage = report.get("coverage") or {}
+    if coverage.get("required_matrix"):
+        lines.extend(["", "## Required Matrix", "", "| Page | Viewport | Status | DOM | Hash | Path |", "| --- | --- | --- | --- | --- | --- |"])
+        for item in coverage["required_matrix"]:
+            lines.append(
+                f"| {item['page']} | {item['viewport']} | {item['status']} | "
+                f"{str(item.get('has_dom_assertions', False)).lower()} | "
+                f"{str(item.get('has_hash', False)).lower()} | `{item.get('path', '')}` |"
+            )
     if coverage.get("missing_pages") or coverage.get("missing_default_viewports"):
         lines.extend(["", "## Coverage Gaps"])
         if coverage.get("missing_pages"):

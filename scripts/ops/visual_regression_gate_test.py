@@ -93,6 +93,11 @@ class VisualRegressionGateTest(unittest.TestCase):
         self.assertIn("missing screenshot: trace-viewer 2560x1080", "\n".join(report["failures"]))
         self.assertIn("missing screenshot: dashboard 390x844", "\n".join(report["failures"]))
         self.assertGreater(report["visual_evidence_summary"]["required_matrix"]["missing_count"], 0)
+        self.assertIn("390x844", report["visual_evidence_summary"]["required_matrix"]["missing_by_page"]["dashboard"])
+        self.assertIn("trace-viewer", report["visual_evidence_summary"]["required_matrix"]["missing_by_viewport"]["2560x1080"])
+        rendered = subject.render_markdown(report)
+        self.assertIn("Missing Required Matrix", rendered)
+        self.assertIn("Missing By Page", rendered)
 
     def test_blocks_changed_baseline_by_default(self):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]

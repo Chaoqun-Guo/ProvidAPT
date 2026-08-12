@@ -400,12 +400,16 @@ Trace Viewer captures run browser assertions for rendered SVG presence, layout
 mode controls, PNG/SVG/raw export controls, and report links. The manifest also
 records coverage by page, viewport, viewport class, and missing default
 viewports so release evidence can show whether the full baseline matrix was
-captured. Pass
+captured. The manifest includes a required page/viewport matrix with status,
+path, DOM assertion presence, and screenshot hash presence for each Dashboard
+and Trace Viewer target. Pass
 `BASELINE=build/visual-regression/visual-regression-snapshots.json` to compare
 current screenshot hashes against a previous manifest. Baseline comparisons
 include a `comparison_summary` with changed, unchanged, new, skipped, and
 missing-baseline counts plus focused changed/skipped detail for release review.
 Use `DRY_RUN=1` to validate the screenshot plan without launching a browser.
+The visual regression gate reports missing required screenshots both as exact
+page/viewport pairs and grouped by page and viewport.
 
 Gate captured screenshot evidence before release:
 
