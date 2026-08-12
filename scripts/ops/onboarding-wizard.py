@@ -57,10 +57,13 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     checklist_path = out_dir / "onboarding-checklist.md"
     report_path = out_dir / "onboarding-report.md"
     manifest_path = out_dir / "onboarding-manifest.json"
+    result_template_path = out_dir / "onboarding-check-results.template.json"
     config_path.write_text(config_yaml(args), encoding="utf-8")
     check_results = load_check_results(getattr(args, "check_results", ""))
     checks = apply_check_results(environment_checks(args), check_results)
     summary = check_summary(checks)
+    actions = next_actions(checks)
+    result_template_path.write_text(json.dumps(check_result_template(checks), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     checklist = f"""# ProvidAPT First-Run Onboarding Checklist
 
 - Confirm Linux kernel supports selected attachment mode.
@@ -70,13 +73,15 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 - Start server on REST port `{args.rest_port}` and gRPC port `{args.grpc_port}`.
 - Open dashboard and confirm all agents report healthy.
 - Run `make enterprise-readiness` before customer handoff.
+- Fill `onboarding-check-results.template.json` with observed results, then
+  rerun `make onboarding-wizard CHECK_RESULTS={result_template_path}`.
 
 ## Environment Checks
 
 {chr(10).join(f"- **{item['name']}** ({item['severity']}): `{item['command']}` - {item['purpose']}. Next: {item['next_step']}" for item in checks)}
 """
     checklist_path.write_text(checklist, encoding="utf-8")
-    report_path.write_text(render_report(args, checks, summary), encoding="utf-8")
+    report_path.write_text(render_report(args, checks, summary, actions), encoding="utf-8")
     manifest = {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -88,10 +93,12 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
         "check_results_path": getattr(args, "check_results", ""),
         "check_summary": summary,
         "environment_checks": checks,
+        "next_actions": actions,
         "outputs": {
             "config": str(config_path),
             "checklist": str(checklist_path),
             "report": str(report_path),
+            "check_results_template": str(result_template_path),
         },
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -162,6 +169,39 @@ def check_summary(checks: list[dict[str, str]]) -> dict[str, int]:
     return summary
 
 
+def check_result_template(checks: list[dict[str, str]]) -> dict[str, object]:
+    return {
+        "schema": "providapt.onboarding_check_results.v1",
+        "checks": [
+            {
+                "name": item["name"],
+                "status": item.get("status", "unknown"),
+                "command": item["command"],
+                "observed": item.get("observed", ""),
+                "evidence": item.get("evidence", ""),
+            }
+            for item in checks
+        ],
+    }
+
+
+def next_actions(checks: list[dict[str, str]]) -> list[dict[str, str]]:
+    actions: list[dict[str, str]] = []
+    priority = {"fail": 1, "unknown": 2, "warn": 3, "skipped": 4}
+    for item in checks:
+        status = item.get("status", "unknown")
+        if status == "pass":
+            continue
+        actions.append({
+            "check": item.get("name", ""),
+            "status": status,
+            "severity": item.get("severity", ""),
+            "command": item.get("command", ""),
+            "next_step": item.get("next_step", ""),
+        })
+    return sorted(actions, key=lambda item: (priority.get(item["status"], 5), item["check"]))
+
+
 def onboarding_status(summary: dict[str, int]) -> str:
     if summary.get("fail", 0) > 0:
         return "blocked"
@@ -170,7 +210,7 @@ def onboarding_status(summary: dict[str, int]) -> str:
     return "pass"
 
 
-def render_report(args: argparse.Namespace, checks: list[dict[str, str]], summary: dict[str, int]) -> str:
+def render_report(args: argparse.Namespace, checks: list[dict[str, str]], summary: dict[str, int], actions: list[dict[str, str]]) -> str:
     lines = [
         "# ProvidAPT Onboarding Report",
         "",
@@ -195,6 +235,23 @@ def render_report(args: argparse.Namespace, checks: list[dict[str, str]], summar
                 next_step=escape_cell(item.get("next_step", "")),
             )
         )
+    if actions:
+        lines.extend([
+            "",
+            "## Next Actions",
+            "",
+            "| Check | Status | Command | Next Step |",
+            "| --- | --- | --- | --- |",
+        ])
+        for item in actions:
+            lines.append(
+                "| {check} | {status} | `{command}` | {next_step} |".format(
+                    check=escape_cell(item.get("check", "")),
+                    status=escape_cell(item.get("status", "")),
+                    command=escape_cell(item.get("command", "")),
+                    next_step=escape_cell(item.get("next_step", "")),
+                )
+            )
     lines.append("")
     return "\n".join(lines)
 

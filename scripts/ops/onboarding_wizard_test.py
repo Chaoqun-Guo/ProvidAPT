@@ -44,6 +44,8 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertTrue(loaded["postgres"])
         self.assertEqual(loaded["status"], "warn")
         self.assertIn("report", loaded["outputs"])
+        self.assertIn("check_results_template", loaded["outputs"])
+        self.assertTrue(loaded["next_actions"])
         check_names = {item["name"] for item in loaded["environment_checks"]}
         self.assertIn("tailscale", check_names)
         self.assertIn("ssh", check_names)
@@ -57,6 +59,10 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("dashboard", checklist)
         report = (self.tmp / "onboarding-report.md").read_text(encoding="utf-8")
         self.assertIn("ProvidAPT Onboarding Report", report)
+        self.assertIn("Next Actions", report)
+        template = json.loads((self.tmp / "onboarding-check-results.template.json").read_text(encoding="utf-8"))
+        self.assertEqual(template["schema"], "providapt.onboarding_check_results.v1")
+        self.assertIn("command", template["checks"][0])
 
     def test_merges_check_results_into_onboarding_report(self):
         results = self.tmp / "results.json"
@@ -79,12 +85,14 @@ class OnboardingWizardTest(unittest.TestCase):
         ))
         self.assertEqual(manifest["status"], "blocked")
         self.assertEqual(manifest["check_summary"]["fail"], 1)
+        self.assertEqual(manifest["next_actions"][0]["check"], "api")
         api = next(item for item in manifest["environment_checks"] if item["name"] == "api")
         self.assertEqual(api["status"], "fail")
         self.assertEqual(api["observed"], "connection refused")
         report = (self.tmp / "onboarding-report.md").read_text(encoding="utf-8")
         self.assertIn("connection refused", report)
         self.assertIn("3 peers online", report)
+        self.assertIn("Start providaptd", report)
 
 
 if __name__ == "__main__":

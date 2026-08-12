@@ -614,7 +614,9 @@ make onboarding-wizard \
 
 The onboarding bundle includes a production-oriented starter config, checklist,
 environment checks for Tailscale/SSH/API/TLS/secrets/PostgreSQL, and manifest
-that can be attached to customer handoff evidence.
+that can be attached to customer handoff evidence. It also writes
+`onboarding-check-results.template.json`, a fill-in template containing every
+generated check command.
 
 After running the environment checks, merge observed results into the
 onboarding report:
@@ -635,7 +637,7 @@ make onboarding-wizard \
 ```
 
 The generated `onboarding-report.md` summarizes pass/warn/fail/unknown counts
-and records the next step for each failed or unverified check.
+and records prioritized next actions for each failed or unverified check.
 
 ## 9. Commercialization Readiness
 

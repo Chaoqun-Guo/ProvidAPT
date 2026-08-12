@@ -114,8 +114,9 @@ Current closure progress:
 - Model registry, dataset drift, feature-schema compatibility, and deployable model artifact SHA-256 checks are available for training provenance.
 - Model lifecycle promotion is gated through `make model-lifecycle-gate`, requiring closed-loop readiness, deploy-gate pass status, stable drift evidence, sufficient analyst feedback/reviewed labels, a minimum baseline window, matching model identity/version/feature schema evidence, and optional named owner approval.
 - First-run onboarding bundles generate a starter config, checklist,
-  Tailscale/SSH/API/TLS/secrets/PostgreSQL environment checks, and manifest
-  through `make onboarding-wizard`; optional `CHECK_RESULTS=...` merges observed
+  Tailscale/SSH/API/TLS/secrets/PostgreSQL environment checks, a fill-in check
+  result template, prioritized next actions, and manifest through
+  `make onboarding-wizard`; optional `CHECK_RESULTS=...` merges observed
   pass/warn/fail results into `onboarding-report.md` for handoff evidence.
 - Plugin release gating validates plugin manifests, semantic versions,
   supported plugin types, least-privilege permission declarations,
