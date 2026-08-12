@@ -778,7 +778,10 @@ baselines, Trace SVG stress, model lifecycle, RBAC/audit hardening, plugin
 distribution, and first-run onboarding. It records missing scanner/SBOM tools
 and missing real-environment inputs separately so release owners can see what
 is ready to run locally and what still needs final-tag, server, alert, model,
-RBAC, or plugin evidence.
+RBAC, or plugin evidence. Non-passing rows include `unable_reason` and
+`completion_requirement` fields so local-only development gaps can be separated
+from evidence that requires a live deployment, real alert IDs, scanner
+databases, or customer approval records.
 For local macOS release rehearsal, `scripts/release/open-source-release.sh`
 cross-compiles Linux artifacts by default, builds a host `providaptctl` for the
 readiness check, and uses portable checksum generation. Final publication still

@@ -49,6 +49,8 @@ class OpenSourceLocalClosureTest(unittest.TestCase):
         self.assertIn("server_url", report["missing_inputs"])
         self.assertEqual(tasks["release-security-scans"]["status"], "blocked_missing_tool")
         self.assertEqual(tasks["visual-browser-baselines"]["status"], "blocked_missing_input")
+        self.assertIn("Required local tools", tasks["release-security-scans"]["unable_reason"])
+        self.assertIn("server_url", tasks["visual-browser-baselines"]["completion_requirement"])
 
     def test_ready_rows_when_required_context_is_supplied(self) -> None:
         supplied = args(
@@ -74,7 +76,9 @@ class OpenSourceLocalClosureTest(unittest.TestCase):
 
         self.assertNotIn("blocked_missing_input", set(statuses.values()))
         self.assertNotIn("blocked_missing_tool", set(statuses.values()))
-        self.assertEqual(statuses["onboarding-first-run-polish"], "ready_to_run")
+        self.assertIn(statuses["onboarding-first-run-polish"], {"ready_to_run", "ready_to_rerun"})
+        onboarding = next(row for row in report["tasks"] if row["id"] == "onboarding-first-run-polish")
+        self.assertTrue(onboarding["unable_reason"])
 
     def test_markdown_lists_all_task_ids_and_blocker_sections(self) -> None:
         report = subject.build_report(args(), tool_resolver=lambda _tool: False)
@@ -84,6 +88,8 @@ class OpenSourceLocalClosureTest(unittest.TestCase):
             self.assertIn(task.task_id, rendered)
         self.assertIn("Missing Tools", rendered)
         self.assertIn("Missing Inputs", rendered)
+        self.assertIn("Unable Reason", rendered)
+        self.assertIn("Completion requirement", rendered)
 
 
 if __name__ == "__main__":

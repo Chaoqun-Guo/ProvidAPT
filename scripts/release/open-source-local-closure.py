@@ -157,6 +157,35 @@ def evidence_status(paths: tuple[str, ...]) -> tuple[str, list[dict[str, Any]]]:
     return "missing_evidence", rows
 
 
+def unable_reason(
+    status: str,
+    missing_tools: list[str],
+    missing_inputs: list[str],
+    ev_status: str,
+    blockers: list[str],
+    warnings: list[str],
+) -> str:
+    if status == "pass":
+        return ""
+    if missing_tools:
+        return "Required local tools are not installed or not on PATH: " + ", ".join(missing_tools)
+    if missing_inputs:
+        return "Required release evidence inputs were not supplied: " + ", ".join(missing_inputs)
+    if ev_status == "blocked_existing_evidence":
+        return "Existing evidence is blocked or failed; inspect the referenced gate output and rerun or attach an approved waiver."
+    if ev_status == "partial_evidence":
+        return "Partial evidence exists, but the task needs a rerun with complete release inputs before it can pass."
+    if ev_status == "missing_evidence":
+        return "No local evidence has been generated for this task yet."
+    return "; ".join(blockers or warnings)
+
+
+def completion_requirement(spec: TaskSpec, missing_inputs: list[str]) -> str:
+    if missing_inputs:
+        return "Supply " + ", ".join(missing_inputs) + " and rerun: " + spec.command
+    return spec.notes[0] if spec.notes else spec.command
+
+
 def task_row(spec: TaskSpec, args: argparse.Namespace, tool_resolver: ToolResolver) -> dict[str, Any]:
     missing_tools = [tool for tool in spec.required_tools if not tool_resolver(tool)]
     missing_inputs = [key for key in spec.required_inputs if not input_value(args, key)]
@@ -185,6 +214,7 @@ def task_row(spec: TaskSpec, args: argparse.Namespace, tool_resolver: ToolResolv
         status = "ready_to_rerun"
     else:
         status = "ready_to_run"
+    reason = unable_reason(status, missing_tools, missing_inputs, ev_status, blockers, warnings)
 
     return {
         "id": spec.task_id,
@@ -199,6 +229,8 @@ def task_row(spec: TaskSpec, args: argparse.Namespace, tool_resolver: ToolResolv
         "evidence": ev_rows,
         "blockers": blockers,
         "warnings": warnings,
+        "unable_reason": reason,
+        "completion_requirement": completion_requirement(spec, missing_inputs),
         "notes": list(spec.notes),
     }
 
@@ -239,15 +271,15 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Commit: `{report.get('commit') or 'unknown'}`",
         f"- Tasks: `{report['task_count']}`",
         "",
-        "| Task | Status | Evidence | Missing Tools | Missing Inputs |",
-        "| --- | --- | --- | --- | --- |",
+        "| Task | Status | Evidence | Missing Tools | Missing Inputs | Unable Reason |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for row in report["tasks"]:
         missing_tools = ", ".join(row["missing_tools"]) or "-"
         missing_inputs = ", ".join(row["missing_inputs"]) or "-"
         lines.append(
             f"| `{row['id']}` | `{row['status']}` | `{row['evidence_status']}` | "
-            f"{missing_tools} | {missing_inputs} |"
+            f"{missing_tools} | {missing_inputs} | {escape_cell(row.get('unable_reason') or '-')} |"
         )
     if report["missing_tools"]:
         lines.extend(["", "## Missing Tools", ""])
@@ -263,6 +295,9 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.append(f"- Blocker: {blocker}")
         for warning in row["warnings"]:
             lines.append(f"- Warning: {warning}")
+        if row.get("unable_reason"):
+            lines.append(f"- Unable reason: {row['unable_reason']}")
+        lines.append(f"- Completion requirement: {row['completion_requirement']}")
         for note in row["notes"]:
             lines.append(f"- Note: {note}")
         lines.append("")
@@ -270,6 +305,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.extend(f"- `{command}`" for command in report["next_commands"])
     lines.append("")
     return "\n".join(lines)
+
+
+def escape_cell(value: Any) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
 
 
 def parser() -> argparse.ArgumentParser:
