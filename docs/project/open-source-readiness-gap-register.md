@@ -112,7 +112,11 @@ Current closure progress:
 - Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
 - Long-duration soak samples can be appended from a status endpoint or captured JSON through `make soak-sample`.
 - Model registry, dataset drift, feature-schema compatibility, and deployable model artifact SHA-256 checks are available for training provenance.
-- Model lifecycle promotion is gated through `make model-lifecycle-gate`, requiring closed-loop readiness, deploy-gate pass status, stable drift evidence, sufficient analyst feedback/reviewed labels, a minimum baseline window, matching model identity/version/feature schema evidence, and optional named owner approval.
+- Model lifecycle promotion is gated through `make model-lifecycle-gate`,
+  requiring closed-loop readiness, deploy-gate pass status, stable drift
+  evidence, sufficient analyst feedback/reviewed labels, required feedback-label
+  diversity, a minimum baseline window, matching model identity/version/feature
+  schema evidence, and optional named owner approval.
 - First-run onboarding bundles generate a starter config, checklist,
   Tailscale/SSH/API/TLS/secrets/PostgreSQL environment checks, a fill-in check
   result template, prioritized next actions, and manifest through

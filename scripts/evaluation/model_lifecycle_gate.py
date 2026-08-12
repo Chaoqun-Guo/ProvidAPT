@@ -12,6 +12,7 @@ from typing import Any
 
 SCHEMA = "providapt.model_lifecycle_gate.v1"
 APPROVAL_ROLES = ("model_owner", "security", "soc_lead")
+REVIEWED_FEEDBACK_LABELS = ("true_positive", "false_positive", "benign", "duplicate")
 
 
 def load_json(path: str | None) -> dict[str, Any]:
@@ -58,6 +59,37 @@ def feedback_counts(closed_loop: dict[str, Any]) -> tuple[int, int]:
     if not isinstance(feedback, dict):
         return 0, 0
     return int(feedback.get("records") or 0), int(feedback.get("reviewed") or 0)
+
+
+def normalize_feedback_label(value: Any) -> str:
+    normalized = str(value or "").lower().strip().replace("-", "_").replace(" ", "_")
+    if normalized == "tp":
+        return "true_positive"
+    if normalized == "fp":
+        return "false_positive"
+    if normalized in REVIEWED_FEEDBACK_LABELS or normalized == "needs_review":
+        return normalized
+    return normalized
+
+
+def feedback_labels(closed_loop: dict[str, Any]) -> dict[str, int]:
+    feedback = closed_loop.get("feedback")
+    if not isinstance(feedback, dict):
+        return {}
+    raw = feedback.get("labels") or feedback.get("label_counts") or feedback.get("feedback_by_classification")
+    if not isinstance(raw, dict):
+        return {}
+    labels: dict[str, int] = {}
+    for label, value in raw.items():
+        normalized = normalize_feedback_label(label)
+        if not normalized:
+            continue
+        try:
+            count = int(value or 0)
+        except (TypeError, ValueError):
+            count = 0
+        labels[normalized] = labels.get(normalized, 0) + count
+    return dict(sorted(labels.items()))
 
 
 def baseline_days(closed_loop: dict[str, Any]) -> float:
@@ -127,7 +159,7 @@ def identity_failures(closed_loop: dict[str, Any], deploy_gate: dict[str, Any]) 
 def next_actions(failures: list[str], warnings: list[str]) -> list[str]:
     actions: list[str] = []
     text = "\n".join(failures + warnings).lower()
-    if "closed-loop" in text or "feedback" in text or "reviewed feedback" in text:
+    if "closed-loop" in text or "feedback" in text or "reviewed feedback" in text or "feedback label" in text:
         actions.append("collect additional analyst TP/FP/benign/duplicate feedback and rerun make model-closed-loop")
     if "deploy gate" in text or "model name mismatch" in text or "model version mismatch" in text or "feature schema" in text:
         actions.append("rerun model registration, feature-schema check, and make model-deploy-gate for the same model identity")
@@ -160,10 +192,18 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     if drift_status == "not_supplied":
         warnings.append("drift report not supplied")
     feedback_records, reviewed_labels = feedback_counts(closed_loop)
+    labels = feedback_labels(closed_loop)
     if feedback_records < args.min_feedback_records:
         failures.append(f"feedback records {feedback_records} below {args.min_feedback_records}")
     if reviewed_labels < args.min_reviewed_labels:
         failures.append(f"reviewed feedback labels {reviewed_labels} below {args.min_reviewed_labels}")
+    required_feedback_labels = list(dict.fromkeys(
+        normalize_feedback_label(item) for item in (args.required_feedback_label or []) if normalize_feedback_label(item)
+    ))
+    for label in required_feedback_labels:
+        observed = labels.get(label, 0)
+        if observed < args.min_feedback_per_label:
+            failures.append(f"feedback label {label} count {observed} below {args.min_feedback_per_label}")
     days = baseline_days(closed_loop)
     if days < args.min_baseline_days:
         failures.append(f"baseline days {days} below {args.min_baseline_days}")
@@ -185,6 +225,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "thresholds": {
             "min_feedback_records": args.min_feedback_records,
             "min_reviewed_labels": args.min_reviewed_labels,
+            "required_feedback_labels": required_feedback_labels,
+            "min_feedback_per_label": args.min_feedback_per_label,
             "min_baseline_days": args.min_baseline_days,
             "require_approval": args.require_approval,
         },
@@ -200,6 +242,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "drift_status": drift_status,
         "feedback_records": feedback_records,
         "reviewed_labels": reviewed_labels,
+        "feedback_labels": labels,
         "baseline_days": days,
         "approval_roles": list(APPROVAL_ROLES),
         "evidence": evidence,
@@ -235,6 +278,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Drift: `{report['drift_status']}`",
         f"- Feedback records: `{report['feedback_records']}`",
         f"- Reviewed labels: `{report['reviewed_labels']}`",
+        f"- Required feedback labels: `{', '.join(report['thresholds']['required_feedback_labels']) or 'none'}`",
         f"- Baseline days: `{report['baseline_days']}`",
         f"- Promotion decision: `{report['promotion_decision']}`",
         f"- Evidence files: `{report['promotion_packet']['evidence_count']}`",
@@ -252,6 +296,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(["## Next Actions", ""])
         lines.extend(f"- {item}" for item in report["promotion_packet"]["next_actions"])
         lines.append("")
+    lines.extend(["## Feedback Labels", "", "| Label | Count |", "| --- | ---: |"])
+    for label, count in report["feedback_labels"].items():
+        lines.append(f"| {label} | {count} |")
+    lines.append("")
     lines.extend(["## Evidence", ""])
     lines.extend(
         f"- `{item['kind']}`: `{item['path'] or 'not supplied'}` sha256=`{item['sha256'] or 'n/a'}`"
@@ -270,10 +318,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--require-approval", action="store_true")
     parser.add_argument("--min-feedback-records", type=int, default=25)
     parser.add_argument("--min-reviewed-labels", type=int, default=10)
+    parser.add_argument("--required-feedback-label", action="append", default=[])
+    parser.add_argument("--min-feedback-per-label", type=int, default=1)
     parser.add_argument("--min-baseline-days", type=float, default=7.0)
     parser.add_argument("--out-json", default="build/evaluation/model-lifecycle-gate.json")
     parser.add_argument("--out-md", default="build/evaluation/model-lifecycle-gate.md")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if not args.required_feedback_label:
+        args.required_feedback_label = ["true_positive", "false_positive"]
+    return args
 
 
 def main(argv: list[str]) -> int:

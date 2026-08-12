@@ -398,6 +398,8 @@ make model-lifecycle-gate \
   REQUIRE_MODEL_APPROVAL=1 \
   MIN_FEEDBACK_RECORDS=25 \
   MIN_REVIEWED_LABELS=10 \
+  REQUIRED_FEEDBACK_LABELS="true_positive false_positive benign duplicate" \
+  MIN_FEEDBACK_PER_LABEL=1 \
   MIN_BASELINE_DAYS=7 \
   OUT_DIR=build/evaluation
 ```
@@ -405,7 +407,11 @@ make model-lifecycle-gate \
 `MODEL_APPROVAL` is JSON with named `model_owner`, `security`, and `soc_lead`
 decisions. Delegate or placeholder approvals block promotion. The gate also
 blocks when drift requires review, the deployment gate is not passing, reviewed
-feedback is too sparse, or the baseline window is too short.
+feedback is too sparse, required feedback labels are missing, or the baseline
+window is too short. By default the lifecycle gate requires at least one
+`true_positive` and one `false_positive` label; set
+`REQUIRED_FEEDBACK_LABELS="true_positive false_positive benign duplicate"` when
+release promotion should prove all reviewed feedback outcomes are represented.
 
 The JSON output includes a `promotion_packet` section with the promotion
 decision, model identity, input evidence SHA-256 hashes, evidence count, and

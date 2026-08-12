@@ -38,6 +38,8 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "require_approval": True,
             "min_feedback_records": 25,
             "min_reviewed_labels": 10,
+            "required_feedback_label": ["true_positive", "false_positive"],
+            "min_feedback_per_label": 1,
             "min_baseline_days": 7,
         }
         values.update(overrides)
@@ -50,7 +52,7 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "model_version": "1.0.0",
             "feature_schema_sha256": "a" * 64,
             "dataset": {"baseline_days": 14},
-            "feedback": {"records": 40, "reviewed": 22},
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"true_positive": 12, "false_positive": 7, "benign": 2, "duplicate": 1}},
             "drift": {"status": "stable"},
         })
         deploy = self.write_json("deploy.json", {"status": "pass", "model_name": "graph-detector", "model_version": "1.0.0", "feature_schema_sha256": "a" * 64})
@@ -72,7 +74,7 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "model_name": "graph-detector",
             "model_version": "1.0.0",
             "dataset": {"baseline_days": 1},
-            "feedback": {"records": 3, "reviewed": 1},
+            "feedback": {"records": 3, "reviewed": 1, "labels": {"true_positive": 1}},
             "drift": {"status": "review_required"},
         })
         deploy = self.write_json("deploy.json", {"status": "pass", "model_name": "graph-detector", "model_version": "1.0.0"})
@@ -83,6 +85,7 @@ class ModelLifecycleGateTest(unittest.TestCase):
         self.assertEqual(report["status"], "blocked")
         text = "\n".join(report["failures"])
         self.assertIn("feedback records", text)
+        self.assertIn("feedback label false_positive", text)
         self.assertIn("dataset drift", text)
         self.assertIn("named owner", text)
         actions = "\n".join(report["promotion_packet"]["next_actions"])
@@ -96,7 +99,7 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "model_version": "1.0.0",
             "feature_schema_sha256": "a" * 64,
             "dataset": {"baseline_days": 14},
-            "feedback": {"records": 40, "reviewed": 22},
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"tp": 12, "fp": 10}},
             "drift": {"status": "stable"},
         })
         deploy = self.write_json("deploy.json", {
@@ -122,7 +125,7 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "model_name": "graph-detector",
             "model_version": "1.0.0",
             "dataset": {"baseline_days": 14},
-            "feedback": {"records": 40, "reviewed": 22},
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"true_positive": 10, "false_positive": 8}},
             "drift": {"status": "stable"},
         })
         deploy = self.write_json("deploy.json", {
@@ -133,8 +136,35 @@ class ModelLifecycleGateTest(unittest.TestCase):
         report = subject.build_report(self.args(closed_loop=str(closed), deploy_gate=str(deploy), require_approval=False))
         rendered = subject.render_markdown(report)
         self.assertIn("Promotion decision", rendered)
+        self.assertIn("Feedback Labels", rendered)
         self.assertIn("## Evidence", rendered)
         self.assertIn("closed_loop", rendered)
+
+    def test_blocks_missing_required_feedback_label_diversity(self):
+        closed = self.write_json("closed.json", {
+            "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "dataset": {"baseline_days": 14},
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"true_positive": 22}},
+            "drift": {"status": "stable"},
+        })
+        deploy = self.write_json("deploy.json", {
+            "status": "pass",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+        })
+        report = subject.build_report(self.args(
+            closed_loop=str(closed),
+            deploy_gate=str(deploy),
+            require_approval=False,
+            required_feedback_label=["true_positive", "false_positive", "benign", "duplicate"],
+        ))
+        self.assertEqual(report["status"], "blocked")
+        text = "\n".join(report["failures"])
+        self.assertIn("feedback label false_positive", text)
+        self.assertIn("feedback label benign", text)
+        self.assertIn("feedback label duplicate", text)
 
 
 if __name__ == "__main__":
