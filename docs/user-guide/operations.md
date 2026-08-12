@@ -690,15 +690,21 @@ backlog reports are generated:
 ```bash
 make open-source-development-backlog \
   LOCAL_ONLY=1 \
+  RELEASE_EVIDENCE_CONSISTENCY_GATE=build/release-evidence/release-evidence-consistency-gate.json \
+  ARTIFACT_SIGNING_GATE=build/release-evidence/artifact-signing-gate.json \
   VISUAL_REGRESSION_GATE=build/visual-regression/visual-regression-gate.json \
+  CAPTURE_ENRICHMENT_GATE=build/capture-quality/capture-enrichment-field-gate.json \
   MODEL_LIFECYCLE_GATE=build/evaluation/model-lifecycle-gate.json \
+  SOAK_READINESS=build/performance/soak-readiness.json \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json
 make open-source-milestone ALLOW_MISSING=1
 ```
 
 When gate paths are supplied, the development backlog runs in evidence-aware
 mode and marks mapped tasks as `done`, `needs_review`, or `needs_fix` based on
-the supplied gate status.
+the supplied gate status. Multi-evidence tasks, such as final artifacts or
+RBAC/customer certification, remain `needs_review` until every mapped evidence
+input is present and passing.
 
 The milestone package includes readiness, readiness backlog, development
 backlog, release gate status, release evidence consistency, model lifecycle, and

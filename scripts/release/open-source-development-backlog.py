@@ -167,14 +167,19 @@ def selected_tasks(local_only: bool, phase: str) -> list[dict[str, Any]]:
 
 
 EVIDENCE_MAP = {
-    "release-security-scans": "release_gates",
-    "release-final-artifacts": "customer_release_gate",
-    "visual-browser-baselines": "visual_regression_gate",
-    "trace-svg-stress-evidence": "trace_svg_stress",
-    "model-lifecycle-baseline": "model_lifecycle_gate",
-    "rbac-audit-hardening": "customer_env_certification_gate",
-    "plugin-distribution": "plugin_catalog_gate",
-    "onboarding-first-run-polish": "onboarding_manifest",
+    "release-ci-evidence": ["github_actions_evidence"],
+    "release-security-scans": ["release_gates"],
+    "release-final-artifacts": ["release_evidence_consistency_gate", "artifact_signing_gate", "customer_release_gate"],
+    "release-owner-approval": ["external_approval"],
+    "visual-browser-baselines": ["visual_regression_gate"],
+    "trace-svg-stress-evidence": ["trace_svg_stress"],
+    "capture-field-evidence-refresh": ["capture_enrichment_gate"],
+    "model-lifecycle-baseline": ["model_lifecycle_gate"],
+    "siem-soar-certification": ["siem_verify", "customer_env_certification_gate"],
+    "rbac-audit-hardening": ["rbac_audit", "policy_approval_gate", "customer_env_certification_gate"],
+    "soak-24-72h": ["soak_readiness"],
+    "plugin-distribution": ["plugin_catalog_gate"],
+    "onboarding-first-run-polish": ["onboarding_manifest"],
 }
 
 
@@ -203,15 +208,37 @@ def evidence_status(report: dict[str, Any]) -> str:
     return "missing"
 
 
+def aggregate_evidence_status(statuses: list[str]) -> str:
+    if not statuses:
+        return ""
+    if any(status == "blocked" for status in statuses):
+        return "blocked"
+    if all(status in {"pass", "present"} for status in statuses):
+        return "pass"
+    if any(status == "warn" for status in statuses):
+        return "warn"
+    if any(status in {"pass", "present"} for status in statuses):
+        return "partial"
+    return "missing"
+
+
 def apply_evidence_status(tasks: list[dict[str, Any]], evidence_paths: dict[str, str]) -> list[dict[str, Any]]:
     updated: list[dict[str, Any]] = []
     for task in tasks:
         item = dict(task)
-        evidence_key = EVIDENCE_MAP.get(item["id"], "")
-        path = evidence_paths.get(evidence_key, "") if evidence_key else ""
-        status = evidence_status(load_json(path))
-        item["evidence_key"] = evidence_key
-        item["evidence_path"] = path
+        evidence_keys = EVIDENCE_MAP.get(item["id"], [])
+        evidence_items = []
+        statuses: list[str] = []
+        for key in evidence_keys:
+            path = evidence_paths.get(key, "")
+            status = evidence_status(load_json(path))
+            statuses.append(status)
+            evidence_items.append({"key": key, "path": path, "status": status})
+        status = aggregate_evidence_status(statuses)
+        item["evidence_keys"] = evidence_keys
+        item["evidence"] = evidence_items
+        item["evidence_key"] = ",".join(evidence_keys)
+        item["evidence_path"] = ";".join(entry["path"] for entry in evidence_items if entry.get("path"))
         item["evidence_status"] = status
         if status == "pass":
             item["status"] = "done"
@@ -219,8 +246,8 @@ def apply_evidence_status(tasks: list[dict[str, Any]], evidence_paths: dict[str,
             item["status"] = "needs_review"
         elif status == "blocked":
             item["status"] = "needs_fix"
-        elif status == "present" and item["id"] == "onboarding-first-run-polish":
-            item["status"] = "done"
+        elif status == "partial":
+            item["status"] = "needs_review"
         updated.append(item)
     return updated
 
@@ -279,8 +306,8 @@ def render_markdown(report: dict[str, Any]) -> str:
     ])
     for task in report["tasks"]:
         evidence = task.get("evidence_status", "")
-        if task.get("evidence_key"):
-            evidence = f"{task['evidence_key']}:{evidence or 'missing'}"
+        if task.get("evidence"):
+            evidence = ",".join(f"{item['key']}:{item['status']}" for item in task["evidence"])
         row = [
             str(task["priority"]),
             task["id"],
@@ -306,26 +333,44 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate an actionable local/open-source development backlog.")
     parser.add_argument("--local-only", action="store_true", help="Show tasks that can make progress in local development.")
     parser.add_argument("--phase", default="", help="Filter by phase, for example release, frontend, operations, ml.")
+    parser.add_argument("--github-actions-evidence", default="")
     parser.add_argument("--release-gates", default="")
+    parser.add_argument("--release-evidence-consistency-gate", default="")
+    parser.add_argument("--artifact-signing-gate", default="")
     parser.add_argument("--customer-release-gate", default="")
     parser.add_argument("--visual-regression-gate", default="")
     parser.add_argument("--trace-svg-stress", default="")
+    parser.add_argument("--capture-enrichment-gate", default="")
     parser.add_argument("--model-lifecycle-gate", default="")
+    parser.add_argument("--siem-verify", default="")
+    parser.add_argument("--rbac-audit", default="")
+    parser.add_argument("--policy-approval-gate", default="")
+    parser.add_argument("--soak-readiness", default="")
     parser.add_argument("--customer-env-certification-gate", default="")
     parser.add_argument("--plugin-catalog-gate", default="")
     parser.add_argument("--onboarding-manifest", default="")
+    parser.add_argument("--external-approval", default="")
     parser.add_argument("--out-json", default="build/open-source-readiness/open-source-development-backlog.json")
     parser.add_argument("--out-md", default="build/open-source-readiness/open-source-development-backlog.md")
     args = parser.parse_args()
     evidence_paths = {
+        "github_actions_evidence": args.github_actions_evidence,
         "release_gates": args.release_gates,
+        "release_evidence_consistency_gate": args.release_evidence_consistency_gate,
+        "artifact_signing_gate": args.artifact_signing_gate,
         "customer_release_gate": args.customer_release_gate,
         "visual_regression_gate": args.visual_regression_gate,
         "trace_svg_stress": args.trace_svg_stress,
+        "capture_enrichment_gate": args.capture_enrichment_gate,
         "model_lifecycle_gate": args.model_lifecycle_gate,
+        "siem_verify": args.siem_verify,
+        "rbac_audit": args.rbac_audit,
+        "policy_approval_gate": args.policy_approval_gate,
+        "soak_readiness": args.soak_readiness,
         "customer_env_certification_gate": args.customer_env_certification_gate,
         "plugin_catalog_gate": args.plugin_catalog_gate,
         "onboarding_manifest": args.onboarding_manifest,
+        "external_approval": args.external_approval,
     }
     report = build_report(local_only=args.local_only, phase=args.phase, evidence_paths={key: value for key, value in evidence_paths.items() if value})
     out_json = Path(args.out_json)
