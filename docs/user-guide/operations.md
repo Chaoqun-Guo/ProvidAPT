@@ -559,6 +559,7 @@ make customer-env-certification-gate \
   PRODUCTION_READINESS_GATE=build/production-readiness/production-readiness-gate.json \
   DEPLOYMENT_DIAGNOSTICS_GATE=build/deploy/deployment-diagnostics-gate.json \
   BACKUP_READINESS_GATE=build/backup/backup-readiness-gate.json \
+  PLUGIN_CATALOG_GATE=build/plugins/plugin-catalog-gate.json \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json \
   REQUIRE_DELEGATED_ADMIN=1 \
   REQUIRE_AUDIT_EXPORT=1 \

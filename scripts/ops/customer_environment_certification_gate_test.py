@@ -73,6 +73,7 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
             "require_tls": True,
             "require_state_backend": True,
             "plugin_gate": plugin,
+            "plugin_catalog_gate": "",
             "require_plugin_gate": True,
             "require_plugin_signature": True,
             "require_plugin_permissions": True,
@@ -112,6 +113,19 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
         text = "\n".join(report["failures"])
         self.assertIn("role review contains unresolved", text)
         self.assertIn("role review has no approved role entries", text)
+
+    def test_accepts_plugin_catalog_gate(self):
+        catalog = self.write_json("plugin-catalog.json", {
+            "status": "pass",
+            "plugin_count": 2,
+            "plugins": [
+                {"name": "sigma-extra", "signature_present": True, "permission_count": 2},
+                {"name": "intel-extra", "signature_present": True, "permission_count": 1},
+            ],
+        })
+        report = subject.build_report(self.args(plugin_gate="", plugin_catalog_gate=catalog))
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["sections"]["plugin_ecosystem"]["details"]["plugin_count"], 2)
 
 
 if __name__ == "__main__":

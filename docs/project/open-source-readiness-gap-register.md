@@ -119,6 +119,10 @@ Current closure progress:
   supported plugin types, least-privilege permission declarations,
   compatibility ranges, signed distribution metadata, signature evidence, and
   concrete rollback instructions through `make plugin-release-gate`.
+- Plugin catalog gating aggregates multiple plugin release-gate outputs through
+  `make plugin-catalog-gate`, blocking duplicate plugin identities, unsigned
+  entries, missing permissions, incomplete distribution metadata, and missing
+  rollback evidence.
 - Visual regression gating now requires captured Dashboard and Trace Viewer screenshots, hashes, and passing DOM assertions for each required viewport; dry-run planning must explicitly opt out through `ALLOW_PLANNED_VISUALS=1`.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual

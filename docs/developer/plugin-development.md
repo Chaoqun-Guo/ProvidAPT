@@ -146,3 +146,18 @@ make plugin-release-gate \
 
 Open-source releases should keep plugin manifests, signatures, gate reports, and
 rollback instructions with the release evidence bundle.
+
+When shipping more than one plugin, aggregate the individual gate outputs into a
+catalog decision:
+
+```bash
+make plugin-catalog-gate \
+  PLUGIN_GATES="build/plugins/sigma/plugin-release-gate.json build/plugins/intel/plugin-release-gate.json" \
+  REQUIRE_PLUGINS=1 \
+  REQUIRE_PLUGIN_SIGNATURE=1 \
+  REQUIRE_PLUGIN_PERMISSIONS=1
+```
+
+The catalog gate blocks duplicate plugin name/version pairs, blocked plugin
+release gates, missing signatures, missing permissions, incomplete distribution
+metadata, and missing rollback steps.

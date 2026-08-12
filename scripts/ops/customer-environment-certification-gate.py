@@ -249,6 +249,24 @@ def foundation_section(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def plugin_section(args: argparse.Namespace) -> dict[str, Any]:
+    catalog = load_json(args.plugin_catalog_gate)
+    if catalog:
+        failures: list[str] = []
+        if not passish(catalog):
+            failures.append("plugin catalog gate is missing or blocked")
+        if args.require_plugin_gate and int(catalog.get("plugin_count") or 0) <= 0:
+            failures.append("plugin catalog is empty")
+        if args.require_plugin_signature and any(not item.get("signature_present") for item in catalog.get("plugins", []) if isinstance(item, dict)):
+            failures.append("plugin catalog contains unsigned plugin evidence")
+        if args.require_plugin_permissions and any(int(item.get("permission_count") or 0) <= 0 for item in catalog.get("plugins", []) if isinstance(item, dict)):
+            failures.append("plugin catalog contains plugin without permissions")
+        return section(
+            "plugin_ecosystem",
+            not failures,
+            failures,
+            plugin_count=catalog.get("plugin_count", 0),
+            catalog_status=status(catalog) or "missing",
+        )
     if not args.plugin_gate:
         return section("plugin_ecosystem", not args.require_plugin_gate, ["plugin release gate evidence is missing"] if args.require_plugin_gate else [], warnings=["no plugin shipped"])
     report = load_json(args.plugin_gate)
@@ -352,6 +370,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--require-tls", action="store_true")
     parser.add_argument("--require-state-backend", action="store_true")
     parser.add_argument("--plugin-gate", default="")
+    parser.add_argument("--plugin-catalog-gate", default="")
     parser.add_argument("--require-plugin-gate", action="store_true")
     parser.add_argument("--require-plugin-signature", action="store_true")
     parser.add_argument("--require-plugin-permissions", action="store_true")
