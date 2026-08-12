@@ -710,6 +710,7 @@ make open-source-development-backlog \
   SOAK_READINESS=build/performance/soak-readiness.json \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json
 make open-source-milestone ALLOW_MISSING=1
+make open-source-evidence-summary ALLOW_MISSING=1
 ```
 
 When gate paths are supplied, the development backlog runs in evidence-aware
@@ -742,3 +743,7 @@ backlog `planning_summary`, including next local tasks, external blockers, and
 remaining evidence grouped by key. `ALLOW_MISSING=1` is useful during local
 development because it records absent external evidence as warnings instead of
 blocking the milestone package. Omit it for final release closure.
+`make open-source-evidence-summary` creates a shorter executive summary from
+the milestone, readiness backlog, visual gate, Trace SVG stress, and onboarding
+manifest. It is the fastest local view of release blockers before opening the
+larger evidence JSON files.

@@ -4,7 +4,7 @@
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary package-smoke-matrix create-user docker-build docker-run help
 .PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate plugin-catalog-gate
 
 SHELL := /bin/bash
@@ -273,6 +273,9 @@ open-source-development-backlog:
 
 open-source-milestone:
 	python3 scripts/release/open-source-milestone.py --open-source-readiness-gate "$(or $(OPEN_SOURCE_READINESS_GATE),build/open-source-readiness/open-source-readiness-gate.json)" --open-source-readiness-backlog "$(or $(OPEN_SOURCE_READINESS_BACKLOG),build/open-source-readiness/open-source-readiness-backlog.json)" --open-source-development-backlog "$(or $(OPEN_SOURCE_DEVELOPMENT_BACKLOG),build/open-source-readiness/open-source-development-backlog.json)" --release-gates "$(or $(RELEASE_GATES_JSON),build/release-gate-status.json)" --release-evidence-consistency-gate "$(or $(RELEASE_EVIDENCE_CONSISTENCY_GATE),build/release-evidence/release-evidence-consistency-gate.json)" --model-lifecycle-gate "$(or $(MODEL_LIFECYCLE_GATE),build/evaluation/model-lifecycle-gate.json)" --visual-regression-snapshots "$(or $(VISUAL_REGRESSION_SNAPSHOTS),build/visual-regression/visual-regression-snapshots.json)" --trace-svg-stress "$(or $(TRACE_SVG_STRESS),build/trace-stress/trace-svg-stress.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" $(if $(ALLOW_MISSING),--allow-missing) --out-json "$(or $(OUT_DIR),build/open-source-readiness)/open-source-milestone.json" --out-md "$(or $(OUT_DIR),build/open-source-readiness)/open-source-milestone.md"
+
+open-source-evidence-summary:
+	python3 scripts/release/open-source-evidence-summary.py --open-source-milestone "$(or $(OPEN_SOURCE_MILESTONE),build/open-source-readiness/open-source-milestone.json)" --open-source-readiness-backlog "$(or $(OPEN_SOURCE_READINESS_BACKLOG),build/open-source-readiness/open-source-readiness-backlog.json)" --visual-regression-gate "$(or $(VISUAL_REGRESSION_GATE),build/visual-regression/visual-regression-gate.json)" --trace-svg-stress "$(or $(TRACE_SVG_STRESS),build/trace-stress/trace-svg-stress.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" $(if $(ALLOW_MISSING),--allow-missing) --out-json "$(or $(OUT_DIR),build/open-source-readiness)/open-source-evidence-summary.json" --out-md "$(or $(OUT_DIR),build/open-source-readiness)/open-source-evidence-summary.md"
 
 package-smoke-matrix:
 	bash scripts/release/package-smoke-matrix.sh
@@ -619,6 +622,7 @@ help:
 	@echo '  make open-source-readiness-backlog Convert open-source readiness blockers to action items'
 	@echo '  make open-source-development-backlog LOCAL_ONLY=1 Generate prioritized open-source backlog'
 	@echo '  make open-source-milestone ALLOW_MISSING=1 Aggregate local open-source milestone evidence'
+	@echo '  make open-source-evidence-summary ALLOW_MISSING=1 Summarize release blockers from local evidence'
 	@echo '  make package-smoke-matrix Test dist packages in Ubuntu/Rocky containers'
 	@echo ''
 	@echo 'Operations:'
