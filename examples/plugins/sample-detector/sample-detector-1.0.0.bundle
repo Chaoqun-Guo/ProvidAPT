@@ -1,0 +1,4 @@
+ProvidAPT sample detector plugin bundle fixture.
+
+This payload is intentionally tiny and non-executable. It exists so the plugin
+release gate can verify artifact SHA-256 evidence in an open-source-safe way.

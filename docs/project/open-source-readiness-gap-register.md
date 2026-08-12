@@ -150,6 +150,9 @@ Current closure progress:
   entries, missing permissions, incomplete distribution metadata, missing
   artifact SHA-256 evidence, missing compatibility pass evidence, and missing or
   failed rollback evidence.
+- `make plugin-example-gates` now runs an open-source-safe sample detector
+  fixture through both release and catalog gates so plugin distribution evidence
+  can be smoke-tested without committing private signing keys.
 - Visual regression gating now requires captured Dashboard and Trace Viewer
   screenshots, hashes, and passing DOM assertions for each required viewport;
   dry-run planning must explicitly opt out through `ALLOW_PLANNED_VISUALS=1`.

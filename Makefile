@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates security-scan-manifest artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate plugin-catalog-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate plugin-catalog-gate plugin-example-gates
 
 SHELL := /bin/bash
 
@@ -392,6 +392,10 @@ plugin-release-gate:
 plugin-catalog-gate:
 	python3 scripts/ops/plugin-catalog-gate.py $(foreach gate,$(PLUGIN_GATES),--plugin-gate "$(gate)") $(if $(REQUIRE_PLUGINS),--require-plugins) $(if $(REQUIRE_PLUGIN_SIGNATURE),--require-signatures) $(if $(REQUIRE_PLUGIN_PERMISSIONS),--require-permissions) --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
 
+plugin-example-gates:
+	python3 scripts/ops/plugin-release-gate.py --manifest examples/plugins/sample-detector/plugin.json --signature examples/plugins/sample-detector/sample-detector-1.0.0.bundle.sig --out-json "$(or $(OUT_DIR),build/plugins/sample-detector)/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins/sample-detector)/plugin-release-gate.md"
+	python3 scripts/ops/plugin-catalog-gate.py --plugin-gate "$(or $(OUT_DIR),build/plugins/sample-detector)/plugin-release-gate.json" --require-plugins --require-signatures --require-permissions --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
+
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
 		echo "Creating providapt system user (UID 950)..."; \
@@ -665,4 +669,5 @@ help:
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... [BATCH_BY_GROUP=1] Plan staged upgrades'
 	@echo '  make onboarding-wizard Generate first-run config and checklist'
 	@echo '  make plugin-release-gate PLUGIN_MANIFEST=... Validate plugin signing and compatibility'
+	@echo '  make plugin-example-gates Run signed sample plugin release and catalog gates'
 	@echo '  make customer-env-certification-gate Aggregate customer environment certification evidence'

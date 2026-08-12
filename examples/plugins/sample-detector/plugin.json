@@ -1,0 +1,41 @@
+{
+  "name": "sample-detector",
+  "version": "1.0.0",
+  "type": "detection",
+  "providapt_min_version": "1.2.0",
+  "providapt_max_version": "1.3.0",
+  "entrypoint": "sample-detector.bundle",
+  "permissions": [
+    "events:read",
+    "alerts:write"
+  ],
+  "distribution": {
+    "channel": "signed-bundle",
+    "artifact": "sample-detector-1.0.0.bundle",
+    "signature_algorithm": "ed25519",
+    "artifact_sha256": "4619ebc8ad046f998e3c3399a15483d0897ee9c71c17bb5534dae203c2705b6c"
+  },
+  "compatibility_tests": [
+    {
+      "providapt_version": "1.2.0",
+      "status": "pass",
+      "evidence": "fixture manifest validation"
+    },
+    {
+      "providapt_version": "1.3.0",
+      "status": "pass",
+      "evidence": "fixture manifest validation"
+    }
+  ],
+  "rollback": [
+    "remove sample-detector from the enabled plugin list",
+    "restore the previous signed plugin bundle",
+    "restart providaptd and verify plugin health"
+  ],
+  "rollback_drill": {
+    "status": "pass",
+    "tested_at": "2026-08-12T00:00:00Z",
+    "tested_by": "open-source-fixture",
+    "steps_verified": 3
+  }
+}

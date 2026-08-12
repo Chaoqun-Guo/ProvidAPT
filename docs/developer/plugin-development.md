@@ -95,6 +95,17 @@ make plugin-release-gate \
   OUT_DIR=build/plugins/example
 ```
 
+An open-source-safe fixture is available for local release evidence smoke tests:
+
+```bash
+make plugin-example-gates
+```
+
+It validates `examples/plugins/sample-detector/plugin.json`, verifies the sample
+artifact SHA-256, and aggregates the result through the catalog gate. The
+included `.sig` file is a public fixture only; production plugin releases must
+replace it with the organization's approved signing workflow.
+
 The manifest must include the following fields:
 
 ```json
