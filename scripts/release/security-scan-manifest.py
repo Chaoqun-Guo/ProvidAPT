@@ -17,6 +17,11 @@ REPORTS = {
     "grype_source": "grype-source.json",
     "trivy_fs": "trivy-fs.json",
 }
+ATTEMPTS = {
+    "govulncheck": "govulncheck-attempt.json",
+    "grype_source": "grype-source-attempt.json",
+    "trivy_fs": "trivy-fs-attempt.json",
+}
 
 
 def git_value(args: list[str], fallback: str = "") -> str:
@@ -42,6 +47,30 @@ def file_record(path: Path) -> dict[str, Any]:
             if not is_json_stream(path):
                 record["status"] = "invalid_json"
                 record["error"] = str(exc)
+    return record
+
+
+def attempt_record(path: Path) -> dict[str, Any]:
+    present = path.exists() and path.stat().st_size > 0
+    record: dict[str, Any] = {
+        "path": str(path),
+        "present": present,
+        "status": "missing",
+    }
+    if not present:
+        return record
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        record["status"] = "invalid_json"
+        record["error"] = str(exc)
+        return record
+    if not isinstance(data, dict):
+        record["status"] = "invalid_json"
+        record["error"] = "expected JSON object"
+        return record
+    record.update(data)
+    record["status"] = str(data.get("status") or "present")
     return record
 
 
@@ -89,6 +118,7 @@ def tool_versions() -> dict[str, dict[str, str]]:
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
     security_dir = Path(args.security_dir)
     records = {name: file_record(security_dir / filename) for name, filename in REPORTS.items()}
+    attempts = {name: attempt_record(security_dir / filename) for name, filename in ATTEMPTS.items()}
     reports = {name: "present" if record["status"] == "present" else "missing" for name, record in records.items()}
     invalid = [name for name, record in records.items() if record["status"] == "invalid_json"]
     missing = [name for name, status in reports.items() if status != "present"]
@@ -105,6 +135,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "status": status,
         "reports": reports,
         "report_details": records,
+        "scanner_attempts": attempts,
         "missing_reports": missing,
         "invalid_reports": invalid,
         "tools": tool_versions(),
@@ -125,6 +156,18 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     for name, record in report["report_details"].items():
         lines.append(f"| `{name}` | `{record['status']}` | {record['size_bytes']} | `{record['path']}` |")
+    if report["scanner_attempts"]:
+        lines.extend(["", "## Scanner Attempts", "", "| Scanner | Status | Exit Code | Duration | Error |", "| --- | --- | ---: | ---: | --- |"])
+        for name, record in report["scanner_attempts"].items():
+            lines.append(
+                "| `{name}` | `{status}` | {exit_code} | {duration} | {error} |".format(
+                    name=name,
+                    status=record.get("status", "missing"),
+                    exit_code=record.get("exit_code", ""),
+                    duration=record.get("duration_seconds", ""),
+                    error=str(record.get("error") or record.get("note") or "").replace("|", "\\|").replace("\n", " "),
+                )
+            )
     if report["missing_reports"]:
         lines.extend(["", "## Missing Reports", ""])
         lines.extend(f"- `{name}`" for name in report["missing_reports"])

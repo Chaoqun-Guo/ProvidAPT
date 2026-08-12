@@ -81,6 +81,24 @@ class SecurityScanManifestTest(unittest.TestCase):
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["invalid_reports"], [])
 
+    def test_manifest_includes_scanner_attempts(self) -> None:
+        (self.root / "govulncheck.txt").write_text("No vulnerabilities found.\n", encoding="utf-8")
+        (self.root / "govulncheck.json").write_text("{}\n", encoding="utf-8")
+        (self.root / "grype-source-attempt.json").write_text(json.dumps({
+            "status": "blocked",
+            "exit_code": 124,
+            "duration_seconds": 300,
+            "error": "vulnerability DB download timed out",
+        }) + "\n", encoding="utf-8")
+
+        report = subject.build_report(self.args())
+        rendered = subject.render_markdown(report)
+
+        self.assertEqual(report["scanner_attempts"]["grype_source"]["status"], "blocked")
+        self.assertEqual(report["scanner_attempts"]["grype_source"]["exit_code"], 124)
+        self.assertIn("Scanner Attempts", rendered)
+        self.assertIn("vulnerability DB download timed out", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

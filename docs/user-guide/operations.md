@@ -763,6 +763,10 @@ from existing `build/security` outputs. It accepts govulncheck JSON event
 streams and marks missing Grype or Trivy reports honestly, so
 `make release-gates` can show which scanner evidence is complete and which
 still needs a database-backed rerun or explicit security waiver.
+When a scanner run is blocked by database download, timeout, or environment
+setup, place a matching `*-attempt.json` record in `build/security`; the
+manifest includes those attempt details next to the missing report so release
+reviewers can distinguish not-run evidence from attempted-but-blocked evidence.
 Visual snapshot manifests include capture diagnostics for the browser runtime:
 capture mode, Playwright availability, API-key presence, requested viewports,
 server URL, and install hints. Use `DRY_RUN=1` with
