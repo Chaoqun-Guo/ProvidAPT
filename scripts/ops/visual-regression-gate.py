@@ -82,6 +82,7 @@ def visual_evidence_summary(
 ) -> dict[str, Any]:
     coverage = manifest.get("coverage") if isinstance(manifest.get("coverage"), dict) else {}
     comparison = manifest.get("comparison_summary") if isinstance(manifest.get("comparison_summary"), dict) else {}
+    diagnostics = manifest.get("capture_diagnostics") if isinstance(manifest.get("capture_diagnostics"), dict) else {}
     comparison_counts = comparison.get("counts") if isinstance(comparison.get("counts"), dict) else {}
     screenshot_status: dict[str, int] = {}
     page_status: dict[str, dict[str, int]] = {}
@@ -149,6 +150,14 @@ def visual_evidence_summary(
             "new": comparison_counts.get("new", 0),
             "skipped": comparison_counts.get("skipped", 0),
             "missing_baseline": comparison_counts.get("missing_baseline", 0),
+        },
+        "capture_diagnostics": {
+            "mode": diagnostics.get("mode", ""),
+            "server": diagnostics.get("server", ""),
+            "api_key_supplied": bool(diagnostics.get("api_key_supplied")),
+            "playwright_available": bool(diagnostics.get("playwright_available")),
+            "requested_viewports": list(diagnostics.get("requested_viewports") or []),
+            "install_hint": diagnostics.get("playwright_install_hint", ""),
         },
     }
 
@@ -248,6 +257,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"| Baseline status | {report['visual_evidence_summary']['baseline']['status'] or 'none'} |",
         f"| Baseline counts | {json.dumps(report['visual_evidence_summary']['baseline']['counts'], sort_keys=True)} |",
         f"| DOM assertions | failed={report['visual_evidence_summary']['dom_assertions']['failed']} missing={report['visual_evidence_summary']['dom_assertions']['missing']} total={report['visual_evidence_summary']['dom_assertions']['total']} |",
+        f"| Capture diagnostics | mode={report['visual_evidence_summary']['capture_diagnostics']['mode'] or 'unknown'} playwright={str(report['visual_evidence_summary']['capture_diagnostics']['playwright_available']).lower()} api_key={str(report['visual_evidence_summary']['capture_diagnostics']['api_key_supplied']).lower()} |",
         "",
         "| Required Page | Required Viewports |",
         "| --- | --- |",

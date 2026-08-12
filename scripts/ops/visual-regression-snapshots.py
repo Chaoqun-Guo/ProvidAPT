@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from datetime import datetime, timezone
@@ -128,6 +129,7 @@ def planned_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "screenshots": screenshots,
         "failures": [],
         "warnings": [],
+        "capture_diagnostics": capture_diagnostics(args),
     }
     attach_coverage_summary(report)
     return report
@@ -151,6 +153,13 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
         "| Page | Viewport | Status | Path |",
         "| --- | --- | --- | --- |",
     ]
+    diagnostics = report.get("capture_diagnostics") if isinstance(report.get("capture_diagnostics"), dict) else {}
+    if diagnostics:
+        lines[7:7] = [
+            f"- Playwright available: `{str(diagnostics.get('playwright_available', False)).lower()}`",
+            f"- API key supplied: `{str(diagnostics.get('api_key_supplied', False)).lower()}`",
+            f"- Capture mode: `{diagnostics.get('mode', 'unknown')}`",
+        ]
     comparison = report.get("comparison_summary") if isinstance(report.get("comparison_summary"), dict) else {}
     if comparison:
         counts = comparison.get("counts") if isinstance(comparison.get("counts"), dict) else {}
@@ -249,6 +258,21 @@ def capture(report: dict[str, Any], api_key: str, timeout_ms: int) -> dict[str, 
     report["failures"] = failures
     report["status"] = "pass" if not failures else "blocked"
     return report
+
+
+def capture_diagnostics(args: argparse.Namespace) -> dict[str, Any]:
+    playwright_available = importlib.util.find_spec("playwright") is not None
+    return {
+        "mode": "dry-run" if args.dry_run else "capture",
+        "server": args.server,
+        "alert_id": args.alert_id,
+        "api_key_supplied": bool(args.api_key),
+        "playwright_available": playwright_available,
+        "playwright_install_hint": "" if playwright_available else "python3 -m pip install playwright && python3 -m playwright install chromium",
+        "default_viewports": DEFAULT_VIEWPORTS,
+        "requested_viewports": [str(item.get("name") or "") for item in args.viewports],
+        "timeout_ms": args.timeout_ms,
+    }
 
 
 def dashboard_dom_assertions(page: Any) -> dict[str, Any]:
@@ -483,7 +507,13 @@ def main() -> int:
     args = parse_args()
     report = planned_manifest(args)
     if not args.dry_run:
-        report = capture(report, args.api_key, args.timeout_ms)
+        try:
+            report = capture(report, args.api_key, args.timeout_ms)
+        except SystemExit as exc:
+            message = str(exc)
+            report["status"] = "blocked"
+            report.setdefault("failures", []).append(message)
+            report["capture_diagnostics"] = capture_diagnostics(args)
     attach_inventory(report)
     attach_coverage_summary(report)
     compare_baseline(report, args.baseline)

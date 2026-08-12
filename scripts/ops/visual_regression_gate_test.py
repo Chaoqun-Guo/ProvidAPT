@@ -44,6 +44,13 @@ class VisualRegressionGateTest(unittest.TestCase):
                         "skipped": sum(1 for item in (comparisons or []) if item.get("status") == "skipped"),
                     },
                 },
+                "capture_diagnostics": {
+                    "mode": "capture",
+                    "server": "http://127.0.0.1:18080",
+                    "api_key_supplied": True,
+                    "playwright_available": True,
+                    "requested_viewports": ["390x844", "1366x768", "1920x1080", "2560x1080"],
+                },
                 "screenshots": screenshots,
                 "comparisons": comparisons or [],
                 "failures": [],
@@ -83,8 +90,11 @@ class VisualRegressionGateTest(unittest.TestCase):
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["visual_evidence_summary"]["coverage"]["covered_count"], 8)
+        self.assertTrue(report["visual_evidence_summary"]["capture_diagnostics"]["playwright_available"])
         self.assertEqual(report["visual_evidence_summary"]["dom_assertions"]["total"], 8)
-        self.assertIn("Evidence Summary", subject.render_markdown(report))
+        rendered = subject.render_markdown(report)
+        self.assertIn("Evidence Summary", rendered)
+        self.assertIn("Capture diagnostics", rendered)
 
     def test_blocks_missing_viewport(self):
         screenshots = [self.shot("dashboard", "1366x768")]

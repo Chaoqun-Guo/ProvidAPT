@@ -95,6 +95,8 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             manifest = json.loads((Path(tmp) / "visual-regression-snapshots.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["schema"], "providapt.visual_regression_snapshots.v1")
             self.assertEqual(manifest["status"], "planned")
+            self.assertEqual(manifest["capture_diagnostics"]["mode"], "dry-run")
+            self.assertFalse(manifest["capture_diagnostics"]["api_key_supplied"])
             self.assertEqual(len(manifest["screenshots"]), 2)
             self.assertTrue(any("/dashboard" in item["url"] for item in manifest["screenshots"]))
             self.assertTrue(any("/api/v1/alerts/p%3A100/svg/view" in item["url"] for item in manifest["screenshots"]))
@@ -110,6 +112,7 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             self.assertEqual(matrix[("trace-viewer", "390x844")]["status"], "missing")
             rendered = (Path(tmp) / "visual-regression-snapshots.md").read_text(encoding="utf-8")
             self.assertIn("Required Matrix", rendered)
+            self.assertIn("Playwright available", rendered)
             self.assertIn("| trace-viewer | 390x844 | missing |", rendered)
 
     def test_baseline_compare_marks_changed(self):

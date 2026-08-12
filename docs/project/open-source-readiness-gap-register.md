@@ -157,7 +157,9 @@ Current closure progress:
   summaries. Snapshot manifests also include a required page/viewport matrix,
   and gate reports group missing screenshots by exact pair, page, and viewport.
   DOM failure details summarize Dashboard overflow metrics and Trace Viewer
-  missing layout/export controls.
+  missing layout/export controls. Snapshot and gate evidence now include
+  capture diagnostics for Playwright availability, capture mode, API-key
+  presence, requested viewports, and browser install hints.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual
   browser baseline coverage/comparison summaries, onboarding outputs, plugin

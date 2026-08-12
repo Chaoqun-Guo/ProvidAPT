@@ -763,6 +763,11 @@ from existing `build/security` outputs. It accepts govulncheck JSON event
 streams and marks missing Grype or Trivy reports honestly, so
 `make release-gates` can show which scanner evidence is complete and which
 still needs a database-backed rerun or explicit security waiver.
+Visual snapshot manifests include capture diagnostics for the browser runtime:
+capture mode, Playwright availability, API-key presence, requested viewports,
+server URL, and install hints. Use `DRY_RUN=1` with
+`ALLOW_PLANNED_VISUALS=1` to generate planning evidence, and omit both flags
+for release-blocking browser screenshots.
 `make open-source-local-closure` creates an honest local closure matrix for the
 remaining open-source release tasks: security scans, final artifacts, browser
 baselines, Trace SVG stress, model lifecycle, RBAC/audit hardening, plugin
