@@ -712,6 +712,8 @@ visual baseline evidence. Model lifecycle evidence includes the promotion
 readiness summary, feedback-label distribution, blockers, warnings, and missing
 approval/drift inputs when present. Visual baseline evidence includes coverage,
 viewport classes, baseline comparison counts, and DOM assertion failure counts
-when present. `ALLOW_MISSING=1` is useful during local development because it
-records absent external evidence as warnings instead of blocking the
-milestone package. Omit it for final release closure.
+when present. Evidence-aware development backlog inputs are summarized into a
+remaining-task section grouped by `needs_fix`, `needs_review`, `needs_evidence`,
+`blocked_external`, and missing evidence. `ALLOW_MISSING=1` is useful during
+local development because it records absent external evidence as warnings
+instead of blocking the milestone package. Omit it for final release closure.

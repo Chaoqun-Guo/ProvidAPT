@@ -94,6 +94,44 @@ def visual_regression_detail(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def development_backlog_detail(report: dict[str, Any]) -> dict[str, Any]:
+    tasks = report.get("tasks") if isinstance(report.get("tasks"), list) else []
+    by_status = report.get("by_status") if isinstance(report.get("by_status"), dict) else {}
+    by_evidence_status = report.get("by_evidence_status") if isinstance(report.get("by_evidence_status"), dict) else {}
+    grouped: dict[str, list[str]] = {
+        "needs_fix": [],
+        "needs_review": [],
+        "needs_evidence": [],
+        "blocked_external": [],
+        "missing": [],
+        "done": [],
+    }
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        status = str(task.get("status") or "")
+        task_id = str(task.get("id") or "")
+        if status in grouped and task_id:
+            grouped[status].append(task_id)
+        if task.get("evidence_status") == "missing" and task_id:
+            grouped["missing"].append(task_id)
+    remaining = sorted(set(grouped["needs_fix"] + grouped["needs_review"] + grouped["needs_evidence"] + grouped["blocked_external"] + grouped["missing"]))
+    return {
+        "task_count": report.get("task_count", len(tasks)),
+        "evidence_aware": bool((report.get("filters") or {}).get("evidence_aware")) if isinstance(report.get("filters"), dict) else False,
+        "by_status": by_status,
+        "by_evidence_status": by_evidence_status,
+        "done": sorted(set(grouped["done"])),
+        "needs_fix": sorted(set(grouped["needs_fix"])),
+        "needs_review": sorted(set(grouped["needs_review"])),
+        "needs_evidence": sorted(set(grouped["needs_evidence"])),
+        "blocked_external": sorted(set(grouped["blocked_external"])),
+        "missing_evidence": sorted(set(grouped["missing"])),
+        "remaining": remaining,
+        "remaining_count": len(remaining),
+    }
+
+
 def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missing: bool) -> dict[str, Any]:
     status = status_value(report, allow_missing)
     row: dict[str, Any] = {
@@ -120,6 +158,8 @@ def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missin
         row["model_lifecycle"] = model_lifecycle_detail(report)
     if name == "visual_regression_snapshots" and report:
         row["visual_regression"] = visual_regression_detail(report)
+    if name == "open_source_development_backlog" and report:
+        row["development_backlog"] = development_backlog_detail(report)
     return row
 
 
@@ -218,10 +258,38 @@ def render_markdown(report: dict[str, Any]) -> str:
                 detail_parts.append("missing_viewports=" + ",".join(detail["missing_default_viewports"]))
             if detail.get("missing_pages"):
                 detail_parts.append("missing_pages=" + ",".join(detail["missing_pages"]))
+        if item.get("development_backlog"):
+            detail = item["development_backlog"]
+            detail_parts.append(f"remaining={detail.get('remaining_count', 0)}")
+            detail_parts.append(f"evidence_aware={str(detail.get('evidence_aware', False)).lower()}")
+            status_counts = detail.get("by_status") or {}
+            if status_counts:
+                detail_parts.append("statuses=" + ",".join(f"{key}:{value}" for key, value in sorted(status_counts.items())))
+            evidence_counts = detail.get("by_evidence_status") or {}
+            if evidence_counts:
+                detail_parts.append("evidence=" + ",".join(f"{key}:{value}" for key, value in sorted(evidence_counts.items())))
         lines.append(
             f"| {item['name']} | {item['status']} | {str(item['present']).lower()} | "
             f"{'; '.join(detail_parts)} | `{item['path']}` |"
         )
+    backlog = next((item.get("development_backlog") for item in report["evidence"] if item.get("development_backlog")), None)
+    if backlog:
+        lines.extend(["", "## Development Backlog", ""])
+        lines.extend([
+            f"- Remaining tasks: `{backlog['remaining_count']}`",
+            f"- Evidence aware: `{str(backlog['evidence_aware']).lower()}`",
+        ])
+        for key, title in [
+            ("needs_fix", "Needs Fix"),
+            ("needs_review", "Needs Review"),
+            ("needs_evidence", "Needs Evidence"),
+            ("blocked_external", "Blocked External"),
+            ("missing_evidence", "Missing Evidence"),
+        ]:
+            items = backlog.get(key) or []
+            if items:
+                lines.extend(["", f"### {title}"])
+                lines.extend(f"- `{item}`" for item in items)
     lines.extend(["", "## Next Commands", ""])
     lines.extend(f"- `{command}`" for command in report["next_commands"])
     lines.append("")

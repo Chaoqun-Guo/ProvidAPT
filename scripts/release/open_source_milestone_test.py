@@ -68,7 +68,16 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         development_backlog = self.write_json("development-backlog.json", {
             "schema": "providapt.open_source_development_backlog.v1",
             "status": "pass",
-            "task_count": 1,
+            "task_count": 4,
+            "filters": {"evidence_aware": True},
+            "by_status": {"done": 1, "needs_fix": 1, "needs_review": 1, "blocked_external": 1},
+            "by_evidence_status": {"pass": 1, "blocked": 1, "warn": 1, "missing": 1},
+            "tasks": [
+                {"id": "visual-browser-baselines", "status": "done", "evidence_status": "pass"},
+                {"id": "plugin-distribution", "status": "needs_fix", "evidence_status": "blocked"},
+                {"id": "model-lifecycle-baseline", "status": "needs_review", "evidence_status": "warn"},
+                {"id": "release-ci-evidence", "status": "blocked_external", "evidence_status": "missing"},
+            ],
         })
         release = self.write_json("release.json", {"status": "pass", "gates": []})
         release_evidence = self.write_json("release-evidence.json", {"status": "pass"})
@@ -120,6 +129,10 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertEqual(report["status"], "warn")
         self.assertEqual(report["evidence"][0]["section_count"], 1)
         self.assertEqual(report["evidence"][1]["task_count"], 0)
+        backlog_row = next(item for item in report["evidence"] if item["name"] == "open_source_development_backlog")
+        self.assertEqual(backlog_row["development_backlog"]["remaining_count"], 3)
+        self.assertIn("plugin-distribution", backlog_row["development_backlog"]["needs_fix"])
+        self.assertIn("release-ci-evidence", backlog_row["development_backlog"]["missing_evidence"])
         model_row = next(item for item in report["evidence"] if item["name"] == "model_lifecycle")
         self.assertEqual(model_row["model_lifecycle"]["promotion_decision"], "approved_for_promotion")
         self.assertEqual(model_row["model_lifecycle"]["feedback_labels"]["true_positive"], 10)
@@ -134,6 +147,9 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertIn("coverage=8/8", rendered)
         self.assertIn("baseline=changed", rendered)
         self.assertIn("dom_failed=1/2", rendered)
+        self.assertIn("Development Backlog", rendered)
+        self.assertIn("plugin-distribution", rendered)
+        self.assertIn("release-ci-evidence", rendered)
 
 
 if __name__ == "__main__":
