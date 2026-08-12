@@ -195,8 +195,13 @@ def upgrade_section(args: argparse.Namespace) -> dict[str, Any]:
     rollback = report.get("rollback") if isinstance(report.get("rollback"), dict) else {}
     if not rollback.get("batches"):
         failures.append("rollback batch plan is missing")
-    if args.require_agent_groups and not any((batch.get("agents") for batch in batches if isinstance(batch, dict))):
-        failures.append("agent group/batch membership is missing")
+    if args.require_agent_groups:
+        group_batches = [batch for batch in batches if isinstance(batch, dict) and batch.get("agents")]
+        agent_group_count = int(report.get("agent_group_count") or 0)
+        if not report.get("agent_groups") and agent_group_count <= 0:
+            failures.append("agent group inventory is missing")
+        if not group_batches or not all(batch.get("groups") for batch in group_batches):
+            failures.append("agent group/batch membership is missing")
     return section(
         "upgrade_orchestration",
         not failures,

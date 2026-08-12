@@ -595,8 +595,14 @@ make upgrade-rollout-plan \
   FLEET_JSON=build/fleet/fleet.json \
   TARGET_VERSION=v1.2.3 \
   CANARY_PERCENT=10 \
-  MAX_BATCH_SIZE=25
+  MAX_BATCH_SIZE=25 \
+  BATCH_BY_GROUP=1
 ```
+
+Use `BATCH_BY_GROUP=1` when the fleet inventory includes `group` or
+`agent_group` fields. The generated evidence records the agent groups covered
+by each canary, wave, and rollback batch, which lets customer certification
+validate group-aware rollout coverage instead of only counting agents.
 
 Generate a first-run onboarding bundle for a new customer or lab deployment:
 

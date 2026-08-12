@@ -38,12 +38,39 @@ class RolloutPlanTest(unittest.TestCase):
             signature_path="/tmp/pkg.sig",
             canary_percent=20,
             max_batch_size=2,
+            batch_by_group=False,
         ))
         self.assertEqual(plan["status"], "planned")
         self.assertEqual(plan["batches"][0]["name"], "canary")
         self.assertEqual(len(plan["batches"]), 3)
         self.assertEqual(plan["rollback"]["batches"][0]["name"], "wave-2")
         self.assertIn("Upgrade Rollout Plan", rollout.render_markdown(plan))
+
+    def test_builds_group_aware_waves(self):
+        fleet = self.tmp / "fleet.json"
+        fleet.write_text(json.dumps({"agents": [
+            {"agent_id": "a1", "status": "HEALTHY", "hostname": "h1", "group": "blue"},
+            {"agent_id": "a2", "status": "HEALTHY", "hostname": "h2", "group": "blue"},
+            {"agent_id": "a3", "status": "HEALTHY", "hostname": "h3", "group": "green"},
+            {"agent_id": "a4", "status": "HEALTHY", "hostname": "h4", "group": "green"},
+            {"agent_id": "a5", "status": "HEALTHY", "hostname": "h5", "group": "green"},
+        ]}), encoding="utf-8")
+        plan = rollout.build_plan(Namespace(
+            fleet=str(fleet),
+            target_version="v2",
+            package_path="/tmp/pkg",
+            expected_sha256="abc",
+            signature_path="/tmp/pkg.sig",
+            canary_percent=20,
+            max_batch_size=2,
+            batch_by_group=True,
+        ))
+        self.assertTrue(plan["batch_by_group"])
+        self.assertEqual(plan["agent_groups"], ["blue", "green"])
+        wave_groups = [batch["groups"] for batch in plan["batches"][1:]]
+        self.assertIn(["blue"], wave_groups)
+        self.assertIn(["green"], wave_groups)
+        self.assertTrue(all(batch.get("groups") for batch in plan["rollback"]["batches"]))
 
 
 if __name__ == "__main__":

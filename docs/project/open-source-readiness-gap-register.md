@@ -93,7 +93,9 @@ Current closure progress:
 - VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.
 - Open-source development backlog generation is available through `make open-source-development-backlog`, with `LOCAL_ONLY=1` and `PHASE=...` filters for step-by-step local implementation planning.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
-- Upgrade rollout planning produces canary, wave, pause/resume, and rollback evidence through `make upgrade-rollout-plan`.
+- Upgrade rollout planning produces canary, wave, pause/resume, rollback, and
+  optional agent-group batch evidence through `make upgrade-rollout-plan
+  BATCH_BY_GROUP=1`.
 - SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.
 
 ## Scale and Ecosystem

@@ -370,8 +370,8 @@ soak-readiness:
 	python3 scripts/ops/soak-readiness-report.py --samples "$(SOAK_SAMPLES)" --min-hours "$(or $(SOAK_MIN_HOURS),24)" --max-cpu-percent "$(or $(SOAK_MAX_CPU_PERCENT),25)" --max-memory-mb "$(or $(SOAK_MAX_MEMORY_MB),512)" --max-disk-mb "$(or $(SOAK_MAX_DISK_MB),4096)" --max-dropped-events "$(or $(SOAK_MAX_DROPPED_EVENTS),0)" --out-json "$(or $(OUT_DIR),build/performance)/soak-readiness.json" --out-md "$(or $(OUT_DIR),build/performance)/soak-readiness.md"
 
 upgrade-rollout-plan:
-	@if [ -z "$(FLEET_JSON)" ] || [ -z "$(TARGET_VERSION)" ]; then echo 'usage: make upgrade-rollout-plan FLEET_JSON=build/fleet/fleet.json TARGET_VERSION=v1.2.3 [OUT_DIR=build/upgrade]'; exit 2; fi
-	python3 scripts/upgrade/rollout-plan.py --fleet "$(FLEET_JSON)" --target-version "$(TARGET_VERSION)" $(if $(PACKAGE_PATH),--package-path "$(PACKAGE_PATH)") $(if $(EXPECTED_SHA256),--expected-sha256 "$(EXPECTED_SHA256)") $(if $(SIGNATURE_PATH),--signature-path "$(SIGNATURE_PATH)") --canary-percent "$(or $(CANARY_PERCENT),10)" --max-batch-size "$(or $(MAX_BATCH_SIZE),25)" --out-json "$(or $(OUT_DIR),build/upgrade)/rollout-plan.json" --out-md "$(or $(OUT_DIR),build/upgrade)/rollout-plan.md"
+	@if [ -z "$(FLEET_JSON)" ] || [ -z "$(TARGET_VERSION)" ]; then echo 'usage: make upgrade-rollout-plan FLEET_JSON=build/fleet/fleet.json TARGET_VERSION=v1.2.3 [OUT_DIR=build/upgrade] [BATCH_BY_GROUP=1]'; exit 2; fi
+	python3 scripts/upgrade/rollout-plan.py --fleet "$(FLEET_JSON)" --target-version "$(TARGET_VERSION)" $(if $(PACKAGE_PATH),--package-path "$(PACKAGE_PATH)") $(if $(EXPECTED_SHA256),--expected-sha256 "$(EXPECTED_SHA256)") $(if $(SIGNATURE_PATH),--signature-path "$(SIGNATURE_PATH)") --canary-percent "$(or $(CANARY_PERCENT),10)" --max-batch-size "$(or $(MAX_BATCH_SIZE),25)" $(if $(BATCH_BY_GROUP),--batch-by-group) --out-json "$(or $(OUT_DIR),build/upgrade)/rollout-plan.json" --out-md "$(or $(OUT_DIR),build/upgrade)/rollout-plan.md"
 
 onboarding-wizard:
 	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode "$(or $(ONBOARDING_MODE),standalone)" --rest-port "$(or $(REST_PORT),18080)" --grpc-port "$(or $(GRPC_PORT),50051)" $(if $(POSTGRES_DSN),--postgres-dsn "$(POSTGRES_DSN)") $(if $(CHECK_RESULTS),--check-results "$(CHECK_RESULTS)")
@@ -650,7 +650,7 @@ help:
 	@echo '  make open-source-readiness-gate Aggregate open-source readiness evidence'
 	@echo '  make soak-sample STATUS_URL=... Append one long-duration soak sample'
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
-	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... Plan staged upgrades'
+	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... [BATCH_BY_GROUP=1] Plan staged upgrades'
 	@echo '  make onboarding-wizard Generate first-run config and checklist'
 	@echo '  make plugin-release-gate PLUGIN_MANIFEST=... Validate plugin signing and compatibility'
 	@echo '  make customer-env-certification-gate Aggregate customer environment certification evidence'

@@ -35,7 +35,7 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
         policy = self.write_json("policy.json", {"status": "pass"})
         siem = self.write_json("siem.json", {"status": "pass", "delivered": 3, "dead_letter": 0})
         siem_cert = self.write_json("siem-cert.json", {"status": "pass", "field_mapping": "verified", "retry": "verified", "backpressure": "verified", "alert_landing": "verified"})
-        upgrade = self.write_json("upgrade.json", {"status": "planned", "target_version": "v1", "eligible_agents": 3, "batches": [{"name": "canary", "agents": ["a1"], "pause_after": True}], "pause_resume_controls": {"pause": "p"}, "rollback": {"batches": [{"name": "canary"}]}})
+        upgrade = self.write_json("upgrade.json", {"status": "planned", "target_version": "v1", "eligible_agents": 3, "agent_groups": ["default"], "agent_group_count": 1, "batches": [{"name": "canary", "agents": ["a1"], "groups": ["default"], "pause_after": True}], "pause_resume_controls": {"pause": "p"}, "rollback": {"batches": [{"name": "canary", "groups": ["default"]}]}})
         soak = self.write_json("soak.json", {"status": "pass", "checks": {"duration": {"observed": 25}, "drops": {"observed": 0}}})
         prod = self.write_json("prod.json", {"status": "pass"})
         deploy = self.write_json("deploy.json", {"status": "pass", "tls_enabled": True, "control_plane_state_backend": "postgres://db"})
@@ -113,6 +113,21 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
         text = "\n".join(report["failures"])
         self.assertIn("role review contains unresolved", text)
         self.assertIn("role review has no approved role entries", text)
+
+    def test_blocks_missing_agent_group_evidence(self):
+        upgrade = self.write_json("upgrade-missing-groups.json", {
+            "status": "planned",
+            "target_version": "v1",
+            "eligible_agents": 2,
+            "batches": [{"name": "canary", "agents": ["a1"], "pause_after": True}],
+            "pause_resume_controls": {"pause": "p"},
+            "rollback": {"batches": [{"name": "canary"}]},
+        })
+        report = subject.build_report(self.args(upgrade_rollout=upgrade))
+        self.assertEqual(report["status"], "blocked")
+        text = "\n".join(report["failures"])
+        self.assertIn("agent group inventory is missing", text)
+        self.assertIn("agent group/batch membership is missing", text)
 
     def test_accepts_plugin_catalog_gate(self):
         catalog = self.write_json("plugin-catalog.json", {
