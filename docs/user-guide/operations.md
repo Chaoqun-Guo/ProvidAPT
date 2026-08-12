@@ -688,9 +688,17 @@ Aggregate the local open-source milestone package after the readiness and
 backlog reports are generated:
 
 ```bash
-make open-source-development-backlog LOCAL_ONLY=1
+make open-source-development-backlog \
+  LOCAL_ONLY=1 \
+  VISUAL_REGRESSION_GATE=build/visual-regression/visual-regression-gate.json \
+  MODEL_LIFECYCLE_GATE=build/evaluation/model-lifecycle-gate.json \
+  ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json
 make open-source-milestone ALLOW_MISSING=1
 ```
+
+When gate paths are supplied, the development backlog runs in evidence-aware
+mode and marks mapped tasks as `done`, `needs_review`, or `needs_fix` based on
+the supplied gate status.
 
 The milestone package includes readiness, readiness backlog, development
 backlog, release gate status, release evidence consistency, model lifecycle, and

@@ -91,7 +91,11 @@ Current closure progress:
 - Support bundle readiness gates archive presence, redaction, export audit, and download evidence through `make support-bundle-gate`.
 - Runtime deployment diagnostics gates API auth, TLS, storage encryption, policy sync, kernel attach, control plane, and support bundle availability through `make deployment-diagnostics-gate`.
 - VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.
-- Open-source development backlog generation is available through `make open-source-development-backlog`, with `LOCAL_ONLY=1` and `PHASE=...` filters for step-by-step local implementation planning.
+- Open-source development backlog generation is available through
+  `make open-source-development-backlog`, with `LOCAL_ONLY=1` and `PHASE=...`
+  filters plus evidence-aware task status updates when gate paths such as
+  `VISUAL_REGRESSION_GATE`, `MODEL_LIFECYCLE_GATE`, or `ONBOARDING_MANIFEST`
+  are supplied.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.
 - Upgrade rollout planning produces canary, wave, pause/resume, rollback, and
   optional agent-group batch evidence through `make upgrade-rollout-plan

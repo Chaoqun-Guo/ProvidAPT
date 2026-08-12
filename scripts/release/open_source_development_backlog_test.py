@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import shutil
 import unittest
 from pathlib import Path
 
@@ -11,6 +13,21 @@ SPEC.loader.exec_module(subject)
 
 
 class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path.cwd() / ".tmp-open-source-development-backlog-test"
+        if self.tmp.exists():
+            shutil.rmtree(self.tmp)
+        self.tmp.mkdir()
+
+    def tearDown(self):
+        if self.tmp.exists():
+            shutil.rmtree(self.tmp)
+
+    def write_json(self, name, value):
+        path = self.tmp / name
+        path.write_text(json.dumps(value), encoding="utf-8")
+        return str(path)
+
     def test_build_report_groups_tasks(self):
         report = subject.build_report()
         self.assertEqual(report["schema"], subject.SCHEMA)
@@ -30,6 +47,27 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         out = subject.render_markdown(report)
         self.assertIn("Open Source Development Backlog", out)
         self.assertIn("visual-browser-baselines", out)
+
+    def test_evidence_paths_update_task_statuses(self):
+        visual = self.write_json("visual.json", {"status": "pass"})
+        model = self.write_json("model.json", {"status": "warn"})
+        plugin = self.write_json("plugin.json", {"status": "blocked"})
+        onboarding = self.write_json("onboarding.json", {"schema": "providapt.onboarding_bundle.v1", "outputs": {"config": "a", "checklist": "b"}})
+        report = subject.build_report(local_only=True, evidence_paths={
+            "visual_regression_gate": visual,
+            "model_lifecycle_gate": model,
+            "plugin_catalog_gate": plugin,
+            "onboarding_manifest": onboarding,
+        })
+        tasks = {task["id"]: task for task in report["tasks"]}
+        self.assertEqual(tasks["visual-browser-baselines"]["status"], "done")
+        self.assertEqual(tasks["model-lifecycle-baseline"]["status"], "needs_review")
+        self.assertEqual(tasks["plugin-distribution"]["status"], "needs_fix")
+        self.assertEqual(tasks["onboarding-first-run-polish"]["status"], "done")
+        self.assertEqual(report["by_evidence_status"]["pass"], 1)
+        self.assertEqual(report["by_evidence_status"]["warn"], 1)
+        rendered = subject.render_markdown(report)
+        self.assertIn("visual_regression_gate:pass", rendered)
 
 
 if __name__ == "__main__":

@@ -166,20 +166,86 @@ def selected_tasks(local_only: bool, phase: str) -> list[dict[str, Any]]:
     return sorted(tasks, key=lambda task: (task["priority"], task["phase"], task["id"]))
 
 
-def build_report(local_only: bool = False, phase: str = "") -> dict[str, Any]:
+EVIDENCE_MAP = {
+    "release-security-scans": "release_gates",
+    "release-final-artifacts": "customer_release_gate",
+    "visual-browser-baselines": "visual_regression_gate",
+    "trace-svg-stress-evidence": "trace_svg_stress",
+    "model-lifecycle-baseline": "model_lifecycle_gate",
+    "rbac-audit-hardening": "customer_env_certification_gate",
+    "plugin-distribution": "plugin_catalog_gate",
+    "onboarding-first-run-polish": "onboarding_manifest",
+}
+
+
+def load_json(path_value: str) -> dict[str, Any]:
+    if not path_value:
+        return {}
+    path = Path(path_value)
+    if not path.exists() or path.stat().st_size == 0:
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    return data if isinstance(data, dict) else {}
+
+
+def evidence_status(report: dict[str, Any]) -> str:
+    if not report:
+        return "missing"
+    status = str(report.get("status") or report.get("source_status") or "").lower()
+    if status in {"pass", "ready"}:
+        return "pass"
+    if status in {"warn", "warning", "planned"}:
+        return "warn"
+    if status in {"blocked", "fail", "failed", "review_required"}:
+        return "blocked"
+    if report.get("schema") or report.get("outputs") or report.get("check_summary"):
+        return "present"
+    return "missing"
+
+
+def apply_evidence_status(tasks: list[dict[str, Any]], evidence_paths: dict[str, str]) -> list[dict[str, Any]]:
+    updated: list[dict[str, Any]] = []
+    for task in tasks:
+        item = dict(task)
+        evidence_key = EVIDENCE_MAP.get(item["id"], "")
+        path = evidence_paths.get(evidence_key, "") if evidence_key else ""
+        status = evidence_status(load_json(path))
+        item["evidence_key"] = evidence_key
+        item["evidence_path"] = path
+        item["evidence_status"] = status
+        if status == "pass":
+            item["status"] = "done"
+        elif status == "warn":
+            item["status"] = "needs_review"
+        elif status == "blocked":
+            item["status"] = "needs_fix"
+        elif status == "present" and item["id"] == "onboarding-first-run-polish":
+            item["status"] = "done"
+        updated.append(item)
+    return updated
+
+
+def build_report(local_only: bool = False, phase: str = "", evidence_paths: dict[str, str] | None = None) -> dict[str, Any]:
     tasks = selected_tasks(local_only, phase)
+    evidence_paths = evidence_paths or {}
+    if evidence_paths:
+        tasks = apply_evidence_status(tasks, evidence_paths)
     by_phase: dict[str, int] = {}
     by_status: dict[str, int] = {}
+    by_evidence_status: dict[str, int] = {}
     for task in tasks:
         by_phase[task["phase"]] = by_phase.get(task["phase"], 0) + 1
         by_status[task["status"]] = by_status.get(task["status"], 0) + 1
+        if task.get("evidence_status"):
+            by_evidence_status[task["evidence_status"]] = by_evidence_status.get(task["evidence_status"], 0) + 1
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-        "filters": {"local_only": local_only, "phase": phase},
+        "filters": {"local_only": local_only, "phase": phase, "evidence_aware": bool(evidence_paths)},
         "task_count": len(tasks),
         "by_phase": by_phase,
         "by_status": by_status,
+        "by_evidence_status": by_evidence_status,
         "tasks": tasks,
     }
 
@@ -202,19 +268,25 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(f"| phase:{phase} | {count} |")
     for status, count in sorted(report["by_status"].items()):
         lines.append(f"| status:{status} | {count} |")
+    for status, count in sorted(report.get("by_evidence_status", {}).items()):
+        lines.append(f"| evidence:{status} | {count} |")
     lines.extend([
         "",
         "## Tasks",
         "",
-        "| Priority | ID | Phase | Status | Local | Summary | Acceptance | Command | External Dependency |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Priority | ID | Phase | Status | Evidence | Local | Summary | Acceptance | Command | External Dependency |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ])
     for task in report["tasks"]:
+        evidence = task.get("evidence_status", "")
+        if task.get("evidence_key"):
+            evidence = f"{task['evidence_key']}:{evidence or 'missing'}"
         row = [
             str(task["priority"]),
             task["id"],
             task["phase"],
             task["status"],
+            evidence,
             "yes" if task["local"] else "no",
             task["summary"],
             task["acceptance"],
@@ -234,17 +306,35 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate an actionable local/open-source development backlog.")
     parser.add_argument("--local-only", action="store_true", help="Show tasks that can make progress in local development.")
     parser.add_argument("--phase", default="", help="Filter by phase, for example release, frontend, operations, ml.")
+    parser.add_argument("--release-gates", default="")
+    parser.add_argument("--customer-release-gate", default="")
+    parser.add_argument("--visual-regression-gate", default="")
+    parser.add_argument("--trace-svg-stress", default="")
+    parser.add_argument("--model-lifecycle-gate", default="")
+    parser.add_argument("--customer-env-certification-gate", default="")
+    parser.add_argument("--plugin-catalog-gate", default="")
+    parser.add_argument("--onboarding-manifest", default="")
     parser.add_argument("--out-json", default="build/open-source-readiness/open-source-development-backlog.json")
     parser.add_argument("--out-md", default="build/open-source-readiness/open-source-development-backlog.md")
     args = parser.parse_args()
-    report = build_report(local_only=args.local_only, phase=args.phase)
+    evidence_paths = {
+        "release_gates": args.release_gates,
+        "customer_release_gate": args.customer_release_gate,
+        "visual_regression_gate": args.visual_regression_gate,
+        "trace_svg_stress": args.trace_svg_stress,
+        "model_lifecycle_gate": args.model_lifecycle_gate,
+        "customer_env_certification_gate": args.customer_env_certification_gate,
+        "plugin_catalog_gate": args.plugin_catalog_gate,
+        "onboarding_manifest": args.onboarding_manifest,
+    }
+    report = build_report(local_only=args.local_only, phase=args.phase, evidence_paths={key: value for key, value in evidence_paths.items() if value})
     out_json = Path(args.out_json)
     out_md = Path(args.out_md)
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     out_md.write_text(render_markdown(report), encoding="utf-8")
-    print(f"tasks={report['task_count']} local_only={str(args.local_only).lower()} phase={args.phase or 'all'}")
+    print(f"tasks={report['task_count']} local_only={str(args.local_only).lower()} phase={args.phase or 'all'} evidence_aware={str(report['filters']['evidence_aware']).lower()}")
     return 0
 
 
