@@ -99,7 +99,9 @@ Current closure progress:
   `MODEL_LIFECYCLE_GATE`, `CUSTOMER_ENV_CERTIFICATION_GATE`,
   `PLUGIN_CATALOG_GATE`, or `ONBOARDING_MANIFEST` are supplied. The generated
   report now includes `planning_summary` to separate next local work from
-  external blockers and group remaining evidence by gate key.
+  external blockers and group remaining evidence by gate key. The next-local
+  plan is ranked by actionable evidence risk and excludes tasks whose supplied
+  evidence is already passing.
 - Open-source readiness blocker backlogs include a section checklist,
   release-blocking counts, and status summaries alongside owner-facing tasks.
 - Scheduled executive/compliance report delivery plans are generated through `make scheduled-report-plan`.

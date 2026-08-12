@@ -257,11 +257,15 @@ def planning_summary(tasks: list[dict[str, Any]]) -> dict[str, Any]:
         task for task in tasks
         if task.get("status") not in {"done"}
     ]
-    next_local = [
-        task["id"] for task in remaining
-        if task.get("local")
-        and task.get("status") in {"needs_evidence", "needs_review", "needs_fix", "in_progress"}
-    ]
+    next_local_details = sorted(
+        [
+            planning_task_detail(task) for task in remaining
+            if task.get("local")
+            and task.get("status") in {"needs_evidence", "needs_review", "needs_fix", "in_progress"}
+        ],
+        key=lambda item: (item["rank"], item["priority"], item["id"]),
+    )
+    next_local = [item["id"] for item in next_local_details]
     external = [
         task["id"] for task in remaining
         if not task.get("local") or task.get("status") == "blocked_external"
@@ -275,10 +279,50 @@ def planning_summary(tasks: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "remaining_count": len(remaining),
         "next_local_tasks": next_local[:5],
+        "next_local_details": next_local_details[:5],
         "next_local_count": len(next_local),
         "external_blockers": external,
         "external_blocker_count": len(external),
         "by_evidence_key": {key: sorted(set(value)) for key, value in sorted(by_evidence_key.items())},
+    }
+
+
+def planning_task_detail(task: dict[str, Any]) -> dict[str, Any]:
+    status = str(task.get("status") or "")
+    evidence_status = str(task.get("evidence_status") or "")
+    evidence_items = task.get("evidence") if isinstance(task.get("evidence"), list) else []
+    missing_keys = [
+        str(item.get("key") or "unknown") for item in evidence_items
+        if item.get("status") in {"missing", "blocked", "warn"}
+    ]
+    status_rank = {
+        "needs_fix": 0,
+        "needs_review": 1,
+        "needs_evidence": 2,
+        "in_progress": 3,
+    }.get(status, 9)
+    evidence_rank = {
+        "blocked": 0,
+        "warn": 1,
+        "partial": 1,
+        "missing": 2,
+        "": 3,
+    }.get(evidence_status, 3)
+    rank = status_rank * 10 + evidence_rank
+    reason = status
+    if evidence_status:
+        reason = f"{status}/{evidence_status}"
+    if missing_keys:
+        reason += " via " + ",".join(missing_keys)
+    return {
+        "id": task["id"],
+        "phase": task.get("phase", ""),
+        "priority": task.get("priority", 99),
+        "status": status,
+        "evidence_status": evidence_status,
+        "rank": rank,
+        "reason": reason,
+        "command": task.get("command", ""),
     }
 
 
@@ -337,6 +381,24 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Next local tasks: `{', '.join(planning.get('next_local_tasks', [])) or 'none'}`",
         f"- External blockers: `{', '.join(planning.get('external_blockers', [])) or 'none'}`",
     ])
+    if planning.get("next_local_details"):
+        lines.extend([
+            "",
+            "| Next Local Task | Phase | Status | Evidence | Rank | Reason | Command |",
+            "| --- | --- | --- | --- | ---: | --- | --- |",
+        ])
+        for item in planning["next_local_details"]:
+            lines.append(
+                "| {id} | {phase} | {status} | {evidence_status} | {rank} | {reason} | `{command}` |".format(
+                    id=escape_cell(item.get("id", "")),
+                    phase=escape_cell(item.get("phase", "")),
+                    status=escape_cell(item.get("status", "")),
+                    evidence_status=escape_cell(item.get("evidence_status", "")),
+                    rank=item.get("rank", 0),
+                    reason=escape_cell(item.get("reason", "")),
+                    command=escape_cell(item.get("command", "")),
+                )
+            )
     if planning.get("by_evidence_key"):
         lines.extend(["", "| Evidence Key | Tasks |", "| --- | --- |"])
         for key, task_ids in planning["by_evidence_key"].items():

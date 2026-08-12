@@ -68,10 +68,16 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         self.assertEqual(report["by_evidence_status"]["warn"], 1)
         planning = report["planning_summary"]
         self.assertGreaterEqual(planning["next_local_count"], 1)
+        self.assertEqual(planning["next_local_tasks"][0], "plugin-distribution")
         self.assertIn("model-lifecycle-baseline", planning["next_local_tasks"])
         self.assertIn("plugin-distribution", planning["by_evidence_key"]["plugin_catalog_gate"])
+        self.assertNotIn("visual-browser-baselines", planning["next_local_tasks"])
+        self.assertNotIn("onboarding-first-run-polish", planning["next_local_tasks"])
+        self.assertEqual(planning["next_local_details"][0]["evidence_status"], "blocked")
+        self.assertIn("plugin_catalog_gate", planning["next_local_details"][0]["reason"])
         rendered = subject.render_markdown(report)
         self.assertIn("Planning Summary", rendered)
+        self.assertIn("Next Local Task", rendered)
         self.assertIn("visual_regression_gate:pass", rendered)
 
     def test_multi_evidence_tasks_are_aggregated(self):

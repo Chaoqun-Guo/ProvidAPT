@@ -720,7 +720,11 @@ RBAC/customer certification, remain `needs_review` until every mapped evidence
 input is present and passing.
 The generated backlog also includes a `planning_summary` section with the next
 local tasks to work, external blockers, and missing or blocked evidence grouped
-by evidence key.
+by evidence key. Next local tasks are sorted by actionable risk first:
+`needs_fix`/blocked evidence, then review/warn or partial evidence, then missing
+evidence, while tasks with passing evidence drop out of the next-local list.
+The Markdown report includes a ranked task table with the evidence reason and
+command to run.
 
 The milestone package includes readiness, readiness backlog, development
 backlog, release gate status, release evidence consistency, model lifecycle, and
