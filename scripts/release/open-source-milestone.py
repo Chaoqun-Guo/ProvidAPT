@@ -94,6 +94,57 @@ def visual_regression_detail(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def trace_svg_stress_detail(report: dict[str, Any]) -> dict[str, Any]:
+    results = report.get("results") if isinstance(report.get("results"), list) else []
+    failures = report.get("failures") if isinstance(report.get("failures"), list) else []
+    latencies = [
+        float(item.get("latency_ms") or 0)
+        for item in results
+        if isinstance(item, dict) and item.get("latency_ms") is not None
+    ]
+    node_counts = [
+        int(item.get("node_count") or 0)
+        for item in results
+        if isinstance(item, dict) and item.get("node_count") is not None
+    ]
+    edge_counts = [
+        int(item.get("edge_count") or 0)
+        for item in results
+        if isinstance(item, dict) and item.get("edge_count") is not None
+    ]
+    by_layout: dict[str, dict[str, int]] = {}
+    by_alert: dict[str, int] = {}
+    failed_layouts: list[str] = []
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        layout = str(item.get("layout") or "unknown")
+        alert_id = str(item.get("alert_id") or "unknown")
+        status = "pass" if int(item.get("http_status") or 0) == 200 and not item.get("error") else "blocked"
+        by_layout.setdefault(layout, {"pass": 0, "blocked": 0})
+        by_layout[layout][status] = by_layout[layout].get(status, 0) + 1
+        by_alert[alert_id] = by_alert.get(alert_id, 0) + 1
+        if status != "pass" and layout not in failed_layouts:
+            failed_layouts.append(layout)
+    return {
+        "status": str(report.get("status") or ""),
+        "alert_source": str(report.get("alert_source") or ""),
+        "alert_count": len(report.get("alert_ids") or []),
+        "layout_count": len(report.get("layouts") or []),
+        "result_count": len(results),
+        "failure_count": len(failures),
+        "max_latency_ms": max(latencies) if latencies else 0,
+        "min_node_count": min(node_counts) if node_counts else 0,
+        "max_node_count": max(node_counts) if node_counts else 0,
+        "max_edge_count": max(edge_counts) if edge_counts else 0,
+        "by_layout": dict(sorted(by_layout.items())),
+        "by_alert": dict(sorted(by_alert.items())),
+        "failed_layouts": sorted(failed_layouts),
+        "thresholds": report.get("thresholds") if isinstance(report.get("thresholds"), dict) else {},
+        "failures": [str(item) for item in failures[:10]],
+    }
+
+
 def development_backlog_detail(report: dict[str, Any]) -> dict[str, Any]:
     tasks = report.get("tasks") if isinstance(report.get("tasks"), list) else []
     by_status = report.get("by_status") if isinstance(report.get("by_status"), dict) else {}
@@ -167,6 +218,8 @@ def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missin
         row["model_lifecycle"] = model_lifecycle_detail(report)
     if name == "visual_regression_snapshots" and report:
         row["visual_regression"] = visual_regression_detail(report)
+    if name == "trace_svg_stress" and report:
+        row["trace_svg_stress"] = trace_svg_stress_detail(report)
     if name == "open_source_development_backlog" and report:
         row["development_backlog"] = development_backlog_detail(report)
     return row
@@ -190,6 +243,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "release_evidence_consistency": Path(args.release_evidence_consistency_gate),
         "model_lifecycle": Path(args.model_lifecycle_gate),
         "visual_regression_snapshots": Path(args.visual_regression_snapshots),
+        "trace_svg_stress": Path(args.trace_svg_stress),
     }
     evidence = [
         evidence_summary(name, path, load_json(path), args.allow_missing)
@@ -205,6 +259,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "make open-source-readiness-gate",
             "make open-source-readiness-backlog",
             "make open-source-development-backlog LOCAL_ONLY=1",
+            "make trace-svg-stress PROVIDAPT_SERVER_URL=http://127.0.0.1:18080",
         ],
     }
 
@@ -267,6 +322,14 @@ def render_markdown(report: dict[str, Any]) -> str:
                 detail_parts.append("missing_viewports=" + ",".join(detail["missing_default_viewports"]))
             if detail.get("missing_pages"):
                 detail_parts.append("missing_pages=" + ",".join(detail["missing_pages"]))
+        if item.get("trace_svg_stress"):
+            detail = item["trace_svg_stress"]
+            detail_parts.append(f"trace_results={detail.get('result_count', 0)}")
+            detail_parts.append(f"trace_failures={detail.get('failure_count', 0)}")
+            detail_parts.append(f"max_latency_ms={detail.get('max_latency_ms', 0)}")
+            detail_parts.append(f"nodes={detail.get('min_node_count', 0)}-{detail.get('max_node_count', 0)}")
+            if detail.get("failed_layouts"):
+                detail_parts.append("failed_layouts=" + ",".join(detail["failed_layouts"]))
         if item.get("development_backlog"):
             detail = item["development_backlog"]
             detail_parts.append(f"remaining={detail.get('remaining_count', 0)}")
@@ -311,6 +374,26 @@ def render_markdown(report: dict[str, Any]) -> str:
             if items:
                 lines.extend(["", f"### {title}"])
                 lines.extend(f"- `{item}`" for item in items)
+    trace = next((item.get("trace_svg_stress") for item in report["evidence"] if item.get("trace_svg_stress")), None)
+    if trace:
+        lines.extend(["", "## Trace SVG Stress", ""])
+        lines.extend([
+            f"- Status: `{trace.get('status', '')}`",
+            f"- Alert source: `{trace.get('alert_source', '')}`",
+            f"- Alerts: `{trace.get('alert_count', 0)}`",
+            f"- Layouts: `{trace.get('layout_count', 0)}`",
+            f"- Results: `{trace.get('result_count', 0)}`",
+            f"- Failures: `{trace.get('failure_count', 0)}`",
+            f"- Max latency ms: `{trace.get('max_latency_ms', 0)}`",
+            f"- Node range: `{trace.get('min_node_count', 0)}-{trace.get('max_node_count', 0)}`",
+        ])
+        if trace.get("by_layout"):
+            lines.extend(["", "### Layout Results"])
+            for layout, counts in trace["by_layout"].items():
+                lines.append(f"- `{layout}`: pass={counts.get('pass', 0)} blocked={counts.get('blocked', 0)}")
+        if trace.get("failures"):
+            lines.extend(["", "### Trace Failures"])
+            lines.extend(f"- {item}" for item in trace["failures"])
     lines.extend(["", "## Next Commands", ""])
     lines.extend(f"- `{command}`" for command in report["next_commands"])
     lines.append("")
@@ -326,6 +409,7 @@ def main() -> int:
     parser.add_argument("--release-evidence-consistency-gate", default="build/release-evidence/release-evidence-consistency-gate.json")
     parser.add_argument("--model-lifecycle-gate", default="build/evaluation/model-lifecycle-gate.json")
     parser.add_argument("--visual-regression-snapshots", default="build/visual-regression/visual-regression-snapshots.json")
+    parser.add_argument("--trace-svg-stress", default="build/trace-stress/trace-svg-stress.json")
     parser.add_argument("--allow-missing", action="store_true")
     parser.add_argument("--out-json", default="build/open-source-readiness/open-source-milestone.json")
     parser.add_argument("--out-md", default="build/open-source-readiness/open-source-milestone.md")

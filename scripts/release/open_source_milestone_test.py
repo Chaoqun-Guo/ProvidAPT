@@ -39,6 +39,7 @@ class OpenSourceMilestoneTest(unittest.TestCase):
             "release_evidence_consistency_gate": missing,
             "model_lifecycle_gate": missing,
             "visual_regression_snapshots": missing,
+            "trace_svg_stress": missing,
             "allow_missing": False,
         }
         values.update(overrides)
@@ -128,6 +129,32 @@ class OpenSourceMilestoneTest(unittest.TestCase):
                 {"page": "trace-viewer", "status": "captured", "dom_assertions": {"status": "fail"}},
             ],
         })
+        trace = self.write_json("trace.json", {
+            "schema": "providapt.trace_svg_stress.v1",
+            "status": "blocked",
+            "alert_source": "provided",
+            "alert_ids": ["p:1"],
+            "layouts": ["tree", "compact"],
+            "thresholds": {"max_latency_ms": 1500, "min_node_count": 1},
+            "results": [
+                {
+                    "alert_id": "p:1",
+                    "layout": "tree",
+                    "http_status": 200,
+                    "latency_ms": 120.5,
+                    "node_count": 8,
+                    "edge_count": 7,
+                },
+                {
+                    "alert_id": "p:1",
+                    "layout": "compact",
+                    "http_status": 500,
+                    "latency_ms": 0,
+                    "error": "layout failed",
+                },
+            ],
+            "failures": ["p:1/compact: HTTP 500"],
+        })
         report = subject.build_report(self.args(
             open_source_readiness_gate=readiness,
             open_source_readiness_backlog=readiness_backlog,
@@ -136,8 +163,9 @@ class OpenSourceMilestoneTest(unittest.TestCase):
             release_evidence_consistency_gate=release_evidence,
             model_lifecycle_gate=model,
             visual_regression_snapshots=visual,
+            trace_svg_stress=trace,
         ))
-        self.assertEqual(report["status"], "warn")
+        self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["evidence"][0]["section_count"], 1)
         self.assertEqual(report["evidence"][1]["task_count"], 0)
         backlog_row = next(item for item in report["evidence"] if item["name"] == "open_source_development_backlog")
@@ -156,6 +184,11 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertEqual(visual_row["visual_regression"]["changed_count"], 1)
         self.assertTrue(visual_row["visual_regression"]["complete_default_matrix"])
         self.assertEqual(visual_row["visual_regression"]["dom_assertions"]["failed"], 1)
+        trace_row = next(item for item in report["evidence"] if item["name"] == "trace_svg_stress")
+        self.assertEqual(trace_row["trace_svg_stress"]["result_count"], 2)
+        self.assertEqual(trace_row["trace_svg_stress"]["failure_count"], 1)
+        self.assertEqual(trace_row["trace_svg_stress"]["failed_layouts"], ["compact"])
+        self.assertEqual(trace_row["trace_svg_stress"]["max_latency_ms"], 120.5)
         rendered = subject.render_markdown(report)
         self.assertIn("model=graph-detector:1.0.0", rendered)
         self.assertIn("decision=approved_for_promotion", rendered)
@@ -163,6 +196,9 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertIn("coverage=8/8", rendered)
         self.assertIn("baseline=changed", rendered)
         self.assertIn("dom_failed=1/2", rendered)
+        self.assertIn("trace_results=2", rendered)
+        self.assertIn("Trace SVG Stress", rendered)
+        self.assertIn("compact", rendered)
         self.assertIn("Development Backlog", rendered)
         self.assertIn("next_local=plugin-distribution,model-lifecycle-baseline", rendered)
         self.assertIn("External blockers", rendered)
