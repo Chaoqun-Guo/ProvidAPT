@@ -72,6 +72,17 @@ class OpenSourceMilestoneTest(unittest.TestCase):
             "filters": {"evidence_aware": True},
             "by_status": {"done": 1, "needs_fix": 1, "needs_review": 1, "blocked_external": 1},
             "by_evidence_status": {"pass": 1, "blocked": 1, "warn": 1, "missing": 1},
+            "planning_summary": {
+                "remaining_count": 3,
+                "next_local_count": 2,
+                "next_local_tasks": ["plugin-distribution", "model-lifecycle-baseline"],
+                "external_blocker_count": 1,
+                "external_blockers": ["release-ci-evidence"],
+                "by_evidence_key": {
+                    "plugin_catalog_gate": ["plugin-distribution"],
+                    "github_actions_evidence": ["release-ci-evidence"],
+                },
+            },
             "tasks": [
                 {"id": "visual-browser-baselines", "status": "done", "evidence_status": "pass"},
                 {"id": "plugin-distribution", "status": "needs_fix", "evidence_status": "blocked"},
@@ -133,6 +144,11 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertEqual(backlog_row["development_backlog"]["remaining_count"], 3)
         self.assertIn("plugin-distribution", backlog_row["development_backlog"]["needs_fix"])
         self.assertIn("release-ci-evidence", backlog_row["development_backlog"]["missing_evidence"])
+        planning = backlog_row["development_backlog"]["planning_summary"]
+        self.assertEqual(planning["next_local_count"], 2)
+        self.assertIn("plugin-distribution", planning["next_local_tasks"])
+        self.assertIn("release-ci-evidence", planning["external_blockers"])
+        self.assertIn("plugin-distribution", planning["by_evidence_key"]["plugin_catalog_gate"])
         model_row = next(item for item in report["evidence"] if item["name"] == "model_lifecycle")
         self.assertEqual(model_row["model_lifecycle"]["promotion_decision"], "approved_for_promotion")
         self.assertEqual(model_row["model_lifecycle"]["feedback_labels"]["true_positive"], 10)
@@ -148,6 +164,9 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertIn("baseline=changed", rendered)
         self.assertIn("dom_failed=1/2", rendered)
         self.assertIn("Development Backlog", rendered)
+        self.assertIn("next_local=plugin-distribution,model-lifecycle-baseline", rendered)
+        self.assertIn("External blockers", rendered)
+        self.assertIn("plugin_catalog_gate", rendered)
         self.assertIn("plugin-distribution", rendered)
         self.assertIn("release-ci-evidence", rendered)
 

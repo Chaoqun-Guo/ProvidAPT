@@ -98,6 +98,7 @@ def development_backlog_detail(report: dict[str, Any]) -> dict[str, Any]:
     tasks = report.get("tasks") if isinstance(report.get("tasks"), list) else []
     by_status = report.get("by_status") if isinstance(report.get("by_status"), dict) else {}
     by_evidence_status = report.get("by_evidence_status") if isinstance(report.get("by_evidence_status"), dict) else {}
+    planning = report.get("planning_summary") if isinstance(report.get("planning_summary"), dict) else {}
     grouped: dict[str, list[str]] = {
         "needs_fix": [],
         "needs_review": [],
@@ -129,6 +130,14 @@ def development_backlog_detail(report: dict[str, Any]) -> dict[str, Any]:
         "missing_evidence": sorted(set(grouped["missing"])),
         "remaining": remaining,
         "remaining_count": len(remaining),
+        "planning_summary": {
+            "remaining_count": planning.get("remaining_count", len(remaining)),
+            "next_local_tasks": list(planning.get("next_local_tasks") or []),
+            "next_local_count": planning.get("next_local_count", 0),
+            "external_blockers": list(planning.get("external_blockers") or []),
+            "external_blocker_count": planning.get("external_blocker_count", 0),
+            "by_evidence_key": planning.get("by_evidence_key") if isinstance(planning.get("by_evidence_key"), dict) else {},
+        },
     }
 
 
@@ -262,6 +271,11 @@ def render_markdown(report: dict[str, Any]) -> str:
             detail = item["development_backlog"]
             detail_parts.append(f"remaining={detail.get('remaining_count', 0)}")
             detail_parts.append(f"evidence_aware={str(detail.get('evidence_aware', False)).lower()}")
+            planning = detail.get("planning_summary") or {}
+            if planning.get("next_local_tasks"):
+                detail_parts.append("next_local=" + ",".join(planning["next_local_tasks"]))
+            if planning.get("external_blockers"):
+                detail_parts.append("external_blockers=" + ",".join(planning["external_blockers"]))
             status_counts = detail.get("by_status") or {}
             if status_counts:
                 detail_parts.append("statuses=" + ",".join(f"{key}:{value}" for key, value in sorted(status_counts.items())))
@@ -275,10 +289,17 @@ def render_markdown(report: dict[str, Any]) -> str:
     backlog = next((item.get("development_backlog") for item in report["evidence"] if item.get("development_backlog")), None)
     if backlog:
         lines.extend(["", "## Development Backlog", ""])
+        planning = backlog.get("planning_summary") or {}
         lines.extend([
             f"- Remaining tasks: `{backlog['remaining_count']}`",
             f"- Evidence aware: `{str(backlog['evidence_aware']).lower()}`",
+            f"- Next local tasks: `{', '.join(planning.get('next_local_tasks', [])) or 'none'}`",
+            f"- External blockers: `{', '.join(planning.get('external_blockers', [])) or 'none'}`",
         ])
+        if planning.get("by_evidence_key"):
+            lines.extend(["", "### Evidence Keys"])
+            for key, task_ids in sorted(planning["by_evidence_key"].items()):
+                lines.append(f"- `{key}`: {', '.join(task_ids)}")
         for key, title in [
             ("needs_fix", "Needs Fix"),
             ("needs_review", "Needs Review"),
