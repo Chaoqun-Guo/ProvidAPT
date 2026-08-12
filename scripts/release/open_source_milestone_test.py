@@ -72,7 +72,25 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         })
         release = self.write_json("release.json", {"status": "pass", "gates": []})
         release_evidence = self.write_json("release-evidence.json", {"status": "pass"})
-        model = self.write_json("model.json", {"status": "pass"})
+        model = self.write_json("model.json", {
+            "status": "pass",
+            "promotion_packet": {
+                "readiness_summary": {
+                    "decision": "approved_for_promotion",
+                    "model": {"name": "graph-detector", "version": "1.0.0"},
+                    "drift_status": "stable",
+                    "baseline_days": 14,
+                    "feedback": {
+                        "records": 40,
+                        "reviewed": 22,
+                        "labels": {"false_positive": 8, "true_positive": 10},
+                    },
+                    "blocker_count": 0,
+                    "warning_count": 0,
+                    "evidence": {"present": ["closed_loop", "deploy_gate"], "missing": ["approval"]},
+                }
+            },
+        })
         visual = self.write_json("visual.json", {"status": "pass"})
         report = subject.build_report(self.args(
             open_source_readiness_gate=readiness,
@@ -86,6 +104,13 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["evidence"][0]["section_count"], 1)
         self.assertEqual(report["evidence"][1]["task_count"], 0)
+        model_row = next(item for item in report["evidence"] if item["name"] == "model_lifecycle")
+        self.assertEqual(model_row["model_lifecycle"]["promotion_decision"], "approved_for_promotion")
+        self.assertEqual(model_row["model_lifecycle"]["feedback_labels"]["true_positive"], 10)
+        rendered = subject.render_markdown(report)
+        self.assertIn("model=graph-detector:1.0.0", rendered)
+        self.assertIn("decision=approved_for_promotion", rendered)
+        self.assertIn("missing_evidence=approval", rendered)
 
 
 if __name__ == "__main__":

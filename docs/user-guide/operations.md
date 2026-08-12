@@ -688,6 +688,8 @@ make open-source-milestone ALLOW_MISSING=1
 
 The milestone package includes readiness, readiness backlog, development
 backlog, release gate status, release evidence consistency, model lifecycle, and
-visual baseline evidence. `ALLOW_MISSING=1` is useful during local development
-because it records absent external evidence as warnings instead of blocking the
+visual baseline evidence. Model lifecycle evidence includes the promotion
+readiness summary, feedback-label distribution, blockers, warnings, and missing
+approval/drift inputs when present. `ALLOW_MISSING=1` is useful during local
+development because it records absent external evidence as warnings instead of blocking the
 milestone package. Omit it for final release closure.

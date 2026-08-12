@@ -31,6 +31,30 @@ def status_value(report: dict[str, Any], allow_missing: bool) -> str:
     return "blocked"
 
 
+def model_lifecycle_detail(report: dict[str, Any]) -> dict[str, Any]:
+    packet = report.get("promotion_packet") if isinstance(report.get("promotion_packet"), dict) else {}
+    summary = packet.get("readiness_summary") if isinstance(packet.get("readiness_summary"), dict) else {}
+    feedback = summary.get("feedback") if isinstance(summary.get("feedback"), dict) else {}
+    evidence = summary.get("evidence") if isinstance(summary.get("evidence"), dict) else {}
+    model = summary.get("model") if isinstance(summary.get("model"), dict) else report.get("model", {})
+    return {
+        "promotion_decision": summary.get("decision") or packet.get("decision") or report.get("promotion_decision", ""),
+        "model": {
+            "name": str((model or {}).get("name") or ""),
+            "version": str((model or {}).get("version") or ""),
+        },
+        "drift_status": summary.get("drift_status") or report.get("drift_status", ""),
+        "baseline_days": summary.get("baseline_days", report.get("baseline_days", 0)),
+        "feedback_records": feedback.get("records", report.get("feedback_records", 0)),
+        "reviewed_labels": feedback.get("reviewed", report.get("reviewed_labels", 0)),
+        "feedback_labels": feedback.get("labels", report.get("feedback_labels", {})),
+        "blocker_count": summary.get("blocker_count", len(report.get("failures", []))),
+        "warning_count": summary.get("warning_count", len(report.get("warnings", []))),
+        "missing_evidence": evidence.get("missing", []),
+        "present_evidence": evidence.get("present", []),
+    }
+
+
 def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missing: bool) -> dict[str, Any]:
     status = status_value(report, allow_missing)
     row: dict[str, Any] = {
@@ -53,6 +77,8 @@ def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missin
             key for key, value in sections.items()
             if isinstance(value, dict) and str(value.get("status") or "").lower() in {"warn", "warning"}
         )
+    if name == "model_lifecycle" and report:
+        row["model_lifecycle"] = model_lifecycle_detail(report)
     return row
 
 
@@ -116,6 +142,23 @@ def render_markdown(report: dict[str, Any]) -> str:
             detail_parts.append("blocked=" + ",".join(item["blocked_sections"]))
         if item.get("warning_sections"):
             detail_parts.append("warnings=" + ",".join(item["warning_sections"]))
+        if item.get("model_lifecycle"):
+            detail = item["model_lifecycle"]
+            model = detail.get("model") or {}
+            model_name = ":".join(part for part in [model.get("name", ""), model.get("version", "")] if part)
+            if model_name:
+                detail_parts.append("model=" + model_name)
+            if detail.get("promotion_decision"):
+                detail_parts.append("decision=" + str(detail["promotion_decision"]))
+            detail_parts.append(f"blockers={detail.get('blocker_count', 0)}")
+            detail_parts.append(f"warnings={detail.get('warning_count', 0)}")
+            detail_parts.append(f"baseline_days={detail.get('baseline_days', 0)}")
+            labels = detail.get("feedback_labels") or {}
+            if labels:
+                label_text = ",".join(f"{label}:{count}" for label, count in sorted(labels.items()))
+                detail_parts.append("feedback=" + label_text)
+            if detail.get("missing_evidence"):
+                detail_parts.append("missing_evidence=" + ",".join(detail["missing_evidence"]))
         lines.append(
             f"| {item['name']} | {item['status']} | {str(item['present']).lower()} | "
             f"{'; '.join(detail_parts)} | `{item['path']}` |"
