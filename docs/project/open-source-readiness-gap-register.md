@@ -135,7 +135,9 @@ Current closure progress:
   screenshots, hashes, and passing DOM assertions for each required viewport;
   dry-run planning must explicitly opt out through `ALLOW_PLANNED_VISUALS=1`.
   Snapshot evidence now includes baseline comparison summaries for changed,
-  new, skipped, and missing-baseline review.
+  new, skipped, and missing-baseline review; gate evidence now includes
+  structured coverage, baseline, required-matrix, screenshot, and DOM assertion
+  summaries.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual
   browser baseline coverage, onboarding outputs, plugin release gates, required

@@ -28,6 +28,70 @@ def screenshot_key(item: dict[str, Any]) -> tuple[str, str]:
     return str(item.get("page") or ""), str(viewport.get("name") or "")
 
 
+def visual_evidence_summary(
+    manifest: dict[str, Any],
+    screenshots: list[dict[str, Any]],
+    required_pages: set[str],
+    required_viewports: set[str],
+    missing_required: list[tuple[str, str]],
+) -> dict[str, Any]:
+    coverage = manifest.get("coverage") if isinstance(manifest.get("coverage"), dict) else {}
+    comparison = manifest.get("comparison_summary") if isinstance(manifest.get("comparison_summary"), dict) else {}
+    comparison_counts = comparison.get("counts") if isinstance(comparison.get("counts"), dict) else {}
+    screenshot_status: dict[str, int] = {}
+    page_status: dict[str, dict[str, int]] = {}
+    dom_total = 0
+    dom_failed = 0
+    dom_missing = 0
+    for item in screenshots:
+        page, _viewport = screenshot_key(item)
+        status = str(item.get("status") or "unknown")
+        screenshot_status[status] = screenshot_status.get(status, 0) + 1
+        page_status.setdefault(page or "unknown", {})
+        page_status[page or "unknown"][status] = page_status[page or "unknown"].get(status, 0) + 1
+        assertions = item.get("dom_assertions") if isinstance(item.get("dom_assertions"), dict) else {}
+        if assertions:
+            dom_total += 1
+            if str(assertions.get("status") or "").lower() != "pass":
+                dom_failed += 1
+        else:
+            dom_missing += 1
+    return {
+        "coverage": {
+            "covered_count": coverage.get("covered_count", 0),
+            "screenshot_count": coverage.get("screenshot_count", len(screenshots)),
+            "complete_default_matrix": bool(coverage.get("complete_default_matrix")),
+            "viewport_classes": list(coverage.get("viewport_classes") or []),
+            "missing_pages": list(coverage.get("missing_pages") or []),
+            "missing_default_viewports": list(coverage.get("missing_default_viewports") or []),
+        },
+        "required_matrix": {
+            "pages": sorted(required_pages),
+            "viewports": sorted(required_viewports),
+            "missing": [{"page": page, "viewport": viewport} for page, viewport in missing_required],
+            "missing_count": len(missing_required),
+        },
+        "screenshots": {
+            "total": len(screenshots),
+            "by_status": dict(sorted(screenshot_status.items())),
+            "by_page": dict(sorted(page_status.items())),
+        },
+        "dom_assertions": {
+            "total": dom_total,
+            "failed": dom_failed,
+            "missing": dom_missing,
+        },
+        "baseline": {
+            "status": comparison.get("status", ""),
+            "counts": dict(sorted(comparison_counts.items())),
+            "changed": comparison_counts.get("changed", 0),
+            "new": comparison_counts.get("new", 0),
+            "skipped": comparison_counts.get("skipped", 0),
+            "missing_baseline": comparison_counts.get("missing_baseline", 0),
+        },
+    }
+
+
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path = Path(args.manifest)
     manifest = load_json(manifest_path)
@@ -37,9 +101,11 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     seen = {screenshot_key(item) for item in screenshots}
     required_pages = set(args.required_page or TARGET_PAGES)
     required_viewports = set(args.required_viewport or TARGET_VIEWPORTS)
+    missing_required: list[tuple[str, str]] = []
     for page in sorted(required_pages):
         for viewport in sorted(required_viewports):
             if (page, viewport) not in seen:
+                missing_required.append((page, viewport))
                 failures.append(f"missing screenshot: {page} {viewport}")
     for item in screenshots:
         page, viewport = screenshot_key(item)
@@ -71,6 +137,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     if manifest.get("status") == "planned" and args.require_captured:
         failures.append("visual regression manifest is dry-run/planned, not captured")
     status = "blocked" if failures else "warn" if warnings else "pass"
+    summary = visual_evidence_summary(manifest, screenshots, required_pages, required_viewports, missing_required)
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -80,6 +147,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "required_viewports": sorted(required_viewports),
         "screenshot_count": len(screenshots),
         "comparison_count": len(comparisons),
+        "visual_evidence_summary": summary,
         "failures": failures,
         "warnings": warnings,
     }
@@ -93,6 +161,17 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Manifest: `{report['manifest']}`",
         f"- Screenshots: `{report['screenshot_count']}`",
         f"- Comparisons: `{report['comparison_count']}`",
+        "",
+        "## Evidence Summary",
+        "",
+        "| Area | Value |",
+        "| --- | --- |",
+        f"| Coverage | {report['visual_evidence_summary']['coverage']['covered_count']}/{report['visual_evidence_summary']['coverage']['screenshot_count']} |",
+        f"| Complete matrix | {str(report['visual_evidence_summary']['coverage']['complete_default_matrix']).lower()} |",
+        f"| Missing required screenshots | {report['visual_evidence_summary']['required_matrix']['missing_count']} |",
+        f"| Baseline status | {report['visual_evidence_summary']['baseline']['status'] or 'none'} |",
+        f"| Baseline counts | {json.dumps(report['visual_evidence_summary']['baseline']['counts'], sort_keys=True)} |",
+        f"| DOM assertions | failed={report['visual_evidence_summary']['dom_assertions']['failed']} missing={report['visual_evidence_summary']['dom_assertions']['missing']} total={report['visual_evidence_summary']['dom_assertions']['total']} |",
         "",
         "| Required Page | Required Viewports |",
         "| --- | --- |",

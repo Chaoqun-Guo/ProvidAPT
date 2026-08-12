@@ -30,6 +30,20 @@ class VisualRegressionGateTest(unittest.TestCase):
             json.dumps({
                 "schema": "providapt.visual_regression_snapshots.v1",
                 "status": status,
+                "coverage": {
+                    "covered_count": len(screenshots),
+                    "screenshot_count": len(screenshots),
+                    "complete_default_matrix": len(screenshots) == 8,
+                    "viewport_classes": ["desktop_1366", "desktop_1080p", "mobile", "ultrawide"],
+                },
+                "comparison_summary": {
+                    "status": "changed" if any(item.get("status") == "changed" for item in (comparisons or [])) else "matched",
+                    "counts": {
+                        "changed": sum(1 for item in (comparisons or []) if item.get("status") == "changed"),
+                        "unchanged": sum(1 for item in (comparisons or []) if item.get("status") == "unchanged"),
+                        "skipped": sum(1 for item in (comparisons or []) if item.get("status") == "skipped"),
+                    },
+                },
                 "screenshots": screenshots,
                 "comparisons": comparisons or [],
                 "failures": [],
@@ -68,6 +82,9 @@ class VisualRegressionGateTest(unittest.TestCase):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["visual_evidence_summary"]["coverage"]["covered_count"], 8)
+        self.assertEqual(report["visual_evidence_summary"]["dom_assertions"]["total"], 8)
+        self.assertIn("Evidence Summary", subject.render_markdown(report))
 
     def test_blocks_missing_viewport(self):
         screenshots = [self.shot("dashboard", "1366x768")]
@@ -75,12 +92,14 @@ class VisualRegressionGateTest(unittest.TestCase):
         self.assertEqual(report["status"], "blocked")
         self.assertIn("missing screenshot: trace-viewer 2560x1080", "\n".join(report["failures"]))
         self.assertIn("missing screenshot: dashboard 390x844", "\n".join(report["failures"]))
+        self.assertGreater(report["visual_evidence_summary"]["required_matrix"]["missing_count"], 0)
 
     def test_blocks_changed_baseline_by_default(self):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
         manifest = self.write_manifest(screenshots, [{"page": "dashboard", "viewport": "1366x768", "status": "changed"}])
         report = subject.build_report(self.args(manifest))
         self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["visual_evidence_summary"]["baseline"]["changed"], 1)
 
     def test_can_warn_on_changed_baseline(self):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
@@ -94,6 +113,7 @@ class VisualRegressionGateTest(unittest.TestCase):
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "blocked")
         self.assertIn("DOM assertions failed", "\n".join(report["failures"]))
+        self.assertEqual(report["visual_evidence_summary"]["dom_assertions"]["failed"], 1)
 
     def test_blocks_missing_dom_assertions_by_default(self):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
@@ -101,6 +121,7 @@ class VisualRegressionGateTest(unittest.TestCase):
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "blocked")
         self.assertIn("DOM assertions are missing", "\n".join(report["failures"]))
+        self.assertEqual(report["visual_evidence_summary"]["dom_assertions"]["missing"], 1)
 
     def test_can_allow_missing_dom_assertions_for_planning(self):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]

@@ -417,7 +417,9 @@ make visual-regression-gate \
 The gate requires captured dashboard and Trace Viewer screenshots for
 `390x844`, `1366x768`, `1920x1080`, and `2560x1080`, verifies screenshot files
 and hashes are present, and requires passing DOM assertions. Baseline hash changes
-block unless `WARN_ON_VISUAL_CHANGED=1` is set for a controlled review.
+block unless `WARN_ON_VISUAL_CHANGED=1` is set for a controlled review. The gate
+also writes `visual_evidence_summary` with coverage, required-matrix gaps,
+baseline comparison counts, screenshot status, and DOM assertion totals.
 Dashboard responsive rules live in the embedded static assets
 `pkg/api/static/dashboard.css`, `pkg/api/static/dashboard-responsive.css`, and
 `pkg/api/static/dashboard.js`, served at `/assets/dashboard.css`,
