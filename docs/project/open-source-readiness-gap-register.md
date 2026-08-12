@@ -164,8 +164,8 @@ Current closure progress:
   development backlog, release gate status, release evidence consistency, model
   lifecycle promotion readiness, visual baseline coverage, baseline comparison,
   DOM assertion evidence, Trace SVG stress latency/layout evidence,
-  evidence-aware remaining backlog groups, and `planning_summary`
-  next-action/external-blocker evidence into one JSON/Markdown local milestone
-  package.
+  onboarding check/action summaries, evidence-aware remaining backlog groups,
+  and `planning_summary` next-action/external-blocker evidence into one
+  JSON/Markdown local milestone package.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
 - Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.

@@ -145,6 +145,29 @@ def trace_svg_stress_detail(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def onboarding_detail(report: dict[str, Any]) -> dict[str, Any]:
+    summary = report.get("check_summary") if isinstance(report.get("check_summary"), dict) else {}
+    actions = report.get("action_summary") if isinstance(report.get("action_summary"), dict) else {}
+    outputs = report.get("outputs") if isinstance(report.get("outputs"), dict) else {}
+    checks = report.get("environment_checks") if isinstance(report.get("environment_checks"), list) else []
+    return {
+        "status": str(report.get("status") or ""),
+        "mode": str(report.get("mode") or ""),
+        "postgres": bool(report.get("postgres")),
+        "check_summary": summary,
+        "check_count": summary.get("total", len(checks)),
+        "action_count": actions.get("action_count", len(report.get("next_actions") or [])),
+        "blocked_checks": list(actions.get("blocked_checks") or []),
+        "warning_checks": list(actions.get("warning_checks") or []),
+        "unknown_checks": list(actions.get("unknown_checks") or []),
+        "skipped_checks": list(actions.get("skipped_checks") or []),
+        "by_status": actions.get("by_status") if isinstance(actions.get("by_status"), dict) else {},
+        "by_severity": actions.get("by_severity") if isinstance(actions.get("by_severity"), dict) else {},
+        "top_actions": list(actions.get("top_actions") or [])[:5],
+        "outputs": outputs,
+    }
+
+
 def development_backlog_detail(report: dict[str, Any]) -> dict[str, Any]:
     tasks = report.get("tasks") if isinstance(report.get("tasks"), list) else []
     by_status = report.get("by_status") if isinstance(report.get("by_status"), dict) else {}
@@ -220,6 +243,8 @@ def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missin
         row["visual_regression"] = visual_regression_detail(report)
     if name == "trace_svg_stress" and report:
         row["trace_svg_stress"] = trace_svg_stress_detail(report)
+    if name == "onboarding_manifest" and report:
+        row["onboarding"] = onboarding_detail(report)
     if name == "open_source_development_backlog" and report:
         row["development_backlog"] = development_backlog_detail(report)
     return row
@@ -244,6 +269,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "model_lifecycle": Path(args.model_lifecycle_gate),
         "visual_regression_snapshots": Path(args.visual_regression_snapshots),
         "trace_svg_stress": Path(args.trace_svg_stress),
+        "onboarding_manifest": Path(args.onboarding_manifest),
     }
     evidence = [
         evidence_summary(name, path, load_json(path), args.allow_missing)
@@ -330,6 +356,20 @@ def render_markdown(report: dict[str, Any]) -> str:
             detail_parts.append(f"nodes={detail.get('min_node_count', 0)}-{detail.get('max_node_count', 0)}")
             if detail.get("failed_layouts"):
                 detail_parts.append("failed_layouts=" + ",".join(detail["failed_layouts"]))
+        if item.get("onboarding"):
+            detail = item["onboarding"]
+            detail_parts.append(f"onboarding_checks={detail.get('check_count', 0)}")
+            detail_parts.append(f"onboarding_actions={detail.get('action_count', 0)}")
+            checks = detail.get("check_summary") or {}
+            if checks:
+                detail_parts.append(
+                    "checks="
+                    + ",".join(f"{key}:{value}" for key, value in sorted(checks.items()) if key != "total")
+                )
+            if detail.get("blocked_checks"):
+                detail_parts.append("blocked_checks=" + ",".join(detail["blocked_checks"]))
+            if detail.get("unknown_checks"):
+                detail_parts.append("unknown_checks=" + ",".join(detail["unknown_checks"]))
         if item.get("development_backlog"):
             detail = item["development_backlog"]
             detail_parts.append(f"remaining={detail.get('remaining_count', 0)}")
@@ -394,6 +434,34 @@ def render_markdown(report: dict[str, Any]) -> str:
         if trace.get("failures"):
             lines.extend(["", "### Trace Failures"])
             lines.extend(f"- {item}" for item in trace["failures"])
+    onboarding = next((item.get("onboarding") for item in report["evidence"] if item.get("onboarding")), None)
+    if onboarding:
+        lines.extend(["", "## Onboarding", ""])
+        summary = onboarding.get("check_summary") or {}
+        lines.extend([
+            f"- Status: `{onboarding.get('status', '')}`",
+            f"- Mode: `{onboarding.get('mode', '')}`",
+            f"- PostgreSQL: `{str(onboarding.get('postgres', False)).lower()}`",
+            f"- Checks: `{summary.get('pass', 0)} pass / {summary.get('warn', 0)} warn / {summary.get('fail', 0)} fail / {summary.get('unknown', 0)} unknown / {summary.get('skipped', 0)} skipped`",
+            f"- Next actions: `{onboarding.get('action_count', 0)}`",
+        ])
+        for key, title in [
+            ("blocked_checks", "Blocked Checks"),
+            ("warning_checks", "Warning Checks"),
+            ("unknown_checks", "Unknown Checks"),
+            ("skipped_checks", "Skipped Checks"),
+        ]:
+            items = onboarding.get(key) or []
+            if items:
+                lines.extend(["", f"### {title}"])
+                lines.extend(f"- `{item}`" for item in items)
+        if onboarding.get("top_actions"):
+            lines.extend(["", "### Onboarding Next Actions", "", "| Check | Status | Command | Next Step |", "| --- | --- | --- | --- |"])
+            for item in onboarding["top_actions"]:
+                lines.append(
+                    f"| {item.get('check', '')} | {item.get('status', '')} | "
+                    f"`{item.get('command', '')}` | {item.get('next_step', '')} |"
+                )
     lines.extend(["", "## Next Commands", ""])
     lines.extend(f"- `{command}`" for command in report["next_commands"])
     lines.append("")
@@ -410,6 +478,7 @@ def main() -> int:
     parser.add_argument("--model-lifecycle-gate", default="build/evaluation/model-lifecycle-gate.json")
     parser.add_argument("--visual-regression-snapshots", default="build/visual-regression/visual-regression-snapshots.json")
     parser.add_argument("--trace-svg-stress", default="build/trace-stress/trace-svg-stress.json")
+    parser.add_argument("--onboarding-manifest", default="build/onboarding/onboarding-manifest.json")
     parser.add_argument("--allow-missing", action="store_true")
     parser.add_argument("--out-json", default="build/open-source-readiness/open-source-milestone.json")
     parser.add_argument("--out-md", default="build/open-source-readiness/open-source-milestone.md")

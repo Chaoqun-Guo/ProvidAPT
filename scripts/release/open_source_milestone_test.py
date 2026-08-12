@@ -40,6 +40,7 @@ class OpenSourceMilestoneTest(unittest.TestCase):
             "model_lifecycle_gate": missing,
             "visual_regression_snapshots": missing,
             "trace_svg_stress": missing,
+            "onboarding_manifest": missing,
             "allow_missing": False,
         }
         values.update(overrides)
@@ -155,6 +156,31 @@ class OpenSourceMilestoneTest(unittest.TestCase):
             ],
             "failures": ["p:1/compact: HTTP 500"],
         })
+        onboarding = self.write_json("onboarding.json", {
+            "schema": "providapt.onboarding_bundle.v1",
+            "status": "blocked",
+            "mode": "standalone",
+            "postgres": False,
+            "check_summary": {"pass": 1, "warn": 1, "fail": 1, "unknown": 2, "skipped": 0, "total": 5},
+            "action_summary": {
+                "action_count": 4,
+                "blocked_checks": ["api"],
+                "warning_checks": ["tls"],
+                "unknown_checks": ["ssh", "dashboard"],
+                "skipped_checks": [],
+                "by_status": {"fail": ["api"], "warn": ["tls"], "unknown": ["dashboard", "ssh"]},
+                "by_severity": {"required": ["api", "dashboard", "ssh", "tls"]},
+                "top_actions": [
+                    {
+                        "check": "api",
+                        "status": "fail",
+                        "command": "curl -fsS http://127.0.0.1:18080/api/v1/status",
+                        "next_step": "Start providaptd.",
+                    }
+                ],
+            },
+            "outputs": {"config": "a", "checklist": "b", "report": "c"},
+        })
         report = subject.build_report(self.args(
             open_source_readiness_gate=readiness,
             open_source_readiness_backlog=readiness_backlog,
@@ -164,6 +190,7 @@ class OpenSourceMilestoneTest(unittest.TestCase):
             model_lifecycle_gate=model,
             visual_regression_snapshots=visual,
             trace_svg_stress=trace,
+            onboarding_manifest=onboarding,
         ))
         self.assertEqual(report["status"], "blocked")
         self.assertEqual(report["evidence"][0]["section_count"], 1)
@@ -189,6 +216,10 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertEqual(trace_row["trace_svg_stress"]["failure_count"], 1)
         self.assertEqual(trace_row["trace_svg_stress"]["failed_layouts"], ["compact"])
         self.assertEqual(trace_row["trace_svg_stress"]["max_latency_ms"], 120.5)
+        onboarding_row = next(item for item in report["evidence"] if item["name"] == "onboarding_manifest")
+        self.assertEqual(onboarding_row["onboarding"]["action_count"], 4)
+        self.assertEqual(onboarding_row["onboarding"]["blocked_checks"], ["api"])
+        self.assertIn("dashboard", onboarding_row["onboarding"]["unknown_checks"])
         rendered = subject.render_markdown(report)
         self.assertIn("model=graph-detector:1.0.0", rendered)
         self.assertIn("decision=approved_for_promotion", rendered)
@@ -199,6 +230,10 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         self.assertIn("trace_results=2", rendered)
         self.assertIn("Trace SVG Stress", rendered)
         self.assertIn("compact", rendered)
+        self.assertIn("onboarding_actions=4", rendered)
+        self.assertIn("Onboarding", rendered)
+        self.assertIn("Blocked Checks", rendered)
+        self.assertIn("Start providaptd.", rendered)
         self.assertIn("Development Backlog", rendered)
         self.assertIn("next_local=plugin-distribution,model-lifecycle-baseline", rendered)
         self.assertIn("External blockers", rendered)

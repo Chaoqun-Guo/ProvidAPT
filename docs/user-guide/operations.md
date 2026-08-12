@@ -724,13 +724,17 @@ by evidence key.
 The milestone package includes readiness, readiness backlog, development
 backlog, release gate status, release evidence consistency, model lifecycle, and
 visual baseline evidence. It also consumes Trace SVG stress evidence from
-`TRACE_SVG_STRESS` or `build/trace-stress/trace-svg-stress.json` when present.
+`TRACE_SVG_STRESS` or `build/trace-stress/trace-svg-stress.json` and onboarding
+evidence from `ONBOARDING_MANIFEST` or `build/onboarding/onboarding-manifest.json`
+when present.
 Model lifecycle evidence includes the promotion readiness summary,
 feedback-label distribution, blockers, warnings, and missing approval/drift
 inputs when present. Visual baseline evidence includes coverage, viewport
 classes, baseline comparison counts, and DOM assertion failure counts when
 present. Trace SVG stress evidence includes alert/layout coverage, result and
 failure counts, maximum latency, node-count range, and failed layouts.
+Onboarding evidence includes check status counts, next-action counts, blocked
+checks, warning checks, unknown checks, and top operator actions.
 Evidence-aware development backlog inputs are summarized into a
 remaining-task section grouped by `needs_fix`, `needs_review`, `needs_evidence`,
 `blocked_external`, and missing evidence. The same milestone section carries the
