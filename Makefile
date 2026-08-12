@@ -4,7 +4,7 @@
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
 .PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate plugin-catalog-gate
 
 SHELL := /bin/bash
@@ -276,6 +276,9 @@ open-source-milestone:
 
 open-source-evidence-summary:
 	python3 scripts/release/open-source-evidence-summary.py --open-source-milestone "$(or $(OPEN_SOURCE_MILESTONE),build/open-source-readiness/open-source-milestone.json)" --open-source-readiness-backlog "$(or $(OPEN_SOURCE_READINESS_BACKLOG),build/open-source-readiness/open-source-readiness-backlog.json)" --visual-regression-gate "$(or $(VISUAL_REGRESSION_GATE),build/visual-regression/visual-regression-gate.json)" --trace-svg-stress "$(or $(TRACE_SVG_STRESS),build/trace-stress/trace-svg-stress.json)" --onboarding-manifest "$(or $(ONBOARDING_MANIFEST),build/onboarding/onboarding-manifest.json)" --model-lifecycle-gate "$(or $(MODEL_LIFECYCLE_GATE),build/evaluation/model-lifecycle-gate.json)" $(if $(ALLOW_MISSING),--allow-missing) --out-json "$(or $(OUT_DIR),build/open-source-readiness)/open-source-evidence-summary.json" --out-md "$(or $(OUT_DIR),build/open-source-readiness)/open-source-evidence-summary.md"
+
+open-source-local-closure:
+	python3 scripts/release/open-source-local-closure.py $(if $(PROVIDAPT_SERVER_URL),--server-url "$(PROVIDAPT_SERVER_URL)") $(if $(ALERT_IDS),--alert-ids "$(ALERT_IDS)") $(if $(SCAN_MANIFEST),--scan-manifest "$(SCAN_MANIFEST)") $(if $(RELEASE_TAG),--release-tag "$(RELEASE_TAG)") $(if $(SIGNATURE),--signature "$(SIGNATURE)") $(if $(MODEL_CLOSED_LOOP_JSON),--model-closed-loop "$(MODEL_CLOSED_LOOP_JSON)") $(if $(MODEL_DEPLOY_GATE_JSON),--model-deploy-gate "$(MODEL_DEPLOY_GATE_JSON)") $(if $(MODEL_DRIFT_JSON),--model-drift "$(MODEL_DRIFT_JSON)") $(if $(MODEL_APPROVAL),--model-approval "$(MODEL_APPROVAL)") $(if $(PROVIDAPT_CONFIG),--providapt-config "$(PROVIDAPT_CONFIG)") $(if $(RBAC_AUDIT),--rbac-audit "$(RBAC_AUDIT)") $(if $(POLICY_APPROVAL_GATE),--policy-approval-gate "$(POLICY_APPROVAL_GATE)") $(if $(AUDIT_EXPORT),--audit-export "$(AUDIT_EXPORT)") $(if $(ROLE_REVIEW),--role-review "$(ROLE_REVIEW)") $(if $(PLUGIN_MANIFEST),--plugin-manifest "$(PLUGIN_MANIFEST)") $(if $(PLUGIN_SIGNATURE),--plugin-signature "$(PLUGIN_SIGNATURE)") $(if $(PLUGIN_GATES),--plugin-gates "$(PLUGIN_GATES)") --out-json "$(or $(OUT_DIR),build/open-source-readiness)/open-source-local-closure.json" --out-md "$(or $(OUT_DIR),build/open-source-readiness)/open-source-local-closure.md"
 
 package-smoke-matrix:
 	bash scripts/release/package-smoke-matrix.sh
@@ -623,6 +626,7 @@ help:
 	@echo '  make open-source-development-backlog LOCAL_ONLY=1 Generate prioritized open-source backlog'
 	@echo '  make open-source-milestone ALLOW_MISSING=1 Aggregate local open-source milestone evidence'
 	@echo '  make open-source-evidence-summary ALLOW_MISSING=1 Summarize release blockers from local evidence'
+	@echo '  make open-source-local-closure Build local closure matrix for remaining open-source release tasks'
 	@echo '  make package-smoke-matrix Test dist packages in Ubuntu/Rocky containers'
 	@echo ''
 	@echo 'Operations:'

@@ -711,6 +711,7 @@ make open-source-development-backlog \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json
 make open-source-milestone ALLOW_MISSING=1
 make open-source-evidence-summary ALLOW_MISSING=1
+make open-source-local-closure
 ```
 
 When gate paths are supplied, the development backlog runs in evidence-aware
@@ -753,3 +754,10 @@ manifest, plus model lifecycle promotion evidence when
 `MODEL_LIFECYCLE_GATE` or `build/evaluation/model-lifecycle-gate.json` is
 present. It is the fastest local view of release blockers before opening the
 larger evidence JSON files.
+`make open-source-local-closure` creates an honest local closure matrix for the
+remaining open-source release tasks: security scans, final artifacts, browser
+baselines, Trace SVG stress, model lifecycle, RBAC/audit hardening, plugin
+distribution, and first-run onboarding. It records missing scanner/SBOM tools
+and missing real-environment inputs separately so release owners can see what
+is ready to run locally and what still needs final-tag, server, alert, model,
+RBAC, or plugin evidence.

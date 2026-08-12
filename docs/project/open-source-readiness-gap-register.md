@@ -173,5 +173,12 @@ Current closure progress:
   `make open-source-evidence-summary`, collapsing milestone, readiness backlog,
   visual gate, Trace SVG stress, onboarding, and model lifecycle blockers into
   one short JSON/Markdown executive report.
+- Open-source local closure matrices are generated through
+  `make open-source-local-closure`, covering the eight remaining release tasks:
+  current-commit security scans, final tagged artifacts, browser baselines,
+  Trace SVG stress evidence, model lifecycle baseline, RBAC/audit hardening,
+  plugin distribution, and onboarding first-run polish. The matrix separates
+  missing tools from missing real-environment inputs and lists the exact next
+  command for each task without treating planned evidence as passed evidence.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
 - Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.
