@@ -116,7 +116,8 @@ Current closure progress:
   requiring closed-loop readiness, deploy-gate pass status, stable drift
   evidence, sufficient analyst feedback/reviewed labels, required feedback-label
   diversity, a minimum baseline window, matching model identity/version/feature
-  schema evidence, and optional named owner approval.
+  schema evidence, optional named owner approval, and an archive-ready promotion
+  packet readiness summary.
 - First-run onboarding bundles generate a starter config, checklist,
   Tailscale/SSH/API/TLS/secrets/PostgreSQL environment checks, a fill-in check
   result template, prioritized next actions, and manifest through

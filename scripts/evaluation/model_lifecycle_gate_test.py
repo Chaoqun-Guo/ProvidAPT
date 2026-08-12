@@ -67,6 +67,11 @@ class ModelLifecycleGateTest(unittest.TestCase):
         self.assertEqual(report["promotion_packet"]["evidence_count"], 3)
         self.assertEqual(len(report["promotion_packet"]["evidence_sha256"]["closed_loop"]), 64)
         self.assertEqual(report["promotion_packet"]["next_actions"], [])
+        summary = report["promotion_packet"]["readiness_summary"]
+        self.assertEqual(summary["decision"], "approved_for_promotion")
+        self.assertIn("closed_loop", summary["evidence"]["present"])
+        self.assertIn("drift_report", summary["evidence"]["missing"])
+        self.assertEqual(summary["approvals"]["model_owner"]["owner"], "Alice Model")
 
     def test_blocks_low_feedback_and_delegate_approval(self):
         closed = self.write_json("closed.json", {
@@ -136,6 +141,8 @@ class ModelLifecycleGateTest(unittest.TestCase):
         report = subject.build_report(self.args(closed_loop=str(closed), deploy_gate=str(deploy), require_approval=False))
         rendered = subject.render_markdown(report)
         self.assertIn("Promotion decision", rendered)
+        self.assertIn("Readiness Summary", rendered)
+        self.assertIn("Approvals", rendered)
         self.assertIn("Feedback Labels", rendered)
         self.assertIn("## Evidence", rendered)
         self.assertIn("closed_loop", rendered)

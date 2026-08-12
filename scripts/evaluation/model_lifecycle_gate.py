@@ -126,6 +126,19 @@ def approval_failures(approval: dict[str, Any], require_approval: bool) -> list[
     return failures
 
 
+def approval_summary(approval: dict[str, Any]) -> dict[str, dict[str, str]]:
+    summary: dict[str, dict[str, str]] = {}
+    for role in APPROVAL_ROLES:
+        entry = approval.get(role) if isinstance(approval, dict) else {}
+        if not isinstance(entry, dict):
+            entry = {}
+        summary[role] = {
+            "decision": str(entry.get("decision") or entry.get("status") or "missing").lower(),
+            "owner": str(entry.get("approved_by") or entry.get("owner") or "").strip(),
+        }
+    return summary
+
+
 def model_identity(report: dict[str, Any]) -> dict[str, str]:
     feature_schema = report.get("feature_schema") if isinstance(report.get("feature_schema"), dict) else {}
     return {
@@ -174,6 +187,49 @@ def next_actions(failures: list[str], warnings: list[str]) -> list[str]:
     return sorted(dict.fromkeys(actions))
 
 
+def readiness_summary(
+    status: str,
+    model: dict[str, str],
+    closed_loop_status: str,
+    deploy_gate_status: str,
+    drift_status: str,
+    feedback_records: int,
+    reviewed_labels: int,
+    feedback_label_counts: dict[str, int],
+    baseline: float,
+    approval_roles: dict[str, dict[str, str]],
+    evidence: list[dict[str, Any]],
+    failures: list[str],
+    warnings: list[str],
+) -> dict[str, Any]:
+    return {
+        "status": status,
+        "decision": "approved_for_promotion" if status == "pass" else "promotion_blocked",
+        "model": model,
+        "closed_loop_status": closed_loop_status,
+        "deploy_gate_status": deploy_gate_status,
+        "drift_status": drift_status,
+        "feedback": {
+            "records": feedback_records,
+            "reviewed": reviewed_labels,
+            "labels": feedback_label_counts,
+        },
+        "baseline_days": baseline,
+        "approvals": approval_roles,
+        "evidence": {
+            "present": [item["kind"] for item in evidence if item["present"]],
+            "missing": [item["kind"] for item in evidence if not item["present"]],
+            "sha256": {
+                item["kind"]: item["sha256"]
+                for item in evidence
+                if item["present"] and item["sha256"]
+            },
+        },
+        "blocker_count": len(failures),
+        "warning_count": len(warnings),
+    }
+
+
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
     closed_loop = load_json(args.closed_loop)
     deploy_gate = load_json(args.deploy_gate)
@@ -210,6 +266,11 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     failures.extend(approval_failures(approval, args.require_approval))
     closed_identity = model_identity(closed_loop)
     deploy_identity = model_identity(deploy_gate)
+    model = {
+        "name": closed_identity["name"] or deploy_identity["name"],
+        "version": closed_identity["version"] or deploy_identity["version"],
+        "feature_schema_sha256": closed_identity["feature_schema_sha256"] or deploy_identity["feature_schema_sha256"],
+    }
     evidence = [
         evidence_ref(args.closed_loop, "closed_loop"),
         evidence_ref(args.deploy_gate, "deploy_gate"),
@@ -217,6 +278,22 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         evidence_ref(args.approval, "approval"),
     ]
     status = "blocked" if failures else "pass"
+    approvals = approval_summary(approval)
+    summary = readiness_summary(
+        status,
+        model,
+        str(closed_loop.get("status", "missing")),
+        str(deploy_gate.get("status", "missing")),
+        drift_status,
+        feedback_records,
+        reviewed_labels,
+        labels,
+        days,
+        approvals,
+        evidence,
+        failures,
+        warnings,
+    )
     return {
         "schema": SCHEMA,
         "generated_at": utc_now(),
@@ -230,11 +307,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "min_baseline_days": args.min_baseline_days,
             "require_approval": args.require_approval,
         },
-        "model": {
-            "name": closed_identity["name"] or deploy_identity["name"],
-            "version": closed_identity["version"] or deploy_identity["version"],
-            "feature_schema_sha256": closed_identity["feature_schema_sha256"] or deploy_identity["feature_schema_sha256"],
-        },
+        "model": model,
         "closed_loop_model": closed_identity,
         "deploy_gate_model": deploy_identity,
         "closed_loop_status": closed_loop.get("status", "missing"),
@@ -245,14 +318,12 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "feedback_labels": labels,
         "baseline_days": days,
         "approval_roles": list(APPROVAL_ROLES),
+        "approval_summary": approvals,
         "evidence": evidence,
         "promotion_packet": {
             "decision": "approved_for_promotion" if status == "pass" else "promotion_blocked",
-            "model": {
-                "name": closed_identity["name"] or deploy_identity["name"],
-                "version": closed_identity["version"] or deploy_identity["version"],
-                "feature_schema_sha256": closed_identity["feature_schema_sha256"] or deploy_identity["feature_schema_sha256"],
-            },
+            "model": model,
+            "readiness_summary": summary,
             "evidence_count": sum(1 for item in evidence if item["present"]),
             "evidence_sha256": {
                 item["kind"]: item["sha256"]
@@ -296,6 +367,26 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(["## Next Actions", ""])
         lines.extend(f"- {item}" for item in report["promotion_packet"]["next_actions"])
         lines.append("")
+    summary = report["promotion_packet"]["readiness_summary"]
+    lines.extend([
+        "## Readiness Summary",
+        "",
+        "| Area | Value |",
+        "| --- | --- |",
+        f"| Decision | {summary['decision']} |",
+        f"| Blockers | {summary['blocker_count']} |",
+        f"| Warnings | {summary['warning_count']} |",
+        f"| Evidence present | {', '.join(summary['evidence']['present']) or 'none'} |",
+        f"| Evidence missing | {', '.join(summary['evidence']['missing']) or 'none'} |",
+        "",
+        "## Approvals",
+        "",
+        "| Role | Decision | Owner |",
+        "| --- | --- | --- |",
+    ])
+    for role, item in report["approval_summary"].items():
+        lines.append(f"| {role} | {item['decision']} | {item['owner'] or 'n/a'} |")
+    lines.append("")
     lines.extend(["## Feedback Labels", "", "| Label | Count |", "| --- | ---: |"])
     for label, count in report["feedback_labels"].items():
         lines.append(f"| {label} | {count} |")

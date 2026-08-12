@@ -414,10 +414,11 @@ window is too short. By default the lifecycle gate requires at least one
 release promotion should prove all reviewed feedback outcomes are represented.
 
 The JSON output includes a `promotion_packet` section with the promotion
-decision, model identity, input evidence SHA-256 hashes, evidence count, and
-next actions for any blocker. Keep this packet with the model artifact and
-release evidence so a promoted model can be traced back to exact closed-loop,
-deployment, drift, and approval inputs.
+decision, model identity, a readiness summary, input evidence SHA-256 hashes,
+evidence count, and next actions for any blocker. Keep this packet with the
+model artifact and release evidence so a promoted model can be traced back to
+exact closed-loop, deployment, drift, approval, baseline, and feedback-label
+inputs.
 
 Outputs:
 
