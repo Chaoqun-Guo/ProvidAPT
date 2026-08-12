@@ -34,10 +34,13 @@ class PluginCatalogGateTest(unittest.TestCase):
                 "version": version,
                 "type": "detection",
                 "permissions": ["rules:read", "alerts:write"],
-                "distribution": {"channel": "signed-bundle", "artifact": f"{plugin_name}-{version}.tar.gz"},
+                "distribution": {"channel": "signed-bundle", "artifact": f"{plugin_name}-{version}.tar.gz", "artifact_sha256": "0" * 64},
                 "compatibility": {"providapt_min_version": "1.2.0"},
+                "compatibility_pass_count": 1,
+                "artifact": {"present": True, "hash_matches": True},
             },
             "rollback": ["disable plugin", "restore previous bundle"],
+            "rollback_drill": {"status": "pass", "tested_at": "2026-08-12T00:00:00Z", "tested_by": "release-operator", "steps_verified": 2},
             "failures": [] if status == "pass" else ["blocked"],
             "warnings": [],
         }), encoding="utf-8")
@@ -60,6 +63,8 @@ class PluginCatalogGateTest(unittest.TestCase):
         ]))
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["plugin_count"], 2)
+        self.assertEqual(report["plugins"][0]["compatibility_pass_count"], 1)
+        self.assertEqual(report["plugins"][0]["rollback_drill_status"], "pass")
         self.assertIn("Plugin Catalog Gate", subject.render_markdown(report))
 
     def test_blocks_duplicate_plugin_identity(self):
@@ -74,6 +79,33 @@ class PluginCatalogGateTest(unittest.TestCase):
         report = subject.build_report(self.args(plugin_gate=[]))
         self.assertEqual(report["status"], "blocked")
         self.assertIn("plugin catalog is empty", report["failures"])
+
+    def test_blocks_missing_distribution_hardening_evidence(self):
+        path = self.tmp / "weak.json"
+        path.write_text(json.dumps({
+            "status": "pass",
+            "signature_present": True,
+            "plugin": {
+                "name": "weak",
+                "version": "1.0.0",
+                "type": "detection",
+                "permissions": ["rules:read"],
+                "distribution": {"channel": "signed-bundle", "artifact": "weak-1.0.0.tar.gz"},
+                "compatibility": {"providapt_min_version": "1.2.0"},
+                "compatibility_pass_count": 0,
+            },
+            "rollback": ["disable plugin", "restore previous bundle"],
+            "rollback_drill": {"status": "fail", "steps_verified": 1},
+            "failures": [],
+            "warnings": [],
+        }), encoding="utf-8")
+        report = subject.build_report(self.args(plugin_gate=[str(path)]))
+        failures = "\n".join(report["failures"])
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("artifact SHA-256 evidence is missing", failures)
+        self.assertIn("compatibility pass evidence is missing", failures)
+        self.assertIn("rollback drill did not pass", failures)
+        self.assertIn("rollback drill does not cover all steps", failures)
 
 
 if __name__ == "__main__":

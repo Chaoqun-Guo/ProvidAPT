@@ -112,28 +112,44 @@ The manifest must include the following fields:
   "distribution": {
     "channel": "signed-bundle",
     "artifact": "example-detector-1.0.0.tar.gz",
-    "signature_algorithm": "ed25519"
+    "signature_algorithm": "ed25519",
+    "artifact_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
   },
+  "compatibility_tests": [
+    {
+      "providapt_version": "1.2.0",
+      "status": "pass"
+    }
+  ],
   "rollback": [
     "disable example-detector in providapt.toml",
     "restore the previous signed plugin bundle",
     "restart providaptd"
-  ]
+  ],
+  "rollback_drill": {
+    "status": "pass",
+    "tested_at": "2026-08-12T00:00:00Z",
+    "tested_by": "release-operator",
+    "steps_verified": 3
+  }
 }
 ```
 
 Supported plugin types are `detection`, `scoring`, `threatintel`, and
 `enrichment`. Versions must use semantic versioning, for example `1.0.0`.
-Distributed plugins must declare least-privilege permissions, a signed artifact
-distribution policy, and concrete rollback instructions. The compatibility range
-uses `providapt_min_version` and optional `providapt_max_version`; the minimum
-version must not be greater than the maximum version.
+Distributed plugins must declare least-privilege permissions in `scope:action`
+form, a signed artifact distribution policy, a SHA-256 digest for the artifact,
+at least one passing compatibility test, concrete rollback instructions, and a
+passing rollback drill that covers every rollback step. Supported signature
+algorithms are `ed25519`, `cosign`, and `minisign`. The compatibility range uses
+`providapt_min_version` and optional `providapt_max_version`; the minimum version
+must not be greater than the maximum version.
 
 The gate writes:
 
 | File | Purpose |
 | --- | --- |
-| `plugin-release-gate.json` | Machine-readable release decision, manifest hash, compatibility, distribution policy, rollback steps, and validation findings |
+| `plugin-release-gate.json` | Machine-readable release decision, manifest hash, artifact hash evidence, compatibility tests, distribution policy, rollback drill, and validation findings |
 | `plugin-release-gate.md` | Operator-readable checklist for approval and rollback |
 
 Unsigned plugins are blocked by default. For internal development only, use:
@@ -160,4 +176,5 @@ make plugin-catalog-gate \
 
 The catalog gate blocks duplicate plugin name/version pairs, blocked plugin
 release gates, missing signatures, missing permissions, incomplete distribution
-metadata, and missing rollback steps.
+metadata, missing artifact SHA-256 evidence, missing compatibility pass evidence,
+missing rollback steps, and failed or incomplete rollback drills.

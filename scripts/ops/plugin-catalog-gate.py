@@ -29,6 +29,8 @@ def plugin_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
     plugin = report.get("plugin") if isinstance(report.get("plugin"), dict) else {}
     distribution = plugin.get("distribution") if isinstance(plugin.get("distribution"), dict) else {}
     compatibility = plugin.get("compatibility") if isinstance(plugin.get("compatibility"), dict) else {}
+    artifact = plugin.get("artifact") if isinstance(plugin.get("artifact"), dict) else {}
+    rollback_drill = report.get("rollback_drill") if isinstance(report.get("rollback_drill"), dict) else {}
     permissions = plugin.get("permissions") if isinstance(plugin.get("permissions"), list) else []
     return {
         "path": str(path),
@@ -41,9 +43,15 @@ def plugin_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         "permission_count": len(permissions),
         "channel": str(distribution.get("channel") or ""),
         "artifact": str(distribution.get("artifact") or ""),
+        "artifact_sha256_present": bool(str(distribution.get("artifact_sha256") or "").strip()),
+        "artifact_present": bool(artifact.get("present")),
+        "artifact_hash_matches": bool(artifact.get("hash_matches")),
         "providapt_min_version": str(compatibility.get("providapt_min_version") or ""),
         "providapt_max_version": str(compatibility.get("providapt_max_version") or ""),
+        "compatibility_pass_count": int(plugin.get("compatibility_pass_count") or 0),
         "rollback_steps": len(report.get("rollback") or []) if isinstance(report.get("rollback"), list) else 0,
+        "rollback_drill_status": str(rollback_drill.get("status") or ""),
+        "rollback_drill_steps_verified": int(rollback_drill.get("steps_verified") or 0),
         "failures": list(report.get("failures") or []),
         "warnings": list(report.get("warnings") or []),
     }
@@ -74,8 +82,16 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             failures.append(f"{item['name'] or path}: permissions are missing")
         if not item["channel"] or not item["artifact"]:
             failures.append(f"{item['name'] or path}: distribution channel/artifact is missing")
+        if not item["artifact_sha256_present"]:
+            failures.append(f"{item['name'] or path}: artifact SHA-256 evidence is missing")
+        if item["compatibility_pass_count"] <= 0:
+            failures.append(f"{item['name'] or path}: compatibility pass evidence is missing")
         if item["rollback_steps"] <= 0:
             failures.append(f"{item['name'] or path}: rollback steps are missing")
+        if item["rollback_drill_status"] != "pass":
+            failures.append(f"{item['name'] or path}: rollback drill did not pass")
+        if item["rollback_drill_steps_verified"] < item["rollback_steps"]:
+            failures.append(f"{item['name'] or path}: rollback drill does not cover all steps")
         warnings.extend(f"{item['name'] or path}: {warning}" for warning in item["warnings"])
     if not plugins and args.require_plugins:
         failures.append("plugin catalog is empty")
@@ -101,21 +117,22 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Status: `{report['status']}`",
         f"- Plugins: `{report['plugin_count']}`",
         "",
-        "| Plugin | Version | Type | Status | Signed | Permissions | Channel | Artifact | Rollback Steps |",
-        "| --- | --- | --- | --- | --- | ---: | --- | --- | ---: |",
+        "| Plugin | Version | Type | Status | Signed | Permissions | Compatibility Passes | Channel | Artifact Hash | Rollback Drill |",
+        "| --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- |",
     ]
     for item in report["plugins"]:
         lines.append(
-            "| {name} | {version} | {type} | {status} | {signed} | {permission_count} | {channel} | {artifact} | {rollback_steps} |".format(
+            "| {name} | {version} | {type} | {status} | {signed} | {permission_count} | {compatibility_pass_count} | {channel} | {artifact_hash} | {rollback_drill} |".format(
                 name=escape_cell(item["name"]),
                 version=escape_cell(item["version"]),
                 type=escape_cell(item["type"]),
                 status=escape_cell(item["status"]),
                 signed=str(item["signature_present"]).lower(),
                 permission_count=item["permission_count"],
+                compatibility_pass_count=item["compatibility_pass_count"],
                 channel=escape_cell(item["channel"]),
-                artifact=escape_cell(item["artifact"]),
-                rollback_steps=item["rollback_steps"],
+                artifact_hash="present" if item["artifact_sha256_present"] else "missing",
+                rollback_drill=escape_cell(item["rollback_drill_status"] or "missing"),
             )
         )
     if report["failures"]:

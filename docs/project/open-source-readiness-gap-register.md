@@ -142,12 +142,14 @@ Current closure progress:
   render concrete SSH connectivity checks for known VM targets.
 - Plugin release gating validates plugin manifests, semantic versions,
   supported plugin types, least-privilege permission declarations,
-  compatibility ranges, signed distribution metadata, signature evidence, and
-  concrete rollback instructions through `make plugin-release-gate`.
+  compatibility ranges, signed distribution metadata, artifact SHA-256 evidence,
+  signature evidence, compatibility test results, concrete rollback
+  instructions, and rollback drill results through `make plugin-release-gate`.
 - Plugin catalog gating aggregates multiple plugin release-gate outputs through
   `make plugin-catalog-gate`, blocking duplicate plugin identities, unsigned
-  entries, missing permissions, incomplete distribution metadata, and missing
-  rollback evidence.
+  entries, missing permissions, incomplete distribution metadata, missing
+  artifact SHA-256 evidence, missing compatibility pass evidence, and missing or
+  failed rollback evidence.
 - Visual regression gating now requires captured Dashboard and Trace Viewer
   screenshots, hashes, and passing DOM assertions for each required viewport;
   dry-run planning must explicitly opt out through `ALLOW_PLANNED_VISUALS=1`.
