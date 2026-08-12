@@ -538,7 +538,9 @@ evidence, fleet health, soak stability, upgrade rollout, SIEM/SOAR delivery,
 RBAC audit, policy approval, backup readiness, support bundle evidence,
 deployment diagnostics, installation handoff, observability pack, visual
 regression, capture/enrichment coverage, or security hardening evidence is
-missing or failed.
+missing or failed. Visual regression readiness carries screenshot coverage,
+default-matrix completion, baseline change counts, DOM assertion failures, and
+missing required screenshot counts from `visual_evidence_summary`.
 
 Close open-source readiness after release gates, operations, enterprise,
 model lifecycle, visual baseline, onboarding, and plugin evidence are generated:

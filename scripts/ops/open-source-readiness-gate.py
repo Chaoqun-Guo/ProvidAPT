@@ -141,6 +141,8 @@ def visual_baseline_detail(report: dict[str, Any]) -> dict[str, Any]:
     if not report:
         return {"status": "warn", "warnings": ["visual browser baseline evidence was not supplied"]}
     coverage = report.get("coverage") if isinstance(report.get("coverage"), dict) else {}
+    comparison = report.get("comparison_summary") if isinstance(report.get("comparison_summary"), dict) else {}
+    comparison_counts = comparison.get("counts") if isinstance(comparison.get("counts"), dict) else {}
     source_status = str(report.get("status") or "").lower()
     complete = bool(coverage.get("complete_default_matrix"))
     missing_viewports = list(coverage.get("missing_default_viewports") or [])
@@ -162,8 +164,15 @@ def visual_baseline_detail(report: dict[str, Any]) -> dict[str, Any]:
         "status": status,
         "source_status": report.get("status", "missing"),
         "screenshots": coverage.get("covered_count", report.get("screenshot_count", 0)),
+        "screenshot_count": coverage.get("screenshot_count", report.get("screenshot_count", 0)),
         "viewport_classes": ",".join(coverage.get("viewport_classes", [])),
         "complete_default_matrix": complete,
+        "baseline_status": comparison.get("status", ""),
+        "baseline_changed": comparison_counts.get("changed", 0),
+        "baseline_new": comparison_counts.get("new", 0),
+        "baseline_skipped": comparison_counts.get("skipped", 0),
+        "baseline_missing": comparison_counts.get("missing_baseline", 0),
+        "comparison_counts": comparison_counts,
         "failures": failures,
         "warnings": warnings,
     }

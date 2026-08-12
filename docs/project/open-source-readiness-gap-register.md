@@ -140,8 +140,9 @@ Current closure progress:
   summaries.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual
-  browser baseline coverage, onboarding outputs, plugin release gates, required
-  documentation, and approval evidence into one local milestone report.
+  browser baseline coverage/comparison summaries, onboarding outputs, plugin
+  release gates, required documentation, and approval evidence into one local
+  milestone report.
 - Open-source milestone packaging is available through
   `make open-source-milestone`, combining readiness, readiness backlog,
   development backlog, release gate status, release evidence consistency, model

@@ -70,7 +70,17 @@ class OperationsReadinessGateTest(unittest.TestCase):
             "install": self.write_json("install.json", {"status": "pass"}),
             "observability": self.write_json("observability.json", {"status": "pass"}),
             "security": self.write_json("security.json", {"status": "pass"}),
-            "visual": self.write_json("visual.json", {"status": "pass", "screenshot_count": 6, "comparison_count": 6}),
+            "visual": self.write_json("visual.json", {
+                "status": "pass",
+                "screenshot_count": 8,
+                "comparison_count": 8,
+                "visual_evidence_summary": {
+                    "coverage": {"covered_count": 8, "screenshot_count": 8, "complete_default_matrix": True},
+                    "baseline": {"status": "matched", "changed": 0, "new": 0, "skipped": 0},
+                    "dom_assertions": {"failed": 0, "missing": 0, "total": 8},
+                    "required_matrix": {"missing_count": 0},
+                },
+            }),
             "capture": self.write_json("capture.json", {"status": "pass", "summary": {"event_count": 100, "field_rates": {"cmdline_percent": 90, "exe_path_percent": 90, "pathname_percent": 100, "network_tuple_percent": 100}}}),
         }
         report = subject.build_report(self.args(**paths))
@@ -80,7 +90,10 @@ class OperationsReadinessGateTest(unittest.TestCase):
         self.assertEqual(report["sections"]["backup_readiness"]["size_bytes"], 4096)
         self.assertTrue(report["sections"]["support_bundle"]["redacted"])
         self.assertEqual(report["sections"]["deployment_diagnostics"]["kernel_attachment_mode"], "lsm")
-        self.assertEqual(report["sections"]["visual_regression"]["screenshots"], 6)
+        self.assertEqual(report["sections"]["visual_regression"]["screenshots"], 8)
+        self.assertTrue(report["sections"]["visual_regression"]["complete_default_matrix"])
+        self.assertEqual(report["sections"]["visual_regression"]["baseline_status"], "matched")
+        self.assertEqual(report["sections"]["visual_regression"]["dom_failed"], 0)
         self.assertEqual(report["sections"]["capture_enrichment"]["events"], 100)
         self.assertIn("Operations Readiness", subject.render_markdown(report))
 

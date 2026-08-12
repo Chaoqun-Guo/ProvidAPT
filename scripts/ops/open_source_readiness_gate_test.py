@@ -95,10 +95,15 @@ class OpenSourceReadinessGateTest(unittest.TestCase):
             "status": "pass",
             "coverage": {
                 "covered_count": 8,
+                "screenshot_count": 8,
                 "viewport_classes": ["mobile", "desktop_1366", "desktop_1080p", "ultrawide"],
                 "complete_default_matrix": True,
                 "missing_pages": [],
                 "missing_default_viewports": [],
+            },
+            "comparison_summary": {
+                "status": "matched",
+                "counts": {"unchanged": 8},
             },
         })
         report = subject.build_report(Namespace(
@@ -115,6 +120,8 @@ class OpenSourceReadinessGateTest(unittest.TestCase):
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["sections"]["release_gate_status"]["commit"], "abc")
         self.assertTrue(report["sections"]["visual_baselines"]["complete_default_matrix"])
+        self.assertEqual(report["sections"]["visual_baselines"]["baseline_status"], "matched")
+        self.assertEqual(report["sections"]["visual_baselines"]["comparison_counts"]["unchanged"], 8)
         self.assertEqual(report["sections"]["model_lifecycle"]["evidence_count"], 4)
 
 if __name__ == "__main__":

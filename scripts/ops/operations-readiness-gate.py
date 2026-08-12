@@ -91,10 +91,24 @@ def simple_detail(report: dict[str, Any], **fields: str) -> dict[str, Any]:
 
 
 def visual_detail(report: dict[str, Any]) -> dict[str, Any]:
+    summary = report.get("visual_evidence_summary") if isinstance(report.get("visual_evidence_summary"), dict) else {}
+    coverage = summary.get("coverage") if isinstance(summary.get("coverage"), dict) else {}
+    baseline = summary.get("baseline") if isinstance(summary.get("baseline"), dict) else {}
+    dom = summary.get("dom_assertions") if isinstance(summary.get("dom_assertions"), dict) else {}
+    matrix = summary.get("required_matrix") if isinstance(summary.get("required_matrix"), dict) else {}
     return {
         "status": status_value(report),
-        "screenshots": report.get("screenshot_count", 0),
+        "screenshots": coverage.get("covered_count", report.get("screenshot_count", 0)),
+        "screenshot_count": coverage.get("screenshot_count", report.get("screenshot_count", 0)),
         "comparisons": report.get("comparison_count", 0),
+        "complete_default_matrix": bool(coverage.get("complete_default_matrix")),
+        "baseline_status": baseline.get("status", ""),
+        "baseline_changed": baseline.get("changed", 0),
+        "baseline_new": baseline.get("new", 0),
+        "baseline_skipped": baseline.get("skipped", 0),
+        "dom_failed": dom.get("failed", 0),
+        "dom_missing": dom.get("missing", 0),
+        "required_missing": matrix.get("missing_count", 0),
     }
 
 
