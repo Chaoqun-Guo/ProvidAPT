@@ -1,0 +1,14 @@
+{
+  "model_owner": {
+    "decision": "approved",
+    "approved_by": "Open Source Model Owner"
+  },
+  "security": {
+    "decision": "approved",
+    "approved_by": "Open Source Security Reviewer"
+  },
+  "soc_lead": {
+    "decision": "approved",
+    "approved_by": "Open Source SOC Lead"
+  }
+}

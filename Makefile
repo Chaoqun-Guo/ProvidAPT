@@ -1,7 +1,7 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet verify-vm-config probe cgroup
-.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
+.PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate model-lifecycle-example-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates security-scan-manifest artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
@@ -539,6 +539,9 @@ model-lifecycle-gate:
 	@if [ -z "$(MODEL_CLOSED_LOOP_JSON)" ] || [ -z "$(MODEL_DEPLOY_GATE_JSON)" ]; then echo 'usage: make model-lifecycle-gate MODEL_CLOSED_LOOP_JSON=... MODEL_DEPLOY_GATE_JSON=... [MODEL_APPROVAL=...] [REQUIRED_FEEDBACK_LABELS=\"true_positive false_positive benign duplicate\"]'; exit 2; fi
 	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop "$(MODEL_CLOSED_LOOP_JSON)" --deploy-gate "$(MODEL_DEPLOY_GATE_JSON)" $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(MODEL_APPROVAL),--approval "$(MODEL_APPROVAL)") --min-feedback-records "$(or $(MIN_FEEDBACK_RECORDS),25)" --min-reviewed-labels "$(or $(MIN_REVIEWED_LABELS),10)" $(foreach label,$(REQUIRED_FEEDBACK_LABELS),--required-feedback-label "$(label)") --min-feedback-per-label "$(or $(MIN_FEEDBACK_PER_LABEL),1)" --min-baseline-days "$(or $(MIN_BASELINE_DAYS),7)" $(if $(REQUIRE_MODEL_APPROVAL),--require-approval) --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
 
+model-lifecycle-example-gate:
+	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop examples/model-lifecycle/closed-loop.json --deploy-gate examples/model-lifecycle/deploy-gate.json --drift-report examples/model-lifecycle/drift.json --approval examples/model-lifecycle/approval.json --require-approval --required-feedback-label true_positive --required-feedback-label false_positive --required-feedback-label benign --required-feedback-label duplicate --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
+
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
 
@@ -585,6 +588,7 @@ help:
 	@echo '  make attack-coverage-plan Plan safe simulations for missed ATT&CK techniques'
 	@echo '  make model-deploy-gate MODEL_REGISTRY=... MODEL_NAME=... MODEL_VERSION=... Gate model deployment'
 	@echo '  make model-lifecycle-gate MODEL_CLOSED_LOOP_JSON=... MODEL_DEPLOY_GATE_JSON=... Build model promotion packet'
+	@echo '  make model-lifecycle-example-gate Run sample model lifecycle promotion fixture'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
 	@echo ''

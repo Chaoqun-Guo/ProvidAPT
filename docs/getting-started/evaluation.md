@@ -413,6 +413,17 @@ window is too short. By default the lifecycle gate requires at least one
 `REQUIRED_FEEDBACK_LABELS="true_positive false_positive benign duplicate"` when
 release promotion should prove all reviewed feedback outcomes are represented.
 
+For a local smoke test of the promotion packet structure, run the synthetic
+fixture:
+
+```bash
+make model-lifecycle-example-gate
+```
+
+This verifies that the gate can consume closed-loop, deploy-gate, drift, and
+named approval evidence end to end. It does not replace production evidence from
+real analyst feedback, longer-lived baselines, or deployment approval records.
+
 The JSON output includes a `promotion_packet` section with the promotion
 decision, model identity, a readiness summary, input evidence SHA-256 hashes,
 evidence count, and next actions for any blocker. Keep this packet with the

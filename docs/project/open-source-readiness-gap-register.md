@@ -130,6 +130,9 @@ Current closure progress:
   diversity, a minimum baseline window, matching model identity/version/feature
   schema evidence, optional named owner approval, and an archive-ready promotion
   packet readiness summary.
+- `make model-lifecycle-example-gate` now runs a synthetic, open-source-safe
+  promotion fixture through the lifecycle gate so the packet format can be
+  smoke-tested locally before real long-running model evidence is available.
 - First-run onboarding bundles generate a starter config, checklist,
   Tailscale/SSH/API/TLS/secrets/PostgreSQL environment checks, a fill-in check
   result template, prioritized next actions, and manifest through

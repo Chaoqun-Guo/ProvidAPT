@@ -1,0 +1,7 @@
+{
+  "schema": "providapt.model_drift_report.v1",
+  "status": "stable",
+  "threshold_percent": 20,
+  "max_observed_drift_percent": 4.2,
+  "summary": "Synthetic fixture drift is stable."
+}

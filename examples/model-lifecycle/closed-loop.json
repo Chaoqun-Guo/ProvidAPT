@@ -1,0 +1,24 @@
+{
+  "status": "ready",
+  "model_name": "graph-detector",
+  "model_version": "1.0.0",
+  "feature_schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "dataset": {
+    "baseline_days": 14,
+    "records": 240,
+    "source": "synthetic-fixture"
+  },
+  "feedback": {
+    "records": 48,
+    "reviewed": 28,
+    "labels": {
+      "true_positive": 14,
+      "false_positive": 8,
+      "benign": 4,
+      "duplicate": 2
+    }
+  },
+  "drift": {
+    "status": "stable"
+  }
+}
