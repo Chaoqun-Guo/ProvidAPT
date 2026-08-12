@@ -114,11 +114,54 @@ class VisualRegressionGateTest(unittest.TestCase):
 
     def test_blocks_failed_dom_assertions(self):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
-        screenshots[0]["dom_assertions"] = {"status": "fail"}
+        screenshots[0]["dom_assertions"] = {
+            "status": "fail",
+            "horizontal_overflow_px": 12,
+            "max_element_overflow_px": 9,
+            "max_text_overflow_px": 7,
+            "element_overflows": [{"selector": ".wide", "overflow_px": 9}],
+            "text_overflows": [{"selector": ".label", "overflow_px": 7}],
+        }
         report = subject.build_report(self.args(self.write_manifest(screenshots)))
         self.assertEqual(report["status"], "blocked")
         self.assertIn("DOM assertions failed", "\n".join(report["failures"]))
         self.assertEqual(report["visual_evidence_summary"]["dom_assertions"]["failed"], 1)
+        details = report["visual_evidence_summary"]["dom_assertions"]["failure_details"]
+        self.assertEqual(details[0]["page"], "dashboard")
+        self.assertEqual(details[0]["horizontal_overflow_px"], 12)
+        self.assertEqual(details[0]["element_overflow_examples"][0]["selector"], ".wide")
+        rendered = subject.render_markdown(report)
+        self.assertIn("DOM Failure Details", rendered)
+        self.assertIn("horizontal=12", rendered)
+        self.assertIn("element_examples=.wide", rendered)
+
+    def test_summarizes_trace_viewer_dom_failure_details(self):
+        screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]
+        trace = next(item for item in screenshots if item["page"] == "trace-viewer" and item["viewport"]["name"] == "1366x768")
+        trace["dom_assertions"] = {
+            "status": "fail",
+            "has_svg": False,
+            "svg_width": 0,
+            "svg_height": 0,
+            "layout_modes": ["tree"],
+            "has_png_export": False,
+            "has_svg_export": True,
+            "has_raw_svg": False,
+            "has_report_export": True,
+            "has_summary": True,
+            "has_selected_panel": False,
+            "failures": ["svg missing", "layout modes missing: compact,grouped,timeline"],
+        }
+        report = subject.build_report(self.args(self.write_manifest(screenshots)))
+        self.assertEqual(report["status"], "blocked")
+        details = report["visual_evidence_summary"]["dom_assertions"]["failure_details"]
+        trace_detail = next(item for item in details if item["page"] == "trace-viewer")
+        self.assertEqual(trace_detail["missing_layout_modes"], ["compact", "grouped", "timeline"])
+        self.assertIn("PNG", trace_detail["missing_controls"])
+        self.assertIn("Selected Element", trace_detail["missing_controls"])
+        rendered = subject.render_markdown(report)
+        self.assertIn("missing_layouts=compact,grouped,timeline", rendered)
+        self.assertIn("missing_controls=PNG,Raw SVG,Selected Element", rendered)
 
     def test_blocks_missing_dom_assertions_by_default(self):
         screenshots = [self.shot(page, viewport) for page in ["dashboard", "trace-viewer"] for viewport in ["390x844", "1366x768", "1920x1080", "2560x1080"]]

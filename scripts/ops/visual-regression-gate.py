@@ -28,6 +28,51 @@ def screenshot_key(item: dict[str, Any]) -> tuple[str, str]:
     return str(item.get("page") or ""), str(viewport.get("name") or "")
 
 
+def dom_failure_detail(page: str, viewport: str, assertions: dict[str, Any]) -> dict[str, Any]:
+    detail: dict[str, Any] = {
+        "page": page,
+        "viewport": viewport,
+        "status": str(assertions.get("status") or ""),
+        "failures": [str(item) for item in assertions.get("failures", [])],
+    }
+    if page == "dashboard":
+        element_overflows = assertions.get("element_overflows") if isinstance(assertions.get("element_overflows"), list) else []
+        text_overflows = assertions.get("text_overflows") if isinstance(assertions.get("text_overflows"), list) else []
+        detail.update(
+            {
+                "horizontal_overflow_px": int(assertions.get("horizontal_overflow_px") or 0),
+                "max_element_overflow_px": int(assertions.get("max_element_overflow_px") or 0),
+                "max_text_overflow_px": int(assertions.get("max_text_overflow_px") or 0),
+                "element_overflow_examples": element_overflows[:5],
+                "text_overflow_examples": text_overflows[:5],
+            }
+        )
+    if page == "trace-viewer":
+        modes = set(assertions.get("layout_modes") or [])
+        missing_modes = sorted({"tree", "compact", "timeline", "grouped"} - modes)
+        missing_controls = []
+        for key, label in [
+            ("has_png_export", "PNG"),
+            ("has_svg_export", "SVG"),
+            ("has_raw_svg", "Raw SVG"),
+            ("has_report_export", "Report"),
+            ("has_summary", "Trace Summary"),
+            ("has_selected_panel", "Selected Element"),
+        ]:
+            if not assertions.get(key):
+                missing_controls.append(label)
+        detail.update(
+            {
+                "has_svg": bool(assertions.get("has_svg")),
+                "svg_width": int(assertions.get("svg_width") or 0),
+                "svg_height": int(assertions.get("svg_height") or 0),
+                "missing_layout_modes": missing_modes,
+                "missing_controls": missing_controls,
+            }
+        )
+    return detail
+
+
 def visual_evidence_summary(
     manifest: dict[str, Any],
     screenshots: list[dict[str, Any]],
@@ -43,6 +88,9 @@ def visual_evidence_summary(
     dom_total = 0
     dom_failed = 0
     dom_missing = 0
+    dom_failure_details: list[dict[str, Any]] = []
+    dom_failed_by_page: dict[str, int] = {}
+    dom_missing_by_page: dict[str, int] = {}
     missing_by_page: dict[str, list[str]] = {}
     missing_by_viewport: dict[str, list[str]] = {}
     for page, viewport in missing_required:
@@ -59,8 +107,11 @@ def visual_evidence_summary(
             dom_total += 1
             if str(assertions.get("status") or "").lower() != "pass":
                 dom_failed += 1
+                dom_failed_by_page[page or "unknown"] = dom_failed_by_page.get(page or "unknown", 0) + 1
+                dom_failure_details.append(dom_failure_detail(page or "unknown", _viewport or "unknown", assertions))
         else:
             dom_missing += 1
+            dom_missing_by_page[page or "unknown"] = dom_missing_by_page.get(page or "unknown", 0) + 1
     return {
         "coverage": {
             "covered_count": coverage.get("covered_count", 0),
@@ -87,6 +138,9 @@ def visual_evidence_summary(
             "total": dom_total,
             "failed": dom_failed,
             "missing": dom_missing,
+            "failed_by_page": dict(sorted(dom_failed_by_page.items())),
+            "missing_by_page": dict(sorted(dom_missing_by_page.items())),
+            "failure_details": dom_failure_details,
         },
         "baseline": {
             "status": comparison.get("status", ""),
@@ -129,7 +183,22 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             if args.require_dom_assertions and not assertions:
                 failures.append(f"{page} {viewport} DOM assertions are missing")
             if assertions and assertions.get("status") != "pass":
-                failures.append(f"{page} {viewport} DOM assertions failed")
+                detail = dom_failure_detail(page, viewport, assertions)
+                if page == "dashboard":
+                    failures.append(
+                        f"{page} {viewport} DOM assertions failed "
+                        f"(horizontal={detail.get('horizontal_overflow_px', 0)}, "
+                        f"element={detail.get('max_element_overflow_px', 0)}, "
+                        f"text={detail.get('max_text_overflow_px', 0)})"
+                    )
+                elif page == "trace-viewer":
+                    failures.append(
+                        f"{page} {viewport} DOM assertions failed "
+                        f"(missing_layouts={','.join(detail.get('missing_layout_modes', [])) or 'none'}, "
+                        f"missing_controls={','.join(detail.get('missing_controls', [])) or 'none'})"
+                    )
+                else:
+                    failures.append(f"{page} {viewport} DOM assertions failed")
     if manifest.get("failures"):
         failures.extend(str(item) for item in manifest.get("failures") or [])
     comparisons = [item for item in manifest.get("comparisons", []) if isinstance(item, dict)]
@@ -200,6 +269,37 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.extend(["", "### Missing By Viewport"])
             for viewport, pages in missing_by_viewport.items():
                 lines.append(f"- `{viewport}`: {', '.join(pages)}")
+    dom_details = report["visual_evidence_summary"]["dom_assertions"].get("failure_details") or []
+    if dom_details:
+        lines.extend(["", "## DOM Failure Details", "", "| Page | Viewport | Detail |", "| --- | --- | --- |"])
+        for item in dom_details:
+            parts = []
+            if item.get("page") == "dashboard":
+                parts.extend(
+                    [
+                        f"horizontal={item.get('horizontal_overflow_px', 0)}",
+                        f"element={item.get('max_element_overflow_px', 0)}",
+                        f"text={item.get('max_text_overflow_px', 0)}",
+                    ]
+                )
+                element_examples = item.get("element_overflow_examples") or []
+                if element_examples:
+                    selectors = [str(example.get("selector") or "") for example in element_examples if isinstance(example, dict)]
+                    parts.append("element_examples=" + ",".join(selector for selector in selectors if selector))
+                text_examples = item.get("text_overflow_examples") or []
+                if text_examples:
+                    selectors = [str(example.get("selector") or "") for example in text_examples if isinstance(example, dict)]
+                    parts.append("text_examples=" + ",".join(selector for selector in selectors if selector))
+            if item.get("page") == "trace-viewer":
+                parts.append(f"svg={str(item.get('has_svg', False)).lower()}")
+                parts.append(f"svg_size={item.get('svg_width', 0)}x{item.get('svg_height', 0)}")
+                if item.get("missing_layout_modes"):
+                    parts.append("missing_layouts=" + ",".join(item["missing_layout_modes"]))
+                if item.get("missing_controls"):
+                    parts.append("missing_controls=" + ",".join(item["missing_controls"]))
+            if item.get("failures"):
+                parts.append("failures=" + ",".join(item["failures"]))
+            lines.append(f"| {item.get('page', '')} | {item.get('viewport', '')} | {'; '.join(parts)} |")
     if report["failures"]:
         lines.extend(["", "## Failures", ""])
         lines.extend(f"- {item}" for item in report["failures"])

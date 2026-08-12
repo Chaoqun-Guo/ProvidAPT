@@ -409,7 +409,9 @@ include a `comparison_summary` with changed, unchanged, new, skipped, and
 missing-baseline counts plus focused changed/skipped detail for release review.
 Use `DRY_RUN=1` to validate the screenshot plan without launching a browser.
 The visual regression gate reports missing required screenshots both as exact
-page/viewport pairs and grouped by page and viewport.
+page/viewport pairs and grouped by page and viewport. DOM assertion failures are
+also summarized with Dashboard overflow metrics and Trace Viewer missing layout
+modes or export controls.
 
 Gate captured screenshot evidence before release:
 

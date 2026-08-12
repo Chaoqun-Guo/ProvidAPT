@@ -149,6 +149,8 @@ Current closure progress:
   structured coverage, baseline, required-matrix, screenshot, and DOM assertion
   summaries. Snapshot manifests also include a required page/viewport matrix,
   and gate reports group missing screenshots by exact pair, page, and viewport.
+  DOM failure details summarize Dashboard overflow metrics and Trace Viewer
+  missing layout/export controls.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual
   browser baseline coverage/comparison summaries, onboarding outputs, plugin
