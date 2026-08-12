@@ -55,6 +55,45 @@ def model_lifecycle_detail(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def visual_regression_detail(report: dict[str, Any]) -> dict[str, Any]:
+    coverage = report.get("coverage") if isinstance(report.get("coverage"), dict) else {}
+    comparison = report.get("comparison_summary") if isinstance(report.get("comparison_summary"), dict) else {}
+    counts = comparison.get("counts") if isinstance(comparison.get("counts"), dict) else {}
+    screenshots = report.get("screenshots") if isinstance(report.get("screenshots"), list) else []
+    dom_total = 0
+    dom_failed = 0
+    page_status: dict[str, dict[str, int]] = {}
+    for shot in screenshots:
+        if not isinstance(shot, dict):
+            continue
+        page = str(shot.get("page") or "unknown")
+        status = str(shot.get("status") or "unknown")
+        page_status.setdefault(page, {})
+        page_status[page][status] = page_status[page].get(status, 0) + 1
+        dom = shot.get("dom_assertions") if isinstance(shot.get("dom_assertions"), dict) else {}
+        if dom:
+            dom_total += 1
+            if str(dom.get("status") or "").lower() != "pass":
+                dom_failed += 1
+    return {
+        "status": str(report.get("status") or ""),
+        "complete_default_matrix": bool(coverage.get("complete_default_matrix")),
+        "covered_count": coverage.get("covered_count", 0),
+        "screenshot_count": coverage.get("screenshot_count", len(screenshots)),
+        "viewport_classes": list(coverage.get("viewport_classes") or []),
+        "missing_pages": list(coverage.get("missing_pages") or []),
+        "missing_default_viewports": list(coverage.get("missing_default_viewports") or []),
+        "comparison_status": comparison.get("status", ""),
+        "comparison_counts": counts,
+        "changed_count": counts.get("changed", 0),
+        "new_count": counts.get("new", 0),
+        "skipped_count": counts.get("skipped", 0),
+        "missing_baseline_count": counts.get("missing_baseline", 0),
+        "dom_assertions": {"total": dom_total, "failed": dom_failed},
+        "page_status": dict(sorted(page_status.items())),
+    }
+
+
 def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missing: bool) -> dict[str, Any]:
     status = status_value(report, allow_missing)
     row: dict[str, Any] = {
@@ -79,6 +118,8 @@ def evidence_summary(name: str, path: Path, report: dict[str, Any], allow_missin
         )
     if name == "model_lifecycle" and report:
         row["model_lifecycle"] = model_lifecycle_detail(report)
+    if name == "visual_regression_snapshots" and report:
+        row["visual_regression"] = visual_regression_detail(report)
     return row
 
 
@@ -159,6 +200,24 @@ def render_markdown(report: dict[str, Any]) -> str:
                 detail_parts.append("feedback=" + label_text)
             if detail.get("missing_evidence"):
                 detail_parts.append("missing_evidence=" + ",".join(detail["missing_evidence"]))
+        if item.get("visual_regression"):
+            detail = item["visual_regression"]
+            detail_parts.append(f"coverage={detail.get('covered_count', 0)}/{detail.get('screenshot_count', 0)}")
+            detail_parts.append(f"matrix_complete={str(detail.get('complete_default_matrix', False)).lower()}")
+            if detail.get("viewport_classes"):
+                detail_parts.append("viewports=" + ",".join(detail["viewport_classes"]))
+            if detail.get("comparison_status"):
+                detail_parts.append("baseline=" + str(detail["comparison_status"]))
+            comparison_counts = detail.get("comparison_counts") or {}
+            if comparison_counts:
+                detail_parts.append("comparison=" + ",".join(f"{key}:{value}" for key, value in sorted(comparison_counts.items())))
+            dom = detail.get("dom_assertions") or {}
+            if dom:
+                detail_parts.append(f"dom_failed={dom.get('failed', 0)}/{dom.get('total', 0)}")
+            if detail.get("missing_default_viewports"):
+                detail_parts.append("missing_viewports=" + ",".join(detail["missing_default_viewports"]))
+            if detail.get("missing_pages"):
+                detail_parts.append("missing_pages=" + ",".join(detail["missing_pages"]))
         lines.append(
             f"| {item['name']} | {item['status']} | {str(item['present']).lower()} | "
             f"{'; '.join(detail_parts)} | `{item['path']}` |"

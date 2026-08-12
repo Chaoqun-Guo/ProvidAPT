@@ -54,7 +54,7 @@ class OpenSourceMilestoneTest(unittest.TestCase):
         backlog = {"schema": "providapt.open_source_development_backlog.v1", "task_count": 8}
         self.assertEqual(subject.status_value(backlog, allow_missing=False), "pass")
 
-    def test_complete_milestone_passes(self):
+    def test_milestone_includes_model_and_visual_details(self):
         readiness = self.write_json("readiness.json", {
             "schema": "providapt.open_source_readiness.v1",
             "status": "pass",
@@ -91,7 +91,23 @@ class OpenSourceMilestoneTest(unittest.TestCase):
                 }
             },
         })
-        visual = self.write_json("visual.json", {"status": "pass"})
+        visual = self.write_json("visual.json", {
+            "status": "warn",
+            "coverage": {
+                "complete_default_matrix": True,
+                "covered_count": 8,
+                "screenshot_count": 8,
+                "viewport_classes": ["desktop_1366", "desktop_1080p", "mobile", "ultrawide"],
+            },
+            "comparison_summary": {
+                "status": "changed",
+                "counts": {"changed": 1, "unchanged": 7},
+            },
+            "screenshots": [
+                {"page": "dashboard", "status": "captured", "dom_assertions": {"status": "pass"}},
+                {"page": "trace-viewer", "status": "captured", "dom_assertions": {"status": "fail"}},
+            ],
+        })
         report = subject.build_report(self.args(
             open_source_readiness_gate=readiness,
             open_source_readiness_backlog=readiness_backlog,
@@ -101,16 +117,23 @@ class OpenSourceMilestoneTest(unittest.TestCase):
             model_lifecycle_gate=model,
             visual_regression_snapshots=visual,
         ))
-        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["status"], "warn")
         self.assertEqual(report["evidence"][0]["section_count"], 1)
         self.assertEqual(report["evidence"][1]["task_count"], 0)
         model_row = next(item for item in report["evidence"] if item["name"] == "model_lifecycle")
         self.assertEqual(model_row["model_lifecycle"]["promotion_decision"], "approved_for_promotion")
         self.assertEqual(model_row["model_lifecycle"]["feedback_labels"]["true_positive"], 10)
+        visual_row = next(item for item in report["evidence"] if item["name"] == "visual_regression_snapshots")
+        self.assertEqual(visual_row["visual_regression"]["changed_count"], 1)
+        self.assertTrue(visual_row["visual_regression"]["complete_default_matrix"])
+        self.assertEqual(visual_row["visual_regression"]["dom_assertions"]["failed"], 1)
         rendered = subject.render_markdown(report)
         self.assertIn("model=graph-detector:1.0.0", rendered)
         self.assertIn("decision=approved_for_promotion", rendered)
         self.assertIn("missing_evidence=approval", rendered)
+        self.assertIn("coverage=8/8", rendered)
+        self.assertIn("baseline=changed", rendered)
+        self.assertIn("dom_failed=1/2", rendered)
 
 
 if __name__ == "__main__":

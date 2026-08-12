@@ -143,7 +143,7 @@ Current closure progress:
 - Open-source milestone packaging is available through
   `make open-source-milestone`, combining readiness, readiness backlog,
   development backlog, release gate status, release evidence consistency, model
-  lifecycle promotion readiness, and visual baseline evidence into one
-  JSON/Markdown local milestone package.
+  lifecycle promotion readiness, visual baseline coverage, baseline comparison,
+  and DOM assertion evidence into one JSON/Markdown local milestone package.
 - Model deployment gating blocks unregistered, schema-incompatible, missing-artifact, artifact-hash-mismatched, drift-required, or low precision/recall detector versions through `make model-deploy-gate`.
 - Runtime online ML loading can require `model-deploy-gate.json` evidence before enabling scorer deployment.
