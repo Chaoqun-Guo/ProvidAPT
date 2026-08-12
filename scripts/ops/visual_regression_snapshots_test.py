@@ -112,6 +112,8 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             previous.write_bytes(b"previous")
             report = {
                 "status": "pass",
+                "server": "http://127.0.0.1:18080",
+                "alert_id": "p:100",
                 "warnings": [],
                 "screenshots": [
                     {
@@ -139,6 +141,22 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             mod.compare_baseline(report, str(baseline_path))
             self.assertEqual(report["status"], "warn")
             self.assertEqual(report["comparisons"][0]["status"], "changed")
+            self.assertEqual(report["comparison_summary"]["status"], "changed")
+            self.assertEqual(report["comparison_summary"]["counts"]["changed"], 1)
+            mod.write_outputs(report, root)
+            rendered = (root / "visual-regression-snapshots.md").read_text(encoding="utf-8")
+            self.assertIn("Baseline Summary", rendered)
+            self.assertIn("Changed Screenshots", rendered)
+
+    def test_baseline_compare_records_missing_baseline_summary(self):
+        mod = load_module()
+        report = {"status": "pass", "warnings": [], "screenshots": []}
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = str(Path(tmp) / "missing-baseline.json")
+            mod.compare_baseline(report, missing)
+            self.assertEqual(report["comparison_summary"]["status"], "missing_baseline")
+            self.assertEqual(report["comparison_summary"]["counts"]["missing_baseline"], 1)
+            self.assertIn("baseline manifest not found", report["warnings"][0])
 
     def test_coverage_summary_marks_complete_default_matrix(self):
         mod = load_module()

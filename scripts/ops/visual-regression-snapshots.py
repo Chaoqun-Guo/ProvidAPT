@@ -127,6 +127,13 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
         "| Page | Viewport | Status | Path |",
         "| --- | --- | --- | --- |",
     ]
+    comparison = report.get("comparison_summary") if isinstance(report.get("comparison_summary"), dict) else {}
+    if comparison:
+        counts = comparison.get("counts") if isinstance(comparison.get("counts"), dict) else {}
+        lines[8:8] = [
+            f"- Baseline comparison: `changed={counts.get('changed', 0)} / unchanged={counts.get('unchanged', 0)} / new={counts.get('new', 0)} / skipped={counts.get('skipped', 0)}`",
+            f"- Baseline status: `{comparison.get('status', 'unknown')}`",
+        ]
     for shot in report["screenshots"]:
         lines.append(
             f"| {shot['page']} | {shot['viewport']['name']} | {shot['status']} | `{shot['path']}` |"
@@ -141,6 +148,19 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
         lines.extend(["", "## Baseline Comparison", "", "| Page | Viewport | Status | Detail |", "| --- | --- | --- | --- |"])
         for item in report["comparisons"]:
             lines.append(f"| {item['page']} | {item['viewport']} | {item['status']} | {item.get('detail', '')} |")
+    if comparison:
+        lines.extend(["", "## Baseline Summary", "", "| Status | Count |", "| --- | ---: |"])
+        for status, count in sorted((comparison.get("counts") or {}).items()):
+            lines.append(f"| {status} | {count} |")
+        for key, title in [
+            ("changed", "Changed Screenshots"),
+            ("new", "New Screenshots"),
+            ("skipped", "Skipped Comparisons"),
+        ]:
+            items = comparison.get(key) or []
+            if items:
+                lines.extend(["", f"### {title}"])
+                lines.extend(f"- {item['page']} {item['viewport']}: {item.get('detail', '')}" for item in items)
     coverage = report.get("coverage") or {}
     if coverage.get("missing_pages") or coverage.get("missing_default_viewports"):
         lines.extend(["", "## Coverage Gaps"])
@@ -346,6 +366,14 @@ def compare_baseline(report: dict[str, Any], baseline_path: str) -> None:
     baseline_file = Path(baseline_path)
     if not baseline_file.exists():
         report.setdefault("warnings", []).append(f"baseline manifest not found: {baseline_path}")
+        report["comparison_summary"] = {
+            "status": "missing_baseline",
+            "baseline_path": baseline_path,
+            "counts": {"missing_baseline": 1},
+            "changed": [],
+            "new": [],
+            "skipped": [],
+        }
         return
     baseline = json.loads(baseline_file.read_text(encoding="utf-8"))
     baseline_index: dict[tuple[str, str], dict[str, Any]] = {}
@@ -371,9 +399,36 @@ def compare_baseline(report: dict[str, Any], baseline_path: str) -> None:
         else:
             comparisons.append({"page": key[0], "viewport": viewport, "status": "changed", "detail": "sha256 differs"})
     report["comparisons"] = comparisons
+    report["comparison_summary"] = comparison_summary(comparisons, baseline_path)
     if any(item["status"] == "changed" for item in comparisons) and report.get("status") == "pass":
         report["status"] = "warn"
     attach_coverage_summary(report)
+
+
+def comparison_summary(comparisons: list[dict[str, str]], baseline_path: str = "") -> dict[str, Any]:
+    counts: dict[str, int] = {}
+    for item in comparisons:
+        status = str(item.get("status") or "unknown")
+        counts[status] = counts.get(status, 0) + 1
+    changed = [item for item in comparisons if item.get("status") == "changed"]
+    new = [item for item in comparisons if item.get("status") == "new"]
+    skipped = [item for item in comparisons if item.get("status") == "skipped"]
+    if changed:
+        status = "changed"
+    elif skipped:
+        status = "incomplete"
+    elif new:
+        status = "expanded"
+    else:
+        status = "matched"
+    return {
+        "status": status,
+        "baseline_path": baseline_path,
+        "counts": dict(sorted(counts.items())),
+        "changed": changed,
+        "new": new,
+        "skipped": skipped,
+    }
 
 
 def parse_args() -> argparse.Namespace:

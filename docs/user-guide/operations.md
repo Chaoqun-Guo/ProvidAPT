@@ -402,8 +402,10 @@ records coverage by page, viewport, viewport class, and missing default
 viewports so release evidence can show whether the full baseline matrix was
 captured. Pass
 `BASELINE=build/visual-regression/visual-regression-snapshots.json` to compare
-current screenshot hashes against a previous manifest. Use `DRY_RUN=1` to
-validate the screenshot plan without launching a browser.
+current screenshot hashes against a previous manifest. Baseline comparisons
+include a `comparison_summary` with changed, unchanged, new, skipped, and
+missing-baseline counts plus focused changed/skipped detail for release review.
+Use `DRY_RUN=1` to validate the screenshot plan without launching a browser.
 
 Gate captured screenshot evidence before release:
 

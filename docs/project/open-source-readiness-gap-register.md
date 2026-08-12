@@ -131,7 +131,11 @@ Current closure progress:
   `make plugin-catalog-gate`, blocking duplicate plugin identities, unsigned
   entries, missing permissions, incomplete distribution metadata, and missing
   rollback evidence.
-- Visual regression gating now requires captured Dashboard and Trace Viewer screenshots, hashes, and passing DOM assertions for each required viewport; dry-run planning must explicitly opt out through `ALLOW_PLANNED_VISUALS=1`.
+- Visual regression gating now requires captured Dashboard and Trace Viewer
+  screenshots, hashes, and passing DOM assertions for each required viewport;
+  dry-run planning must explicitly opt out through `ALLOW_PLANNED_VISUALS=1`.
+  Snapshot evidence now includes baseline comparison summaries for changed,
+  new, skipped, and missing-baseline review.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual
   browser baseline coverage, onboarding outputs, plugin release gates, required
