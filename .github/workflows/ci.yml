@@ -92,8 +92,8 @@ jobs:
             sleep 2
           done
 
-  commercial-release:
-    name: commercial release and package smoke
+  open-source-release:
+    name: open-source release and package smoke
     runs-on: ubuntu-24.04
     env:
       BUILD_EBPF: "1"
@@ -126,9 +126,9 @@ jobs:
           fi
           bpftool version
 
-      - name: Build commercial release artifacts
+      - name: Build open-source release artifacts
         run: |
-          VERSION="0.0.0+${GITHUB_SHA::7}" make release-commercial
+          VERSION="0.0.0+${GITHUB_SHA::7}" make release-open-source
 
       - name: Validate SBOM inventory
         run: |
