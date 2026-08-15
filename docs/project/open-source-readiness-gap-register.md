@@ -15,6 +15,10 @@ Current closure progress:
 
 - Release gate collection accepts external GitHub Actions evidence via `--ci-evidence`.
 - Grype/Trivy/govulncheck gates accept structured or Markdown waiver evidence via `--waiver`.
+- `make release-security-local-gate` now runs local govulncheck, Grype, and
+  Trivy evidence capture, writes scanner attempt records for missing tools or
+  blocked runs, and regenerates the current commit scan manifest without
+  treating partial scanner evidence as passed evidence.
 - Final artifact generation remains tied to `make release-open-source` from the final release tag.
 - Named Engineering, Security, Legal/project-owner, and Maintainer decisions still require real owner signoff.
 

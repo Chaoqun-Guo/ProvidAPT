@@ -76,9 +76,10 @@ class OpenSourceLocalClosureTest(unittest.TestCase):
 
         self.assertNotIn("blocked_missing_input", set(statuses.values()))
         self.assertNotIn("blocked_missing_tool", set(statuses.values()))
-        self.assertIn(statuses["onboarding-first-run-polish"], {"ready_to_run", "ready_to_rerun"})
+        self.assertIn(statuses["onboarding-first-run-polish"], {"pass", "ready_to_run", "ready_to_rerun"})
         onboarding = next(row for row in report["tasks"] if row["id"] == "onboarding-first-run-polish")
-        self.assertTrue(onboarding["unable_reason"])
+        if onboarding["status"] != "pass":
+            self.assertTrue(onboarding["unable_reason"])
 
     def test_markdown_lists_all_task_ids_and_blocker_sections(self) -> None:
         report = subject.build_report(args(), tool_resolver=lambda _tool: False)

@@ -781,11 +781,25 @@ manifest, plus model lifecycle promotion evidence when
 `MODEL_LIFECYCLE_GATE` or `build/evaluation/model-lifecycle-gate.json` is
 present. It is the fastest local view of release blockers before opening the
 larger evidence JSON files.
+`make release-security-local-gate` runs the local release scanner evidence
+capture for govulncheck, Grype, and Trivy, then regenerates
+`build/security/scan-manifest.json` and
+`build/security/release-security-local-gate.json`. Missing scanner binaries,
+timeouts, database download failures, and non-zero exits are written as
+`*-attempt.json` records under `build/security` so the release record can show
+whether a scanner was not installed, not run, or attempted and blocked.
+Use `ALLOW_PARTIAL=1` during local development when you want the command to
+finish and write evidence even if one scanner is unavailable:
+
+```bash
+make release-security-local-gate ALLOW_PARTIAL=1
+```
+
 `make security-scan-manifest` regenerates the current-commit scanner manifest
-from existing `build/security` outputs. It accepts govulncheck JSON event
-streams and marks missing Grype or Trivy reports honestly, so
-`make release-gates` can show which scanner evidence is complete and which
-still needs a database-backed rerun or explicit security waiver.
+from existing `build/security` outputs without rerunning scanners. It accepts
+govulncheck JSON event streams and marks missing Grype or Trivy reports
+honestly, so `make release-gates` can show which scanner evidence is complete
+and which still needs a database-backed rerun or explicit security waiver.
 When a scanner run is blocked by database download, timeout, or environment
 setup, place a matching `*-attempt.json` record in `build/security`; the
 manifest includes those attempt details next to the missing report so release

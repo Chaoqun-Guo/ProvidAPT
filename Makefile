@@ -4,7 +4,7 @@
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate model-lifecycle-example-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates security-scan-manifest artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
 .PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
@@ -252,6 +252,9 @@ github-actions-evidence:
 
 release-gates:
 	python3 scripts/release/release_gate_status.py $(if $(SKIP_CI),--skip-ci) $(if $(RELEASE_WAIVER),--waiver "$(RELEASE_WAIVER)") $(if $(CI_EVIDENCE),--ci-evidence "$(CI_EVIDENCE)")
+
+release-security-local-gate:
+	python3 scripts/release/release-security-local-gate.py --project-dir . --security-dir "$(or $(SECURITY_DIR),build/security)" $(if $(VERSION),--version "$(VERSION)") $(if $(COMMIT),--commit "$(COMMIT)") $(if $(FULL_COMMIT),--full-commit "$(FULL_COMMIT)") $(if $(GO_TAGS),--go-tags "$(GO_TAGS)") $(if $(SCAN_TIMEOUT),--timeout "$(SCAN_TIMEOUT)") $(if $(SKIP_GOVULNCHECK),--skip-govulncheck) $(if $(SKIP_GRYPE),--skip-grype) $(if $(SKIP_TRIVY),--skip-trivy) $(if $(ALLOW_PARTIAL),--allow-partial) --out-json "$(or $(OUT_DIR),build/security)/release-security-local-gate.json" --out-md "$(or $(OUT_DIR),build/security)/release-security-local-gate.md"
 
 security-scan-manifest:
 	python3 scripts/release/security-scan-manifest.py --security-dir "$(or $(SECURITY_DIR),build/security)" $(if $(VERSION),--version "$(VERSION)") $(if $(COMMIT),--commit "$(COMMIT)") $(if $(FULL_COMMIT),--full-commit "$(FULL_COMMIT)") $(if $(ALLOW_PARTIAL),--allow-partial) --out-json "$(or $(OUT_DIR),build/security)/scan-manifest.json" --out-md "$(or $(OUT_DIR),build/security)/scan-manifest.md"
@@ -637,6 +640,7 @@ help:
 	@echo '  make release-open-source Build open-source release artifacts, SBOMs, checksums, scans, and readiness report'
 	@echo '  make github-actions-evidence Collect structured GitHub Actions evidence'
 	@echo '  make release-gates     Collect CI, scanner, approval, and artifact gate status'
+	@echo '  make release-security-local-gate Run local govulncheck/Grype/Trivy evidence capture'
 	@echo '  make security-scan-manifest Generate current-commit security scan manifest from local scanner outputs'
 	@echo '  make artifact-signing-gate Validate checksums, artifact hashes, and signature evidence'
 	@echo '  make release-evidence-consistency-gate Validate release commit/version evidence consistency'
