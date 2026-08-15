@@ -1,0 +1,47 @@
+{
+  "schema": "providapt.onboarding_check_results.v1",
+  "checks": [
+    {
+      "name": "tailscale",
+      "status": "pass",
+      "observed": "fixture tailnet status verified",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
+      "name": "ssh",
+      "status": "pass",
+      "observed": "fixture VM SSH targets are reachable",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
+      "name": "api",
+      "status": "pass",
+      "observed": "fixture local API health check returned 200",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
+      "name": "dashboard",
+      "status": "pass",
+      "observed": "fixture dashboard shell returned 200",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
+      "name": "tls",
+      "status": "pass",
+      "observed": "fixture TLS certificate expiry check passed",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
+      "name": "secrets",
+      "status": "pass",
+      "observed": "fixture secret template validation passed",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
+      "name": "postgres",
+      "status": "pass",
+      "observed": "fixture PostgreSQL backup and restore drill passed",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    }
+  ]
+}

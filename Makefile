@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates security-scan-manifest artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
 
@@ -390,6 +390,9 @@ upgrade-rollout-plan:
 onboarding-wizard:
 	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode "$(or $(ONBOARDING_MODE),standalone)" --rest-port "$(or $(REST_PORT),18080)" --grpc-port "$(or $(GRPC_PORT),50051)" $(if $(POSTGRES_DSN),--postgres-dsn "$(POSTGRES_DSN)") $(if $(ONBOARDING_VM_HOSTS),--vm-hosts "$(ONBOARDING_VM_HOSTS)") $(if $(CHECK_RESULTS),--check-results "$(CHECK_RESULTS)")
 
+onboarding-example-gate:
+	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode standalone --rest-port 18080 --grpc-port 50051 --postgres-dsn "postgres://fixture/providapt?sslmode=require" --vm-hosts "ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" --check-results examples/onboarding-first-run/check-results.json
+
 plugin-release-gate:
 	@if [ -z "$(PLUGIN_MANIFEST)" ]; then echo 'usage: make plugin-release-gate PLUGIN_MANIFEST=path/plugin.json [PLUGIN_SIGNATURE=path/plugin.json.sig]'; exit 2; fi
 	python3 scripts/ops/plugin-release-gate.py --manifest "$(PLUGIN_MANIFEST)" $(if $(PLUGIN_SIGNATURE),--signature "$(PLUGIN_SIGNATURE)") $(if $(ALLOW_UNSIGNED_PLUGIN),--allow-unsigned) --out-json "$(or $(OUT_DIR),build/plugins)/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-release-gate.md"
@@ -678,6 +681,7 @@ help:
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check long-duration performance budgets'
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... [BATCH_BY_GROUP=1] Plan staged upgrades'
 	@echo '  make onboarding-wizard Generate first-run config and checklist'
+	@echo '  make onboarding-example-gate Run sample first-run onboarding fixture'
 	@echo '  make plugin-release-gate PLUGIN_MANIFEST=... Validate plugin signing and compatibility'
 	@echo '  make plugin-example-gates Run signed sample plugin release and catalog gates'
 	@echo '  make customer-env-certification-gate Aggregate customer environment certification evidence'

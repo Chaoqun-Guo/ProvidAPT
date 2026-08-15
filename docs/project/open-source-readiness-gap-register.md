@@ -144,6 +144,9 @@ Current closure progress:
   evidence aggregation, plus a staged `operator_flow` covering prepare,
   configure, start, verify, and handoff work. `ONBOARDING_VM_HOSTS=...` can
   render concrete SSH connectivity checks for known VM targets.
+- `make onboarding-example-gate` now runs a synthetic first-run check-results
+  fixture through the onboarding wizard so the bundle format can be smoke-tested
+  locally without contacting the VMs.
 - Plugin release gating validates plugin manifests, semantic versions,
   supported plugin types, least-privilege permission declarations,
   compatibility ranges, signed distribution metadata, artifact SHA-256 evidence,

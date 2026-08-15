@@ -637,6 +637,17 @@ make onboarding-wizard \
   POSTGRES_DSN='postgres://providapt:<password>@postgres:5432/providapt?sslmode=require'
 ```
 
+For a local smoke test with synthetic first-run check results, run:
+
+```bash
+make onboarding-example-gate
+```
+
+The fixture under `examples/onboarding-first-run/` produces a passing
+onboarding manifest without contacting the VMs. Replace it with real observed
+Tailscale, SSH, API, dashboard, TLS, secrets, and PostgreSQL results for final
+release evidence.
+
 The onboarding bundle includes a production-oriented starter config, checklist,
 environment checks for Tailscale/SSH/API/TLS/secrets/PostgreSQL, and manifest
 that can be attached to customer handoff evidence. It also writes
