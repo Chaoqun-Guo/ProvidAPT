@@ -1,0 +1,6 @@
+{
+  "status": "pass",
+  "provider": "fixture-webhook",
+  "delivered": 3,
+  "dead_letter": 0
+}

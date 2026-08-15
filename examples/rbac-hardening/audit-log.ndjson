@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "timestamp": "2026-08-12T00:00:00Z",
+      "source": "policy",
+      "actor": "Open Source Security Reviewer",
+      "action": "approval.consumed",
+      "tenant": "prod"
+    },
+    {
+      "timestamp": "2026-08-12T00:05:00Z",
+      "source": "upgrade",
+      "actor": "Open Source Admin",
+      "action": "approval.consumed",
+      "tenant": "staging"
+    }
+  ]
+}

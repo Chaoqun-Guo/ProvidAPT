@@ -1,0 +1,19 @@
+{
+  "roles": [
+    {
+      "role": "admin",
+      "decision": "approved",
+      "owner": "Open Source Admin Owner"
+    },
+    {
+      "role": "analyst",
+      "decision": "approved",
+      "owner": "Open Source SOC Reviewer"
+    },
+    {
+      "role": "tenant_admin",
+      "decision": "approved",
+      "owner": "Open Source Security Reviewer"
+    }
+  ]
+}

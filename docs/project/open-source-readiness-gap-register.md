@@ -88,6 +88,7 @@ Current closure progress:
 - Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, SIEM/SOAR delivery checks, upgrade rollout evidence, and detection quality through `make enterprise-readiness`.
 - Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
 - Policy approval readiness gates RBAC status, tenant scoping, approval workflow, required approval actions, and approval audit evidence through `make policy-approval-gate`.
+- `make rbac-hardening-example-gate` now runs an open-source-safe RBAC fixture through RBAC audit, policy approval, and customer environment certification gates so the hardening evidence format can be smoke-tested locally.
 - Support bundle readiness gates archive presence, redaction, export audit, and download evidence through `make support-bundle-gate`.
 - Runtime deployment diagnostics gates API auth, TLS, storage encryption, policy sync, kernel attach, control plane, and support bundle availability through `make deployment-diagnostics-gate`.
 - VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.

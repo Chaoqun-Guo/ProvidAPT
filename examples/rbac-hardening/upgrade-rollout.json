@@ -1,0 +1,52 @@
+{
+  "status": "planned",
+  "target_version": "v1.2.3-fixture",
+  "eligible_agents": 3,
+  "agent_groups": [
+    "prod",
+    "staging"
+  ],
+  "agent_group_count": 2,
+  "pause_resume_controls": {
+    "pause": "operator can pause after every batch",
+    "resume": "operator can resume after verification"
+  },
+  "batches": [
+    {
+      "name": "canary",
+      "agents": [
+        "vm-ubuntu-master"
+      ],
+      "groups": [
+        "staging"
+      ],
+      "pause_after": true
+    },
+    {
+      "name": "prod",
+      "agents": [
+        "vm-centos-slave",
+        "vm-ubuntu-slave"
+      ],
+      "groups": [
+        "prod"
+      ]
+    }
+  ],
+  "rollback": {
+    "batches": [
+      {
+        "name": "canary",
+        "groups": [
+          "staging"
+        ]
+      },
+      {
+        "name": "prod",
+        "groups": [
+          "prod"
+        ]
+      }
+    ]
+  }
+}

@@ -588,6 +588,18 @@ fleet canary/pause/resume/rollback planning, 24-hour soak budgets, TLS/state
 backend/backup evidence, plugin signing and permission models, and onboarding
 environment checks.
 
+For a local smoke test of the RBAC/audit/customer-certification evidence shape,
+run:
+
+```bash
+make rbac-hardening-example-gate
+```
+
+The fixture uses public test keys and synthetic approvals under
+`examples/rbac-hardening/`; replace those files with real tenant-scoped
+configuration, audit exports, role review sign-off, and customer environment
+evidence for release closure.
+
 Audit export evidence may be CSV or JSON. CSV exports must include at least one
 data row after the header; JSON exports may use a top-level list or `events` /
 `records` array. Role review evidence may be Markdown or JSON, but it must show

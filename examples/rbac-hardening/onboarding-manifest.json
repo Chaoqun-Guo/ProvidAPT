@@ -1,0 +1,25 @@
+{
+  "mode": "standalone",
+  "environment_checks": [
+    {
+      "name": "tailscale",
+      "status": "pass"
+    },
+    {
+      "name": "ssh",
+      "status": "pass"
+    },
+    {
+      "name": "api",
+      "status": "pass"
+    },
+    {
+      "name": "tls",
+      "status": "pass"
+    },
+    {
+      "name": "postgres",
+      "status": "pass"
+    }
+  ]
+}

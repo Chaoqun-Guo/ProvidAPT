@@ -1,0 +1,8 @@
+{
+  "status": "pass",
+  "provider": "fixture-webhook",
+  "field_mapping": "verified",
+  "retry": "verified",
+  "backpressure": "verified",
+  "alert_landing": "verified"
+}

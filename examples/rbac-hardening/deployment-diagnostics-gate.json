@@ -1,0 +1,5 @@
+{
+  "status": "pass",
+  "tls_enabled": true,
+  "control_plane_state_backend": "postgres://fixture"
+}

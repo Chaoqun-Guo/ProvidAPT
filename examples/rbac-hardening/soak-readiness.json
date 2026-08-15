@@ -1,0 +1,11 @@
+{
+  "status": "pass",
+  "checks": {
+    "duration": {
+      "observed": 25
+    },
+    "drops": {
+      "observed": 0
+    }
+  }
+}

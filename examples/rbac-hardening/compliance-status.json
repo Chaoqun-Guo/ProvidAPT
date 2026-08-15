@@ -1,0 +1,21 @@
+{
+  "approvals": {
+    "enabled": true,
+    "required_actions": [
+      "policy.publish",
+      "policy.rollback",
+      "upgrade.preflight",
+      "upgrade.apply",
+      "upgrade.rollback",
+      "backup.prepare_cutover"
+    ],
+    "history": [
+      {
+        "id": "fixture-approval-1",
+        "status": "approved",
+        "action": "policy.publish",
+        "approved_by": "Open Source Security Reviewer"
+      }
+    ]
+  }
+}
