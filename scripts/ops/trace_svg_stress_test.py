@@ -93,6 +93,26 @@ class TraceSVGStressTest(unittest.TestCase):
         self.assertEqual(report["status"], "blocked")
         self.assertIn("no alert IDs supplied or discovered", "\n".join(report["failures"]))
 
+    def test_synthetic_mode_generates_large_layout_matrix(self):
+        report = subject.build_report(Namespace(
+            server="synthetic://local",
+            alert_id=[],
+            layout=list(subject.LAYOUTS),
+            api_key="",
+            timeout_seconds=1,
+            discover_limit=3,
+            max_latency_ms=100,
+            min_node_count=100,
+            synthetic_alerts=2,
+            synthetic_nodes=125,
+        ))
+
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["alert_source"], "synthetic")
+        self.assertEqual(len(report["alert_ids"]), 2)
+        self.assertEqual(len(report["results"]), 2 * len(subject.LAYOUTS))
+        self.assertTrue(all(item["node_count"] >= 125 for item in report["results"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -66,6 +66,10 @@ Current closure progress:
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Trace Viewer supports path-only focus from a selected node, node-type filtering, file/network folding, and layout modes for tree, compact, timeline, and grouped views.
 - Trace SVG layout pressure evidence can be collected against real alerts through `make trace-svg-stress`, including per-layout latency, SVG dimensions, node/edge counts, folded cluster counts, and automatic alert-ID discovery from `/api/v1/control/alerts` when `ALERT_IDS` is omitted.
+- `make trace-svg-stress-example` now generates deterministic large synthetic
+  Trace SVGs for every layout mode so the stress report path can be smoke-tested
+  locally without a running API; final release evidence still requires real
+  deployment alert IDs.
 - Dashboard provenance cluster views now support inspect, focused backward/forward trace links, and filtered cluster JSON export for offline layout and model-training review.
 - Alert workflow feedback is persisted to an append-only `alert-feedback.ndjson` ledger, merged back into dashboard alert views after restart, exported through `/api/v1/control/alerts/feedback`, consumed by `make alert-quality ALERT_FEEDBACK=...`, recorded in graph dataset manifests through `make graph-dataset ALERT_FEEDBACK=...`, merged into `make detection-quality`, and accepted by `make model-closed-loop REQUIRE_FEEDBACK=1` from either a feedback file or dataset manifest evidence.
 - Three-VM capture/enrichment evidence can be collected over SSH/SCP through `make collect-vm-capture-evidence`, which copies real `providapt-*.ndjson` files and runs `capture-enrichment-field-gate` on the gathered release evidence.

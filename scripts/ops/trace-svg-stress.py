@@ -86,6 +86,38 @@ def svg_stats(svg: str) -> dict[str, Any]:
     }
 
 
+def synthetic_svg(alert_id: str, layout: str, node_count: int) -> str:
+    node_count = max(1, node_count)
+    columns = max(1, min(16, int(node_count ** 0.5)))
+    spacing_x = 140 if layout in {"tree", "timeline"} else 96
+    spacing_y = 86 if layout != "compact" else 58
+    width = max(800, columns * spacing_x + 180)
+    rows = (node_count + columns - 1) // columns
+    height = max(420, rows * spacing_y + 180)
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" data-layout="{layout}">',
+        f'<title>Synthetic Trace SVG stress fixture for {alert_id}</title>',
+    ]
+    for i in range(node_count):
+        x = 70 + (i % columns) * spacing_x
+        y = 70 + (i // columns) * spacing_y
+        node_type = "process" if i % 3 == 0 else ("file" if i % 3 == 1 else "network")
+        parts.append(
+            f'<g data-node-id="{alert_id}:n{i}" data-type="{node_type}">'
+            f'<circle cx="{x}" cy="{y}" r="12"></circle><text x="{x + 16}" y="{y + 4}">n{i}</text></g>'
+        )
+        if i > 0:
+            source = f"{alert_id}:n{i - 1}"
+            target = f"{alert_id}:n{i}"
+            parts.append(f'<path data-source="{source}" data-target="{target}" d="M{x - spacing_x},{y} L{x},{y}"></path>')
+    cluster_count = max(1, node_count // 25) if layout == "grouped" else max(0, node_count // 50)
+    for i in range(cluster_count):
+        folded = min(25, max(2, node_count - i * 25))
+        parts.append(f'<g data-folded-count="{folded}" data-cluster-id="{alert_id}:c{i}"></g>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 def extract_number(text: str, pattern: str) -> float:
     match = re.search(pattern, text)
     if not match:
@@ -99,8 +131,11 @@ def extract_number(text: str, pattern: str) -> float:
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
     failures: list[str] = []
     discovered = False
+    synthetic = bool(getattr(args, "synthetic_alerts", 0))
     alert_ids = list(args.alert_id or [])
-    if not alert_ids:
+    if synthetic and not alert_ids:
+        alert_ids = [f"synthetic:{i + 1}" for i in range(int(args.synthetic_alerts))]
+    if not alert_ids and not synthetic:
         discovered = True
         try:
             alert_ids = discover_alert_ids(args.server, args.api_key, args.timeout_seconds, args.discover_limit)
@@ -113,7 +148,13 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         for layout in args.layout:
             result: dict[str, Any] = {"alert_id": alert_id, "layout": layout}
             try:
-                status, body, elapsed_ms = request_svg(args.server, alert_id, layout, args.api_key, args.timeout_seconds)
+                if synthetic:
+                    start = time.perf_counter()
+                    body = synthetic_svg(alert_id, layout, int(args.synthetic_nodes))
+                    elapsed_ms = (time.perf_counter() - start) * 1000.0
+                    status = 200
+                else:
+                    status, body, elapsed_ms = request_svg(args.server, alert_id, layout, args.api_key, args.timeout_seconds)
                 result.update({"http_status": status, "latency_ms": round(elapsed_ms, 2)})
                 result.update(svg_stats(body))
                 if status != 200:
@@ -143,12 +184,13 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "generated_at": utc_now(),
         "status": "blocked" if failures else "pass",
         "server": args.server,
-        "alert_source": "discovered" if discovered else "provided",
+        "alert_source": "synthetic" if synthetic else ("discovered" if discovered else "provided"),
         "alert_ids": alert_ids,
         "thresholds": {
             "max_latency_ms": args.max_latency_ms,
             "min_node_count": args.min_node_count,
             "timeout_seconds": args.timeout_seconds,
+            "synthetic_nodes": int(getattr(args, "synthetic_nodes", 0) or 0),
         },
         "layouts": list(args.layout),
         "results": results,
@@ -184,7 +226,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Collect real API stress evidence for Trace SVG layouts.")
-    parser.add_argument("--server", required=True)
+    parser.add_argument("--server", default="")
     parser.add_argument("--alert-id", action="append", default=[])
     parser.add_argument("--discover-limit", type=int, default=3, help="Discover up to N alert IDs from /api/v1/control/alerts when --alert-id is omitted")
     parser.add_argument("--layout", action="append", choices=LAYOUTS, default=list(LAYOUTS))
@@ -192,9 +234,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--max-latency-ms", type=float, default=1500.0)
     parser.add_argument("--min-node-count", type=int, default=1)
     parser.add_argument("--timeout-seconds", type=float, default=10.0)
+    parser.add_argument("--synthetic-alerts", type=int, default=0, help="Generate N synthetic alert SVGs locally instead of contacting the API")
+    parser.add_argument("--synthetic-nodes", type=int, default=250, help="Node count per synthetic alert")
     parser.add_argument("--out-json", default="build/trace-stress/trace-svg-stress.json")
     parser.add_argument("--out-md", default="build/trace-stress/trace-svg-stress.md")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if not args.server and not args.synthetic_alerts:
+        parser.error("--server is required unless --synthetic-alerts is set")
+    if args.synthetic_alerts and not args.server:
+        args.server = "synthetic://local"
+    return args
 
 
 def main(argv: list[str]) -> int:

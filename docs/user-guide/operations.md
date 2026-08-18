@@ -450,6 +450,18 @@ layouts, then records latency, SVG dimensions, byte size, node count, edge
 count, folded cluster count, and whether alerts were provided or discovered
 under `build/trace-stress/`.
 
+For local development without a running API or real alert IDs, run the
+synthetic fixture:
+
+```bash
+make trace-svg-stress-example
+```
+
+The synthetic fixture generates deterministic large SVGs for every layout mode
+and exercises the same statistics, threshold, JSON, and Markdown reporting
+path. It is useful for local smoke testing, but final release evidence must
+still use real alert IDs from the target deployment.
+
 Validate capture/enrichment field coverage from VM or evaluation NDJSON before
 training or customer evidence review:
 

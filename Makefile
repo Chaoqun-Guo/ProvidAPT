@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-consistency-gate customer-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan enterprise-readiness production-readiness-gate operations-readiness-gate customer-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
 
@@ -458,6 +458,9 @@ trace-svg-stress:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make trace-svg-stress PROVIDAPT_SERVER_URL=http://127.0.0.1:18080 [ALERT_IDS="p:100 p:200"] [OUT_DIR=build/trace-stress]'; exit 2; fi
 	python3 scripts/ops/trace-svg-stress.py --server "$(PROVIDAPT_SERVER_URL)" $(foreach alert,$(ALERT_IDS),--alert-id "$(alert)") $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") --discover-limit "$(or $(TRACE_DISCOVER_LIMIT),3)" --max-latency-ms "$(or $(MAX_LATENCY_MS),1500)" --min-node-count "$(or $(MIN_TRACE_NODES),1)" --out-json "$(or $(OUT_DIR),build/trace-stress)/trace-svg-stress.json" --out-md "$(or $(OUT_DIR),build/trace-stress)/trace-svg-stress.md"
 
+trace-svg-stress-example:
+	python3 scripts/ops/trace-svg-stress.py --synthetic-alerts "$(or $(SYNTHETIC_ALERTS),2)" --synthetic-nodes "$(or $(SYNTHETIC_TRACE_NODES),250)" --max-latency-ms "$(or $(MAX_LATENCY_MS),1500)" --min-node-count "$(or $(MIN_TRACE_NODES),200)" --out-json "$(or $(OUT_DIR),build/trace-stress)/trace-svg-stress.json" --out-md "$(or $(OUT_DIR),build/trace-stress)/trace-svg-stress.md"
+
 capture-enrichment-field-gate:
 	@if [ -z "$(EVENTS)" ]; then echo 'usage: make capture-enrichment-field-gate EVENTS=path/events.ndjson [OUT_DIR=build/capture-quality]'; exit 2; fi
 	python3 scripts/ops/capture-enrichment-field-gate.py $(foreach event,$(EVENTS),--events "$(event)") --min-events "$(or $(MIN_EVENTS),1)" --min-event-type-rate "$(or $(MIN_EVENT_TYPE_RATE),100)" --min-pid-rate "$(or $(MIN_PID_RATE),95)" --min-ppid-rate "$(or $(MIN_PPID_RATE),80)" --min-uid-rate "$(or $(MIN_UID_RATE),95)" --min-gid-rate "$(or $(MIN_GID_RATE),95)" --min-cmdline-rate "$(or $(MIN_CMDLINE_RATE),10)" --min-exe-path-rate "$(or $(MIN_EXE_PATH_RATE),10)" --min-pathname-rate "$(or $(MIN_PATHNAME_RATE),80)" --min-network-tuple-rate "$(or $(MIN_NETWORK_TUPLE_RATE),80)" --out-json "$(or $(OUT_DIR),build/capture-quality)/capture-enrichment-field-gate.json" --out-md "$(or $(OUT_DIR),build/capture-quality)/capture-enrichment-field-gate.md"
@@ -670,6 +673,7 @@ help:
 	@echo '  make support-bundle-gate Gate support bundle redaction and audit evidence'
 	@echo '  make deployment-diagnostics-gate Gate runtime deployment diagnostics evidence'
 	@echo '  make trace-svg-stress PROVIDAPT_SERVER_URL=... ALERT_IDS="..." Stress Trace SVG layouts'
+	@echo '  make trace-svg-stress-example Run synthetic local Trace SVG stress fixture'
 	@echo '  make collect-vm-capture-evidence PROVIDAPT_VM_HOSTS="..." Collect VM NDJSON and gate field enrichment'
 	@echo '  make install-delivery-check Validate installer, config, service, and handoff docs'
 	@echo '  make observability-pack-check Validate Prometheus, alert rules, dashboard, and live metrics'
