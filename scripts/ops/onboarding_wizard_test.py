@@ -36,6 +36,8 @@ class OnboardingWizardTest(unittest.TestCase):
             log_retain_bytes=268435456,
             alert_retain_bytes=67108864,
             postgres_dsn="postgres://providapt:pw@db/providapt",
+            server_url="http://vm-ubuntu-master:18080/",
+            policy_endpoint="http://vm-ubuntu-master:18080",
             vm_hosts="ubuntu@vm-ubuntu-master centos@vm-centos-slave",
             check_results="",
         ))
@@ -43,15 +45,19 @@ class OnboardingWizardTest(unittest.TestCase):
         config = (self.tmp / "providapt.onboarding.yaml").read_text(encoding="utf-8")
         self.assertIn("postgres://providapt", config)
         self.assertIn("auth_enabled: true", config)
+        self.assertIn("endpoint: http://vm-ubuntu-master:18080", config)
         loaded = json.loads((self.tmp / "onboarding-manifest.json").read_text(encoding="utf-8"))
         self.assertTrue(loaded["postgres"])
         self.assertEqual(loaded["status"], "warn")
+        self.assertEqual(loaded["server_url"], "http://vm-ubuntu-master:18080")
+        self.assertEqual(loaded["policy_endpoint"], "http://vm-ubuntu-master:18080")
         self.assertIn("report", loaded["outputs"])
         self.assertIn("check_results_template", loaded["outputs"])
         self.assertIn("operator_flow", loaded["outputs"])
         self.assertEqual(len(loaded["operator_flow"]), 5)
         self.assertEqual(loaded["operator_flow"][-1]["status"], "pending")
         self.assertIn("ubuntu@vm-ubuntu-master", loaded["environment_checks"][1]["command"])
+        self.assertIn("http://vm-ubuntu-master:18080/api/v1/status", loaded["environment_checks"][2]["command"])
         self.assertTrue(loaded["next_actions"])
         self.assertEqual(loaded["action_summary"]["action_count"], len(loaded["next_actions"]))
         self.assertIn("api", loaded["action_summary"]["unknown_checks"])
@@ -73,6 +79,9 @@ class OnboardingWizardTest(unittest.TestCase):
         flow = (self.tmp / "onboarding-operator-flow.md").read_text(encoding="utf-8")
         self.assertIn("First-Run Operator Flow", flow)
         self.assertIn("Prepare environment", flow)
+        self.assertIn(f"providaptd -config {self.tmp}/providapt.onboarding.yaml", flow)
+        self.assertIn("PROVIDAPT_SERVER_URL=http://vm-ubuntu-master:18080", flow)
+        self.assertIn("ONBOARDING_VM_HOSTS='ubuntu@vm-ubuntu-master centos@vm-centos-slave'", flow)
         template = json.loads((self.tmp / "onboarding-check-results.template.json").read_text(encoding="utf-8"))
         self.assertEqual(template["schema"], "providapt.onboarding_check_results.v1")
         self.assertIn("command", template["checks"][0])
@@ -95,6 +104,8 @@ class OnboardingWizardTest(unittest.TestCase):
             log_retain_bytes=268435456,
             alert_retain_bytes=67108864,
             postgres_dsn="",
+            server_url="",
+            policy_endpoint="",
             vm_hosts="",
             check_results=str(results),
         ))
@@ -114,6 +125,30 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("| warn | tls |", report)
         self.assertIn("Start providaptd", report)
         self.assertIn("Operator Flow", report)
+
+    def test_server_url_is_trimmed_and_used_in_operator_flow(self):
+        manifest = onboarding.build_bundle(Namespace(
+            out_dir=str(self.tmp),
+            mode="standalone",
+            rest_port=18080,
+            grpc_port=50051,
+            log_dir="/var/log/providapt",
+            log_retain_bytes=268435456,
+            alert_retain_bytes=67108864,
+            postgres_dsn="",
+            server_url="http://control.example:18080/",
+            policy_endpoint="http://policy.example:18080",
+            vm_hosts="",
+            check_results="",
+        ))
+        self.assertEqual(manifest["server_url"], "http://control.example:18080")
+        self.assertEqual(manifest["policy_endpoint"], "http://policy.example:18080")
+        flow = (self.tmp / "onboarding-operator-flow.md").read_text(encoding="utf-8")
+        self.assertIn("curl -fsS http://control.example:18080/api/v1/status", flow)
+        self.assertIn("PROVIDAPT_SERVER_URL=http://control.example:18080", flow)
+        self.assertIn("POLICY_ENDPOINT=http://policy.example:18080", flow)
+        config = (self.tmp / "providapt.onboarding.yaml").read_text(encoding="utf-8")
+        self.assertIn("endpoint: http://policy.example:18080", config)
 
 
 if __name__ == "__main__":

@@ -152,6 +152,10 @@ Current closure progress:
   evidence aggregation, plus a staged `operator_flow` covering prepare,
   configure, start, verify, and handoff work. `ONBOARDING_VM_HOSTS=...` can
   render concrete SSH connectivity checks for known VM targets.
+  `PROVIDAPT_SERVER_URL=...` now drives API, dashboard, visual-regression, and
+  operator-flow commands so local and Tailscale-domain first-run bundles use
+  the same control-plane endpoint; `POLICY_ENDPOINT=...` can override the agent
+  policy polling endpoint when it differs from the dashboard/API URL.
 - `make onboarding-example-gate` now runs a synthetic first-run check-results
   fixture through the onboarding wizard so the bundle format can be smoke-tested
   locally without contacting the VMs.

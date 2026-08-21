@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ SCHEMA = "providapt.onboarding_bundle.v1"
 
 def config_yaml(args: argparse.Namespace) -> str:
     state_backend = args.postgres_dsn if args.postgres_dsn else "/var/log/providapt/control-plane-state.json"
+    policy_endpoint = args.policy_endpoint or server_url(args)
     return f"""output:
   dir: {args.log_dir}
   format: json
@@ -37,7 +39,7 @@ storage:
   key_file: /etc/providapt/storage.key
 policy:
   enabled: true
-  endpoint: http://127.0.0.1:{args.rest_port}
+  endpoint: {policy_endpoint}
   api_key: ${{PROVIDAPT_POLICY_API_KEY}}
   poll_interval: 30s
 support_bundle:
@@ -77,7 +79,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 - Open dashboard and confirm all agents report healthy.
 - Run `make enterprise-readiness` before customer handoff.
 - Fill `onboarding-check-results.template.json` with observed results, then
-  rerun `make onboarding-wizard CHECK_RESULTS={result_template_path}`.
+  rerun `{onboarding_make_command(args, check_results=str(result_template_path))}`.
 - Follow `onboarding-operator-flow.md` for the staged first-run sequence and
   copy final observations back into the check-results JSON.
 
@@ -93,6 +95,8 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "status": onboarding_status(summary),
         "mode": args.mode,
+        "server_url": server_url(args),
+        "policy_endpoint": args.policy_endpoint or server_url(args),
         "rest_port": args.rest_port,
         "grpc_port": args.grpc_port,
         "postgres": bool(args.postgres_dsn),
@@ -117,11 +121,12 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
     vm_targets = vm_hosts(args)
     ssh_command = " && ".join(f"ssh -o BatchMode=yes {target} true" for target in vm_targets) if vm_targets else "ssh -o BatchMode=yes <user>@<vm-host> true"
+    base_url = server_url(args)
     checks = [
         check("tailscale", "tailscale status", "verify tailnet connectivity", "Fix Tailscale login, DNS, or ACLs before VM checks."),
         check("ssh", ssh_command, "verify passwordless VM access", "Install or repair SSH keys for every target VM."),
-        check("api", f"curl -fsS http://127.0.0.1:{args.rest_port}/api/v1/status", "verify REST API health", "Start providaptd and confirm local firewall rules."),
-        check("dashboard", f"curl -fsS http://127.0.0.1:{args.rest_port}/dashboard", "verify dashboard shell is reachable", "Check REST bind address, auth settings, and reverse proxy routing."),
+        check("api", f"curl -fsS {base_url}/api/v1/status", "verify REST API health", "Start providaptd and confirm local firewall rules."),
+        check("dashboard", f"curl -fsS {base_url}/dashboard", "verify dashboard shell is reachable", "Check REST bind address, auth settings, and reverse proxy routing."),
         check("tls", "make ops-tls-check CERTS=\"build/tls/server.crt build/tls/agent.crt\"", "verify certificate validity", "Run make ops-tls-bootstrap for lab certificates or install production certificates."),
         check("secrets", "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env", "verify required secret references", "Generate a template with make ops-secret-template and replace placeholders."),
     ]
@@ -135,6 +140,13 @@ def vm_hosts(args: argparse.Namespace) -> list[str]:
     if not raw:
         return []
     return [item.strip() for item in raw.replace(",", " ").split() if item.strip()]
+
+
+def server_url(args: argparse.Namespace) -> str:
+    raw = str(getattr(args, "server_url", "") or "").strip()
+    if not raw:
+        return f"http://127.0.0.1:{args.rest_port}"
+    return raw.rstrip("/")
 
 
 def load_check_results(path_value: str) -> dict[str, dict[str, Any]]:
@@ -275,7 +287,7 @@ def operator_flow(args: argparse.Namespace, checks: list[dict[str, str]], action
         flow_step(
             "configure",
             "Generate configuration",
-            ["make onboarding-wizard OUT_DIR=build/onboarding", "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env"],
+            [onboarding_make_command(args), "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env"],
             ["PROVIDAPT_API_AUTH_KEYS from the operator secret store", "TLS material or lab bootstrap certificates"],
             "Config, secrets, and TLS checks are ready for first daemon start",
             check_status(checks, ["secrets", "tls"]),
@@ -283,7 +295,7 @@ def operator_flow(args: argparse.Namespace, checks: list[dict[str, str]], action
         flow_step(
             "start",
             "Start control plane",
-            [f"providaptd -config build/onboarding/providapt.onboarding.yaml", f"curl -fsS http://127.0.0.1:{args.rest_port}/api/v1/status"],
+            [f"providaptd -config {Path(args.out_dir) / 'providapt.onboarding.yaml'}", f"curl -fsS {server_url(args)}/api/v1/status"],
             ["REST and gRPC ports available", "PostgreSQL DSN when configured"],
             "API check passes and dashboard shell responds",
             check_status(checks, ["api", "dashboard"]),
@@ -291,7 +303,7 @@ def operator_flow(args: argparse.Namespace, checks: list[dict[str, str]], action
         flow_step(
             "verify",
             "Verify operations evidence",
-            ["make visual-regression-snapshots PROVIDAPT_SERVER_URL=http://127.0.0.1:18080 DRY_RUN=1", "make open-source-local-closure"],
+            [f"make visual-regression-snapshots PROVIDAPT_SERVER_URL={server_url(args)} DRY_RUN=1", "make open-source-local-closure"],
             ["Observed check results copied into onboarding-check-results.template.json"],
             "Onboarding report has no failed checks and unknowns are reduced to accepted warnings",
             "blocked" if action_summary.get("blocked_checks") else ("pending" if action_summary.get("unknown_checks") else "ready"),
@@ -325,6 +337,27 @@ def flow_step(
     }
 
 
+def onboarding_make_command(args: argparse.Namespace, check_results: str = "") -> str:
+    parts = ["make", "onboarding-wizard", f"OUT_DIR={shlex.quote(str(getattr(args, 'out_dir', 'build/onboarding')))}"]
+    if args.mode != "standalone":
+        parts.append(f"ONBOARDING_MODE={shlex.quote(str(args.mode))}")
+    if args.rest_port != 18080:
+        parts.append(f"REST_PORT={args.rest_port}")
+    if args.grpc_port != 50051:
+        parts.append(f"GRPC_PORT={args.grpc_port}")
+    if args.postgres_dsn:
+        parts.append(f"POSTGRES_DSN={shlex.quote(str(args.postgres_dsn))}")
+    if getattr(args, "server_url", ""):
+        parts.append(f"PROVIDAPT_SERVER_URL={shlex.quote(server_url(args))}")
+    if getattr(args, "policy_endpoint", ""):
+        parts.append(f"POLICY_ENDPOINT={shlex.quote(str(args.policy_endpoint).rstrip('/'))}")
+    if getattr(args, "vm_hosts", ""):
+        parts.append(f"ONBOARDING_VM_HOSTS={shlex.quote(str(args.vm_hosts))}")
+    if check_results:
+        parts.append(f"CHECK_RESULTS={shlex.quote(check_results)}")
+    return " ".join(parts)
+
+
 def render_operator_flow(flow: list[dict[str, object]]) -> str:
     lines = [
         "# ProvidAPT First-Run Operator Flow",
@@ -356,6 +389,8 @@ def render_report(
         "",
         f"- Status: `{onboarding_status(summary)}`",
         f"- Mode: `{args.mode}`",
+        f"- Server URL: `{server_url(args)}`",
+        f"- Policy endpoint: `{args.policy_endpoint or server_url(args)}`",
         f"- REST port: `{args.rest_port}`",
         f"- gRPC port: `{args.grpc_port}`",
         f"- Checks: `{summary['pass']} pass / {summary['warn']} warn / {summary['fail']} fail / {summary['unknown']} unknown / {summary['skipped']} skipped`",
@@ -438,6 +473,8 @@ def main() -> int:
     parser.add_argument("--log-retain-bytes", type=int, default=268435456)
     parser.add_argument("--alert-retain-bytes", type=int, default=67108864)
     parser.add_argument("--postgres-dsn", default="")
+    parser.add_argument("--server-url", default="", help="Base URL for REST API and dashboard checks, for example http://vm-ubuntu-master:18080.")
+    parser.add_argument("--policy-endpoint", default="", help="Policy endpoint written to the starter config. Defaults to --server-url.")
     parser.add_argument("--vm-hosts", default="", help="Optional space- or comma-separated SSH targets for concrete VM connectivity checks.")
     parser.add_argument("--check-results", default="", help="Optional JSON check result list to merge into the onboarding report.")
     args = parser.parse_args()
