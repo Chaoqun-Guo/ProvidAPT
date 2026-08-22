@@ -66,6 +66,11 @@ Current closure progress:
 - Provenance summaries expose cluster and high-degree hub views for large investigations.
 - Trace Viewer supports path-only focus from a selected node, node-type filtering, file/network folding, and layout modes for tree, compact, timeline, and grouped views.
 - Trace SVG layout pressure evidence can be collected against real alerts through `make trace-svg-stress`, including per-layout latency, SVG dimensions, node/edge counts, folded cluster counts, and automatic alert-ID discovery from `/api/v1/control/alerts` when `ALERT_IDS` is omitted.
+  Trace SVG stress reports now include an `evidence_summary` with complete
+  alert/layout matrix coverage, missing pairs, per-layout pass/blocked counts,
+  p50/p95/max latency, node-count ranges, and API authentication diagnostics so
+  missing `PROVIDAPT_API_KEY` evidence is surfaced as an actionable release
+  blocker rather than a generic HTTP failure.
 - `make trace-svg-stress-example` now generates deterministic large synthetic
   Trace SVGs for every layout mode so the stress report path can be smoke-tested
   locally without a running API; final release evidence still requires real

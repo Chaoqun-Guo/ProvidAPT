@@ -86,6 +86,109 @@ def svg_stats(svg: str) -> dict[str, Any]:
     }
 
 
+def percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return round(ordered[0], 2)
+    rank = (len(ordered) - 1) * pct
+    lower = int(rank)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = rank - lower
+    return round(ordered[lower] * (1 - weight) + ordered[upper] * weight, 2)
+
+
+def result_passed(item: dict[str, Any], max_latency_ms: float, min_node_count: int) -> bool:
+    return (
+        int(item.get("http_status") or 0) == 200
+        and not item.get("error")
+        and bool(item.get("has_svg"))
+        and float(item.get("latency_ms") or 0) <= max_latency_ms
+        and int(item.get("node_count") or 0) >= min_node_count
+        and float(item.get("width") or 0) > 0
+        and float(item.get("height") or 0) > 0
+    )
+
+
+def evidence_summary(
+    results: list[dict[str, Any]],
+    alert_ids: list[str],
+    layouts: list[str],
+    max_latency_ms: float,
+    min_node_count: int,
+    failures: list[str],
+) -> dict[str, Any]:
+    expected = {(alert_id, layout) for alert_id in alert_ids for layout in layouts}
+    seen = {(str(item.get("alert_id") or ""), str(item.get("layout") or "")) for item in results}
+    matrix = []
+    for alert_id in alert_ids:
+        for layout in layouts:
+            item = next(
+                (
+                    candidate
+                    for candidate in results
+                    if str(candidate.get("alert_id") or "") == alert_id and str(candidate.get("layout") or "") == layout
+                ),
+                {},
+            )
+            status = "pass" if item and result_passed(item, max_latency_ms, min_node_count) else ("blocked" if item else "missing")
+            matrix.append(
+                {
+                    "alert_id": alert_id,
+                    "layout": layout,
+                    "status": status,
+                    "latency_ms": item.get("latency_ms", 0),
+                    "node_count": item.get("node_count", 0),
+                    "http_status": item.get("http_status", 0),
+                }
+            )
+    layout_summary: dict[str, dict[str, Any]] = {}
+    for layout in layouts:
+        items = [item for item in results if str(item.get("layout") or "") == layout]
+        latencies = [float(item.get("latency_ms") or 0) for item in items if item.get("latency_ms") is not None]
+        nodes = [int(item.get("node_count") or 0) for item in items if item.get("node_count") is not None]
+        layout_summary[layout] = {
+            "result_count": len(items),
+            "pass_count": sum(1 for item in items if result_passed(item, max_latency_ms, min_node_count)),
+            "blocked_count": sum(1 for item in items if item and not result_passed(item, max_latency_ms, min_node_count)),
+            "latency_p50_ms": percentile(latencies, 0.50),
+            "latency_p95_ms": percentile(latencies, 0.95),
+            "latency_max_ms": round(max(latencies), 2) if latencies else 0.0,
+            "min_node_count": min(nodes) if nodes else 0,
+            "max_node_count": max(nodes) if nodes else 0,
+        }
+    auth_failures = [
+        item for item in results
+        if int(item.get("http_status") or 0) in {401, 403}
+    ]
+    return {
+        "expected_result_count": len(expected),
+        "result_count": len(results),
+        "complete_matrix": expected == seen and all(item["status"] == "pass" for item in matrix),
+        "missing_pairs": [
+            {"alert_id": alert_id, "layout": layout}
+            for alert_id, layout in sorted(expected - seen)
+        ],
+        "matrix": matrix,
+        "by_layout": layout_summary,
+        "latency": {
+            "p50_ms": percentile([float(item.get("latency_ms") or 0) for item in results], 0.50),
+            "p95_ms": percentile([float(item.get("latency_ms") or 0) for item in results], 0.95),
+            "max_ms": round(max([float(item.get("latency_ms") or 0) for item in results] or [0.0]), 2),
+        },
+        "auth": {
+            "api_key_supplied": False,
+            "auth_failure_count": len(auth_failures),
+            "auth_failed_pairs": [
+                {"alert_id": str(item.get("alert_id") or ""), "layout": str(item.get("layout") or ""), "http_status": int(item.get("http_status") or 0)}
+                for item in auth_failures
+            ],
+        },
+        "failure_count": len(failures),
+    }
+
+
 def synthetic_svg(alert_id: str, layout: str, node_count: int) -> str:
     node_count = max(1, node_count)
     columns = max(1, min(16, int(node_count ** 0.5)))
@@ -173,12 +276,25 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                     body = exc.read().decode("utf-8", errors="replace")
                 except OSError:
                     body = ""
+                finally:
+                    close = getattr(exc, "close", None)
+                    if callable(close):
+                        close()
+                    elif getattr(exc, "fp", None):
+                        fp = getattr(exc, "fp")
+                        fp.close()
                 result.update({"http_status": exc.code, "latency_ms": elapsed_ms, "error": body[:500] or str(exc)})
                 failures.append(f"{alert_id}/{layout}: HTTP {exc.code}")
+                if exc.code in {401, 403} and not args.api_key:
+                    failures.append(f"{alert_id}/{layout}: API authentication failed; set PROVIDAPT_API_KEY before running trace-svg-stress")
             except (URLError, TimeoutError, OSError) as exc:
                 result.update({"http_status": 0, "latency_ms": 0.0, "error": str(exc)})
                 failures.append(f"{alert_id}/{layout}: request failed: {exc}")
             results.append(result)
+    summary = evidence_summary(results, alert_ids, list(args.layout), args.max_latency_ms, args.min_node_count, failures)
+    summary["auth"]["api_key_supplied"] = bool(args.api_key)
+    if summary["auth"]["auth_failure_count"] and not args.api_key:
+        summary["auth"]["suggested_action"] = "Set PROVIDAPT_API_KEY or disable API auth for the local test daemon."
     return {
         "schema": SCHEMA,
         "generated_at": utc_now(),
@@ -194,6 +310,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         },
         "layouts": list(args.layout),
         "results": results,
+        "evidence_summary": summary,
         "failures": failures,
     }
 
@@ -206,6 +323,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Server: `{report['server']}`",
         f"- Alert source: `{report.get('alert_source', 'provided')}`",
         f"- Alert IDs: `{', '.join(report.get('alert_ids', [])) or 'none'}`",
+        f"- Complete matrix: `{str((report.get('evidence_summary') or {}).get('complete_matrix', False)).lower()}`",
+        f"- Latency p95 ms: `{((report.get('evidence_summary') or {}).get('latency') or {}).get('p95_ms', 0)}`",
         "",
         "| Alert | Layout | HTTP | Latency ms | Nodes | Edges | Clusters | Bytes | Dimensions |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
@@ -217,6 +336,30 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"{item.get('latency_ms', 0)} | {item.get('node_count', 0)} | {item.get('edge_count', 0)} | "
             f"{item.get('cluster_count', 0)} | {item.get('bytes', 0)} | {dims} |"
         )
+    summary = report.get("evidence_summary") if isinstance(report.get("evidence_summary"), dict) else {}
+    if summary.get("by_layout"):
+        lines.extend(["", "## Layout Summary", "", "| Layout | Results | Pass | Blocked | p50 ms | p95 ms | Max ms | Nodes |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |"])
+        for layout, item in sorted(summary["by_layout"].items()):
+            lines.append(
+                f"| {layout} | {item.get('result_count', 0)} | {item.get('pass_count', 0)} | "
+                f"{item.get('blocked_count', 0)} | {item.get('latency_p50_ms', 0)} | "
+                f"{item.get('latency_p95_ms', 0)} | {item.get('latency_max_ms', 0)} | "
+                f"{item.get('min_node_count', 0)}-{item.get('max_node_count', 0)} |"
+            )
+    if summary.get("matrix"):
+        lines.extend(["", "## Coverage Matrix", "", "| Alert | Layout | Status | HTTP | Latency ms | Nodes |", "| --- | --- | --- | ---: | ---: | ---: |"])
+        for item in summary["matrix"]:
+            lines.append(
+                f"| {item.get('alert_id', '')} | {item.get('layout', '')} | {item.get('status', '')} | "
+                f"{item.get('http_status', 0)} | {item.get('latency_ms', 0)} | {item.get('node_count', 0)} |"
+            )
+    auth = summary.get("auth") if isinstance(summary.get("auth"), dict) else {}
+    if auth.get("auth_failure_count"):
+        lines.extend(["", "## Authentication Diagnostics", ""])
+        lines.append(f"- API key supplied: `{str(auth.get('api_key_supplied', False)).lower()}`")
+        lines.append(f"- Auth failures: `{auth.get('auth_failure_count', 0)}`")
+        if auth.get("suggested_action"):
+            lines.append(f"- Suggested action: {auth['suggested_action']}")
     if report["failures"]:
         lines.extend(["", "## Failures", ""])
         lines.extend(f"- {item}" for item in report["failures"])
@@ -229,7 +372,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--server", default="")
     parser.add_argument("--alert-id", action="append", default=[])
     parser.add_argument("--discover-limit", type=int, default=3, help="Discover up to N alert IDs from /api/v1/control/alerts when --alert-id is omitted")
-    parser.add_argument("--layout", action="append", choices=LAYOUTS, default=list(LAYOUTS))
+    parser.add_argument("--layout", action="append", choices=LAYOUTS, default=[])
     parser.add_argument("--api-key", default=os.environ.get("PROVIDAPT_API_KEY", ""))
     parser.add_argument("--max-latency-ms", type=float, default=1500.0)
     parser.add_argument("--min-node-count", type=int, default=1)
@@ -239,6 +382,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--out-json", default="build/trace-stress/trace-svg-stress.json")
     parser.add_argument("--out-md", default="build/trace-stress/trace-svg-stress.md")
     args = parser.parse_args(argv)
+    if not args.layout:
+        args.layout = list(LAYOUTS)
     if not args.server and not args.synthetic_alerts:
         parser.error("--server is required unless --synthetic-alerts is set")
     if args.synthetic_alerts and not args.server:

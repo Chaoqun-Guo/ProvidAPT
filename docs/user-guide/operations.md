@@ -461,7 +461,12 @@ When `ALERT_IDS` is omitted, the helper discovers up to three alert IDs from
 report requests each alert with `tree`, `compact`, `timeline`, and `grouped`
 layouts, then records latency, SVG dimensions, byte size, node count, edge
 count, folded cluster count, and whether alerts were provided or discovered
-under `build/trace-stress/`.
+under `build/trace-stress/`. The JSON report also includes
+`evidence_summary` with the expected alert/layout matrix, missing pairs,
+per-layout pass/blocked counts, p50/p95/max latency, node-count ranges, and
+authentication diagnostics. If the API returns `401` or `403` without an API
+key, the report records a suggested `PROVIDAPT_API_KEY` action so failed
+release evidence is immediately actionable.
 
 For local development without a running API or real alert IDs, run the
 synthetic fixture:
