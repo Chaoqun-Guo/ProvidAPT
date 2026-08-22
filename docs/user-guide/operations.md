@@ -407,6 +407,19 @@ and Trace Viewer target. Pass
 current screenshot hashes against a previous manifest. Baseline comparisons
 include a `comparison_summary` with changed, unchanged, new, skipped, and
 missing-baseline counts plus focused changed/skipped detail for release review.
+After a captured run passes review, promote it into a stable baseline directory:
+
+```bash
+make visual-regression-snapshots \
+  PROVIDAPT_SERVER_URL=http://<server>:18080 \
+  ALERT_ID=p:100 \
+  PROMOTE_BASELINE=build/visual-regression/baseline
+```
+
+Promotion copies captured PNGs into the baseline directory, rewrites the
+baseline manifest so paths point at the promoted files, and recalculates file
+hashes. Promotion is blocked when the capture status is not `pass`, which keeps
+planned dry-runs and failed browser captures from becoming accepted baselines.
 Use `DRY_RUN=1` to validate the screenshot plan without launching a browser.
 The visual regression gate reports missing required screenshots both as exact
 page/viewport pairs and grouped by page and viewport. DOM assertion failures are

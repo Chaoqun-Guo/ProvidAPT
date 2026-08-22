@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -210,6 +211,71 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
         if coverage.get("missing_default_viewports"):
             lines.append(f"- Missing default viewports: `{', '.join(coverage['missing_default_viewports'])}`")
     (out_dir / "visual-regression-snapshots.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def promote_baseline(report: dict[str, Any], baseline_dir_value: str) -> dict[str, Any]:
+    if not baseline_dir_value:
+        return {}
+    baseline_dir = Path(baseline_dir_value)
+    promotion = {
+        "status": "skipped",
+        "baseline_dir": str(baseline_dir),
+        "manifest": "",
+        "promoted_count": 0,
+        "failures": [],
+    }
+    if report.get("status") != "pass":
+        promotion["status"] = "blocked"
+        promotion["failures"].append(f"snapshot status must be pass before promotion, got {report.get('status')}")
+        report.setdefault("failures", []).append("baseline promotion blocked: snapshot status is not pass")
+        report["baseline_promotion"] = promotion
+        report["status"] = "blocked"
+        return promotion
+
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    promoted_report = json.loads(json.dumps(report))
+    promoted_report["baseline_promoted_at"] = utc_now()
+    promoted_report["baseline_source_server"] = report.get("server", "")
+    promoted_report["baseline_source_alert_id"] = report.get("alert_id", "")
+    promoted_report.pop("baseline_promotion", None)
+    promoted_screenshots: list[dict[str, Any]] = []
+    failures: list[str] = []
+    for shot in promoted_report.get("screenshots", []):
+        if shot.get("status") != "captured":
+            failures.append(f"{shot.get('page')} {((shot.get('viewport') or {}).get('name'))}: screenshot was not captured")
+            continue
+        source = Path(str(shot.get("path") or ""))
+        if not source.exists():
+            failures.append(f"{shot.get('page')} {((shot.get('viewport') or {}).get('name'))}: screenshot file missing")
+            continue
+        target = baseline_dir / source.name
+        shutil.copy2(source, target)
+        updated = dict(shot)
+        updated["path"] = str(target)
+        inventory = file_inventory(str(target))
+        if inventory.get("exists"):
+            updated.update({"bytes": inventory["bytes"], "sha256": inventory["sha256"]})
+        promoted_screenshots.append(updated)
+
+    promoted_report["screenshots"] = promoted_screenshots
+    attach_coverage_summary(promoted_report)
+    manifest_path = baseline_dir / "visual-regression-snapshots.json"
+    promoted_report["status"] = "pass" if not failures else "blocked"
+    promoted_report["baseline_manifest"] = str(manifest_path)
+    manifest_path.write_text(json.dumps(promoted_report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    promotion.update(
+        {
+            "status": promoted_report["status"],
+            "manifest": str(manifest_path),
+            "promoted_count": len(promoted_screenshots),
+            "failures": failures,
+        }
+    )
+    report["baseline_promotion"] = promotion
+    if failures:
+        report.setdefault("failures", []).extend(f"baseline promotion: {failure}" for failure in failures)
+        report["status"] = "blocked"
+    return promotion
 
 
 def capture(report: dict[str, Any], api_key: str, timeout_ms: int) -> dict[str, Any]:
@@ -494,6 +560,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-key", default=os.environ.get("PROVIDAPT_API_KEY", ""))
     parser.add_argument("--out-dir", default="build/visual-regression")
     parser.add_argument("--baseline", default="", help="Existing visual-regression-snapshots.json to compare against")
+    parser.add_argument("--promote-baseline", default="", help="Directory where passing captured screenshots should be copied as a new baseline")
     parser.add_argument("--viewport", action="append", type=parse_viewport, dest="viewports")
     parser.add_argument("--timeout-ms", type=int, default=30000)
     parser.add_argument("--dry-run", action="store_true")
@@ -517,6 +584,7 @@ def main() -> int:
     attach_inventory(report)
     attach_coverage_summary(report)
     compare_baseline(report, args.baseline)
+    promote_baseline(report, args.promote_baseline)
     write_outputs(report, Path(args.out_dir))
     print(f"status={report['status']} screenshots={len(report['screenshots'])} out_dir={args.out_dir}")
     return 0 if report["status"] in {"pass", "planned"} else 1

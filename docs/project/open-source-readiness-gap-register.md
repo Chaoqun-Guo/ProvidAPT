@@ -183,7 +183,10 @@ Current closure progress:
   DOM failure details summarize Dashboard overflow metrics and Trace Viewer
   missing layout/export controls. Snapshot and gate evidence now include
   capture diagnostics for Playwright availability, capture mode, API-key
-  presence, requested viewports, and browser install hints.
+  presence, requested viewports, and browser install hints. Passing captures can
+  be promoted into a stable baseline directory with `PROMOTE_BASELINE=...`,
+  which copies PNG files, rewrites baseline paths, recalculates hashes, and
+  blocks promotion when the capture status is not `pass`.
 - Open-source readiness gating now aggregates release gate status, operations
   readiness, enterprise readiness, model lifecycle promotion packets, visual
   browser baseline coverage/comparison summaries, onboarding outputs, plugin

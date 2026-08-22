@@ -62,4 +62,7 @@ screenshots at `390x844`, `1366x768`, `1920x1080`, and `2560x1080`.
 Dashboard captures include DOM overflow checks. Trace Viewer captures verify
 that browser-rendered SVG, layout controls, PNG/SVG/raw export controls, and
 report links are usable before `make visual-regression-gate` accepts the
-manifest.
+manifest. Passing captures can be promoted with
+`PROMOTE_BASELINE=build/visual-regression/baseline`; the promotion step copies
+PNG files into that baseline directory and rewrites the baseline manifest to use
+the promoted paths.

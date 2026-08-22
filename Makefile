@@ -448,8 +448,8 @@ verify-vm-config:
 	python3 scripts/deploy/configure-vm-endpoints.py "$(PROVIDAPT_CONFIG)" --control-host "$(VM_CONTROL_HOST)"
 
 visual-regression-snapshots:
-	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make visual-regression-snapshots PROVIDAPT_SERVER_URL=http://127.0.0.1:18080 [ALERT_ID=p:100] [DRY_RUN=1] [BASELINE=build/visual-regression/visual-regression-snapshots.json]'; exit 2; fi
-	python3 scripts/ops/visual-regression-snapshots.py --server "$(PROVIDAPT_SERVER_URL)" --alert-id "$(or $(ALERT_ID),p:100)" $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") $(if $(DRY_RUN),--dry-run) $(if $(BASELINE),--baseline "$(BASELINE)") --out-dir "$(or $(OUT_DIR),build/visual-regression)"
+	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make visual-regression-snapshots PROVIDAPT_SERVER_URL=http://127.0.0.1:18080 [ALERT_ID=p:100] [DRY_RUN=1] [BASELINE=build/visual-regression/visual-regression-snapshots.json] [PROMOTE_BASELINE=build/visual-regression/baseline]'; exit 2; fi
+	python3 scripts/ops/visual-regression-snapshots.py --server "$(PROVIDAPT_SERVER_URL)" --alert-id "$(or $(ALERT_ID),p:100)" $(if $(PROVIDAPT_API_KEY),--api-key "$(PROVIDAPT_API_KEY)") $(if $(DRY_RUN),--dry-run) $(if $(BASELINE),--baseline "$(BASELINE)") $(if $(PROMOTE_BASELINE),--promote-baseline "$(PROMOTE_BASELINE)") --out-dir "$(or $(OUT_DIR),build/visual-regression)"
 
 visual-regression-gate:
 	python3 scripts/ops/visual-regression-gate.py --manifest "$(or $(VISUAL_REGRESSION_MANIFEST),build/visual-regression/visual-regression-snapshots.json)" $(if $(ALLOW_PLANNED_VISUALS),--allow-planned --allow-missing-files --allow-missing-hash --allow-missing-dom-assertions) $(if $(WARN_ON_VISUAL_CHANGED),--warn-on-changed) --out-json "$(or $(OUT_DIR),build/visual-regression)/visual-regression-gate.json" --out-md "$(or $(OUT_DIR),build/visual-regression)/visual-regression-gate.md"

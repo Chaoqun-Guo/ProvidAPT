@@ -171,6 +171,54 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             self.assertEqual(report["comparison_summary"]["counts"]["missing_baseline"], 1)
             self.assertIn("baseline manifest not found", report["warnings"][0])
 
+    def test_promote_baseline_copies_captured_screenshots(self):
+        mod = load_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            out_dir = root / "current"
+            baseline_dir = root / "baseline"
+            out_dir.mkdir()
+            shot = out_dir / "dashboard-1366x768.png"
+            shot.write_bytes(b"visual")
+            report = {
+                "status": "pass",
+                "server": "http://127.0.0.1:18080",
+                "alert_id": "p:100",
+                "screenshots": [
+                    {
+                        "page": "dashboard",
+                        "viewport": {"name": "1366x768", "width": 1366, "height": 768},
+                        "path": str(shot),
+                        "status": "captured",
+                    }
+                ],
+                "failures": [],
+                "warnings": [],
+            }
+            mod.attach_inventory(report)
+
+            promotion = mod.promote_baseline(report, str(baseline_dir))
+
+            self.assertEqual(promotion["status"], "pass")
+            self.assertEqual(promotion["promoted_count"], 1)
+            self.assertTrue((baseline_dir / "dashboard-1366x768.png").exists())
+            baseline = json.loads((baseline_dir / "visual-regression-snapshots.json").read_text(encoding="utf-8"))
+            self.assertEqual(baseline["status"], "pass")
+            self.assertEqual(baseline["screenshots"][0]["path"], str(baseline_dir / "dashboard-1366x768.png"))
+            self.assertEqual(baseline["screenshots"][0]["sha256"], report["screenshots"][0]["sha256"])
+            self.assertEqual(report["baseline_promotion"]["manifest"], str(baseline_dir / "visual-regression-snapshots.json"))
+
+    def test_promote_baseline_blocks_non_passing_report(self):
+        mod = load_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            report = {"status": "warn", "screenshots": [], "failures": [], "warnings": []}
+
+            promotion = mod.promote_baseline(report, str(Path(tmp) / "baseline"))
+
+            self.assertEqual(promotion["status"], "blocked")
+            self.assertEqual(report["status"], "blocked")
+            self.assertIn("baseline promotion blocked", report["failures"][0])
+
     def test_coverage_summary_marks_complete_default_matrix(self):
         mod = load_module()
         report = {
