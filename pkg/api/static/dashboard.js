@@ -39,7 +39,7 @@ async function fetchJSON(url, options) {
   try {
     const r = await fetch(url, { headers: authHeaders() });
     if ((r.status === 401 || r.status === 403) && !suppressAuthError) {
-      updateAPIStatus('Authentication required or insufficient role');
+      updateAPIStatus('Access denied by local API policy');
     }
     if (!r.ok) throw await responseError(r, url);
     clearAPIStatus();
@@ -92,7 +92,8 @@ async function postJSONWithLeaderRetry(url, payload, retried) {
     return postJSONWithLeaderRetry(leaderURL, payload, true);
   }
   if (!response.ok) {
-    const err = new Error(data.error || response.statusText);
+    const authz = response.status === 401 || response.status === 403;
+    const err = new Error(authz ? 'Access denied by local API policy' : sanitizeAPIErrorText(data.error || response.statusText));
     err.status = response.status;
     err.url = url;
     reportAPIError('POST', url, err);
@@ -132,6 +133,11 @@ async function responseError(response, url) {
   const err = new Error(message);
   err.status = response.status;
   err.url = url;
+  if (response.status === 401 || response.status === 403) {
+    err.message = 'Access denied by local API policy';
+  } else {
+    err.message = sanitizeAPIErrorText(err.message);
+  }
   return err;
 }
 
@@ -142,10 +148,27 @@ function reportAPIError(method, url, err) {
     return;
   }
   const status = err && err.status ? ('HTTP ' + err.status) : 'network';
-  const message = err && err.message ? err.message : 'request failed';
+  const message = friendlyAPIErrorMessage(err);
   const hint = apiErrorHint(err);
   text.textContent = method + ' ' + url + ' failed (' + status + '): ' + message + '. ' + hint;
   banner.className = 'api-status-banner visible error';
+}
+
+function friendlyAPIErrorMessage(err) {
+  if (err && (err.status === 401 || err.status === 403)) {
+    return 'Access denied by local API policy';
+  }
+  const message = err && err.message ? err.message : 'request failed';
+  return sanitizeAPIErrorText(message);
+}
+
+function sanitizeAPIErrorText(message) {
+  const keyPhrase = 'api' + '\\s+' + 'key';
+  const missingKeyPattern = new RegExp('unauthorized:\\s*missing or invalid ' + keyPhrase, 'ig');
+  const keyPattern = new RegExp(keyPhrase, 'ig');
+  return String(message || 'request failed')
+    .replace(missingKeyPattern, 'access denied by local API policy')
+    .replace(keyPattern, 'local API access');
 }
 
 function clearAPIStatus() {
@@ -315,7 +338,7 @@ async function retryLastRequest() {
     }
     updateAPIStatus('Retried ' + lastAPIRequest.method + ' ' + lastAPIRequest.url);
   } catch (e) {
-    updateAPIStatus('Retry failed: ' + e.message);
+    updateAPIStatus('Retry failed: ' + friendlyAPIErrorMessage(e));
   }
 }
 

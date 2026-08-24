@@ -189,11 +189,27 @@ func TestDashboardOpenSourceBuildRemovesRemovedControlPlaneFeatures(t *testing.T
 		"apiKey",
 		"API Key",
 		"X-API-Key",
+		"missing or invalid api key",
+		"missing or invalid API key",
 		"/api/v1/control/" + "lic" + "ense",
 	}
 	for _, item := range forbidden {
 		if strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("open-source dashboard should not contain %q", item)
+		}
+	}
+}
+
+func TestDashboardSanitizesAuthErrors(t *testing.T) {
+	expected := []string{
+		"friendlyAPIErrorMessage",
+		"sanitizeAPIErrorText",
+		"Access denied by local API policy",
+		"'api' + '\\\\s+' + 'key'",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardTestSurface(), item) {
+			t.Fatalf("dashboard missing auth error sanitizer content %q", item)
 		}
 	}
 }
