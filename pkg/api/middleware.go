@@ -12,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/Chaoqun-Guo/ProvidAPT/pkg/secure"
 )
 
 type contextKey string
@@ -36,9 +34,9 @@ type trustedHeaderAuthConfig struct {
 	TenantHeader string
 }
 
-// authMiddleware validates X-API-Key, Authorization: Bearer, or api_key query credentials against configured keys.
-// When auth is disabled, all requests pass through.
-func authMiddleware(keys []string, roles map[string]string, identities map[string]string, tenants map[string]string, enabled bool, trusted trustedHeaderAuthConfig) func(http.Handler) http.Handler {
+// authMiddleware preserves trusted-header identity support while keeping the
+// open-source control plane reachable without API-key credentials.
+func authMiddleware(_ []string, _ map[string]string, _ map[string]string, _ map[string]string, _ bool, trusted trustedHeaderAuthConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if trusted.Enabled {
@@ -63,46 +61,7 @@ func authMiddleware(keys []string, roles map[string]string, identities map[strin
 					return
 				}
 			}
-			if !enabled {
-				next.ServeHTTP(w, withRole(r, RoleAdmin))
-				return
-			}
-			if isPublicDashboardShell(r) {
-				next.ServeHTTP(w, withRole(r, RoleOperator))
-				return
-			}
-			if len(keys) == 0 {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				if err := json.NewEncoder(w).Encode(map[string]string{
-					"error": "unauthorized: API authentication is enabled but no API keys are configured",
-				}); err != nil {
-					log.Printf("[api] encode unauthorized response failed: %v", err)
-				}
-				return
-			}
-			key := requestAPIKey(r)
-			valid := false
-			for _, k := range keys {
-				if secure.ConstantTimeCompare(key, k) {
-					valid = true
-					break
-				}
-			}
-			if !valid {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				if err := json.NewEncoder(w).Encode(map[string]string{
-					"error": "unauthorized: missing or invalid API key",
-				}); err != nil {
-					log.Printf("[api] encode unauthorized response failed: %v", err)
-				}
-				return
-			}
-			role := normalizeRole(roles[key])
-			tenant := strings.TrimSpace(tenants[key])
-			w.Header().Set("X-ProvidAPT-Role", role)
-			next.ServeHTTP(w, withTenant(withActor(withRole(r, role), key, role, identities[key]), tenant))
+			next.ServeHTTP(w, withActorName(withRole(r, RoleAdmin), "open-source-operator", RoleAdmin))
 		})
 	}
 }
@@ -153,25 +112,6 @@ func withRole(r *http.Request, role string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), apiRoleContextKey, normalizeRole(role)))
 }
 
-func withActor(r *http.Request, apiKey, role, identity string) *http.Request {
-	actor := strings.TrimSpace(r.Header.Get("X-ProvidAPT-Actor"))
-	if actor == "" {
-		actor = strings.TrimSpace(r.URL.Query().Get("actor"))
-	}
-	if actor == "" {
-		actor = strings.TrimSpace(identity)
-	}
-	if actor == "" {
-		trimmed := strings.TrimSpace(apiKey)
-		if len(trimmed) > 8 {
-			trimmed = trimmed[:8]
-		}
-		actor = "api-key:" + trimmed
-	}
-	actor = actor + " (" + normalizeRole(role) + ")"
-	return r.WithContext(context.WithValue(r.Context(), apiActorContextKey, actor))
-}
-
 func withActorName(r *http.Request, actor, role string) *http.Request {
 	actor = strings.TrimSpace(actor)
 	if actor == "" {
@@ -183,19 +123,6 @@ func withActorName(r *http.Request, actor, role string) *http.Request {
 
 func withTenant(r *http.Request, tenant string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), apiTenantContextKey, strings.TrimSpace(tenant)))
-}
-
-func requestAPIKey(r *http.Request) string {
-	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); key != "" {
-		return key
-	}
-	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
-		parts := strings.Fields(auth)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
-			return strings.TrimSpace(parts[1])
-		}
-	}
-	return strings.TrimSpace(r.URL.Query().Get("api_key"))
 }
 
 func normalizeRole(role string) string {
@@ -468,7 +395,7 @@ func corsMiddleware(origins []string) func(http.Handler) http.Handler {
 			}
 			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return

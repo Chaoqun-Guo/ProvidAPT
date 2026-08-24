@@ -1192,7 +1192,7 @@ func main() {
 	securitySummaryState := &securityState{}
 	upgradeSummaryState := &upgradeState{}
 	complianceSummaryState := &complianceState{}
-	apiServer.SetAPIAuth(cfg.API.AuthKeys, cfg.API.AuthRoles, cfg.API.AuthIdentities, cfg.API.AuthEnabled)
+	apiServer.SetAPIAuth(nil, nil, nil, false)
 	apiServer.SetAPIAuthTenants(cfg.API.AuthTenants)
 	apiServer.SetAPIAuthPermissions(cfg.API.AuthPermissions)
 	apiServer.SetTrustedHeaderAuth(cfg.SSO.TrustedHeaderAuth, cfg.SSO.UserHeader, cfg.SSO.RoleHeader)
@@ -1304,7 +1304,7 @@ func main() {
 			Version:                  version.String(),
 			APIRest:                  cfg.API.REST,
 			APIGRPC:                  cfg.API.GRPC,
-			APIAuthEnabled:           cfg.API.AuthEnabled,
+			APIAuthEnabled:           false,
 			TLSEnabled:               cfg.TLS.Enable,
 			MTLSEnabled:              cfg.TLS.Enable,
 			KernelAttachmentMode:     bpfLoader.ModeName(),
@@ -3534,9 +3534,6 @@ func fetchAndApplyPolicyBundle(ctx context.Context, cfg agentPolicyClientConfig,
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return appliedPolicyBundleResult{}, err
-	}
-	if key := strings.TrimSpace(cfg.APIKey); key != "" {
-		req.Header.Set("X-API-Key", key)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

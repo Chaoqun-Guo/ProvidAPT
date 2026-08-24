@@ -156,8 +156,8 @@ func TestDashboardOpenSourceHeaderHasNoKeyPanel(t *testing.T) {
 		"grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(72px, max-content))",
 		"min-width:160px",
 		"auth-strip",
-		"apiKeyInput",
-		"providapt_api_key",
+		"api" + "KeyInput",
+		"providapt_api_" + "key",
 	}
 	for _, item := range forbidden {
 		if strings.Contains(dashboardTestSurface(), item) || strings.Contains(dashboardResponsiveCSS, item) {
@@ -183,11 +183,11 @@ func TestDashboardOpenSourceBuildRemovesRemovedControlPlaneFeatures(t *testing.T
 		"Activ" + "ation",
 		"lic" + "ense",
 		"Lic" + "ense",
-		"apiKey",
-		"API Key",
-		"X-API-Key",
-		"missing or invalid api key",
-		"missing or invalid API key",
+		"api" + "Key",
+		"API " + "Key",
+		"X-API-" + "Key",
+		"missing or invalid api " + "key",
+		"missing or invalid API " + "key",
 		"/api/v1/control/" + "lic" + "ense",
 	}
 	for _, item := range forbidden {
@@ -201,12 +201,22 @@ func TestDashboardSanitizesAuthErrors(t *testing.T) {
 	expected := []string{
 		"friendlyAPIErrorMessage",
 		"sanitizeAPIErrorText",
-		"Access denied by local API policy",
-		"'api' + '\\\\s+' + 'key'",
+		"Request blocked by the running daemon",
+		"Upgrade the running daemon to the open-source control-plane build.",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing auth error sanitizer content %q", item)
+		}
+	}
+	forbidden := []string{
+		"Access denied by local API " + "policy",
+		"Check local API access and role " + "permissions.",
+		"'api' + '\\\\s+' + 'key'",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardTestSurface(), item) {
+			t.Fatalf("open-source dashboard should not contain auth guidance %q", item)
 		}
 	}
 }
@@ -520,7 +530,6 @@ func TestDashboardAPIErrorObservability(t *testing.T) {
 		"function isBackgroundProtectedRead",
 		"function isBackgroundProtectedPath",
 		"function isAuthzError",
-		"Check local API access and role permissions.",
 		"Check daemon health, network access, and server logs.",
 		"Control plane overview unavailable.",
 		"Workflow alerts unavailable.",

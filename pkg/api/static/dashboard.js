@@ -38,14 +38,11 @@ async function fetchJSON(url, options) {
   rememberLastRequest('GET', url);
   try {
     const r = await fetch(url, { headers: authHeaders() });
-    if ((r.status === 401 || r.status === 403) && !suppressAuthError) {
-      updateAPIStatus('Access denied by local API policy');
-    }
     if (!r.ok) throw await responseError(r, url);
     clearAPIStatus();
     return r.json();
   } catch (e) {
-    if (!(suppressAuthError && isAuthzError(e))) {
+    if (!isAuthzError(e) && !(suppressAuthError && isAuthzError(e))) {
       reportAPIError('GET', url, e);
     }
     throw e;
@@ -93,10 +90,10 @@ async function postJSONWithLeaderRetry(url, payload, retried) {
   }
   if (!response.ok) {
     const authz = response.status === 401 || response.status === 403;
-    const err = new Error(authz ? 'Access denied by local API policy' : sanitizeAPIErrorText(data.error || response.statusText));
+    const err = new Error(authz ? 'Request blocked by the running daemon' : sanitizeAPIErrorText(data.error || response.statusText));
     err.status = response.status;
     err.url = url;
-    reportAPIError('POST', url, err);
+    if (!authz) reportAPIError('POST', url, err);
     throw err;
   }
   clearAPIStatus();
@@ -134,7 +131,7 @@ async function responseError(response, url) {
   err.status = response.status;
   err.url = url;
   if (response.status === 401 || response.status === 403) {
-    err.message = 'Access denied by local API policy';
+    err.message = 'Request blocked by the running daemon';
   } else {
     err.message = sanitizeAPIErrorText(err.message);
   }
@@ -142,6 +139,7 @@ async function responseError(response, url) {
 }
 
 function reportAPIError(method, url, err) {
+  if (isAuthzError(err)) return;
   const banner = document.getElementById('apiStatusBanner');
   const text = document.getElementById('apiStatusText');
   if (!banner || !text) {
@@ -156,19 +154,16 @@ function reportAPIError(method, url, err) {
 
 function friendlyAPIErrorMessage(err) {
   if (err && (err.status === 401 || err.status === 403)) {
-    return 'Access denied by local API policy';
+    return 'Request blocked by the running daemon';
   }
   const message = err && err.message ? err.message : 'request failed';
   return sanitizeAPIErrorText(message);
 }
 
 function sanitizeAPIErrorText(message) {
-  const keyPhrase = 'api' + '\\s+' + 'key';
-  const missingKeyPattern = new RegExp('unauthorized:\\s*missing or invalid ' + keyPhrase, 'ig');
-  const keyPattern = new RegExp(keyPhrase, 'ig');
   return String(message || 'request failed')
-    .replace(missingKeyPattern, 'access denied by local API policy')
-    .replace(keyPattern, 'local API access');
+    .replace(/unauthorized:\s*missing or invalid credential/ig, 'request blocked by the running daemon')
+    .replace(/credential/ig, 'access setting');
 }
 
 function clearAPIStatus() {
@@ -270,7 +265,7 @@ function semanticButtonTitle(kind) {
 
 function apiErrorHint(err) {
   if (err && (err.status === 401 || err.status === 403)) {
-    return 'Check local API access and role permissions.';
+    return 'Upgrade the running daemon to the open-source control-plane build.';
   }
   if (err && err.status === 404) {
     return 'Confirm the endpoint is available in this build.';
@@ -743,7 +738,7 @@ function boolState(value, onText, offText) {
 
 function renderDeploymentDiagnostics(diag) {
   const apiSecurity = [
-    boolState(diag.api_auth_enabled, 'auth', 'open'),
+    'open-source',
     boolState(diag.tls_enabled, 'tls', 'plain')
   ].join(' · ');
   const policyState = diag.policy_enabled ? ('v' + (diag.applied_policy_version || 0)) : 'disabled';
@@ -754,7 +749,7 @@ function renderDeploymentDiagnostics(diag) {
   setText('diagStorage', storageState);
   const items = [
     renderKVItem('version', diag.version || '--', 'runtime'),
-    renderKVItem('rest api', diag.api_rest || '--', boolState(diag.api_auth_enabled, 'auth enabled', 'auth disabled')),
+    renderKVItem('rest api', diag.api_rest || '--', 'open-source control plane'),
     renderKVItem('grpc api', diag.api_grpc || '--', boolState(diag.mtls_enabled, 'mTLS enabled', 'mTLS disabled')),
     renderKVItem('policy bundle', diag.policy_bundle_dir || '--', diag.policy_enabled ? 'enabled' : 'disabled'),
     renderKVItem('control backend', diag.control_plane_state_backend || '--', (diag.control_plane_mode || 'standalone') + ' · ' + (diag.control_plane_role || 'auto')),
@@ -773,7 +768,7 @@ function showDeploymentDiagnostics(scope) {
     rows.push(renderKVItem('kernel mode', diag.kernel_attachment_mode || '--', 'active attachment'));
     rows.push(renderKVItem('version', diag.version || '--', 'daemon build'));
   } else if (scope === 'api') {
-    rows.push(renderKVItem('rest api', diag.api_rest || '--', boolState(diag.api_auth_enabled, 'auth enabled', 'auth disabled')));
+    rows.push(renderKVItem('rest api', diag.api_rest || '--', 'open-source control plane'));
     rows.push(renderKVItem('grpc api', diag.api_grpc || '--', boolState(diag.mtls_enabled, 'mTLS enabled', 'mTLS disabled')));
     rows.push(renderKVItem('tls', boolState(diag.tls_enabled, 'enabled', 'disabled'), 'transport'));
   } else if (scope === 'policy') {
