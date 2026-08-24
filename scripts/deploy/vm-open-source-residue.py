@@ -36,6 +36,23 @@ SSH_COMMAND = (
     "/usr/lib/systemd/system/providapt.service.d 2>/dev/null || true"
 )
 
+CLEANUP_SCRIPT = """#!/usr/bin/env bash
+set -euo pipefail
+
+dropin_dir="/etc/systemd/system/providapt.service.d"
+if [ -d "$dropin_dir" ]; then
+  rm -f "$dropin_dir/30-api-auth.conf" "$dropin_dir/90-api-key-rotation.conf"
+fi
+
+if command -v pkill >/dev/null 2>&1; then
+  pkill -f '/providapt-auth-server|providapt-auth-server|activation-server|license-server' 2>/dev/null || true
+fi
+
+systemctl daemon-reload
+systemctl restart providapt.service
+systemctl --no-pager --full status providapt.service
+"""
+
 
 def now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -169,8 +186,27 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.append(f"| `{check['endpoint']}` | `{check.get('http_status', 'blocked')}` | `{markers}` |")
     lines.extend(["", "## Remediation", ""])
     lines.extend(f"- {item}" for item in report["remediation"])
+    if report.get("cleanup_script"):
+        lines.extend([
+            "",
+            "## Cleanup Script",
+            "",
+            f"`{report['cleanup_script']}`",
+            "",
+            "Run this script on each affected VM with sudo, then rerun the residue check.",
+        ])
     lines.append("")
     return "\n".join(lines)
+
+
+def write_cleanup_script(path_value: str) -> str:
+    if not path_value:
+        return ""
+    path = Path(path_value)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(CLEANUP_SCRIPT, encoding="utf-8")
+    path.chmod(0o755)
+    return str(path)
 
 
 def main() -> int:
@@ -179,10 +215,14 @@ def main() -> int:
     parser.add_argument("--snapshot", action="append", default=[], help="Local text snapshot to scan instead of SSH.")
     parser.add_argument("--server-url", default="", help="Optional control-plane URL to scan over HTTP.")
     parser.add_argument("--timeout-seconds", type=int, default=12)
+    parser.add_argument("--emit-cleanup-script", default="", help="Write a sudo cleanup helper for affected VMs.")
     parser.add_argument("--out-json", default="build/deploy/vm-open-source-residue.json")
     parser.add_argument("--out-md", default="build/deploy/vm-open-source-residue.md")
     args = parser.parse_args()
     report = build_report(args)
+    cleanup_script = write_cleanup_script(args.emit_cleanup_script)
+    if cleanup_script:
+        report["cleanup_script"] = cleanup_script
     out_json = Path(args.out_json)
     out_md = Path(args.out_md)
     out_json.parent.mkdir(parents=True, exist_ok=True)

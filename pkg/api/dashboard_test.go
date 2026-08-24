@@ -610,6 +610,9 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"resetDashboardLayout",
 		"section-hidden",
 		"defaultDashboardPanelOrder",
+		"dashboardOverviewPanelIDs",
+		"'alert-workflow'",
+		"'deployment-diagnostics'",
 		"Deployment Diagnostics",
 		"Overview shows live health",
 	}

@@ -294,6 +294,7 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
                 )
                 try:
                     page.goto(shot["url"], wait_until="networkidle", timeout=timeout_ms)
+                    normalize_visual_state(page, shot["page"])
                     if shot["page"] == "dashboard":
                         shot["dom_assertions"] = dashboard_dom_assertions(page)
                         if shot["dom_assertions"].get("status") != "pass":
@@ -323,6 +324,50 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
     return report
 
 
+def normalize_visual_state(page: Any, page_name: str) -> None:
+    page.add_style_tag(content="""
+      *, *::before, *::after {
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+        caret-color: transparent !important;
+      }
+    """)
+    if page_name == "dashboard":
+        page.evaluate(
+            """
+            () => {
+              const stableText = {
+                refreshInfo: 'Last checked',
+                actionStatus: 'Open-source build ready',
+                topVersion: 'current',
+                statusText: 'Healthy',
+              };
+              Object.entries(stableText).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = value;
+              });
+              document.querySelectorAll('.card .value, .mini-card .value, .policy-item .value, .sidebar-status .value').forEach((element) => {
+                element.textContent = '00';
+              });
+              document.querySelectorAll('.alert-time').forEach((element) => {
+                element.textContent = 'stable time';
+              });
+            }
+            """
+        )
+    if page_name == "trace-viewer":
+        page.evaluate(
+            """
+            () => {
+              const status = document.getElementById('viewerStatus');
+              if (status) status.textContent = 'Trace ready';
+            }
+            """
+        )
+
+
 def capture_diagnostics(args: argparse.Namespace) -> dict[str, Any]:
     playwright_available = importlib.util.find_spec("playwright") is not None
     return {
@@ -335,6 +380,7 @@ def capture_diagnostics(args: argparse.Namespace) -> dict[str, Any]:
         "default_viewports": DEFAULT_VIEWPORTS,
         "requested_viewports": [str(item.get("name") or "") for item in args.viewports],
         "timeout_ms": args.timeout_ms,
+        "visual_state_stabilized": not args.dry_run,
     }
 
 

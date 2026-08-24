@@ -3501,11 +3501,24 @@ function switchDashboardSection(section) {
   localStorage.setItem('providaptDashboardSection', selected);
   document.querySelectorAll('.content .panel').forEach(panel => {
     const panelSection = dashboardPanelSection(panel);
-    const visible = selected === 'all' || panelSection === selected || panelSection === 'all';
+    const visible = selected === 'all'
+      ? dashboardOverviewPanelIDs().includes(panelID(panel))
+      : panelSection === selected || panelSection === 'all';
     panel.classList.toggle('section-hidden', !visible);
   });
   updateDashboardSectionTabs(selected);
   scheduleDashboardMasonry();
+}
+
+function dashboardOverviewPanelIDs() {
+  return [
+    'operations-summary',
+    'control-plane-summary',
+    'alert-workflow',
+    'investigation-console',
+    'agent-overview',
+    'deployment-diagnostics',
+  ];
 }
 
 function setDashboardDensity(density) {

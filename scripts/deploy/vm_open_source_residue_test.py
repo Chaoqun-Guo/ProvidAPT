@@ -21,12 +21,15 @@ class VMOpenSourceResidueTest(unittest.TestCase):
             )
             out_json = root / "report.json"
             out_md = root / "report.md"
+            cleanup = root / "cleanup.sh"
             proc = subprocess.run(
                 [
                     "python3",
                     str(SCRIPT),
                     "--snapshot",
                     str(snapshot),
+                    "--emit-cleanup-script",
+                    str(cleanup),
                     "--out-json",
                     str(out_json),
                     "--out-md",
@@ -42,6 +45,8 @@ class VMOpenSourceResidueTest(unittest.TestCase):
             self.assertIn("providapt-auth-server", report["hosts"][0]["findings"])
             self.assertIn("30-api-auth.conf", report["hosts"][0]["findings"])
             self.assertIn("Stop and disable", out_md.read_text(encoding="utf-8"))
+            self.assertTrue(cleanup.exists())
+            self.assertIn("90-api-key-rotation.conf", cleanup.read_text(encoding="utf-8"))
 
     def test_passes_clean_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:

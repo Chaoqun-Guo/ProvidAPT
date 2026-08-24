@@ -445,7 +445,7 @@ verify-vm-fleet:
 
 verify-vm-open-source-residue:
 	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ] && [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make verify-vm-open-source-residue PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" PROVIDAPT_SERVER_URL=http://vm-ubuntu-master:18080'; exit 2; fi
-	@python3 scripts/deploy/vm-open-source-residue.py $(foreach host,$(PROVIDAPT_VM_HOSTS),--host "$(host)") $(if $(PROVIDAPT_SERVER_URL),--server-url "$(PROVIDAPT_SERVER_URL)") --timeout-seconds "$(or $(SSH_TIMEOUT_SECONDS),12)" --out-json "$(or $(OUT_DIR),build/deploy)/vm-open-source-residue.json" --out-md "$(or $(OUT_DIR),build/deploy)/vm-open-source-residue.md"
+	@python3 scripts/deploy/vm-open-source-residue.py $(foreach host,$(PROVIDAPT_VM_HOSTS),--host "$(host)") $(if $(PROVIDAPT_SERVER_URL),--server-url "$(PROVIDAPT_SERVER_URL)") --timeout-seconds "$(or $(SSH_TIMEOUT_SECONDS),12)" $(if $(CLEANUP_SCRIPT),--emit-cleanup-script "$(CLEANUP_SCRIPT)") --out-json "$(or $(OUT_DIR),build/deploy)/vm-open-source-residue.json" --out-md "$(or $(OUT_DIR),build/deploy)/vm-open-source-residue.md"
 
 verify-vm-config:
 	@if [ -z "$(PROVIDAPT_CONFIG)" ]; then echo 'usage: make verify-vm-config PROVIDAPT_CONFIG=/path/to/providapt.toml [VM_CONTROL_HOST=$(VM_CONTROL_HOST)]'; exit 2; fi
