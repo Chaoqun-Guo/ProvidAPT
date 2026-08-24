@@ -189,11 +189,11 @@ func TestAPIAuthCompatibilityNoopAllowsRequests(t *testing.T) {
 	}
 }
 
-func TestAPIAuthAllowsDashboardShellWithoutKey(t *testing.T) {
+func TestOpenSourceControlPlaneAllowsDashboardAndAPIWithoutKey(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)
 
-	for _, path := range []string{"/dashboard", "/", "/assets/dashboard.css", "/assets/dashboard-responsive.css", "/assets/dashboard.js", "/assets/trace-viewer.css", "/assets/trace-viewer.js", "/api/v1/alerts/p%3A100/svg/view"} {
+	for _, path := range []string{"/dashboard", "/", "/assets/dashboard.css", "/assets/dashboard-responsive.css", "/assets/dashboard-api.js", "/assets/dashboard.js", "/assets/trace-viewer.css", "/assets/trace-viewer.js", "/api/v1/alerts/p%3A100/svg/view"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		w := apiServe(ts, req)
 		if w.Code != http.StatusOK {
@@ -203,14 +203,14 @@ func TestAPIAuthAllowsDashboardShellWithoutKey(t *testing.T) {
 
 	rawSVGReq := httptest.NewRequest(http.MethodGet, "/api/v1/alerts/p%3A100/svg", nil)
 	rawSVG := apiServe(ts, rawSVGReq)
-	if rawSVG.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthenticated raw SVG status code = %d, want %d", rawSVG.Code, http.StatusUnauthorized)
+	if rawSVG.Code != http.StatusOK {
+		t.Fatalf("raw SVG status code = %d, want %d", rawSVG.Code, http.StatusOK)
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
 	w := apiServe(ts, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthenticated API status code = %d, want %d", w.Code, http.StatusUnauthorized)
+	if w.Code != http.StatusOK {
+		t.Fatalf("API status code = %d, want %d", w.Code, http.StatusOK)
 	}
 }
 
@@ -530,14 +530,9 @@ func TestRBACAuditorStatusAllowed(t *testing.T) {
 	}
 }
 
-func TestAuthAcceptsBearerToken(t *testing.T) {
+func TestTrustedHeaderIdentitySetsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
+	ts.SetTrustedHeaderAuth(true, "X-SSO-User", "X-SSO-Role")
 	var got FleetUpdate
 	ts.SetFleetUpdateFunc(func(update FleetUpdate) error {
 		got = update
@@ -545,7 +540,8 @@ func TestAuthAcceptsBearerToken(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","group":"prod"}`))
-	req.Header.Set("Authorization", "Bearer admin-key")
+	req.Header.Set("X-SSO-User", "SecOps On-Call")
+	req.Header.Set("X-SSO-Role", RoleAdmin)
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
@@ -555,18 +551,6 @@ func TestAuthAcceptsBearerToken(t *testing.T) {
 	}
 	if got.Actor != "SecOps On-Call (admin)" {
 		t.Fatalf("actor = %q", got.Actor)
-	}
-}
-
-func TestAuthRejectsMalformedBearerToken(t *testing.T) {
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
-	req.Header.Set("Authorization", "Bearer")
-	w := apiServe(ts, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -2571,7 +2555,7 @@ func TestCORSHeaders(t *testing.T) {
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
 		t.Error("missing CORS header")
 	}
-	if got := w.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Authorization") {
+	if got := w.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Content-Type") {
 		t.Fatalf("CORS headers = %q", got)
 	}
 }

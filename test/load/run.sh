@@ -16,12 +16,6 @@ set -euo pipefail
 TARGET="${TARGET:-http://localhost:8080}"
 BENCH_DURATION="${BENCH_DURATION:-10s}"
 RESULTS_DIR="${RESULTS_DIR:-test/load/results}"
-API_KEY="${API_KEY:-}"
-AUTH_HEADER=""
-
-if [ -n "$API_KEY" ]; then
-    AUTH_HEADER="-H X-API-Key:${API_KEY}"
-fi
 
 mkdir -p "$RESULTS_DIR"
 
@@ -42,7 +36,6 @@ bench_hey() {
         -c "$concurrency" \
         -z "$BENCH_DURATION" \
         -o csv \
-        $AUTH_HEADER \
         "${TARGET}${endpoint}" \
         > "$RESULTS_DIR/${label}.csv" 2>/dev/null
 
@@ -99,7 +92,6 @@ case "${1:-}" in
         echo "Environment:"
         echo "  TARGET        ProvidAPT API URL (default: http://localhost:8080)"
         echo "  BENCH_DURATION  Duration per test (default: 10s)"
-        echo "  API_KEY       API key for authenticated endpoints"
         echo "  RESULTS_DIR   Output directory (default: test/load/results)"
         exit 0
         ;;

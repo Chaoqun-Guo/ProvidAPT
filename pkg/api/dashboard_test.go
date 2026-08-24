@@ -12,7 +12,7 @@ func dashboardHTMLDocument() string {
 }
 
 func dashboardTestSurface() string {
-	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" + dashboardJS
+	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" + dashboardAPIJS + "\n" + dashboardJS
 }
 
 func TestDashboardAlertWorkflowSeparators(t *testing.T) {
@@ -774,7 +774,7 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 }
 
 func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
-	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard.js"`} {
+	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard.js"`} {
 		if !strings.Contains(dashboardHTMLDocument(), asset) {
 			t.Fatalf("dashboard should link asset %s", asset)
 		}
@@ -807,6 +807,7 @@ func TestDashboardResponsiveCSSAsset(t *testing.T) {
 	}{
 		{"/assets/dashboard.css", "text/css", "--ids-bg-0"},
 		{"/assets/dashboard-responsive.css", "text/css", "repeat(3, minmax(480px, 1fr))"},
+		{"/assets/dashboard-api.js", "application/javascript", "async function fetchJSON"},
 		{"/assets/dashboard.js", "application/javascript", "function refresh()"},
 	}
 	for _, tc := range cases {

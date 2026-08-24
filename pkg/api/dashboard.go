@@ -17,6 +17,9 @@ var dashboardCSS string
 //go:embed static/dashboard-responsive.css
 var dashboardResponsiveCSS string
 
+//go:embed static/dashboard-api.js
+var dashboardAPIJS string
+
 //go:embed static/dashboard.js
 var dashboardJS string
 
@@ -42,6 +45,12 @@ func (s *Server) handleDashboardResponsiveCSS(w http.ResponseWriter, _ *http.Req
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write([]byte(dashboardResponsiveCSS))
+}
+
+func (s *Server) handleDashboardAPIJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardAPIJS))
 }
 
 func (s *Server) handleDashboardJS(w http.ResponseWriter, _ *http.Request) {

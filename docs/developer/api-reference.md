@@ -196,7 +196,7 @@ func init() {
 
 Unless an endpoint explicitly documents otherwise, the REST API follows these conventions:
 
-- Authentication: pass `Authorization: Bearer <token>` when API authentication is enabled.
+- Authentication: the open-source control plane does not require built-in credentials. Deploy it on a trusted network or behind your own reverse proxy if additional access control is needed.
 - Content type: send JSON request bodies with `Content-Type: application/json`.
 - Errors: failed requests return a non-2xx status and a JSON object containing an `error` field.
 - Pagination: list endpoints may include `limit`, `offset`, `since`, or `cursor` query parameters when supported by the endpoint.

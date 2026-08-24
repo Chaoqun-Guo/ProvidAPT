@@ -255,7 +255,8 @@ func isPublicDashboardPath(method, path string) bool {
 		return true
 	}
 	return path == "/" || path == "/dashboard" ||
-		path == "/assets/dashboard.css" || path == "/assets/dashboard-responsive.css" || path == "/assets/dashboard.js" ||
+		path == "/assets/dashboard.css" || path == "/assets/dashboard-responsive.css" ||
+		path == "/assets/dashboard-api.js" || path == "/assets/dashboard.js" ||
 		path == "/assets/trace-viewer.css" || path == "/assets/trace-viewer.js"
 }
 
@@ -391,7 +392,7 @@ func corsMiddleware(origins []string) func(http.Handler) http.Handler {
 			}
 			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return
