@@ -294,6 +294,8 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
                 )
                 try:
                     page.goto(shot["url"], wait_until="networkidle", timeout=timeout_ms)
+                    if shot["page"] == "trace-viewer":
+                        wait_for_trace_viewer_ready(page, timeout_ms)
                     normalize_visual_state(page, shot["page"])
                     if shot["page"] == "dashboard":
                         shot["dom_assertions"] = dashboard_dom_assertions(page)
@@ -322,6 +324,18 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
     report["failures"] = failures
     report["status"] = "pass" if not failures else "blocked"
     return report
+
+
+def wait_for_trace_viewer_ready(page: Any, timeout_ms: int) -> None:
+    wait_ms = max(1000, min(timeout_ms, 15000))
+    try:
+        page.wait_for_function(
+            "() => Boolean(document.querySelector('#canvas svg'))",
+            timeout=wait_ms,
+        )
+    except Exception:
+        # Keep the later DOM assertion failure, which gives a clearer report.
+        return
 
 
 def normalize_visual_state(page: Any, page_name: str) -> None:
