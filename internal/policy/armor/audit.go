@@ -19,6 +19,7 @@ package armor
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -83,12 +84,14 @@ func (ma *MapAuditor) AuditAgentMap() ([]AuditRecord, error) {
 	var records []AuditRecord
 
 	// Dump the BPF map using bpftool (requires root)
-	output, err := exec.Command("bpftool", "map", "dump",
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "bpftool", "map", "dump",
 		"pinned", "/sys/fs/bpf/providapt/agent_pids",
 	).Output()
 	if err != nil {
 		// Fallback: try by name
-		output, err = exec.Command("bpftool", "map", "dump",
+		output, err = exec.CommandContext(ctx, "bpftool", "map", "dump",
 			"name", "agent_pids",
 		).Output()
 		if err != nil {

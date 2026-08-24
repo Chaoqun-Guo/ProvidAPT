@@ -4,11 +4,15 @@
 package heal
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
 	"strings"
+	"time"
 )
+
+const firewallCommandTimeout = 10 * time.Second
 
 // ═══════════════════════════════════════════════════════════════
 // Firewall integration
@@ -66,11 +70,13 @@ func blockWithIPTables(report *ImpactReport, result *FirewallResult) {
 				log.Printf("[heal] DRY-RUN: %s", rule)
 			} else {
 				parts := strings.Split(rule, " ")
-				cmd := exec.Command(parts[0], parts[1:]...)
+				ctx, cancel := context.WithTimeout(context.Background(), firewallCommandTimeout)
+				cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
 				if output, err := cmd.CombinedOutput(); err != nil {
 					result.Errors = append(result.Errors,
 						fmt.Sprintf("iptables fail: %v\n%s", err, string(output)))
 				}
+				cancel()
 			}
 		}
 		result.RulesAdded += len(rules)
@@ -88,18 +94,22 @@ func blockWithNFTables(report *ImpactReport, result *FirewallResult) {
 		}
 
 		// Check if the set exists
-		checkCmd := exec.Command("nft", "list", "set", "ip", "filter", "providapt_c2")
+		checkCtx, checkCancel := context.WithTimeout(context.Background(), firewallCommandTimeout)
+		checkCmd := exec.CommandContext(checkCtx, "nft", "list", "set", "ip", "filter", "providapt_c2")
 		if checkCmd.Run() != nil {
+			checkCancel()
 			// Create the set
 			createCmd := fmt.Sprintf("nft add set ip filter providapt_c2 { type ipv4_addr; }")
 			if result.DryRun {
 				log.Printf("[heal] DRY-RUN: %s", createCmd)
 			} else {
 				parts := strings.Split(createCmd, " ")
-				if output, err := exec.Command(parts[0], parts[1:]...).CombinedOutput(); err != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), firewallCommandTimeout)
+				if output, err := exec.CommandContext(ctx, parts[0], parts[1:]...).CombinedOutput(); err != nil {
 					result.Errors = append(result.Errors,
 						fmt.Sprintf("nft create set: %v\n%s", err, string(output)))
 				}
+				cancel()
 			}
 
 			// Add rule referencing the set
@@ -108,11 +118,15 @@ func blockWithNFTables(report *ImpactReport, result *FirewallResult) {
 				log.Printf("[heal] DRY-RUN: %s", ruleCmd)
 			} else {
 				parts := strings.Split(ruleCmd, " ")
-				if err := exec.Command(parts[0], parts[1:]...).Run(); err != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), firewallCommandTimeout)
+				if err := exec.CommandContext(ctx, parts[0], parts[1:]...).Run(); err != nil {
 					result.Errors = append(result.Errors,
 						fmt.Sprintf("nft add rule: %v", err))
 				}
+				cancel()
 			}
+		} else {
+			checkCancel()
 		}
 
 		// Add IP to the set
@@ -121,10 +135,12 @@ func blockWithNFTables(report *ImpactReport, result *FirewallResult) {
 			log.Printf("[heal] DRY-RUN: %s", addCmd)
 		} else {
 			parts := strings.Split(addCmd, " ")
-			if output, err := exec.Command(parts[0], parts[1:]...).CombinedOutput(); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), firewallCommandTimeout)
+			if output, err := exec.CommandContext(ctx, parts[0], parts[1:]...).CombinedOutput(); err != nil {
 				result.Errors = append(result.Errors,
 					fmt.Sprintf("nft add element: %v\n%s", err, string(output)))
 			}
+			cancel()
 		}
 
 		result.RulesAdded++

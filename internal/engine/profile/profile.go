@@ -7,6 +7,7 @@
 package profile
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,6 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+const commandTimeout = 5 * time.Second
 
 // ═══════════════════════════════════════════════════════════════
 // Kernel eBPF statistics via bpftool
@@ -47,11 +50,13 @@ func CollectBPFStats() (*BPFStats, error) {
 	stats := &BPFStats{}
 
 	// Use bpftool to list programs with their runtime stats
-	cmd := exec.Command("bpftool", "prog", "list", "--json")
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bpftool", "prog", "list", "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		// Fallback: try without --json
-		cmd = exec.Command("bpftool", "prog", "list")
+		cmd = exec.CommandContext(ctx, "bpftool", "prog", "list")
 		output, err = cmd.Output()
 		if err != nil {
 			return nil, fmt.Errorf("bpftool not available: %w", err)
@@ -104,7 +109,9 @@ func CollectBPFStats() (*BPFStats, error) {
 
 // collectProgRunTime gets detailed runtime info for a program.
 func collectProgRunTime(prog BPFProgInfo) BPFProgInfo {
-	cmd := exec.Command("bpftool", "prog", "show", "id", fmt.Sprintf("%d", prog.ID))
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bpftool", "prog", "show", "id", fmt.Sprintf("%d", prog.ID))
 	output, err := cmd.Output()
 	if err != nil {
 		return prog

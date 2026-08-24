@@ -11,12 +11,16 @@
 package hwaccel
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
+
+const smartNICCommandTimeout = 5 * time.Second
 
 // ═══════════════════════════════════════════════════════════════
 // SmartNIC offloading
@@ -130,9 +134,11 @@ func ApplyOffload(cfg *SmartNICConfig) error {
 
 	for _, cmd := range cmds {
 		parts := strings.Split(cmd, " ")
-		if err := exec.Command(parts[0], parts[1:]...).Run(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), smartNICCommandTimeout)
+		if err := exec.CommandContext(ctx, parts[0], parts[1:]...).Run(); err != nil {
 			log.Printf("[hwaccel] offload cmd warning: %v", err)
 		}
+		cancel()
 	}
 
 	log.Printf("[hwaccel] SmartNIC offload applied to %s", iface)

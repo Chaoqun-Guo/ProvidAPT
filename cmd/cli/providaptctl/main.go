@@ -233,7 +233,9 @@ func findDaemonPID() int {
 	if pid, err := readPID(); err == nil && isRunning(pid) {
 		return pid
 	}
-	cmd := exec.Command("pgrep", "-x", progName)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "pgrep", "-x", progName)
 	out, err := cmd.Output()
 	if err != nil {
 		return 0
@@ -359,7 +361,9 @@ func cmdStop(cfgPath string) {
 func cmdRestart(cfgPath string) {
 	cmdStop(cfgPath)
 	clioutput.Printf("%s\n", clioutput.Infof("Starting ProvidAPT..."))
-	cmd := exec.Command(progName)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, progName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
@@ -636,7 +640,9 @@ func cmdPurge(cfgPath, mode, cutoff string, maxBytes int64, dryRun bool) {
 
 	// Restart the daemon
 	clioutput.Printf("%s\n", clioutput.Infof("Restarting daemon..."))
-	cmd := exec.Command(progName)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, progName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {

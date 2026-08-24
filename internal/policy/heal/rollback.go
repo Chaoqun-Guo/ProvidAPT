@@ -4,11 +4,15 @@
 package heal
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
 	"strings"
+	"time"
 )
+
+const rollbackCommandTimeout = 10 * time.Second
 
 // ═══════════════════════════════════════════════════════════════
 // Precise rollback
@@ -59,13 +63,15 @@ func Rollback(report *ImpactReport, cfg *RollbackConfig) *RollbackResult {
 				log.Printf("[heal] DRY-RUN: kill -9 %d (%s)", child.PID, child.Comm)
 				result.ProcessesKilled++
 			} else {
-				if err := exec.Command("kill", "-9", fmt.Sprintf("%d", child.PID)).Run(); err != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), rollbackCommandTimeout)
+				if err := exec.CommandContext(ctx, "kill", "-9", fmt.Sprintf("%d", child.PID)).Run(); err != nil {
 					result.Errors = append(result.Errors,
 						fmt.Sprintf("kill %d: %v", child.PID, err))
 				} else {
 					result.ProcessesKilled++
 					log.Printf("[heal] killed PID %d (%s)", child.PID, child.Comm)
 				}
+				cancel()
 			}
 		}
 	}
@@ -81,13 +87,15 @@ func Rollback(report *ImpactReport, cfg *RollbackConfig) *RollbackResult {
 			} else {
 				// Rename to .quarantine extension
 				qPath := file.Path + ".quarantine"
-				if err := exec.Command("mv", file.Path, qPath).Run(); err != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), rollbackCommandTimeout)
+				if err := exec.CommandContext(ctx, "mv", file.Path, qPath).Run(); err != nil {
 					result.Errors = append(result.Errors,
 						fmt.Sprintf("quarantine %s: %v", file.Path, err))
 				} else {
 					result.FilesQuarantined++
 					log.Printf("[heal] quarantined %s → %s", file.Path, qPath)
 				}
+				cancel()
 			}
 		}
 	}
@@ -120,11 +128,13 @@ func triggerSnapshotRollback(cfg *RollbackConfig) int {
 	}
 
 	var cmd *exec.Cmd
+	ctx, cancel := context.WithTimeout(context.Background(), rollbackCommandTimeout)
+	defer cancel()
 	switch cfg.SnapshotCmd {
 	case "btrfs":
-		cmd = exec.Command("btrfs", "subvolume", "snapshot", "-r", snapName, "/")
+		cmd = exec.CommandContext(ctx, "btrfs", "subvolume", "snapshot", "-r", snapName, "/")
 	case "zfs":
-		cmd = exec.Command("zfs", "rollback", "-r", snapName)
+		cmd = exec.CommandContext(ctx, "zfs", "rollback", "-r", snapName)
 	default:
 		return 0
 	}

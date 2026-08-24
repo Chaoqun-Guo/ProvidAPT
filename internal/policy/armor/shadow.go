@@ -4,6 +4,7 @@
 package armor
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -207,7 +208,9 @@ func checkBPFMapExists(name string) bool {
 		return true
 	}
 	// Also check bpftool map show as fallback
-	out, err := exec.Command("bpftool", "map", "show", "name", name).Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "bpftool", "map", "show", "name", name).Output()
 	if err != nil {
 		return false
 	}

@@ -4,6 +4,7 @@
 package supplychain
 
 import (
+	"context"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"sync"
 	"time"
 )
+
+const packageQueryTimeout = 5 * time.Second
 
 // Known package manager executables.
 var packageManagers = map[string]string{
@@ -223,7 +226,9 @@ func inferPackageName(filePath string, installed []string) string {
 // Returns empty string if the tool is unavailable or the path is unknown.
 func queryDpkgVersion(filePath string) string {
 	// Step 1: find the package that owns this file
-	cmd := exec.Command("dpkg", "-S", filePath)
+	ctx, cancel := context.WithTimeout(context.Background(), packageQueryTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "dpkg", "-S", filePath)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -239,7 +244,7 @@ func queryDpkgVersion(filePath string) string {
 	}
 
 	// Step 2: query the installed version
-	verCmd := exec.Command("dpkg-query", "-W", "-f=${Version}", pkgName)
+	verCmd := exec.CommandContext(ctx, "dpkg-query", "-W", "-f=${Version}", pkgName)
 	verOut, err := verCmd.Output()
 	if err != nil {
 		return ""
@@ -251,7 +256,9 @@ func queryDpkgVersion(filePath string) string {
 // Uses `rpm -qf --queryformat %{VERSION} <path>` to get the version directly.
 // Returns empty string if the tool is unavailable or the path is unknown.
 func queryRpmVersion(filePath string) string {
-	cmd := exec.Command("rpm", "-qf", "--queryformat", "%{VERSION}", filePath)
+	ctx, cancel := context.WithTimeout(context.Background(), packageQueryTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "rpm", "-qf", "--queryformat", "%{VERSION}", filePath)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

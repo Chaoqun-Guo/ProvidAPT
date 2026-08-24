@@ -8,6 +8,7 @@
 package selfheal
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/audit"
 	"github.com/cilium/ebpf"
 )
+
+const selfHealCommandTimeout = 10 * time.Second
 
 // ═══════════════════════════════════════════════════════════════
 // Configuration
@@ -311,7 +314,9 @@ func (h *Healer) checkProgramBPFTool(name string) bool {
 		}
 	}
 	// Fall through to bpftool (works on older deployments).
-	cmd := exec.Command("bpftool", "prog", "show", "name", name)
+	ctx, cancel := context.WithTimeout(context.Background(), selfHealCommandTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bpftool", "prog", "show", "name", name)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false
@@ -391,8 +396,10 @@ func (h *Healer) reloadPrograms() {
 	// Fallback: custom reload command.
 	if h.cfg.ReloadCmd != "" {
 		parts := strings.Fields(h.cfg.ReloadCmd)
-		cmd := exec.Command(parts[0], parts[1:]...)
+		ctx, cancel := context.WithTimeout(context.Background(), selfHealCommandTimeout)
+		cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
 		output, err := cmd.CombinedOutput()
+		cancel()
 		if err == nil {
 			h.resetCircuitBreaker()
 			log.Printf("[heal] eBPF programs reloaded via %s", h.cfg.ReloadCmd)
@@ -503,7 +510,9 @@ func (h *Healer) registerLoadedObjects(objs *bpfObjects) {
 func (h *Healer) reloadBPFTool() {
 	log.Printf("[heal] auto-reload triggered — re-attaching eBPF programs via bpftool")
 	for _, progName := range h.cfg.ExpectedProgs {
-		out, err := exec.Command("bpftool", "prog", "attach", "name", progName, "lsm", progName).CombinedOutput()
+		ctx, cancel := context.WithTimeout(context.Background(), selfHealCommandTimeout)
+		out, err := exec.CommandContext(ctx, "bpftool", "prog", "attach", "name", progName, "lsm", progName).CombinedOutput()
+		cancel()
 		if err != nil {
 			h.recordReloadFailure(fmt.Sprintf("bpftool re-attach %s failed: %v\n%s", progName, err, string(out)))
 			return
@@ -599,7 +608,9 @@ func (h *Healer) verifyMap(name string) {
 
 // verifyMapBPFTool is the legacy fallback using bpftool CLI.
 func (h *Healer) verifyMapBPFTool(name string) {
-	cmd := exec.Command("bpftool", "map", "dump", "name", name)
+	ctx, cancel := context.WithTimeout(context.Background(), selfHealCommandTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bpftool", "map", "dump", "name", name)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		h.logMapFail(name, fmt.Sprintf("bpftool dump failed: %v", err))

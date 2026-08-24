@@ -4,6 +4,7 @@
 package hwaccel
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"log"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"time"
 )
+
+const gpuCommandTimeout = 5 * time.Second
 
 // ═══════════════════════════════════════════════════════════════
 // GPU-accelerated graph clustering
@@ -36,10 +39,11 @@ func DetectGPU() *GPUInfo {
 	info := &GPUInfo{}
 
 	// Check nvidia-smi
-	cmd := exec.Command("nvidia-smi", "--query-gpu=name,memory.total",
+	ctx, cancel := context.WithTimeout(context.Background(), gpuCommandTimeout)
+	cmd := exec.CommandContext(ctx, "nvidia-smi", "--query-gpu=name,memory.total",
 		"--format=csv,noheader")
-	if err := cmd.Run(); err == nil {
-		output, _ := cmd.Output()
+	if output, err := cmd.Output(); err == nil {
+		cancel()
 		info.Present = true
 		info.Driver = "nvidia"
 		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -51,15 +55,20 @@ func DetectGPU() *GPUInfo {
 		}
 
 		// Check CUDA version
-		if cudaOut, err := exec.Command("nvcc", "--version").Output(); err == nil {
+		cudaCtx, cudaCancel := context.WithTimeout(context.Background(), gpuCommandTimeout)
+		if cudaOut, err := exec.CommandContext(cudaCtx, "nvcc", "--version").Output(); err == nil {
 			info.CUDAVersion = strings.Split(string(cudaOut), "\n")[3]
 		}
+		cudaCancel()
 		info.MemGB = 16 // default estimate
 		return info
 	}
+	cancel()
 
 	// Check ROCm (AMD)
-	cmd2 := exec.Command("rocm-smi")
+	rocmCtx, rocmCancel := context.WithTimeout(context.Background(), gpuCommandTimeout)
+	defer rocmCancel()
+	cmd2 := exec.CommandContext(rocmCtx, "rocm-smi")
 	if err := cmd2.Run(); err == nil {
 		info.Present = true
 		info.Driver = "rocm"
@@ -206,7 +215,9 @@ func (gce *GraphClusteringEngine) cpuClustering() ([]*GraphCluster, error) {
 func GPUStats() map[string]interface{} {
 	stats := make(map[string]interface{})
 
-	if out, err := exec.Command("nvidia-smi",
+	ctx, cancel := context.WithTimeout(context.Background(), gpuCommandTimeout)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "nvidia-smi",
 		"--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu",
 		"--format=csv,noheader,nounits").Output(); err == nil {
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")

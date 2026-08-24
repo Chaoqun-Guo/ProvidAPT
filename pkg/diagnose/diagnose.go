@@ -8,6 +8,7 @@ package diagnose
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -179,7 +180,9 @@ func collectGoroutines() string {
 // ── Helpers ────────────────────────────────────────────────
 
 func runCommand(name string, args ...string) string {
-	cmd := exec.Command(name, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -218,7 +221,9 @@ func isRunning(pid int) bool {
 func checkBPFConfig() map[string]interface{} {
 	result := make(map[string]interface{})
 	// Try to read kernel config
-	cmd := exec.Command("zgrep", "-E", "CONFIG_BPF=|CONFIG_BPF_LSM=|CONFIG_DEBUG_INFO_BTF=", "/proc/config.gz")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "zgrep", "-E", "CONFIG_BPF=|CONFIG_BPF_LSM=|CONFIG_DEBUG_INFO_BTF=", "/proc/config.gz")
 	out, err := cmd.Output()
 	if err == nil {
 		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {

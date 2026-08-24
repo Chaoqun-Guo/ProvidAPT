@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -94,7 +95,9 @@ func main() {
 
 // restartAgent starts the agent and verifies it stays alive.
 func restartAgent(agentPath, configPath string) error {
-	cmd := exec.Command(agentPath, "-config", configPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, agentPath, "-config", configPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
