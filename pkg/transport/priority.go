@@ -89,7 +89,7 @@ func (pp *PriorityPipeline) loadSeq() {
 	if err != nil {
 		return
 	}
-	defer closer.Close()
+	defer func() { _ = closer.Close() }()
 	if len(data) == 8 {
 		pp.lowSeq = binary.BigEndian.Uint64(data)
 	}
@@ -144,7 +144,7 @@ func (pp *PriorityPipeline) writeLowToPebbleLocked(evt *TransportEvent) {
 
 	key := lowEventKey(pp.lowSeq)
 	batch := pp.lowDB.NewBatch()
-	defer batch.Close()
+	defer func() { _ = batch.Close() }()
 
 	if err := batch.Set(key, data, nil); err != nil {
 		log.Printf("[priority] write low event: %v", err)
@@ -226,7 +226,7 @@ func (pp *PriorityPipeline) drainLowFromPebbleLocked() []*TransportEvent {
 		log.Printf("[priority] iter error: %v", err)
 		return nil
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var events []*TransportEvent
 	var keys [][]byte
@@ -258,7 +258,7 @@ func (pp *PriorityPipeline) drainLowFromPebbleLocked() []*TransportEvent {
 		if err := batch.Commit(pebble.Sync); err != nil {
 			log.Printf("[priority] delete low events: %v", err)
 		}
-		batch.Close()
+		_ = batch.Close()
 	}
 
 	return events
@@ -277,7 +277,7 @@ func (pp *PriorityPipeline) LowQueueDepth() int {
 		if err != nil {
 			return 0
 		}
-		defer iter.Close()
+		defer func() { _ = iter.Close() }()
 		count := 0
 		for iter.First(); iter.Valid(); iter.Next() {
 			if string(iter.Key()) == string(lowSeqKey()) {

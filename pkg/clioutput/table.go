@@ -46,34 +46,34 @@ func (t *Table) Render() {
 	// Header row
 	for i, h := range t.headers {
 		if i > 0 {
-			fmt.Fprint(w, "\t")
+			_, _ = fmt.Fprint(w, "\t")
 		}
-		fmt.Fprint(w, Bold(h))
+		_, _ = fmt.Fprint(w, Bold(h))
 	}
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	// Separator row (— repeated to header width)
 	for i, h := range t.headers {
 		if i > 0 {
-			fmt.Fprint(w, "\t")
+			_, _ = fmt.Fprint(w, "\t")
 		}
-		fmt.Fprint(w, strings.Repeat("—", len(h)))
+		_, _ = fmt.Fprint(w, strings.Repeat("—", len(h)))
 	}
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	// Data rows
 	for _, row := range t.rows {
 		for i, col := range row {
 			if i > 0 {
-				fmt.Fprint(w, "\t")
+				_, _ = fmt.Fprint(w, "\t")
 			}
-			fmt.Fprint(w, col)
+			_, _ = fmt.Fprint(w, col)
 		}
 		// Pad missing columns
 		for i := len(row); i < len(t.headers); i++ {
-			fmt.Fprint(w, "\t")
+			_, _ = fmt.Fprint(w, "\t")
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	_ = w.Flush()

@@ -116,7 +116,7 @@ func NewTransportManager(cfg *TransportConfig) (*TransportManager, error) {
 	if cfg.LowPriorityPath != "" {
 		pp, err := NewPersistentPriorityPipeline(cfg.LowPriorityPath)
 		if err != nil {
-			tm.hashCache.Close()
+			_ = tm.hashCache.Close()
 			return nil, err
 		}
 		tm.pipeline = pp

@@ -170,7 +170,7 @@ func (hc *HashCache) FlushToDisk() error {
 	}
 
 	batch := hc.db.NewBatch()
-	defer batch.Close()
+	defer func() { _ = batch.Close() }()
 
 	for hash, entry := range hc.hashes {
 		data, err := json.Marshal(entry)
@@ -198,7 +198,7 @@ func (hc *HashCache) loadFromDisk() error {
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	for iter.First(); iter.Valid(); iter.Next() {
 		var entry SubgraphHash
@@ -224,7 +224,9 @@ func (hc *HashCache) flushLoop() {
 				log.Printf("[hashcache] flush error: %v", err)
 			}
 		case <-hc.stopCh:
-			hc.FlushToDisk()
+			if err := hc.FlushToDisk(); err != nil {
+				log.Printf("[hashcache] stop flush error: %v", err)
+			}
 			return
 		}
 	}
@@ -248,7 +250,9 @@ func (hc *HashCache) Close() error {
 	hc.flushWg.Wait()
 
 	if hc.db != nil {
-		hc.FlushToDisk()
+		if err := hc.FlushToDisk(); err != nil {
+			return err
+		}
 		return hc.db.Close()
 	}
 	return nil

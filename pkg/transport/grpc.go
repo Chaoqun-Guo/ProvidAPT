@@ -184,7 +184,7 @@ func (c *GrpcClient) Send(data []byte) error {
 		// Reset connection on failure so next Send retries
 		c.mu.Lock()
 		if c.conn != nil {
-			c.conn.Close()
+			_ = c.conn.Close()
 			c.conn = nil
 			c.client = nil
 		}
@@ -287,7 +287,7 @@ func (c *GrpcClient) Close() {
 	c.closed = true
 
 	if c.conn != nil {
-		c.conn.Close()
+		_ = c.conn.Close()
 		log.Printf("[grpc] connection to %s closed", c.addr)
 	}
 }

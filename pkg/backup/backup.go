@@ -42,24 +42,24 @@ func Create(storePath, outputPath string) (*Meta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open store for backup: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Take a consistent snapshot
 	snapshot := db.NewSnapshot()
-	defer snapshot.Close()
+	defer func() { _ = snapshot.Close() }()
 
 	// Create output file
 	outFile, err := os.Create(outputPath)
 	if err != nil {
 		return nil, fmt.Errorf("create backup file: %w", err)
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	gzw := gzip.NewWriter(outFile)
-	defer gzw.Close()
+	defer func() { _ = gzw.Close() }()
 
 	tw := tar.NewWriter(gzw)
-	defer tw.Close()
+	defer func() { _ = tw.Close() }()
 
 	// Iterate over all keys in the snapshot
 	var totalSize int64
@@ -69,7 +69,7 @@ func Create(storePath, outputPath string) (*Meta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create iterator: %w", err)
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	for iter.First(); iter.Valid(); iter.Next() {
 		key := iter.Key()
@@ -121,13 +121,13 @@ func Restore(backupPath, targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("open backup: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	gr, err := gzip.NewReader(f)
 	if err != nil {
 		return fmt.Errorf("decompress backup: %w", err)
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }()
 
 	tr := tar.NewReader(gr)
 
@@ -136,10 +136,10 @@ func Restore(backupPath, targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("open target store: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	batch := db.NewBatch()
-	defer batch.Close()
+	defer func() { _ = batch.Close() }()
 
 	var entryCount int
 	for {
@@ -188,7 +188,7 @@ func Restore(backupPath, targetDir string) error {
 				return fmt.Errorf("commit batch: %w", err)
 			}
 			batch = db.NewBatch()
-			defer batch.Close()
+			defer func() { _ = batch.Close() }()
 		}
 	}
 
@@ -222,7 +222,7 @@ func CreateCheckpoint(db *pebble.DB, outputPath string) (*Meta, error) {
 	if err := db.Checkpoint(checkpointDir); err != nil {
 		return nil, fmt.Errorf("create checkpoint: %w", err)
 	}
-	defer os.RemoveAll(checkpointDir)
+	defer func() { _ = os.RemoveAll(checkpointDir) }()
 
 	if err := archiveDirectory(checkpointDir, outputPath); err != nil {
 		return nil, err
@@ -262,12 +262,12 @@ func RestoreCheckpoint(backupPath, targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("open checkpoint backup: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	gr, err := gzip.NewReader(f)
 	if err != nil {
 		return fmt.Errorf("decompress checkpoint backup: %w", err)
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }()
 	tr := tar.NewReader(gr)
 	cleanTarget, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -302,7 +302,7 @@ func RestoreCheckpoint(backupPath, targetDir string) error {
 				return fmt.Errorf("create restore file: %w", err)
 			}
 			if _, err := io.Copy(out, tr); err != nil {
-				out.Close()
+				_ = out.Close()
 				return fmt.Errorf("write restore file: %w", err)
 			}
 			if err := out.Close(); err != nil {
@@ -318,11 +318,11 @@ func archiveDirectory(root, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("create checkpoint archive: %w", err)
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 	gzw := gzip.NewWriter(outFile)
-	defer gzw.Close()
+	defer func() { _ = gzw.Close() }()
 	tw := tar.NewWriter(gzw)
-	defer tw.Close()
+	defer func() { _ = tw.Close() }()
 
 	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -355,7 +355,7 @@ func archiveDirectory(root, outputPath string) error {
 		if err != nil {
 			return err
 		}
-		defer in.Close()
+		defer func() { _ = in.Close() }()
 		_, err = io.Copy(tw, in)
 		return err
 	})

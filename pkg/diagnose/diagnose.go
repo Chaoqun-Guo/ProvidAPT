@@ -34,13 +34,13 @@ func Collect(outputDir string) (archivePath string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("create archive: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	gw := gzip.NewWriter(f)
-	defer gw.Close()
+	defer func() { _ = gw.Close() }()
 
 	tw := tar.NewWriter(gw)
-	defer tw.Close()
+	defer func() { _ = tw.Close() }()
 
 	// Collect all diagnostic data. Each write* function handles its own errors
 	// by logging and returning empty data rather than aborting.
@@ -71,7 +71,7 @@ func writeFile(tw *tar.Writer, name, content string) {
 	if err := tw.WriteHeader(hdr); err != nil {
 		return
 	}
-	io.WriteString(tw, content)
+	_, _ = io.WriteString(tw, content)
 }
 
 // ── Data collectors ─────────────────────────────────────────

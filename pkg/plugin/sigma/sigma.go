@@ -6,6 +6,7 @@
 package sigma
 
 import (
+	"log"
 	"strings"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
@@ -13,7 +14,9 @@ import (
 )
 
 func init() {
-	plugin.Register(&SigmaPlugin{})
+	if err := plugin.Register(&SigmaPlugin{}); err != nil {
+		log.Printf("[plugin:sigma] register failed: %v", err)
+	}
 }
 
 // SigmaRule defines a single detection rule compatible with Sigma syntax.

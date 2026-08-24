@@ -103,7 +103,7 @@ func (exe *Executor) findNodes(step QueryStep) ([]ChainNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	for iter.SeekGE([]byte(prefix)); iter.Valid(); iter.Next() {
 		key := string(iter.Key())
@@ -165,7 +165,7 @@ func (exe *Executor) followEdges(source ChainNode, direction string, depth int) 
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	seen := make(map[string]bool)
 	var nodes []ChainNode
@@ -214,7 +214,7 @@ func (exe *Executor) followRelation(source ChainNode, relation string, depth int
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	provRel := relationToPROV(relation)
 	seen := make(map[string]bool)

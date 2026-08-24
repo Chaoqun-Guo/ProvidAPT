@@ -28,7 +28,7 @@ func cmdAudit(cfgPath, catFilter, sinceDuration string, limit int) {
 	if err != nil {
 		clioutput.Fatalf("Audit store open failed: %v", err)
 	}
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	// Parse category filter.
 	var cat audit.Category

@@ -28,13 +28,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	st, err := store.Open(dir + "/pebble")
 	if err != nil {
 		log.Fatalf("open store: %v", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	// ── Write nodes ────────────────────────────────────
 	fmt.Println("Writing nodes...")

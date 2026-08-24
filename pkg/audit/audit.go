@@ -275,7 +275,7 @@ func (s *Store) rotate() error {
 	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		// Try to restore the old file.
-		os.Rename(rotatedPath, s.path)
+		_ = os.Rename(rotatedPath, s.path)
 		return fmt.Errorf("open new audit: %w", err)
 	}
 	s.f = f
@@ -301,7 +301,7 @@ func (s *Store) rotate() error {
 					oldest = i
 				}
 			}
-			os.Remove(backups[oldest])
+			_ = os.Remove(backups[oldest])
 			backups = append(backups[:oldest], backups[oldest+1:]...)
 		}
 	}

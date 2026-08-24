@@ -118,7 +118,9 @@ func (c *Client) sendBatch(batch []*SocketEvent) error {
 		return fmt.Errorf("http post: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	io.Copy(io.Discard, resp.Body)
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		return fmt.Errorf("drain response body: %w", err)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned %d", resp.StatusCode)
 	}

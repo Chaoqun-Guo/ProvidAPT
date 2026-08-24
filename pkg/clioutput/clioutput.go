@@ -91,5 +91,5 @@ func Fatalf(format string, args ...interface{}) {
 
 // Printf writes directly to stdout (pass-through for non-coloured output).
 func Printf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stdout, format, args...)
+	_, _ = fmt.Fprintf(os.Stdout, format, args...)
 }

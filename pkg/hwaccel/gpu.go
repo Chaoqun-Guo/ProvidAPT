@@ -116,7 +116,9 @@ func NewClusteringEngine(cfg *GraphClusteringConfig) *GraphClusteringEngine {
 	if cfg == nil {
 		cfg = DefaultClusteringConfig()
 	}
-	os.MkdirAll(cfg.ExportPath, 0755)
+	if err := os.MkdirAll(cfg.ExportPath, 0755); err != nil {
+		log.Printf("[gpu] create export path %s failed: %v", cfg.ExportPath, err)
+	}
 
 	return &GraphClusteringEngine{
 		cfg:     cfg,
@@ -136,21 +138,25 @@ func (gce *GraphClusteringEngine) ExportGraph(edges []EdgeRecord, outputPath str
 	if err != nil {
 		return fmt.Errorf("create export: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	writer := csv.NewWriter(f)
 	defer writer.Flush()
 
 	// Header
-	writer.Write([]string{"source", "target", "weight", "timestamp"})
+	if err := writer.Write([]string{"source", "target", "weight", "timestamp"}); err != nil {
+		return fmt.Errorf("write header: %w", err)
+	}
 
 	// Data
 	for _, e := range edges {
-		writer.Write([]string{
+		if err := writer.Write([]string{
 			e.Source, e.Target,
 			fmt.Sprintf("%d", e.Weight),
 			fmt.Sprintf("%d", e.Timestamp),
-		})
+		}); err != nil {
+			return fmt.Errorf("write edge row: %w", err)
+		}
 	}
 
 	log.Printf("[hwaccel/gpu] exported %d edges to %s", len(edges), outputPath)

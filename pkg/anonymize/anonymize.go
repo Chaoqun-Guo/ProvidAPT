@@ -209,7 +209,7 @@ func (a *Anonymizer) AnonymizeEvent(
 		// Store original in de-anon store for authorized decryption
 		if a.deanon != nil && origPath != anon.Pathname {
 			a.mu.Lock()
-			a.deanon.Store(anon.Pathname, origPath)
+			_ = a.deanon.Store(anon.Pathname, origPath)
 			a.mu.Unlock()
 		}
 	} else {

@@ -378,7 +378,7 @@ func (h *Healer) reloadPrograms() {
 		})
 		log.Printf("[heal] eBPF programs reloaded via cilium/ebpf")
 		if h.auditStore != nil {
-			h.auditStore.Log(audit.Entry{
+			h.logAudit(audit.Entry{
 				Category: audit.CatIntegrity,
 				Severity: "INFO",
 				Message:  "eBPF programs reloaded successfully",
@@ -518,7 +518,7 @@ func (h *Healer) reloadBPFTool() {
 	})
 	log.Printf("[heal] eBPF programs reloaded via bpftool")
 	if h.auditStore != nil {
-		h.auditStore.Log(audit.Entry{
+		h.logAudit(audit.Entry{
 			Category: audit.CatIntegrity,
 			Severity: "INFO",
 			Message:  "eBPF programs reloaded via bpftool",
@@ -539,7 +539,7 @@ func (h *Healer) runCleanup() {
 	})
 
 	if h.auditStore != nil {
-		h.auditStore.Log(audit.Entry{
+		h.logAudit(audit.Entry{
 			Category: audit.CatIntegrity,
 			Severity: "INFO",
 			Message:  "BPF map cleanup started",
@@ -622,12 +622,21 @@ func (h *Healer) logMapFail(name, msg string) {
 	})
 	log.Printf("[heal] map %s: %s", name, msg)
 	if h.auditStore != nil {
-		h.auditStore.Log(audit.Entry{
+		h.logAudit(audit.Entry{
 			Category: audit.CatIntegrity,
 			Severity: "WARNING",
 			Message:  fmt.Sprintf("Cannot verify map %s: %s", name, msg),
 			Source:   "selfheal",
 		})
+	}
+}
+
+func (h *Healer) logAudit(entry audit.Entry) {
+	if h.auditStore == nil {
+		return
+	}
+	if err := h.auditStore.Log(entry); err != nil {
+		log.Printf("[heal] audit log failed: %v", err)
 	}
 }
 

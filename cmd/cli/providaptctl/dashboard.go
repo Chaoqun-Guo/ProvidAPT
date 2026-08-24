@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -78,7 +77,7 @@ func resolveOutputDir(cfgPath string) string {
 
 func countEventFiles(dir string) int {
 	total := int64(0)
-	entries, err := ioutil.ReadDir(dir)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return 0
 	}
@@ -88,7 +87,11 @@ func countEventFiles(dir string) int {
 		}
 		if strings.HasPrefix(e.Name(), "providapt-") &&
 			(strings.HasSuffix(e.Name(), ".ndjson") || strings.HasSuffix(e.Name(), ".json")) {
-			total += e.Size()
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			total += info.Size()
 		}
 	}
 	// Approximate event count: each JSON line ~200 bytes
@@ -100,7 +103,7 @@ func countAlertLines(path string) int {
 	if err != nil {
 		return 0
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	count := 0
 	for scanner.Scan() {
@@ -125,7 +128,7 @@ func renderDaemonStatus(pid int, outDir string) {
 	if pid > 0 {
 		state := "?"
 		comm := "?"
-		if data, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
+		if data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
 			fields := strings.Fields(string(data))
 			if len(fields) >= 3 {
 				comm = strings.Trim(fields[1], "()")
@@ -181,7 +184,7 @@ func renderRecentAlerts(alertPath string, n int) {
 		fmt.Printf("  \033[33mNo alerts file\033[0m\n\n")
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var lines [][]byte
 	br := bufio.NewReaderSize(f, 4096)
@@ -244,7 +247,7 @@ func renderFooter(start time.Time, pid int) {
 	fmt.Printf("\033[1m──────────────────────────────────────────────────────────\033[0m\n")
 	uptime := "?"
 	if pid > 0 {
-		if data, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
+		if data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
 			fields := strings.Fields(string(data))
 			if len(fields) >= 22 {
 				clk := 100.0

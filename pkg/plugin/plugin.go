@@ -157,7 +157,7 @@ func (pm *PluginManager) ShutdownAll() {
 			continue
 		}
 		if lp, ok := p.(LifecyclePlugin); ok {
-			lp.Shutdown()
+			_ = lp.Shutdown()
 		}
 	}
 }

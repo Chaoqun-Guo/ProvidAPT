@@ -7,7 +7,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -215,7 +214,7 @@ func main() {
 }
 
 func readPID() (int, error) {
-	data, err := ioutil.ReadFile(pidFile)
+	data, err := os.ReadFile(pidFile)
 	if err != nil {
 		return 0, err
 	}
@@ -278,7 +277,7 @@ func cmdStatus(cfgPath string) {
 	}
 
 	statPath := filepath.Join("/proc", strconv.Itoa(pid), "stat")
-	if data, err := ioutil.ReadFile(statPath); err == nil {
+	if data, err := os.ReadFile(statPath); err == nil {
 		fields := strings.Fields(string(data))
 		if len(fields) >= 22 {
 			info.Comm = strings.Trim(fields[1], "()")
@@ -331,7 +330,7 @@ func cmdStop(cfgPath string) {
 
 	done := make(chan struct{})
 	go func() {
-		proc.Wait()
+		_, _ = proc.Wait()
 		close(done)
 	}()
 
@@ -340,21 +339,20 @@ func cmdStop(cfgPath string) {
 		clioutput.Printf("%s\n", clioutput.Okf("ProvidAPT: stopped"))
 	case <-time.After(10 * time.Second):
 		clioutput.Printf("%s\n", clioutput.Warnf("ProvidAPT: force killing..."))
-		proc.Kill()
+		_ = proc.Kill()
 		<-done
 		clioutput.Printf("%s\n", clioutput.Errf("ProvidAPT: killed"))
 	}
 
-	os.Remove(pidFile)
+	_ = os.Remove(pidFile)
 
 	if as := auditStore(cfgPath); as != nil {
-		as.Log(audit.Entry{
+		logAuditAndClose(as, audit.Entry{
 			Category: audit.CatAdmin,
 			Severity: "INFO",
 			Message:  "Daemon stopped",
 			Source:   "cli",
 		})
-		as.Close()
 	}
 }
 
@@ -370,13 +368,12 @@ func cmdRestart(cfgPath string) {
 	clioutput.Printf("%s\n", clioutput.Okf("ProvidAPT: started (PID %d)", cmd.Process.Pid))
 
 	if as := auditStore(cfgPath); as != nil {
-		as.Log(audit.Entry{
+		logAuditAndClose(as, audit.Entry{
 			Category: audit.CatAdmin,
 			Severity: "INFO",
 			Message:  "Daemon restarted",
 			Source:   "cli",
 		})
-		as.Close()
 	}
 }
 
@@ -415,13 +412,12 @@ func cmdReload(cfgPath string) {
 	}
 
 	if as := auditStore(cfgPath); as != nil {
-		as.Log(audit.Entry{
+		logAuditAndClose(as, audit.Entry{
 			Category: audit.CatAdmin,
 			Severity: "INFO",
 			Message:  "Config reload triggered",
 			Source:   "cli",
 		})
-		as.Close()
 	}
 }
 
@@ -610,7 +606,7 @@ func cmdPurge(cfgPath, mode, cutoff string, maxBytes int64, dryRun bool) {
 	clioutput.Printf("%s\n", clioutput.Okf("Purge complete"))
 
 	if as := auditStore(cfgPath); as != nil {
-		as.Log(audit.Entry{
+		logAuditAndClose(as, audit.Entry{
 			Category: audit.CatAdmin,
 			Severity: "INFO",
 			Message:  "Data purge executed",
@@ -623,7 +619,6 @@ func cmdPurge(cfgPath, mode, cutoff string, maxBytes int64, dryRun bool) {
 				"remaining_bytes": report.RemainingSize,
 			},
 		})
-		as.Close()
 	}
 
 	t := clioutput.NewTable("Field", "Value")
@@ -666,6 +661,18 @@ func auditStore(cfgPath string) *audit.Store {
 		return nil
 	}
 	return s
+}
+
+func logAuditAndClose(store *audit.Store, entry audit.Entry) {
+	if store == nil {
+		return
+	}
+	if err := store.Log(entry); err != nil {
+		clioutput.Printf("%s\n", clioutput.Warnf("Audit log write failed: %v", err))
+	}
+	if err := store.Close(); err != nil {
+		clioutput.Printf("%s\n", clioutput.Warnf("Audit store close failed: %v", err))
+	}
 }
 
 // formatBytes returns a human-readable byte size string.

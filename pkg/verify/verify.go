@@ -72,7 +72,7 @@ func RunChecks(storePath string, dryRun bool) (*Report, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open store %s: %w", storePath, err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	r := &Report{
 		Timestamp: time.Now(),
@@ -224,17 +224,19 @@ func Repair(report *Report, storePath string) error {
 	if err != nil {
 		return fmt.Errorf("open store %s: %w", storePath, err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	batch := db.NewBatch()
-	defer batch.Close()
+	defer func() { _ = batch.Close() }()
 
 	fixed := 0
 	for _, iss := range report.Issues {
 		if !iss.Fixable || iss.ExpectedKey == "" {
 			continue
 		}
-		batch.Set([]byte(iss.ExpectedKey), []byte{}, pebble.Sync)
+		if err := batch.Set([]byte(iss.ExpectedKey), []byte{}, pebble.Sync); err != nil {
+			return fmt.Errorf("stage repair key %s: %w", iss.ExpectedKey, err)
+		}
 		fixed++
 	}
 
@@ -265,7 +267,9 @@ func parseEdgeKeyV1(key string) (source, target string, ts uint64, ok bool) {
 			return "", "", 0, false
 		}
 	}
-	fmt.Sscanf(tsStr, "%d", &ts)
+	if _, err := fmt.Sscanf(tsStr, "%d", &ts); err != nil {
+		return "", "", 0, false
+	}
 
 	pair := rest[21:] // source:target
 	source, target = splitNodePair(pair)
@@ -347,7 +351,9 @@ func parseReverseKeyV1(key string) (source, target string, ts uint64, ok bool) {
 
 	target = rest[:tsStart-1] // everything before the ':' before timestamp
 	tsStr := rest[tsStart : tsStart+20]
-	fmt.Sscanf(tsStr, "%d", &ts)
+	if _, err := fmt.Sscanf(tsStr, "%d", &ts); err != nil {
+		return "", "", 0, false
+	}
 	source = rest[tsStart+21:] // after ts + ':'
 
 	if target == "" || source == "" {
@@ -375,7 +381,7 @@ func scanPrefix(db *pebble.DB, prefix string) []string {
 	if err != nil {
 		return nil
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var out []string
 	for iter.First(); iter.Valid(); iter.Next() {

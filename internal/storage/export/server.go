@@ -84,27 +84,33 @@ func (s *Server) handleSocketEvents(w http.ResponseWriter, r *http.Request) {
 		go s.stitchEvents(batch)
 	}
 
-	json.NewEncoder(w).Encode(ReportAck{
+	if err := json.NewEncoder(w).Encode(ReportAck{
 		Received: len(batch),
 		Status:   "ok",
-	})
+	}); err != nil {
+		log.Printf("[export] encode ack: %v", err)
+	}
 }
 
 func (s *Server) handleStitchedGraph(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"stitched_edges": s.stitchedEdges,
 		"total_agents":   len(s.recentSockets),
-	})
+	}); err != nil {
+		log.Printf("[export] encode stitched graph: %v", err)
+	}
 }
 
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"total_events":   len(s.socketEvents),
 		"active_agents":  len(s.recentSockets),
 		"stitched_edges": len(s.stitchedEdges),
-	})
+	}); err != nil {
+		log.Printf("[export] encode stats: %v", err)
+	}
 }

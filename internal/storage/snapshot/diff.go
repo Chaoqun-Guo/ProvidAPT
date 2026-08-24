@@ -106,13 +106,13 @@ func (de *DiffEngine) GetDiff(t1, t2 time.Time) (*DiffResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open snap1: %w", err)
 	}
-	defer db1.Close()
+	defer func() { _ = db1.Close() }()
 	db2, err := de.sm.OpenSnapshot(snap2.ID)
 	if err != nil {
-		db1.Close()
+		_ = db1.Close()
 		return nil, fmt.Errorf("open snap2: %w", err)
 	}
-	defer db2.Close()
+	defer func() { _ = db2.Close() }()
 
 	// In production: iterate over both snapshots and find new keys
 	log.Printf("[diff] comparing snapshots %s vs %s", snap1.ID, snap2.ID)

@@ -72,7 +72,9 @@ func NewSnapManager(db *pebble.DB, cfg *SnapshotConfig) *SnapManager {
 	if cfg == nil {
 		cfg = DefaultSnapshotConfig()
 	}
-	os.MkdirAll(cfg.SnapDir, 0755)
+	if err := os.MkdirAll(cfg.SnapDir, 0755); err != nil {
+		log.Printf("[snap] create snapshot dir %s failed: %v", cfg.SnapDir, err)
+	}
 	return &SnapManager{
 		cfg:    cfg,
 		db:     db,
@@ -98,7 +100,9 @@ func (sm *SnapManager) loop() {
 	for {
 		select {
 		case <-ticker.C:
-			sm.CreateSnapshot()
+			if _, err := sm.CreateSnapshot(); err != nil {
+				log.Printf("[snap] periodic snapshot failed: %v", err)
+			}
 		case <-sm.stopCh:
 			return
 		}
@@ -124,12 +128,14 @@ func (sm *SnapManager) CreateSnapshot() (*SnapshotMeta, error) {
 
 	// Measure size (no lock — filepath.Walk can be slow on large dirs)
 	var size int64
-	filepath.Walk(snapPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(snapPath, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() {
 			size += info.Size()
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("measure snapshot size: %w", err)
+	}
 
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -146,7 +152,9 @@ func (sm *SnapManager) CreateSnapshot() (*SnapshotMeta, error) {
 	if len(sm.snapshots) > sm.cfg.Retention {
 		old := sm.snapshots[0]
 		sm.mu.Unlock()
-		os.RemoveAll(old.Path)
+		if err := os.RemoveAll(old.Path); err != nil {
+			log.Printf("[snap] remove old snapshot %s failed: %v", old.Path, err)
+		}
 		sm.mu.Lock()
 		sm.snapshots = sm.snapshots[1:]
 	}

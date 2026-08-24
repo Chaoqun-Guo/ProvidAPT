@@ -64,7 +64,7 @@ func (c *Cache) LoadCSV(path string) error {
 	if err != nil {
 		return fmt.Errorf("open intel csv: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	r := csv.NewReader(f)
 	records, err := r.ReadAll()
@@ -94,7 +94,9 @@ func (c *Cache) LoadCSV(path string) error {
 			Label:  safeGet(rec, 2),
 			Source: safeGet(rec, 3, "csv"),
 		}
-		fmt.Sscanf(safeGet(rec, 4, "0.8"), "%f", &ioc.Confidence)
+		if _, err := fmt.Sscanf(safeGet(rec, 4, "0.8"), "%f", &ioc.Confidence); err != nil {
+			ioc.Confidence = 0.8
+		}
 		c.Add(ioc)
 		loaded++
 	}
@@ -108,7 +110,7 @@ func (c *Cache) LoadList(path string, iocType IOCType, source string) error {
 	if err != nil {
 		return fmt.Errorf("open intel list: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	loaded := 0
 	scanner := bufio.NewScanner(f)

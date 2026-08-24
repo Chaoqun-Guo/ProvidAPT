@@ -134,7 +134,7 @@ func (c *Compressor) TrainDictionary(samples [][]byte) *Dictionary {
 	c.dictData = dictData
 
 	// Recreate codecs with the new dictionary.
-	c.enc.Close()
+	_ = c.enc.Close()
 	c.dec.Close()
 	c.initCodecs()
 
@@ -157,7 +157,7 @@ func (c *Compressor) SetDict(dictData []byte) error {
 	c.dictData = dictData
 
 	// Recreate codecs.
-	c.enc.Close()
+	_ = c.enc.Close()
 	c.dec.Close()
 	c.initCodecs()
 	return nil
@@ -258,7 +258,7 @@ func (c *Compressor) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.enc != nil {
-		c.enc.Close()
+		_ = c.enc.Close()
 	}
 	if c.dec != nil {
 		c.dec.Close()
