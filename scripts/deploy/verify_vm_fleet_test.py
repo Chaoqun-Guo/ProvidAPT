@@ -34,8 +34,11 @@ class VerifyVMFleetTest(unittest.TestCase):
             return responses[path]
 
         def fake_fetch(url, api_key="", timeout=10.0):
-            self.assertTrue(url.endswith("/dashboard"))
-            return 200, b"graphSubsetForCluster exportClusterSubset openGraphTrace graph-cluster-actions", "text/html"
+            if url.endswith("/dashboard"):
+                return 200, b"<html><script src=\"/assets/dashboard.js\"></script></html>", "text/html"
+            if url.endswith("/assets/dashboard.js"):
+                return 200, b"graphSubsetForCluster exportClusterSubset openGraphTrace graph-cluster-actions", "application/javascript"
+            raise AssertionError(url)
 
         args = Namespace(
             api_key="",

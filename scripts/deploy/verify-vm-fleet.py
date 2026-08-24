@@ -84,8 +84,13 @@ def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
     html_status, html_body, _ = fetch(base_url.rstrip("/") + "/dashboard", args.api_key)
     if html_status != 200:
         failures.append(f"dashboard returned HTTP {html_status}")
-    html = html_body.decode("utf-8", errors="replace")
-    missing_markers = [marker for marker in args.dashboard_markers if marker not in html]
+    dashboard_assets = html_body.decode("utf-8", errors="replace")
+    js_status, js_body, _ = fetch(base_url.rstrip("/") + "/assets/dashboard.js", args.api_key)
+    if js_status != 200:
+        failures.append(f"dashboard.js returned HTTP {js_status}")
+    else:
+        dashboard_assets += "\n" + js_body.decode("utf-8", errors="replace")
+    missing_markers = [marker for marker in args.dashboard_markers if marker not in dashboard_assets]
     if missing_markers:
         failures.append("dashboard missing markers: " + ", ".join(missing_markers))
     agents = fleet.get("agents", [])
@@ -129,7 +134,7 @@ def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
         "agent_details": agent_summaries,
         "graph_elements": len(graph_elements) if isinstance(graph_elements, list) else 0,
         "alerts": alert_count,
-        "dashboard_markers": {marker: marker in html for marker in args.dashboard_markers},
+        "dashboard_markers": {marker: marker in dashboard_assets for marker in args.dashboard_markers},
         "failures": failures,
         "warnings": warnings,
     }

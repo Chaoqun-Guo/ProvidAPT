@@ -82,6 +82,7 @@ watchdog
 /build/artifact-signing/
 /build/bin/
 /build/customer-certification/
+/build/deploy/
 /build/evaluation/
 /build/host-bin/
 /build/onboarding/
