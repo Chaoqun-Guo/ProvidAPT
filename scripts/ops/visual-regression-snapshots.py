@@ -158,7 +158,7 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
     if diagnostics:
         lines[7:7] = [
             f"- Playwright available: `{str(diagnostics.get('playwright_available', False)).lower()}`",
-            f"- API key supplied: `{str(diagnostics.get('api_key_supplied', False)).lower()}`",
+            f"- API credential supplied: `{str(diagnostics.get('api_key_supplied', False)).lower()}`",
             f"- Capture mode: `{diagnostics.get('mode', 'unknown')}`",
         ]
     comparison = report.get("comparison_summary") if isinstance(report.get("comparison_summary"), dict) else {}
