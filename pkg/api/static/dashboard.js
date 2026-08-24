@@ -3690,7 +3690,7 @@ function installPanelResize(panel) {
 
 function dashboardPanelSection(panel) {
   const id = panelID(panel);
-  if (['module-quality-review', 'operations-summary'].includes(id)) return 'all';
+  if (['operations-summary'].includes(id)) return 'all';
   if (['policy-center', 'alert-workflow', 'evaluation-ground-truth'].includes(id)) return 'detect';
   if (['investigation-console'].includes(id)) return 'investigate';
   if (['support-bundle', 'backup-restore', 'delivery-health'].includes(id)) return 'respond';
@@ -3701,12 +3701,12 @@ function dashboardPanelSection(panel) {
 
 function dashboardPanelSectionShortLabel(section) {
   return {
-    all: 'COMMAND',
-    detect: 'DETECT',
+    all: 'OVERVIEW',
+    detect: 'ALERTS',
     investigate: 'TRACE',
     respond: 'RESPOND',
     platform: 'PLATFORM',
-    govern: 'GOVERN',
+    govern: 'RELEASE',
   }[section] || 'MODULE';
 }
 
@@ -3742,12 +3742,12 @@ function normalizeDashboardPanels() {
 
 function dashboardSectionLabel(section) {
   return {
-    all: 'Command center: full IDS posture with all modules visible.',
-    detect: 'Detect: rule lifecycle, alert triage, labels, and detection quality.',
+    all: 'Overview: live health, alerts, response status, and platform readiness.',
+    detect: 'Alerts: rule lifecycle, triage queue, analyst labels, and detection quality.',
     investigate: 'Investigate: provenance graph, event timeline, node drilldown, and reports.',
     respond: 'Respond: case actions, notification delivery, support bundle, and recovery.',
     platform: 'Platform: fleet health, kernel attachment, API security, storage, and runtime.',
-    govern: 'Govern: compliance, SIEM, upgrade, and release evidence.',
+    govern: 'Release: compliance, SIEM, upgrade, and release evidence.',
     operations: 'Platform: fleet health, deployment diagnostics, and posture summary.',
     detection: 'Detect: policies, alert workflow, ground truth, and investigation.',
     evidence: 'Respond: support bundles, backup/restore, and delivery health.',
@@ -3855,7 +3855,6 @@ function resetDashboardLayout() {
 
 function defaultDashboardPanelOrder() {
   return [
-    'module-quality-review',
     'control-plane-summary',
     'operations-summary',
     'alert-workflow',

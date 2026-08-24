@@ -130,21 +130,18 @@ func TestDashboardResponsiveOverflowGuards(t *testing.T) {
 		".header-right",
 		"flex: 1 1 420px",
 		"flex-wrap: wrap",
-		"max-width: 118px",
 		".alert-msg",
 		"overflow-wrap: anywhere",
 		".delivery-inline-actions button",
 		"max-width: 160px",
 		"display: none",
-		`.dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid`,
-		"minmax(min(100%, 168px), 1fr)",
-		`.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-name`,
-		"white-space: normal",
 		".dashboard-panel .action-row button",
 		".dashboard-panel .workflow-filter-bar",
 		"minmax(min(100%, 112px), 1fr)",
 		"overflow-wrap: anywhere",
 		"@media (max-width: 1279px)",
+		".workspace-hint",
+		"grid-template-columns: 1fr",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardResponsiveCSS, item) {
@@ -605,9 +602,8 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"resetDashboardLayout",
 		"section-hidden",
 		"defaultDashboardPanelOrder",
-		"Module Quality Review",
-		"module-quality-review",
 		"Deployment Diagnostics",
+		"Overview shows live health",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
@@ -621,24 +617,22 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 		"dashboard-shell",
 		"dashboard-sidebar",
 		"Security operations navigation",
-		"ProvidAPT SOC",
-		"SOC Workflow",
-		"Command Center",
-		"Detect",
+		"Operations",
+		"Sections",
+		"Overview",
+		"Alerts",
 		"Investigate",
 		"Respond",
 		"Platform",
-		"Module Quality",
-		"soc-workflow-map",
-		"showModuleQuality",
-		"IDS Posture",
+		"Release",
+		"Live Status",
 		"sidebarAgents",
 		"sidebarOpenAlerts",
 		"sidebarDeadLetters",
 		"sidebarReadiness",
-		"Severity Model",
 		"dashboard-main",
 		"updateSidebarPosture",
+		"Simplified operator console",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
@@ -646,7 +640,6 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 		}
 	}
 	panels := []string{
-		"Module Quality Review",
 		"Control Plane Summary",
 		"Deployment Diagnostics",
 		"Agent Overview",

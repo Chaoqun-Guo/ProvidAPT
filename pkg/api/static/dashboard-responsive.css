@@ -27,21 +27,6 @@
 
 
 
-.api-key-toggle {
-  flex: 0 0 auto;
-  min-width: 88px;
-  max-width: 118px;
-}
-
-
-
-.auth-remember {
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
-
-
 .alert-item {
   overflow: hidden;
 }
@@ -66,30 +51,6 @@
 
 
 
-
-.dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
-  overflow: visible;
-}
-
-.dashboard-panel[data-panel-id="module-quality-review"] .quality-card {
-  min-width: 0;
-}
-
-.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-head {
-  align-items: flex-start;
-}
-
-.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-name {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  line-height: 1.2;
-}
-
-.dashboard-panel[data-panel-id="module-quality-review"] .quality-card .quality-score {
-  flex: 0 0 auto;
-}
 
 .dashboard-panel .action-row button,
 .dashboard-panel .console-toolbar button,
@@ -153,12 +114,8 @@
   .platform-button {
     flex: 1 1 74px;
   }
-  .dashboard-panel[data-panel-id="module-quality-review"] .module-quality-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 154px), 1fr));
-  }
   .dashboard-panel[data-panel-id="control-plane-summary"],
-  .dashboard-panel[data-panel-id="operations-summary"],
-  .dashboard-panel[data-panel-id="module-quality-review"] {
+  .dashboard-panel[data-panel-id="operations-summary"] {
     min-height: 132px !important;
   }
 }
@@ -172,12 +129,20 @@
   }
   .workspace-tabs button,
   .workspace-tools button,
-  .platform-button,
+  .platform-button {
+    flex: 1 1 112px;
+  }
 }
 
 @media (max-width: 760px) {
-  .auth-remember {
-    grid-column: 1 / -1;
+  .workspace-hint {
+    white-space: normal;
+  }
+  .sidebar-nav,
+  .sidebar-status-grid,
+  .metrics,
+  .content {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -220,7 +185,6 @@
     grid-column: span 2;
   }
   .dashboard-panel[data-panel-id="control-plane-summary"],
-  .dashboard-panel[data-panel-id="module-quality-review"],
   .dashboard-panel[data-panel-id="operations-summary"] {
     grid-column: span 1;
   }
@@ -307,7 +271,6 @@ header.platform-header {
 }
 
 .status-badge,
-.api-key-toggle,
 .platform-button,
 .workspace-tabs button,
 .workspace-tools button,
@@ -350,8 +313,7 @@ header.platform-header {
 
 button.btn-primary,
 .workspace-tabs button.active,
-.sidebar-button.active,
-.api-key-toggle.btn-primary {
+.sidebar-button.active {
   background: #18313a !important;
   border-color: var(--forensic-cyan) !important;
   color: #effcff !important;
@@ -379,10 +341,6 @@ select {
   border-color: var(--forensic-line-strong) !important;
   color: var(--forensic-text) !important;
   font-family: var(--font-body);
-}
-
-.auth-remember {
-  color: var(--forensic-muted);
 }
 
 .dashboard-shell {

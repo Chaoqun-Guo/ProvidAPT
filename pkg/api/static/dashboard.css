@@ -36,7 +36,6 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .platform-action-status.active { color:#58a6ff; }
 .platform-action-status.error { color:#f85149; }
 .platform-button { height:28px; min-width:72px; max-width:150px; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.api-key-toggle { min-width:88px; max-width:118px; }
 .dashboard-shell { display:grid; grid-template-columns: 250px minmax(0, 1fr); gap:14px; padding:12px 18px 18px; align-items:start; min-width:0; }
 .dashboard-main { min-width:0; display:grid; gap:12px; }
 .dashboard-sidebar { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px; min-width:0; }
@@ -247,8 +246,6 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .graph-cluster-actions button { background:#30363d; color:#c9d1d9; border:1px solid #484f58; border-radius:999px; padding:3px 8px; cursor:pointer; font-size:11px; }
 .graph-cluster-actions button:hover { border-color:#58a6ff; color:#58a6ff; }
 .graph-subset-summary { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:6px; margin-bottom:8px; }
-.auth-remember { display:inline-flex; align-items:center; gap:5px; color:#8b949e; font-size:11px; white-space:nowrap; }
-.auth-remember input { flex:0 0 auto; min-width:0; width:14px; height:14px; accent-color:#1f6feb; }
 
 /* Professional Cyber IDS glassmorphism HUD theme: Electric Red, Amber, Emerald Green severity accents. */
 :root {
@@ -1012,46 +1009,6 @@ body.panel-resize-active {
 }
 
 /* SOC information architecture pass: module ownership, action semantics, analyst ergonomics. */
-  width: min(100%, 860px);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
-  min-width: 0;
-  max-width: 100%;
-  margin-top: 6px;
-  padding: 5px;
-  border: 1px solid rgba(88, 166, 255, 0.16);
-  border-radius: 18px;
-  background: rgba(3, 8, 18, 0.36);
-}
-
-  width: min(100%, 520px);
-}
-
-  min-width: 0;
-  flex: 1 1 220px;
-  height: 28px;
-  border-radius: 999px !important;
-}
-
-  flex: 1 1 72px;
-  min-width: 0;
-  max-width: 118px;
-  height: 28px;
-  min-height: 28px;
-  padding: 0 9px;
-  font-size: 11px;
-}
-
-  flex: 0 0 78px;
-  max-width: 92px;
-}
-
-.auth-remember {
-  flex: 0 0 auto;
-  min-width: 0;
-}
 
 .dashboard-panel {
   --panel-accent: var(--ids-blue);
@@ -1642,8 +1599,6 @@ body.detail-drawer-open {
 }
 
 @media (max-width: 1180px) {
-      border-radius: 18px;
-  }
   .policy-center-panel .policy-summary-grid {
     grid-template-columns: repeat(3, minmax(110px, 1fr));
   }
@@ -1659,16 +1614,6 @@ body.detail-drawer-open {
 }
 
 @media (max-width: 760px) {
-      display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-radius: 16px;
-  }
-      grid-column: 1 / -1;
-  }
-  .auth-remember {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
   .policy-center-panel .policy-summary-grid,
   .policy-rule-fields {
     grid-template-columns: 1fr;
@@ -2166,4 +2111,361 @@ button.panel-resize-handle:hover,
   box-shadow: none !important;
   opacity: 1;
   transform: none !important;
+}
+
+/* Simplified operator console: prioritize daily SOC flow over decorative density. */
+:root {
+  --operator-bg: #080d13;
+  --operator-surface: #111821;
+  --operator-panel: #141c26;
+  --operator-panel-soft: #0d141c;
+  --operator-line: #29323d;
+  --operator-line-strong: #3d4855;
+  --operator-text: #dbe5ee;
+  --operator-muted: #94a1af;
+  --operator-faint: #657180;
+  --operator-blue: #6eb6ff;
+  --operator-green: #79d89c;
+  --operator-amber: #e0b869;
+  --operator-red: #ef7b83;
+}
+
+body {
+  background: var(--operator-bg) !important;
+  color: var(--operator-text) !important;
+}
+
+body::before,
+body::after {
+  display: none !important;
+}
+
+.platform-header,
+.workspace-nav,
+.dashboard-shell {
+  max-width: 1840px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.platform-header {
+  background: var(--operator-surface) !important;
+  border-bottom: 1px solid var(--operator-line) !important;
+  min-height: 60px;
+  padding: 12px 18px;
+  box-shadow: none !important;
+}
+
+.platform-title-row h1 {
+  color: var(--operator-text) !important;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.platform-meta .subtitle,
+.role-info,
+.refresh-info,
+.workspace-hint,
+.sidebar-subtitle,
+.card .sub {
+  color: var(--operator-muted) !important;
+}
+
+.platform-action-status {
+  color: var(--operator-green) !important;
+}
+
+.workspace-nav {
+  padding: 12px 18px 0;
+  gap: 10px;
+}
+
+.workspace-tabs,
+.workspace-tools {
+  gap: 5px;
+}
+
+.workspace-tools {
+  opacity: 0.82;
+}
+
+.workspace-tabs button,
+.workspace-tools button,
+.sidebar-button,
+.platform-button,
+.api-status-banner button,
+.console-toolbar button,
+.agent-actions button,
+.fleet-toolbar button,
+.action-row button,
+.delivery-inline-actions button,
+.workflow-filter-bar button,
+.ground-truth-toolbar button,
+.detail-drawer button,
+.trace-actions a,
+.workflow-trace-actions a,
+button.secondary,
+button.btn-primary,
+button.btn-view,
+button.btn-download,
+button.btn-warning,
+button.btn-danger,
+button.btn-refresh {
+  border-radius: 6px !important;
+  background: var(--operator-panel-soft) !important;
+  border-color: var(--operator-line) !important;
+  color: var(--operator-text) !important;
+  box-shadow: none !important;
+  letter-spacing: 0 !important;
+}
+
+.workspace-tabs button:hover,
+.workspace-tools button:hover,
+.sidebar-button:hover,
+.platform-button:hover,
+.api-status-banner button:hover,
+.console-toolbar button:hover,
+.agent-actions button:hover,
+.fleet-toolbar button:hover,
+.action-row button:hover,
+.delivery-inline-actions button:hover,
+.workflow-filter-bar button:hover,
+.ground-truth-toolbar button:hover,
+.detail-drawer button:hover,
+.trace-actions a:hover,
+.workflow-trace-actions a:hover {
+  border-color: var(--operator-blue) !important;
+  color: #f4faff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.workspace-tabs button.active,
+.sidebar-button.active,
+button.btn-primary,
+.fleet-toolbar button:not(.secondary),
+.action-row button:not(.secondary),
+.delivery-inline-actions button:not(.secondary) {
+  background: #1d4f83 !important;
+  border-color: #2f75ba !important;
+  color: #f4faff !important;
+}
+
+button.btn-danger,
+button[data-action-kind="danger"],
+.action-row button[data-module-action*="close"],
+.action-row button[data-module-action*="rollback"] {
+  background: #442026 !important;
+  border-color: #8e3b45 !important;
+  color: #ffd9dd !important;
+}
+
+button.btn-warning,
+button[data-action-kind="warning"],
+.action-row button[data-module-action*="silence"] {
+  background: #403017 !important;
+  border-color: #8e6725 !important;
+  color: #ffe6b3 !important;
+}
+
+.dashboard-shell {
+  grid-template-columns: 218px minmax(0, 1fr);
+  gap: 14px;
+  padding-top: 12px;
+}
+
+.dashboard-sidebar,
+.card,
+.panel,
+.mini-card,
+.policy-item,
+.agent-card,
+.quality-card,
+.matrix-card,
+.empty-diagnostic,
+.data-table-wrap,
+.detail-drawer,
+.api-status-banner {
+  background: var(--operator-panel) !important;
+  border-color: var(--operator-line) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.dashboard-sidebar {
+  padding: 12px;
+}
+
+.sidebar-title,
+.panel h2,
+.card .label,
+.mini-card .label,
+.policy-item .label {
+  letter-spacing: 0 !important;
+}
+
+.sidebar-title {
+  color: var(--operator-text) !important;
+  font-size: 14px;
+  text-transform: none;
+}
+
+.sidebar-section {
+  color: var(--operator-faint) !important;
+  letter-spacing: 0 !important;
+  text-transform: none;
+  font-size: 11px;
+}
+
+.sidebar-status-grid {
+  grid-template-columns: 1fr;
+}
+
+.sidebar-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--operator-panel-soft) !important;
+  border-color: var(--operator-line) !important;
+  border-radius: 6px;
+}
+
+.sidebar-status .value {
+  color: var(--operator-blue) !important;
+  font-size: 17px;
+}
+
+.metrics {
+  grid-template-columns: repeat(6, minmax(112px, 1fr));
+  gap: 8px;
+}
+
+.card {
+  min-height: 72px;
+  padding: 10px;
+}
+
+.card .value,
+.mini-card .value,
+.policy-item .value,
+.matrix-card .value {
+  color: var(--operator-blue) !important;
+}
+
+.content {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.panel h2 {
+  color: var(--operator-text) !important;
+  font-size: 13px;
+  text-transform: none;
+  border-bottom-color: var(--operator-line) !important;
+  background: rgba(8, 13, 19, 0.32);
+}
+
+.dashboard-panel h2::after {
+  content: "";
+}
+
+.panel-section-chip {
+  color: var(--operator-muted) !important;
+  background: var(--operator-panel-soft) !important;
+  border: 1px solid var(--operator-line) !important;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 10px;
+}
+
+.soc-workflow-map,
+.soc-progress,
+.sidebar-legend {
+  display: none !important;
+}
+
+.dashboard-panel[data-panel-id="control-plane-summary"],
+.dashboard-panel[data-panel-id="operations-summary"] {
+  min-height: 132px !important;
+}
+
+.dashboard-panel[data-panel-id="alert-workflow"],
+.dashboard-panel[data-panel-id="policy-center"],
+.dashboard-panel[data-panel-id="agent-overview"] {
+  grid-column: 1 / -1 !important;
+}
+
+.alert-sev.sev-critical,
+.legend-critical {
+  background: #52242a !important;
+  color: var(--operator-red) !important;
+}
+
+.alert-sev.sev-high,
+.legend-high {
+  background: #463416 !important;
+  color: var(--operator-amber) !important;
+}
+
+.alert-sev.sev-medium,
+.legend-medium {
+  background: #17304a !important;
+  color: var(--operator-blue) !important;
+}
+
+.alert-sev.sev-low,
+.legend-low {
+  background: #222b35 !important;
+  color: var(--operator-muted) !important;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-sidebar {
+    position: relative;
+    top: auto;
+    max-height: none;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sidebar-status-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .platform-header,
+  .workspace-nav,
+  .dashboard-shell {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .workspace-tabs button,
+  .workspace-tools button {
+    flex: 1 1 92px;
+    min-width: 0;
+  }
+
+  .sidebar-nav,
+  .sidebar-status-grid,
+  .metrics,
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-hint {
+    flex-basis: 100%;
+  }
 }

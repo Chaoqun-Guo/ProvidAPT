@@ -16,7 +16,7 @@
       <div class="role-info" id="roleInfo">Role: --</div>
     </div>
     <div class="platform-meta">
-      <div class="subtitle">Provenance-driven APT Detection</div>
+      <div class="subtitle">Monitor · Investigate · Respond</div>
       <span class="platform-action-status" id="actionStatus">Open-source build ready</span>
     </div>
   </div>
@@ -38,14 +38,14 @@
 
 <nav class="workspace-nav" aria-label="Dashboard workspace navigation">
   <div class="workspace-tabs" role="tablist" aria-label="Dashboard sections">
-    <button data-dashboard-section="all" onclick="switchDashboardSection('all')">Command</button>
-    <button data-dashboard-section="detect" onclick="switchDashboardSection('detect')">Detect</button>
+    <button data-dashboard-section="all" onclick="switchDashboardSection('all')">Overview</button>
+    <button data-dashboard-section="detect" onclick="switchDashboardSection('detect')">Alerts</button>
     <button data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')">Investigate</button>
     <button data-dashboard-section="respond" onclick="switchDashboardSection('respond')">Respond</button>
     <button data-dashboard-section="platform" onclick="switchDashboardSection('platform')">Platform</button>
-    <button data-dashboard-section="govern" onclick="switchDashboardSection('govern')">Open Source</button>
+    <button data-dashboard-section="govern" onclick="switchDashboardSection('govern')">Release</button>
   </div>
-  <div class="workspace-hint" id="workspaceHint">Command center visible. Follow Detect → Investigate → Respond → Govern.</div>
+  <div class="workspace-hint" id="workspaceHint">Overview shows live health and the next operational steps.</div>
   <div class="workspace-tools" aria-label="Dashboard view controls">
     <button onclick="setDashboardDensity('compact')">Compact</button>
     <button onclick="setDashboardDensity('standard')">Standard</button>
@@ -60,49 +60,26 @@
 
 <div class="dashboard-shell">
 <aside class="dashboard-sidebar" aria-label="Security operations navigation">
-  <div class="sidebar-title">ProvidAPT SOC</div>
-  <div class="sidebar-subtitle">Intrusion detection, system monitoring, provenance investigation, response, and govern readiness.</div>
-  <div class="sidebar-section">SOC Workflow</div>
+  <div class="sidebar-title">Operations</div>
+  <div class="sidebar-subtitle">Use the sections in order: alerts, investigation, response, platform, release.</div>
+  <div class="sidebar-section">Sections</div>
   <div class="sidebar-nav" role="tablist" aria-label="Structured dashboard sections">
-    <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Command</span><span>All</span></button>
-    <button class="sidebar-button" data-dashboard-section="detect" onclick="switchDashboardSection('detect')"><span>Detect</span><span>Rules</span></button>
+    <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Overview</span><span>All</span></button>
+    <button class="sidebar-button" data-dashboard-section="detect" onclick="switchDashboardSection('detect')"><span>Alerts</span><span>Triage</span></button>
     <button class="sidebar-button" data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')"><span>Investigate</span><span>Trace</span></button>
     <button class="sidebar-button" data-dashboard-section="respond" onclick="switchDashboardSection('respond')"><span>Respond</span><span>Actions</span></button>
     <button class="sidebar-button" data-dashboard-section="platform" onclick="switchDashboardSection('platform')"><span>Platform</span><span>Fleet</span></button>
-    <button class="sidebar-button" data-dashboard-section="govern" onclick="switchDashboardSection('govern')"><span>Open Source</span><span>Release</span></button>
+    <button class="sidebar-button" data-dashboard-section="govern" onclick="switchDashboardSection('govern')"><span>Release</span><span>Evidence</span></button>
   </div>
-  <div class="sidebar-section">Module Quality</div>
-  <div class="soc-progress" aria-label="Module implementation quality">
-    <div class="soc-progress-row"><span>Detect</span><div class="soc-progress-bar"><span style="width:92%"></span></div><span>92%</span></div>
-    <div class="soc-progress-row"><span>Investigate</span><div class="soc-progress-bar"><span style="width:88%"></span></div><span>88%</span></div>
-    <div class="soc-progress-row"><span>Respond</span><div class="soc-progress-bar"><span style="width:84%"></span></div><span>84%</span></div>
-    <div class="soc-progress-row"><span>Platform</span><div class="soc-progress-bar"><span style="width:90%"></span></div><span>90%</span></div>
-    <div class="soc-progress-row"><span>Open Source</span><div class="soc-progress-bar"><span style="width:86%"></span></div><span>86%</span></div>
-  </div>
-  <div class="sidebar-section">IDS Posture</div>
+  <div class="sidebar-section">Live Status</div>
   <div class="sidebar-status-grid">
     <div class="sidebar-status"><div class="value" id="sidebarAgents">--</div><div class="label">Agents</div></div>
     <div class="sidebar-status"><div class="value" id="sidebarOpenAlerts">--</div><div class="label">Open Alerts</div></div>
     <div class="sidebar-status"><div class="value" id="sidebarDeadLetters">--</div><div class="label">Dead Letters</div></div>
     <div class="sidebar-status"><div class="value" id="sidebarReadiness">--</div><div class="label">Readiness</div></div>
   </div>
-  <div class="sidebar-section">Severity Model</div>
-  <div class="sidebar-legend" aria-label="Alert severity legend">
-    <div class="legend-row"><span><span class="legend-chip legend-critical"></span>Critical</span><span>contain</span></div>
-    <div class="legend-row"><span><span class="legend-chip legend-high"></span>High</span><span>triage</span></div>
-    <div class="legend-row"><span><span class="legend-chip legend-medium"></span>Medium</span><span>review</span></div>
-    <div class="legend-row"><span><span class="legend-chip legend-low"></span>Low</span><span>observe</span></div>
-  </div>
 </aside>
 <main class="dashboard-main" aria-label="ProvidAPT dashboard workspace">
-<section class="soc-workflow-map" aria-label="SOC workflow map">
-  <div class="soc-stage" onclick="switchDashboardSection('all')"><div class="stage-label">Command Center</div><div class="stage-sub">Posture, risks, KPIs</div></div>
-  <div class="soc-stage" onclick="switchDashboardSection('detect')"><div class="stage-label">Detect</div><div class="stage-sub">Rules, alerts, quality</div></div>
-  <div class="soc-stage" onclick="switchDashboardSection('investigate')"><div class="stage-label">Investigate</div><div class="stage-sub">Trace graph, evidence</div></div>
-  <div class="soc-stage" onclick="switchDashboardSection('respond')"><div class="stage-label">Respond</div><div class="stage-sub">Workflow, delivery, backup</div></div>
-  <div class="soc-stage" onclick="switchDashboardSection('platform')"><div class="stage-label">Platform</div><div class="stage-sub">Fleet, health, storage</div></div>
-  <div class="soc-stage" onclick="switchDashboardSection('govern')"><div class="stage-label">Govern</div><div class="stage-sub">SIEM, audit, release</div></div>
-</section>
 <div class="metrics" id="metrics">
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div><div class="sub">Click to inspect node types</div></div>
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('edges')" onkeydown="handleCardKey(event, () => showGraphSummary('edges'))"><div class="value" id="mEdges">--</div><div class="label">Graph Edges</div><div class="sub">Click to inspect edge types</div></div>
@@ -113,18 +90,6 @@
 </div>
 
 <div class="content">
-  <div class="panel">
-    <h2>Module Quality Review</h2>
-    <div class="panel-body">
-      <div class="module-quality-grid">
-        <div class="quality-card" onclick="showModuleQuality('detect')"><div class="quality-head"><span class="quality-name">Detection Pipeline</span><span class="quality-score">92%</span></div><div class="quality-detail">Rules, workflow, analyst labels, quality metrics, and MITRE mapping are implemented.</div></div>
-        <div class="quality-card" onclick="showModuleQuality('investigate')"><div class="quality-head"><span class="quality-name">Traceability Analysis</span><span class="quality-score">88%</span></div><div class="quality-detail">Graph export, node drilldown, trace SVG, route map, and investigation report are available.</div></div>
-        <div class="quality-card" onclick="showModuleQuality('respond')"><div class="quality-head"><span class="quality-name">Response Operations</span><span class="quality-score">84%</span></div><div class="quality-detail">Alert close/silence/assign, delivery replay, tickets, support bundle, and backup flows are wired.</div></div>
-        <div class="quality-card" onclick="showModuleQuality('platform')"><div class="quality-head"><span class="quality-name">Platform Monitoring</span><span class="quality-score">90%</span></div><div class="quality-detail">Fleet posture, deployment diagnostics, system environment, HA, runtime, and storage status are present.</div></div>
-        <div class="quality-card" onclick="showModuleQuality('govern')"><div class="quality-head"><span class="quality-name">Open Source Readiness</span><span class="quality-score">86%</span></div><div class="quality-detail">Upgrade manifest, compliance, SIEM, audit, release gates, and reports are implemented for open-source deployments.</div></div>
-      </div>
-    </div>
-  </div>
   <div class="panel">
     <h2>Control Plane Summary</h2>
     <div class="panel-body">
