@@ -1,13 +1,13 @@
 # Data Retention
 
-This document defines retention guidance for ProvidAPT operational data. Final retention values must be approved by the customer and legal/compliance owners.
+This document defines retention guidance for ProvidAPT operational data. Final retention values must be approved by the site owner and legal/compliance owners.
 
 ## Data Classes
 
 | Data Class | Examples | Default Owner | Retention Guidance |
 | --- | --- | --- | --- |
 | raw events | process, file, network provenance events | Security Operations | shortest period that supports investigation |
-| alerts | alert workflow records and triage notes | Security Operations | customer incident-retention policy |
+| alerts | alert workflow records and triage notes | Security Operations | incident-retention policy |
 | audit records | admin actions, policy changes, support downloads | Compliance / Security | compliance requirement, often 180-365 days |
 | support bundles | diagnostic archives | Support | delete after case closure unless evidence hold applies |
 | SIEM outbox | queued delivery payloads | Security Operations | delete after confirmed delivery or expiry |
@@ -35,4 +35,4 @@ backup:
 
 ## Legal Hold
 
-Suspend deletion for affected data when the customer declares legal hold or active incident preservation requirements.
+Suspend deletion for affected data when the site owner declares legal hold or active incident preservation requirements.

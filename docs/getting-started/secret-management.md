@@ -1,6 +1,6 @@
 # Secret Management
 
-ProvidAPT production deployments should inject secrets through the customer's
+ProvidAPT production deployments should inject secrets through the operator's
 approved secret manager or deployment pipeline. Do not commit filled secret
 files to source control or include them in support bundles.
 
@@ -129,6 +129,6 @@ INCLUDE_SECRET_VALUES=1 make ops-secret-backends \
 ```
 
 Then merge `providapt-vault.config.yaml` into the runtime configuration or use
-the customer's config-management system to materialize the same
+the operator's config-management system to materialize the same
 `secrets.vault` keys. Runtime fields can reference those values with
 `vault:<key>`.

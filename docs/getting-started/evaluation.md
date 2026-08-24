@@ -1,6 +1,6 @@
-# Evaluation and POC Guide
+# Evaluation Guide
 
-This guide helps a customer, sales engineer, or security operator run a bounded ProvidAPT evaluation before production rollout.
+This guide helps security operators, platform engineers, and maintainers run a bounded ProvidAPT evaluation before production rollout.
 
 ## Evaluation Goals
 
@@ -19,7 +19,7 @@ Use the evaluation to prove four things:
 | Hosts | 3-10 representative Linux hosts or one Kubernetes node pool |
 | Workloads | One low-risk production-like service, one batch workload, one test host |
 | Data retention | 7-14 days for evaluation |
-| Success owner | Customer security lead plus ProvidAPT sales/support engineer |
+| Success owner | Security or platform operations lead |
 
 ## Prerequisites
 
@@ -60,7 +60,7 @@ Measure agent CPU, memory, event throughput, dropped events, disk growth, and al
 
 ### 4. Validate Security Workflows
 
-Run a safe test scenario approved by the customer:
+Run a safe test scenario approved by the site owner:
 
 - process execution and file access capture
 - suspicious file write
@@ -74,16 +74,16 @@ Run a safe test scenario approved by the customer:
 
 Confirm daemon restart behavior, support bundle redaction, backup and restore, upgrade preflight, rollback instructions, logs, and metrics.
 
-## POC Success Criteria
+## Evaluation Success Criteria
 
 | Category | Success Criteria |
 | --- | --- |
 | Compatibility | Target kernels and deployment model pass environment checks |
 | Stability | Agent runs through the evaluation without crashes or unsafe failure modes |
-| Performance | CPU, memory, disk, and dropped-event rates stay within customer-agreed limits |
+| Performance | CPU, memory, disk, and dropped-event rates stay within site-agreed limits |
 | Detection | Approved test scenarios produce explainable alerts and provenance context |
 | Operations | Support bundle, audit log, upgrade preflight, and rollback procedures are understood |
-| Handoff | Customer receives findings, limitations, sizing notes, and next-step plan |
+| Handoff | Operators receive findings, limitations, sizing notes, and next-step plan |
 
 ## Evidence to Save
 
@@ -99,7 +99,7 @@ Confirm daemon restart behavior, support bundle redaction, backup and restore, u
 ## Exit Report Template
 
 ```text
-Customer:
+Site / owner:
 Environment:
 Evaluation dates:
 Hosts / nodes:

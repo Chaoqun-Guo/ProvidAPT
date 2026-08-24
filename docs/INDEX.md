@@ -7,7 +7,7 @@ the work in front of you, then follow the linked runbooks for deeper detail.
 
 | Section | Audience | Use When |
 | --- | --- | --- |
-| [Getting Started](getting-started/INDEX.md) | Evaluators, operators, deployment engineers | Installing, evaluating, deploying, or activating ProvidAPT |
+| [Getting Started](getting-started/INDEX.md) | Evaluators, operators, deployment engineers | Installing, evaluating, deploying, or operating ProvidAPT |
 | [User Guide](user-guide/INDEX.md) | SecOps and platform operators | Running investigations, RBAC, backup/restore, SIEM, fleet, and day-2 operations |
 | [Developer Guide](developer/INDEX.md) | Maintainers and integrators | Extending APIs, schemas, configuration, storage, packaging, testing, and release checks |
 | [Architecture](architecture/INDEX.md) | Engineers and reviewers | Understanding provenance capture, graph model, taint scoring, and system design |
@@ -25,7 +25,7 @@ the work in front of you, then follow the linked runbooks for deeper detail.
 
 ## Documentation Maintenance Rules
 
-- Keep customer/operator docs under `getting-started/`, `user-guide/`, or
+- Keep operator-facing docs under `getting-started/`, `user-guide/`, or
   `compliance/`.
 - Keep developer and API material under `developer/` or `architecture/`.
 - Keep release evidence, approval records, and internal handoff material under

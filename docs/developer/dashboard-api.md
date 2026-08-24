@@ -46,7 +46,7 @@ responses.
 
 `GET /api/v1/control/alerts/feedback` returns JSON feedback evidence. Add
 `?format=csv` to export `providapt-alert-feedback.csv` for release evidence,
-detector training review, and customer SOC handoff.
+detector training review, and operator SOC handoff.
 
 ## UI Expectations
 

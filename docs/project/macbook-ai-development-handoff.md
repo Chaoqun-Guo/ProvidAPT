@@ -263,7 +263,7 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
   `artifact_signing` section.
 - RBAC, audit, multi-tenant scope, and policy approval workflow have an
   explicit `make policy-approval-gate` evidence check.
-- Customer-environment certification can be aggregated with
+- Operator-environment certification can be aggregated with
   `make operator-env-certification-gate` for delegated admin, tenant isolation,
   audit export, SIEM/SOAR certification, staged upgrade controls, 24-hour soak,
   TLS/state backend/backup evidence, plugin governance, and onboarding checks.

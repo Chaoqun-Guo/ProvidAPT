@@ -68,4 +68,4 @@ curl -X POST http://<server>:18080/api/v1/control/policies \
   -d '{"action":"rollback","version":3,"note":"false positive rollback"}'
 ```
 
-Rollback when alert volume, false positives, or customer impact exceeds the approved threshold.
+Rollback when alert volume, false positives, or operator impact exceeds the approved threshold.

@@ -37,7 +37,6 @@ providapt_env:
   PROVIDAPT_LOG_LEVEL: "{{ providapt_log_level }}"
   PROVIDAPT_OUTPUT_DIR: "{{ providapt_data_dir }}"
   PROVIDAPT_API_REST: "{{ providapt_api_rest }}"
-  PROVIDAPT_API_AUTH_ENABLED: "{{ providapt_api_auth_enabled | string }}"
   PROVIDAPT_CONTROL_PLANE_MODE: "{{ providapt_control_plane_mode }}"
   PROVIDAPT_CONTROL_PLANE_NODE_ID: "{{ providapt_control_plane_node_id }}"
   PROVIDAPT_CONTROL_PLANE_ROLE: "{{ providapt_control_plane_role }}"

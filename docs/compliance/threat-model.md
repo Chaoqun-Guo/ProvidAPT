@@ -39,4 +39,4 @@ Kernel / host boundary
 
 - Review before each major release.
 - Review after authentication, storage, SIEM, or policy-engine changes.
-- Review during customer production readiness assessment.
+- Review during production readiness assessment.

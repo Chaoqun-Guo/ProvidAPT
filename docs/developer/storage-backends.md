@@ -17,7 +17,7 @@ Use PostgreSQL when:
 - multiple agents report to a server
 - HA or active-passive control plane is enabled
 - policy history and audit state must survive restarts
-- customer backup and retention processes require database integration
+- operator backup and retention processes require database integration
 
 Configuration uses a PostgreSQL DSN:
 

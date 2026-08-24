@@ -9,7 +9,7 @@ This guide covers backup and restore workflows for configuration, local evidence
 | configuration | `/etc/providapt/` | redact secrets before sharing |
 | local event store | `/var/lib/providapt/` | stop service for cold file-level backup |
 | logs and evidence | `/var/log/providapt/` | includes support bundles, compliance reports, and SIEM outbox |
-| PostgreSQL | customer DSN | required for production control-plane state |
+| PostgreSQL | operator-provided DSN | required for production control-plane state |
 
 ## Create a Checkpoint Backup
 

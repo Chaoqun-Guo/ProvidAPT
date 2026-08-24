@@ -6,7 +6,7 @@ usage() {
 Usage: validate-secret-env.sh secret.env
 
 Validate a ProvidAPT production secret env-file before it is wired into
-systemd, Docker Compose, Kubernetes Secret generation, or a customer pipeline.
+systemd, Docker Compose, Kubernetes Secret generation, or an operator pipeline.
 EOF
 }
 

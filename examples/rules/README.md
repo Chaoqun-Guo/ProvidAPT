@@ -1,6 +1,6 @@
 # Detection Rule Examples
 
-These examples show common rule patterns. Treat them as starting points, not production-ready policy. Validate and tune every rule against customer workloads before publishing.
+These examples show common rule patterns. Treat them as starting points, not production-ready policy. Validate and tune every rule against representative workloads before publishing.
 
 ## Files
 

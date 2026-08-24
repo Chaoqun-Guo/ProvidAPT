@@ -47,6 +47,6 @@ providapt_api -X POST "$PROVIDAPT_URL/api/v1/control/policies" \
 ```bash
 providapt_api -X POST "$PROVIDAPT_URL/api/v1/control/support" \
   -H "Content-Type: application/json" \
-  -d '{"action":"prepare","note":"customer escalation"}'
+  -d '{"action":"prepare","note":"operator escalation"}'
 providapt_api "$PROVIDAPT_URL/api/v1/control/support/download" -o support-bundle.tar.gz
 ```

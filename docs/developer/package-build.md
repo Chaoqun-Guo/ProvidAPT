@@ -8,7 +8,7 @@ ProvidAPT source-controlled installation assets live under `deploy/linux/`:
 - `scripts/install/uninstall-linux.sh`
 - `scripts/upgrade/preflight-linux.sh`
 
-Release package builders should include these files in `.deb`, `.rpm`, and `.tar.gz` artifacts and preserve customer-modified files as configuration:
+Release package builders should include these files in `.deb`, `.rpm`, and `.tar.gz` artifacts and preserve locally modified files as configuration:
 
 - `/etc/providapt/providapt.toml`
 - `/etc/default/providapt`

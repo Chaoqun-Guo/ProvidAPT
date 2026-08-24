@@ -1,7 +1,7 @@
 # RBAC Hardening Fixture
 
 This directory contains open-source-safe fixture evidence for exercising RBAC,
-tenant isolation, approval workflow, audit export, role review, and customer
+tenant isolation, approval workflow, audit export, role review, and operator
 environment certification gates.
 
 Run:

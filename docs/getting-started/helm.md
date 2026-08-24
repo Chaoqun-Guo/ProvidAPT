@@ -39,7 +39,7 @@ helm rollback providapt <revision> --namespace providapt
 helm uninstall providapt --namespace providapt
 ```
 
-Delete persistent volumes only after backup and customer approval.
+Delete persistent volumes only after backup and operator approval.
 
 ## Production Values
 

@@ -10,7 +10,6 @@ Recommended environment:
 
 ```bash
 export PROVIDAPT_DATABASE_DSN='postgres://providapt:providapt@postgres:5432/providapt?sslmode=disable'
-export PROVIDAPT_AUTH_ENABLED=true
 export PROVIDAPT_TLS_ENABLED=false
 cd examples/deploy/docker-compose-postgres
 docker compose up -d postgres
@@ -29,5 +28,5 @@ curl -s http://localhost:18080/api/v1/status
 ## Notes
 
 - Use Docker secrets or an external secret manager for production credentials.
-- Enable TLS and authentication before exposing the control plane outside a private lab.
-- Configure retention and backup before collecting customer data.
+- Keep the control plane on a private network or behind a trusted SSO/TLS proxy before exposing it outside a private lab.
+- Configure retention and backup before collecting production data.

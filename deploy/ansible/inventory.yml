@@ -36,7 +36,6 @@ all:
     # API settings
     providapt_api_rest: ":18080"
     providapt_api_grpc: ":50051"
-    providapt_api_auth_enabled: true
     providapt_api_rate_limit: 100
     providapt_api_rate_burst: 200
 

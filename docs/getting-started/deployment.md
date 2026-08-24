@@ -125,7 +125,7 @@ WantedBy=multi-user.target
 
 ## 3. Constrained VM Deployment
 
-For small lab or customer-validation VMs, deploy only the checked Linux daemon
+For small lab or operator-validation VMs, deploy only the checked Linux daemon
 binary instead of copying the full repository. This keeps `/tmp`, `/var/log`,
 and package caches small.
 

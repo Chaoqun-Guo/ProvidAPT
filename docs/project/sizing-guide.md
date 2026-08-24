@@ -1,6 +1,6 @@
 # Sizing Guide
 
-This guide gives initial sizing recommendations for ProvidAPT deployments. Validate final values with customer traffic and retention requirements.
+This guide gives initial sizing recommendations for ProvidAPT deployments. Validate final values with representative traffic and retention requirements.
 
 ## Agent Sizing
 
@@ -18,14 +18,14 @@ This guide gives initial sizing recommendations for ProvidAPT deployments. Valid
 | 1-10 agents | 2 vCPU | 4 GiB | 2 vCPU / 4 GiB | POC and small production |
 | 10-50 agents | 4 vCPU | 8 GiB | 4 vCPU / 8-16 GiB | Enable monitoring dashboards |
 | 50-200 agents | 8 vCPU | 16 GiB | 8 vCPU / 32 GiB | Use dedicated PostgreSQL storage |
-| 200+ agents | customer sizing | customer sizing | customer sizing | Benchmark with representative workloads |
+| 200+ agents | custom sizing | custom sizing | custom sizing | Benchmark with representative workloads |
 
 ## Storage Drivers
 
 - Use PostgreSQL for production control-plane state.
 - Use SSD-backed local storage for agent event buffers and support bundles.
 - Keep raw event retention short unless required for compliance.
-- Export long-term evidence to customer-controlled object storage or archival systems.
+- Export long-term evidence to operator-controlled object storage or archival systems.
 
 ## Event Rate Controls
 

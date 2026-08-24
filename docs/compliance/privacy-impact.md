@@ -1,6 +1,6 @@
 # Privacy Impact Assessment
 
-ProvidAPT records provenance metadata for security detection and incident response. This document helps privacy and legal reviewers understand collected fields, protections, and customer responsibilities.
+ProvidAPT records provenance metadata for security detection and incident response. This document helps privacy and legal reviewers understand collected fields, protections, and operator responsibilities.
 
 ## Data Collected
 
@@ -12,7 +12,7 @@ ProvidAPT records provenance metadata for security detection and incident respon
 | host metadata | hostname, kernel, OS, agent ID | fleet monitoring and troubleshooting |
 | operator metadata | API actor, role, tenant, action | audit and compliance |
 
-ProvidAPT is designed to collect metadata, not file contents. Customer configuration determines redaction, retention, and export destinations.
+ProvidAPT is designed to collect metadata, not file contents. Operator configuration determines redaction, retention, and export destinations.
 
 ## Privacy Controls
 
@@ -23,7 +23,7 @@ ProvidAPT is designed to collect metadata, not file contents. Customer configura
 - retention controls
 - SIEM delivery filtering by severity
 
-## Customer Responsibilities
+## Operator Responsibilities
 
 - approve monitored hosts and data categories
 - configure redaction for sensitive paths and identifiers

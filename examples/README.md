@@ -20,10 +20,10 @@ This directory contains practical ProvidAPT examples for local testing, API inte
 ## Recommended Starting Points
 
 - Use `config/providapt.local.toml` for non-production lab evaluation.
-- Use `config/providapt.production.yaml` as a hardened production template before injecting customer-specific secrets.
+- Use `config/providapt.production.yaml` as a hardened production template before injecting site-specific secrets.
 - Use `api/curl-workflows.md` to exercise common operator actions from a shell.
 - Use `api/python-client/` or `api/go-client/` for programmatic integration starters.
-- Use `rules/` as a starting point for customer-specific detections.
+- Use `rules/` as a starting point for site-specific detections.
 - Use `siem/` to configure Splunk or Elastic delivery in a lab.
 - Use `helm/values-production.yaml` as the starting point for Kubernetes values.
 - Use `deploy/docker-compose-postgres/` for a PostgreSQL-backed control-plane lab.
@@ -32,5 +32,5 @@ This directory contains practical ProvidAPT examples for local testing, API inte
 ## Safety Notes
 
 - Replace all sample tokens, TLS paths, and domains before production use.
-- Review every rule for customer environment fit before publishing.
+- Review every rule for local environment fit before publishing.
 - Do not run production agents with local evaluation secrets.

@@ -86,4 +86,4 @@ Rollback when:
 - alert workflow or policy distribution is blocked
 - performance exceeds approved thresholds
 
-Document the rollback in the audit log and customer incident record.
+Document the rollback in the audit log and operator incident record.

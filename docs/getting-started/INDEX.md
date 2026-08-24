@@ -14,7 +14,7 @@ This section explains how to install, evaluate, deploy, and operate ProvidAPT in
 | [docker-compose.md](docker-compose.md) | Docker Compose deployment and operations |
 | [helm.md](helm.md) | Helm install, upgrade, rollback, and uninstall workflows |
 | [deployment.md](deployment.md) | Production deployment guide |
-| [evaluation.md](evaluation.md) | Customer evaluation and proof-of-concept guide |
+| [evaluation.md](evaluation.md) | Operator evaluation guide |
 
 ## Prerequisites
 

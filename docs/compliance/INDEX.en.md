@@ -9,14 +9,14 @@ This section describes ProvidAPT's design and practices in data security, privac
 | [security-privacy.md](security-privacy.md) | Data masking: sensitive field identification, masking strategies, configuration methods |
 | [data-retention.md](data-retention.md) | Data classes, retention windows, deletion, export, and legal hold guidance |
 | [threat-model.md](threat-model.md) | Assets, trust boundaries, threats, and compensating controls |
-| [privacy-impact.md](privacy-impact.md) | Privacy impact assessment for collected metadata and customer responsibilities |
+| [privacy-impact.md](privacy-impact.md) | Privacy impact assessment for collected metadata and operator responsibilities |
 
 ## Compliance Design Principles
 
 - **Data Minimization**: Collects only event attributes necessary for provenance, supports on-demand filtering
 - **Configurable Masking**: File paths, network addresses and other sensitive fields support regex matching and replacement
 - **Tamper-Evident Audit**: Event logs chained via hash linking, supports integrity verification
-- **Access Control**: gRPC API supports mTLS authentication and RBAC permission management
+- **Access Control**: protect control-plane access with TLS, trusted-header SSO integration, and RBAC permission management
 
 ## Related Configuration
 

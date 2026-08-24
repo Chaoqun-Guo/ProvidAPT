@@ -62,7 +62,6 @@ capture:
 api:
   rest: ":8080"
   grpc: ":50051"
-  auth_enabled: true
   rate_limit_per_sec: 100
   rate_limit_burst: 200
 tls:
@@ -86,7 +85,6 @@ docker run -d \
   -v /lib/modules:/lib/modules:ro \
   -v ${DATA_MOUNT}:${DATA_MOUNT} \
   -v /etc/providapt.toml:/etc/providapt/providapt.toml:ro \
-  -e PROVIDAPT_API_AUTH_ENABLED=true \
   ghcr.io/chaoqun-guo/providapt:${providapt_version}
 
 # ── Backup cron job ────────────────────────────────────────────

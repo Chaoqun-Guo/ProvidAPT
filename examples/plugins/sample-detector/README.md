@@ -11,4 +11,4 @@ make plugin-example-gates
 
 The fixture includes a small bundle payload, a manifest with compatibility and
 rollback evidence, and a public test signature file. Production plugin releases
-must replace the fixture signature with a customer-approved signing workflow.
+must replace the fixture signature with a maintainer-approved signing workflow.

@@ -13,7 +13,7 @@ This checklist turns the engineering release into a public, operator-ready open-
 
 ## Operator-Facing Package
 
-- Release notes and changelog describe customer-visible changes.
+- Release notes and changelog describe operator-visible changes.
 - Installation and upgrade paths are documented for source, package, container, and Helm deployments.
 - Linux service installation, uninstall, and upgrade preflight are documented at `docs/getting-started/install.md`.
 - Policy publish and rollback actions expose deployment plan status; agent-side pull/apply acknowledgements are included in telemetry for centralized configuration enforcement.
