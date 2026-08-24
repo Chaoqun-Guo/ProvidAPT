@@ -73,6 +73,15 @@ type RuntimeDiagnostics struct {
 	PolicyEndpoint           string  `json:"policy_endpoint,omitempty"`
 	PolicyBundleDir          string  `json:"policy_bundle_dir,omitempty"`
 	AppliedPolicyVersion     int     `json:"applied_policy_version,omitempty"`
+	TelemetryEndpoint        string  `json:"telemetry_endpoint,omitempty"`
+	TelemetryEnabled         bool    `json:"telemetry_enabled"`
+	TelemetryHealthy         bool    `json:"telemetry_healthy"`
+	TelemetryLastAttempt     string  `json:"telemetry_last_attempt,omitempty"`
+	TelemetryLastSuccess     string  `json:"telemetry_last_success,omitempty"`
+	TelemetryLastError       string  `json:"telemetry_last_error,omitempty"`
+	TelemetryLastAck         string  `json:"telemetry_last_ack,omitempty"`
+	TelemetryFailures        int     `json:"telemetry_consecutive_failures,omitempty"`
+	TelemetryDesiredPolicy   int     `json:"telemetry_desired_policy_version,omitempty"`
 	OnlineMLEnabled          bool    `json:"online_ml_enabled"`
 	MLModelDir               string  `json:"ml_model_dir,omitempty"`
 	MLThreshold              float64 `json:"ml_threshold,omitempty"`

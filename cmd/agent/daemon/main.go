@@ -1299,29 +1299,48 @@ func main() {
 	if haStateBackend == "" {
 		haStateBackend = filepath.Join(cfg.Output.Dir, "control-plane-ha.json")
 	}
-	apiServer.SetRuntimeDiagnostics(api.RuntimeDiagnostics{
-		Version:                  version.String(),
-		APIRest:                  cfg.API.REST,
-		APIGRPC:                  cfg.API.GRPC,
-		APIAuthEnabled:           cfg.API.AuthEnabled,
-		TLSEnabled:               cfg.TLS.Enable,
-		MTLSEnabled:              cfg.TLS.Enable,
-		KernelAttachmentMode:     bpfLoader.ModeName(),
-		PolicyEnabled:            cfg.Policy.Enabled,
-		PolicyEndpoint:           policyClientCfg.Endpoint,
-		PolicyBundleDir:          policyClientCfg.BundleDir,
-		AppliedPolicyVersion:     int(appliedPolicyVersion.Load()),
-		OnlineMLEnabled:          cfg.Analyzer.OnlineMLEnabled,
-		MLModelDir:               cfg.Analyzer.MLModelDir,
-		MLThreshold:              cfg.Analyzer.MLThreshold,
-		ControlPlaneMode:         cfg.ControlPlane.Mode,
-		ControlPlaneRole:         cfg.ControlPlane.Role,
-		ControlPlaneStateBackend: haStateBackend,
-		StorageEncrypted:         cfg.Storage.Encrypt,
-		StorageKeyConfigured:     strings.TrimSpace(cfg.Storage.KeyFile) != "",
-		OutputDir:                cfg.Output.Dir,
-		SupportBundleEnabled:     true,
-	})
+	runtimeDiagnostics := func(reporterStatus telemetry.ReporterStatus) api.RuntimeDiagnostics {
+		diag := api.RuntimeDiagnostics{
+			Version:                  version.String(),
+			APIRest:                  cfg.API.REST,
+			APIGRPC:                  cfg.API.GRPC,
+			APIAuthEnabled:           cfg.API.AuthEnabled,
+			TLSEnabled:               cfg.TLS.Enable,
+			MTLSEnabled:              cfg.TLS.Enable,
+			KernelAttachmentMode:     bpfLoader.ModeName(),
+			PolicyEnabled:            cfg.Policy.Enabled,
+			PolicyEndpoint:           policyClientCfg.Endpoint,
+			PolicyBundleDir:          policyClientCfg.BundleDir,
+			AppliedPolicyVersion:     int(appliedPolicyVersion.Load()),
+			TelemetryEndpoint:        cfg.Telemetry.Endpoint,
+			TelemetryEnabled:         reporterStatus.Enabled,
+			TelemetryHealthy:         !reporterStatus.Enabled || reporterStatus.ConsecutiveFailures == 0,
+			TelemetryLastError:       reporterStatus.LastError,
+			TelemetryLastAck:         reporterStatus.LastAckMessage,
+			TelemetryFailures:        reporterStatus.ConsecutiveFailures,
+			TelemetryDesiredPolicy:   reporterStatus.DesiredPolicyVersion,
+			OnlineMLEnabled:          cfg.Analyzer.OnlineMLEnabled,
+			MLModelDir:               cfg.Analyzer.MLModelDir,
+			MLThreshold:              cfg.Analyzer.MLThreshold,
+			ControlPlaneMode:         cfg.ControlPlane.Mode,
+			ControlPlaneRole:         cfg.ControlPlane.Role,
+			ControlPlaneStateBackend: haStateBackend,
+			StorageEncrypted:         cfg.Storage.Encrypt,
+			StorageKeyConfigured:     strings.TrimSpace(cfg.Storage.KeyFile) != "",
+			OutputDir:                cfg.Output.Dir,
+			SupportBundleEnabled:     true,
+		}
+		if !reporterStatus.LastAttempt.IsZero() {
+			diag.TelemetryLastAttempt = reporterStatus.LastAttempt.UTC().Format(time.RFC3339)
+		}
+		if !reporterStatus.LastSuccess.IsZero() {
+			diag.TelemetryLastSuccess = reporterStatus.LastSuccess.UTC().Format(time.RFC3339)
+		}
+		return diag
+	}
+	apiServer.SetRuntimeDiagnostics(runtimeDiagnostics(telemetry.ReporterStatus{
+		Enabled: strings.TrimSpace(cfg.Telemetry.Endpoint) != "",
+	}))
 	haCoordinator := controlplaneha.New(controlplaneha.Config{
 		Mode:              cfg.ControlPlane.Mode,
 		NodeID:            firstNonEmpty(strings.TrimSpace(cfg.ControlPlane.NodeID), agentID),
@@ -1403,6 +1422,7 @@ func main() {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 		reporterStatus := telemetryReporter.Status()
+		apiServer.SetRuntimeDiagnostics(runtimeDiagnostics(reporterStatus))
 		controlStats := map[string]interface{}{}
 		if bpfLoader != nil && bpfLoader.Ctrl != nil {
 			controlStats = bpfLoader.Ctrl.Stats()

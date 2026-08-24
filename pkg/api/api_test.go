@@ -600,6 +600,15 @@ func TestStatusIncludesRuntimeDiagnostics(t *testing.T) {
 		PolicyEndpoint:           "https://control.example",
 		PolicyBundleDir:          "/var/lib/providapt/policy",
 		AppliedPolicyVersion:     7,
+		TelemetryEndpoint:        "control.example:50051",
+		TelemetryEnabled:         true,
+		TelemetryHealthy:         false,
+		TelemetryLastAttempt:     "2026-06-07T00:00:01Z",
+		TelemetryLastSuccess:     "2026-06-07T00:00:00Z",
+		TelemetryLastError:       "rpc unavailable",
+		TelemetryLastAck:         "accepted 1 telemetry event(s)",
+		TelemetryFailures:        2,
+		TelemetryDesiredPolicy:   9,
 		ControlPlaneMode:         "cluster",
 		ControlPlaneRole:         "leader",
 		ControlPlaneStateBackend: "postgres://providapt",
@@ -627,6 +636,12 @@ func TestStatusIncludesRuntimeDiagnostics(t *testing.T) {
 	}
 	if resp.Diagnostics.ControlPlaneStateBackend != "postgres://providapt" {
 		t.Fatalf("state backend = %q", resp.Diagnostics.ControlPlaneStateBackend)
+	}
+	if resp.Diagnostics.TelemetryEndpoint != "control.example:50051" || resp.Diagnostics.TelemetryFailures != 2 {
+		t.Fatalf("telemetry diagnostics not preserved: %+v", resp.Diagnostics)
+	}
+	if resp.Diagnostics.TelemetryLastAck != "accepted 1 telemetry event(s)" || resp.Diagnostics.TelemetryDesiredPolicy != 9 {
+		t.Fatalf("telemetry ack diagnostics not preserved: %+v", resp.Diagnostics)
 	}
 }
 

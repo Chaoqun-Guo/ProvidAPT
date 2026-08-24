@@ -34,6 +34,7 @@ class VerifyVMFleetTest(unittest.TestCase):
             return responses[path]
 
         def fake_fetch(url, api_key="", timeout=10.0):
+            self.assertTrue(url.endswith("/dashboard"))
             return 200, b"graphSubsetForCluster exportClusterSubset openGraphTrace graph-cluster-actions", "text/html"
 
         args = Namespace(
@@ -81,6 +82,39 @@ class VerifyVMFleetTest(unittest.TestCase):
     def test_report_age_preserves_zero(self):
         self.assertEqual(verify_vm.report_age({"last_report_age_seconds": 0}), 0)
         self.assertEqual(verify_vm.report_age({"last_report_age_seconds": ""}, default=7), 7)
+
+    def test_fetch_disables_proxy_handlers_for_tailnet_hosts(self):
+        class FakeResponse:
+            status = 200
+            headers = {"content-type": "application/json"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        class FakeOpener:
+            def open(self, request, timeout=10.0):
+                self.request = request
+                self.timeout = timeout
+                return FakeResponse()
+
+        fake_opener = FakeOpener()
+        sentinel_handler = object()
+        with mock.patch.object(verify_vm.urllib.request, "ProxyHandler", return_value=sentinel_handler) as proxy_handler:
+            with mock.patch.object(verify_vm.urllib.request, "build_opener", return_value=fake_opener) as build_opener:
+                status, body, content_type = verify_vm.fetch("http://vm-ubuntu-master:18080/api/v1/status", "key", timeout=3)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body, b"{}")
+        self.assertEqual(content_type, "application/json")
+        proxy_handler.assert_called_once_with({})
+        build_opener.assert_called_once_with(sentinel_handler)
+        self.assertEqual(fake_opener.timeout, 3)
 
 
 if __name__ == "__main__":

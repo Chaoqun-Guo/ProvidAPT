@@ -118,5 +118,6 @@ target/
 .tmp-gocache/
 .tmp-gomodcache/
 .tmp-golangci-cache/
+.tmp-*
 .tmp-*/
 testlogs/

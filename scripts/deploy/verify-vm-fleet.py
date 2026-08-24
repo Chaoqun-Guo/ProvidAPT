@@ -23,8 +23,9 @@ def fetch(url: str, api_key: str = "", timeout: float = 10.0) -> tuple[int, byte
     request = urllib.request.Request(url)
     if api_key:
         request.add_header("X-API-Key", api_key)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             return response.status, response.read(), response.headers.get("content-type", "")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read(), exc.headers.get("content-type", "")
@@ -80,7 +81,7 @@ def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
     fleet = load_json_url(base_url, "/api/v1/control/fleet", args.api_key)
     graph = load_json_url(base_url, "/api/v1/graph/export", args.api_key)
     alerts = load_json_url(base_url, "/api/v1/control/alerts", args.api_key)
-    html_status, html_body, _ = fetch(base_url.rstrip("/") + "/", args.api_key)
+    html_status, html_body, _ = fetch(base_url.rstrip("/") + "/dashboard", args.api_key)
     if html_status != 200:
         failures.append(f"dashboard returned HTTP {html_status}")
     html = html_body.decode("utf-8", errors="replace")
