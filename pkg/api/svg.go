@@ -122,6 +122,7 @@ func renderTraceSVGViewer(alertID string) []byte {
       <div class="scope">Focused alert: %s</div>
     </div>
     <div class="toolbar">
+      <a class="tool-link" href="/dashboard">Dashboard</a>
       <input class="search" id="searchBox" placeholder="Search node, event, path, cmdline">
       <select class="tool-link" id="typeFilter" onchange="setTypeFilter(this.value)" aria-label="Filter trace by node type">
         <option value="all">All Types</option>
@@ -145,7 +146,7 @@ func renderTraceSVGViewer(alertID string) []byte {
       <button onclick="toggleClusters()">Clusters</button>
       <button onclick="exportPNG()">PNG</button>
       <button onclick="copyReportSnippet()">Report</button>
-      <a class="tool-link" href="%s" target="_blank" rel="noreferrer">Raw SVG</a>
+      <a class="tool-link" href="%s" target="_blank" rel="noreferrer">Open Raw SVG</a>
       <a class="tool-link" href="%s" download="providapt-trace.svg">SVG</a>
       <a class="tool-link" href="%s" target="_blank" rel="noreferrer">MD Report</a>
       <a class="tool-link" href="%s" target="_blank" rel="noreferrer">JSON</a>

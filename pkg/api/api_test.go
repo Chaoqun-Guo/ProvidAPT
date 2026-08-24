@@ -2424,8 +2424,11 @@ func TestAlertSVGSubroute(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
-	if got := w.Header().Get("Content-Type"); got != "image/svg+xml" {
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "image/svg+xml") {
 		t.Fatalf("content-type = %q", got)
+	}
+	if got := w.Header().Get("Content-Disposition"); got != "inline" {
+		t.Fatalf("content-disposition = %q", got)
 	}
 	if !strings.Contains(w.Body.String(), "<svg") {
 		t.Fatal("expected SVG response body")
@@ -2455,9 +2458,13 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/html") {
 		t.Fatalf("content-type = %q", got)
 	}
+	if got := w.Header().Get("Content-Disposition"); got != "inline" {
+		t.Fatalf("content-disposition = %q", got)
+	}
 	body := w.Body.String()
 	for _, want := range []string{
 		"ProvidAPT Trace Viewer",
+		`href="/dashboard"`,
 		`href="/assets/trace-viewer.css"`,
 		`src="/assets/trace-viewer.js"`,
 		`id="traceViewerApp"`,

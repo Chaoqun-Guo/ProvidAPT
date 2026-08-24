@@ -33,7 +33,9 @@ func TestDashboardAlertWorkflowTraceLinks(t *testing.T) {
 		"/backward?depth=8",
 		"/forward?depth=8",
 		"/api/v1/events/search?pattern=",
-		"Trace SVG",
+		"Open Trace",
+		"openTraceViewer",
+		"traceViewerURL",
 		"showAlertEvents",
 		"Open Events",
 	}

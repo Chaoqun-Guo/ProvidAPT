@@ -42,7 +42,7 @@ async function fetchJSON(url, options) {
     clearAPIStatus();
     return r.json();
   } catch (e) {
-    if (!isAuthzError(e) && !(suppressAuthError && isAuthzError(e))) {
+    if (!(suppressAuthError && isAuthzError(e))) {
       reportAPIError('GET', url, e);
     }
     throw e;
@@ -667,7 +667,7 @@ function alertTraceActions(a) {
   const alertEncoded = inlineJSONPayload(a || {});
   return '<span class="trace-actions workflow-trace-actions">' +
     '<button class="secondary" onclick="showAlertDetailsEncoded(\'' + alertEncoded + '\')">Details</button>' +
-    '<a href="/api/v1/alerts/' + encodedID + '/svg/view" target="_blank" rel="noreferrer" title="Open interactive trace viewer">Trace SVG</a>' +
+    '<button class="secondary" onclick="openTraceViewer(\'' + jsString(id) + '\')" title="Open interactive trace viewer">Open Trace</button>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/backward?depth=8" target="_blank" rel="noreferrer" title="Trace upstream provenance">Backward</a>' +
     '<a href="/api/v1/graph/node/' + encodedID + '/forward?depth=8" target="_blank" rel="noreferrer" title="Trace downstream impact">Forward</a>' +
     '<a href="/api/v1/events/search?pattern=' + eventPattern + '&limit=50" target="_blank" rel="noreferrer" title="Search related raw events">Events</a>' +
@@ -680,6 +680,16 @@ function updateStatus(status) {
   const text = document.getElementById('statusText');
   badge.className = 'status-badge ' + (status || 'unknown');
   text.textContent = (status || 'unknown').charAt(0).toUpperCase() + (status || 'unknown').slice(1);
+}
+
+function traceViewerURL(traceID) {
+  return '/api/v1/alerts/' + encodeURIComponent(traceID) + '/svg/view';
+}
+
+function openTraceViewer(traceID) {
+  const id = String(traceID || '').trim();
+  if (!id) return;
+  window.open(traceViewerURL(id), '_blank', 'noopener,noreferrer');
 }
 
 async function loadStatus() {
@@ -2321,7 +2331,7 @@ function renderGroundTruthRecord(record) {
   const technique = record.technique_name || record.technique || '';
   const nodeID = groundTruthNodeID(record);
   const traceLink = nodeID
-    ? '<a href="/api/v1/alerts/' + encodeURIComponent(nodeID) + '/svg/view" target="_blank" rel="noreferrer">Trace SVG</a>'
+    ? '<button class="secondary" onclick="openTraceViewer(\'' + jsString(nodeID) + '\')">Open Trace</button>'
     : '';
   const mitreLink = record.mitre_url
     ? '<a href="' + escapeHTML(record.mitre_url) + '" target="_blank" rel="noreferrer">MITRE</a>'
@@ -3227,7 +3237,7 @@ function alertDetailRows(alert) {
     rows.push('<div class="alert-item"><span class="alert-sev sev-medium">trace</span><span class="alert-msg"><span class="graph-cluster-actions">' +
       '<button onclick="openGraphTrace(\'' + jsString(traceID) + '\', \'backward\')">Backward Path</button>' +
       '<button onclick="openGraphTrace(\'' + jsString(traceID) + '\', \'forward\')">Forward Impact</button>' +
-      '<button onclick="window.open(\'/api/v1/alerts/' + encodeURIComponent(traceID) + '/svg/view\', \'_blank\', \'noreferrer\')">Trace SVG</button>' +
+      '<button onclick="openTraceViewer(\'' + jsString(traceID) + '\')">Open Trace</button>' +
       '<button onclick="showAlertEvents(\'' + jsString(pattern || traceID) + '\')">Related Events</button>' +
       '</span></span><span class="alert-time">actions</span></div>');
   }

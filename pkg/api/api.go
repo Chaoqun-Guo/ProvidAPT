@@ -2628,12 +2628,17 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, r *http.Request, path str
 	}
 	if len(parts) >= 3 && parts[2] == "view" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Disposition", "inline")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "no-store, max-age=0")
 		_, err := w.Write(renderTraceSVGViewer(alertID))
 		return err
 	}
 
 	svg := generateAlertSVGWithLayout(alertID, s.graph, r.URL.Query().Get("layout"))
-	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
+	w.Header().Set("Content-Disposition", "inline")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, err := w.Write(svg)
 	return err
 }
