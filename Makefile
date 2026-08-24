@@ -1,6 +1,6 @@
 .PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
-.PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet verify-vm-config probe cgroup
+.PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet verify-vm-open-source-residue verify-vm-config probe cgroup
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate model-lifecycle-example-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
@@ -443,6 +443,10 @@ verify-vm-fleet:
 	@if [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make verify-vm-fleet PROVIDAPT_SERVER_URL=http://vm-ubuntu-master.$(TAILSCALE_DOMAIN):18080 [EXPECTED_COMMIT=...]'; exit 2; fi
 	@python3 scripts/deploy/verify-vm-fleet.py --server "$(PROVIDAPT_SERVER_URL)" --min-agents "$(or $(MIN_AGENTS),3)" --min-healthy "$(or $(MIN_HEALTHY),3)" --max-report-age-seconds "$(or $(MAX_REPORT_AGE_SECONDS),30)" $(if $(EXPECTED_COMMIT),--expected-commit "$(EXPECTED_COMMIT)") --out-json "$(or $(OUT_DIR),build/deploy)/vm-fleet-verification.json" --out-md "$(or $(OUT_DIR),build/deploy)/vm-fleet-verification.md"
 
+verify-vm-open-source-residue:
+	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ] && [ -z "$(PROVIDAPT_SERVER_URL)" ]; then echo 'usage: make verify-vm-open-source-residue PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" PROVIDAPT_SERVER_URL=http://vm-ubuntu-master:18080'; exit 2; fi
+	@python3 scripts/deploy/vm-open-source-residue.py $(foreach host,$(PROVIDAPT_VM_HOSTS),--host "$(host)") $(if $(PROVIDAPT_SERVER_URL),--server-url "$(PROVIDAPT_SERVER_URL)") --timeout-seconds "$(or $(SSH_TIMEOUT_SECONDS),12)" --out-json "$(or $(OUT_DIR),build/deploy)/vm-open-source-residue.json" --out-md "$(or $(OUT_DIR),build/deploy)/vm-open-source-residue.md"
+
 verify-vm-config:
 	@if [ -z "$(PROVIDAPT_CONFIG)" ]; then echo 'usage: make verify-vm-config PROVIDAPT_CONFIG=/path/to/providapt.toml [VM_CONTROL_HOST=$(VM_CONTROL_HOST)]'; exit 2; fi
 	python3 scripts/deploy/configure-vm-endpoints.py "$(PROVIDAPT_CONFIG)" --control-host "$(VM_CONTROL_HOST)"
@@ -634,6 +638,7 @@ help:
 	@echo '  make deploy-prod      Run the production deployment helper'
 	@echo '  make deploy-vms       Deploy one checked Linux binary to constrained VMs'
 	@echo '  make verify-vm-fleet  Verify control-plane dashboard, fleet, graph, and alerts'
+	@echo '  make verify-vm-open-source-residue Detect removed API key/activation residue on VMs'
 	@echo ''
 	@echo 'Distribution:'
 	@echo '  make dist             Build all package formats (.deb/.rpm/.tar.gz)'

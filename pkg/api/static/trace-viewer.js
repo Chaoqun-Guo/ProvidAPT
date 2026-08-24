@@ -289,7 +289,7 @@ function showFallback(message) {
     })
     .catch(error => {
       const hint = error.message.indexOf('401') >= 0 || error.message.indexOf('403') >= 0
-        ? 'Trace SVG requires access to the local ProvidAPT API.'
+        ? 'Trace SVG was blocked by the running daemon or proxy. Upgrade the daemon to the open-source control-plane build and check proxy policy.'
         : 'Raw SVG fallback failed: ' + error.message + '.';
       canvas.innerHTML = '<div class="card status error">' + escapeHTML(hint) + '</div>';
       updateAuthNotice(hint);

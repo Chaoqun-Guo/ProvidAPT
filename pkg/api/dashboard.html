@@ -46,22 +46,28 @@
     <button data-dashboard-section="govern" onclick="switchDashboardSection('govern')">Release</button>
   </div>
   <div class="workspace-hint" id="workspaceHint">Overview shows live health and the next operational steps.</div>
-  <div class="workspace-tools" aria-label="Dashboard view controls">
-    <button onclick="setDashboardDensity('compact')">Compact</button>
-    <button onclick="setDashboardDensity('standard')">Standard</button>
-    <button onclick="setDashboardDensity('comfortable')">Comfortable</button>
-    <button onclick="setDashboardTheme('dark')">Dark</button>
-    <button onclick="setDashboardTheme('contrast')">Contrast</button>
-    <button onclick="saveDashboardViewProfile()">Save View</button>
-    <button onclick="loadDashboardViewProfile()">Load View</button>
-    <button onclick="resetDashboardLayout()">Reset Layout</button>
-  </div>
+  <details class="workspace-view-menu">
+    <summary>View</summary>
+    <div class="workspace-tools" aria-label="Dashboard view controls">
+      <span>Density</span>
+      <button onclick="setDashboardDensity('compact')">Compact</button>
+      <button onclick="setDashboardDensity('standard')">Standard</button>
+      <button onclick="setDashboardDensity('comfortable')">Comfortable</button>
+      <span>Theme</span>
+      <button onclick="setDashboardTheme('dark')">Dark</button>
+      <button onclick="setDashboardTheme('contrast')">Contrast</button>
+      <span>Layout</span>
+      <button onclick="saveDashboardViewProfile()">Save</button>
+      <button onclick="loadDashboardViewProfile()">Load</button>
+      <button onclick="resetDashboardLayout()">Reset</button>
+    </div>
+  </details>
 </nav>
 
 <div class="dashboard-shell">
 <aside class="dashboard-sidebar" aria-label="Security operations navigation">
   <div class="sidebar-title">Operations</div>
-  <div class="sidebar-subtitle">Use the sections in order: alerts, investigation, response, platform, release.</div>
+  <div class="sidebar-subtitle">Follow the workflow from alerts to release evidence.</div>
   <div class="sidebar-section">Sections</div>
   <div class="sidebar-nav" role="tablist" aria-label="Structured dashboard sections">
     <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Overview</span><span>All</span></button>

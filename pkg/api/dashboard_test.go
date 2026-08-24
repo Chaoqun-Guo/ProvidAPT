@@ -187,7 +187,7 @@ func TestDashboardOpenSourceBuildRemovesRemovedControlPlaneFeatures(t *testing.T
 		"Lic" + "ense",
 		"api" + "Key",
 		"API " + "Key",
-		"X-API-" + "Key",
+		"X-" + "API-" + "Key",
 		"/api/v1/control/" + "lic" + "ense",
 	}
 	for _, item := range forbidden {
@@ -210,7 +210,7 @@ func TestDashboardSanitizesControlPlaneErrors(t *testing.T) {
 		}
 	}
 	forbidden := []string{
-		"Check local API access and role " + "permissions.",
+		"Check local " + "API access and role " + "permissions.",
 		"'api' + '\\\\s+' + 'key'",
 	}
 	for _, item := range forbidden {

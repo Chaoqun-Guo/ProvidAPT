@@ -2030,7 +2030,7 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		"encodeURIComponent(alertID)",
 		"fetch(traceFetchURL(), { cache: 'no-store' })",
 		"Loading raw SVG fallback",
-		"Trace SVG requires access to the local ProvidAPT API.",
+		"Trace SVG was blocked by the running daemon or proxy.",
 		"mode-active",
 		"updateLayoutButtons",
 		"rerouteEdges",
@@ -2038,6 +2038,14 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 	} {
 		if !strings.Contains(traceViewerJS, want) && !strings.Contains(traceViewerCSS, want) {
 			t.Fatalf("trace viewer static assets missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"API " + "key",
+		"local API " + "policy",
+	} {
+		if strings.Contains(traceViewerJS, forbidden) || strings.Contains(traceViewerCSS, forbidden) {
+			t.Fatalf("trace viewer should not contain legacy access guidance %q", forbidden)
 		}
 	}
 }

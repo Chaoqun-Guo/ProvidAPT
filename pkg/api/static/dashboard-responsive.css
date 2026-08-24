@@ -75,6 +75,16 @@
   text-overflow: ellipsis;
 }
 
+.workspace-view-menu {
+  min-width: 0;
+}
+
+.workspace-view-menu summary {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .compact-input-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
 }
@@ -122,15 +132,16 @@
 
 @media (max-width: 1279px) {
   .workspace-tabs,
-  .workspace-tools,
   .header-right {
     width: 100%;
     justify-content: flex-start;
   }
   .workspace-tabs button,
-  .workspace-tools button,
   .platform-button {
     flex: 1 1 112px;
+  }
+  .workspace-view-menu {
+    margin-left: auto;
   }
 }
 
@@ -143,6 +154,23 @@
   .metrics,
   .content {
     grid-template-columns: 1fr;
+  }
+  .workspace-view-menu {
+    width: 100%;
+    margin-left: 0;
+  }
+  .workspace-view-menu summary {
+    width: 100%;
+    max-width: none;
+  }
+  .workspace-tools {
+    left: 0;
+    right: auto;
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+  .workspace-tools span {
+    margin-top: 4px;
   }
 }
 

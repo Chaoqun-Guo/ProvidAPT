@@ -4,7 +4,6 @@ image:
   pullPolicy: IfNotPresent
 
 api:
-  authEnabled: true
   corsOrigins:
     - https://soc.example.com
 
