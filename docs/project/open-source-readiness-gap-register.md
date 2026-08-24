@@ -49,7 +49,7 @@ Current closure progress:
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
-| ATT&CK coverage | Technique guidance and planning exist, but more customer-relevant scenarios need VM evidence | Coverage report maps simulated and detected techniques by tactic and host |
+| ATT&CK coverage | Technique guidance and planning exist, but more operator-relevant scenarios need VM evidence | Coverage report maps simulated and detected techniques by tactic and host |
 | Ground truth lifecycle | Dataset versioning, split, and hash gates exist; recurring release baselines still need curated ownership | Reproducible datasets can be exported with labels, manifests, and split metadata |
 | Provenance UX | Path-only, layout, filtering, and fold controls exist; very large trace ergonomics can still improve | Analysts can collapse, expand, filter, and export large traces without visual clutter |
 | Alert quality | Persistent analyst feedback now feeds alert-quality, graph-dataset, detection-quality, and model-closed-loop evidence | Alerts can be marked true positive, false positive, duplicate, or benign with audit trail |
@@ -79,38 +79,38 @@ Current closure progress:
 - Alert workflow feedback is persisted to an append-only `alert-feedback.ndjson` ledger, merged back into dashboard alert views after restart, exported through `/api/v1/control/alerts/feedback`, consumed by `make alert-quality ALERT_FEEDBACK=...`, recorded in graph dataset manifests through `make graph-dataset ALERT_FEEDBACK=...`, merged into `make detection-quality`, and accepted by `make model-closed-loop REQUIRE_FEEDBACK=1` from either a feedback file or dataset manifest evidence.
 - Three-VM capture/enrichment evidence can be collected over SSH/SCP through `make collect-vm-capture-evidence`, which copies real `providapt-*.ndjson` files and runs `capture-enrichment-field-gate` on the gathered release evidence.
 
-## Enterprise Integration
+## Open-Source Operations Integration
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
 | SIEM/SOAR | SIEM mappings exist, but production connectors need environment-specific certification | Splunk, Elastic, and webhook delivery are validated with retry and backpressure evidence |
 | RBAC and audit | RBAC exists, but delegated administration needs hardening tests | Tenant-scoped policies, audit export, and role reviews are tested |
-| Reporting | Support bundles and scheduled-report plans exist, but customer-specific report delivery needs certification | Scheduled PDF/Markdown/JSON reports summarize fleet risk, alerts, and coverage |
+| Reporting | Support bundles and scheduled-report plans exist, but site-specific report delivery needs certification | Scheduled PDF/Markdown/JSON reports summarize fleet risk, alerts, and coverage |
 | Upgrade orchestration | Upgrade preflight exists, but fleet-wide staged rollout and rollback need richer automation | Operators can canary, pause, resume, and rollback upgrades across agent groups |
 
 Current closure progress:
 
-- Customer environment certification is aggregated through
-  `make customer-env-certification-gate`, covering RBAC delegated admin,
+- Operator environment certification is aggregated through
+  `make operator-env-certification-gate`, covering RBAC delegated admin,
   tenant isolation, audit export, SIEM/SOAR certification, upgrade rollout,
   soak duration, Secret/TLS/PostgreSQL/backup readiness, plugin governance,
   and onboarding checks.
-- Customer environment certification validates audit export structure and role
+- Operator environment certification validates audit export structure and role
   review content, not only file presence: audit exports need records, and role
   reviews need approved named-owner entries with no pending placeholders.
-- Enterprise readiness reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, SIEM/SOAR delivery checks, upgrade rollout evidence, and detection quality through `make enterprise-readiness`.
-- Enterprise readiness now also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
+- Open-source operations reporting aggregates release gates, secret backend handoff, PostgreSQL drill status, SIEM/SOAR delivery checks, upgrade rollout evidence, and detection quality through `make open-source-operations`.
+- Open-source operations reporting also consumes RBAC audit and scheduled report plan evidence when `RBAC_AUDIT_JSON` and `REPORT_PLAN_JSON` are supplied.
 - Policy approval readiness gates RBAC status, tenant scoping, approval workflow, required approval actions, and approval audit evidence through `make policy-approval-gate`.
-- `make rbac-hardening-example-gate` now runs an open-source-safe RBAC fixture through RBAC audit, policy approval, and customer environment certification gates so the hardening evidence format can be smoke-tested locally.
+- `make rbac-hardening-example-gate` now runs an open-source-safe RBAC fixture through RBAC audit, policy approval, and operator environment certification gates so the hardening evidence format can be smoke-tested locally.
 - Support bundle readiness gates archive presence, redaction, export audit, and download evidence through `make support-bundle-gate`.
-- Runtime deployment diagnostics gates API auth, TLS, storage encryption, policy sync, kernel attach, control plane, and support bundle availability through `make deployment-diagnostics-gate`.
+- Runtime deployment diagnostics gate TLS, storage encryption, policy sync, kernel attach, control-plane mode, state backend, and support bundle availability through `make deployment-diagnostics-gate`.
 - VM fleet deployment verification captures dashboard, graph export, alert workflow, fleet health, version, and report-age evidence through `make verify-vm-fleet`.
 - Open-source development backlog generation is available through
   `make open-source-development-backlog`, with `LOCAL_ONLY=1` and `PHASE=...`
   filters plus evidence-aware task status updates when gate paths such as
   `RELEASE_EVIDENCE_CONSISTENCY_GATE`, `ARTIFACT_SIGNING_GATE`,
   `VISUAL_REGRESSION_GATE`, `CAPTURE_ENRICHMENT_GATE`, `SOAK_READINESS`,
-  `MODEL_LIFECYCLE_GATE`, `CUSTOMER_ENV_CERTIFICATION_GATE`,
+  `MODEL_LIFECYCLE_GATE`, `OPERATOR_ENV_CERTIFICATION_GATE`,
   `PLUGIN_CATALOG_GATE`, or `ONBOARDING_MANIFEST` are supplied. The generated
   report now includes `planning_summary` to separate next local work from
   external blockers and group remaining evidence by gate key. The next-local
@@ -122,7 +122,7 @@ Current closure progress:
 - Upgrade rollout planning produces canary, wave, pause/resume, rollback, and
   optional agent-group batch evidence through `make upgrade-rollout-plan
   BATCH_BY_GROUP=1`.
-- SIEM verification remains available through `make ops-siem-verify`; environment certification still requires customer SIEM/SOAR endpoints.
+- SIEM verification remains available through `make ops-siem-verify`; environment certification still requires operator SIEM/SOAR endpoints.
 
 ## Scale and Ecosystem
 
@@ -131,7 +131,7 @@ Current closure progress:
 | Performance certification | Benchmarks exist, but long-duration noisy-host soak evidence should be expanded | 24-72 hour soak results define throughput, loss, CPU, memory, and disk budgets |
 | Plugin ecosystem | Plugin development docs exist, but signed plugin distribution and compatibility policy need productization | Plugins have signing, version compatibility, and safe rollback rules |
 | Model training | Simulation logs can train detectors; broader model promotion automation can still mature | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
-| Customer onboarding | Handoff docs exist, but guided first-run setup can be smoother | A guided setup wizard validates prerequisites and generates a ready-to-run config |
+| Operator onboarding | Handoff docs exist, but guided first-run setup can be smoother | A guided setup wizard validates prerequisites and generates a ready-to-run config |
 
 Current closure progress:
 
@@ -193,7 +193,7 @@ Current closure progress:
   which copies PNG files, rewrites baseline paths, recalculates hashes, and
   blocks promotion when the capture status is not `pass`.
 - Open-source readiness gating now aggregates release gate status, operations
-  readiness, enterprise readiness, model lifecycle promotion packets, visual
+  readiness, open-source operations evidence, model lifecycle promotion packets, visual
   browser baseline coverage/comparison summaries, onboarding outputs, plugin
   release gates, required documentation, and approval evidence into one local
   milestone report.

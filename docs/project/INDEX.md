@@ -21,13 +21,13 @@ This section collects engineering documentation for repository governance, layou
 | [external-approval-request-v1.2.3-rc.1.md](external-approval-request-v1.2.3-rc.1.md) | External approval request packet for the v1.2.3 release candidate |
 | [security-waiver.md](security-waiver.md) | Security waiver template for incomplete release security controls |
 | [final-release-runbook.md](final-release-runbook.md) | Final release commit, tag, build, scan, sign, publish, and rollback runbook |
-| [customer-acceptance-test.md](customer-acceptance-test.md) | Customer acceptance test plan and pass criteria |
+| [operator-acceptance-test.md](operator-acceptance-test.md) | Operator acceptance test plan and pass criteria |
 | [production-readiness.md](production-readiness.md) | Production deployment readiness checklist |
 | [sizing-guide.md](sizing-guide.md) | Initial capacity planning guidance for agents, control plane, and PostgreSQL |
 | [third-party-notices.md](third-party-notices.md) | Third-party notice and SBOM review template |
 | [export-control.md](export-control.md) | Export-control workflow for international open-source delivery |
 | [support-sla.md](support-sla.md) | Support severity, SLA, and escalation model |
-| [customer-handoff.md](customer-handoff.md) | POC, onboarding, and production handoff checklist |
+| [operator-handoff.md](operator-handoff.md) | Lab validation, onboarding, and production handoff checklist |
 | [release-approval-record.md](release-approval-record.md) | Final open-source release approval record |
 | [open-source-readiness-gap-register.md](open-source-readiness-gap-register.md) | Prioritized open-source readiness gap register |
 

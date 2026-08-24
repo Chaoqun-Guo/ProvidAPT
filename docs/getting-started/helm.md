@@ -46,7 +46,7 @@ Delete persistent volumes only after backup and customer approval.
 Required production values:
 
 - image repository and immutable tag or digest
-- API authentication enabled
+- dashboard/API reachability restricted by network policy, TLS, or trusted-header SSO
 - TLS enabled
 - PostgreSQL DSN or external secret reference
 - fleet enrollment policy

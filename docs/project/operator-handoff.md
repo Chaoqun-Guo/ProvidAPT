@@ -1,14 +1,14 @@
-# Customer Handoff Checklist
+# Operator Handoff Checklist
 
-This checklist turns a release candidate into a repeatable customer delivery package.
+This checklist turns a release candidate into a repeatable operator delivery package.
 
 ## Pre-Handoff
 
 | Item | Owner | Status |
 | --- | --- | --- |
-| Customer scope and success criteria confirmed | Product / SE | record before handoff |
-| Supported platforms and kernel prerequisites reviewed | Engineering / SE | record before handoff |
-| Deployment topology selected | SE / Customer | record before handoff |
+| Operator scope and success criteria confirmed | Product / Maintainers | record before handoff |
+| Supported platforms and kernel prerequisites reviewed | Engineering / Maintainers | record before handoff |
+| Deployment topology selected | Maintainers / Operator | record before handoff |
 | Data handling and privacy requirements reviewed | Legal / Security | record before handoff |
 
 ## Delivery Package
@@ -21,7 +21,7 @@ This checklist turns a release candidate into a repeatable customer delivery pac
 - support bundle export instructions
 - SLA and support contact information
 
-## POC Success Criteria
+## Validation Success Criteria
 
 | Area | Example Criterion |
 | --- | --- |
@@ -48,8 +48,8 @@ This checklist turns a release candidate into a repeatable customer delivery pac
 
 | Area | Approver | Decision | Date |
 | --- | --- | --- | --- |
-| Customer owner | named in handoff packet | approve or reject | ISO-8601 date |
-| Sales engineering | named in handoff packet | approve or reject | ISO-8601 date |
+| Operator owner | named in handoff packet | approve or reject | ISO-8601 date |
+| Maintainers | named in handoff packet | approve or reject | ISO-8601 date |
 | Support | named in handoff packet | approve or reject | ISO-8601 date |
 | Security | named in handoff packet | approve or reject | ISO-8601 date |
 | Product | named in handoff packet | approve or reject | ISO-8601 date |

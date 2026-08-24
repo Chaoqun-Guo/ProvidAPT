@@ -54,11 +54,11 @@ This file records the evidence required before publishing or handing off an open
 
 | Area | Owner | Status | Notes |
 | --- | --- | --- | --- |
-| Product | Product owner | Candidate accepted | Customer-visible scope documented |
+| Product | Product owner | Candidate accepted | Operator-visible scope documented |
 | Security | Security owner | Candidate accepted | SBOM, checksum signature, and source scan summary generated |
 | Legal | Legal owner | Documentation prepared | Final Apache-2.0, DPA, and privacy review remains an external approval activity |
 | Support | Support owner | Candidate accepted | SLA and handoff materials prepared |
-| Sales engineering | Sales engineering owner | Candidate accepted | POC and onboarding material prepared |
+| Maintainers | Maintainer owner | Candidate accepted | validation and onboarding material prepared |
 
 ## Known Limitations
 

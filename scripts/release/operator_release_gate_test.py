@@ -6,16 +6,16 @@ from argparse import Namespace
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("customer-release-gate.py")
-SPEC = importlib.util.spec_from_file_location("customer_release_gate", SCRIPT)
+SCRIPT = Path(__file__).with_name("operator-release-gate.py")
+SPEC = importlib.util.spec_from_file_location("operator_release_gate", SCRIPT)
 subject = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(subject)
 
 
-class CustomerReleaseGateTest(unittest.TestCase):
+class OperatorReleaseGateTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / ".tmp-customer-release-gate-test"
+        self.tmp = Path.cwd() / ".tmp-operator-release-gate-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir(parents=True)

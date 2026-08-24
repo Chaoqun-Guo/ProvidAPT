@@ -40,7 +40,7 @@ class OpenSourceReadinessGateTest(unittest.TestCase):
         report = subject.build_report(Namespace(
             release_gates=str(self.write_json("release-gates.json", {"gates": []})),
             operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
-            enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
+            operations_evidence=str(self.write_json("operations.json", {"status": "pass"})),
             model_lifecycle_gate=str(self.tmp / "missing-model.json"),
             visual_regression_snapshots=str(self.tmp / "missing-visual.json"),
             onboarding_manifest=str(onboarding),
@@ -61,7 +61,7 @@ class OpenSourceReadinessGateTest(unittest.TestCase):
         report = subject.build_report(Namespace(
             release_gates=str(self.write_json("release-gates.json", {"gates": [{"name": "ci", "status": "pass"}]})),
             operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
-            enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
+            operations_evidence=str(self.write_json("operations.json", {"status": "pass"})),
             model_lifecycle_gate=str(self.write_json("model.json", {"status": "pass", "promotion_packet": {"decision": "approved_for_promotion", "model": {"name": "m", "version": "1"}, "evidence_count": 3, "next_actions": []}})),
             visual_regression_snapshots=str(self.write_json("visual.json", {"status": "pass", "coverage": {"covered_count": 8, "viewport_classes": ["mobile"], "complete_default_matrix": True}})),
             onboarding_manifest=str(onboarding),
@@ -109,7 +109,7 @@ class OpenSourceReadinessGateTest(unittest.TestCase):
         report = subject.build_report(Namespace(
             release_gates=str(release),
             operations_readiness_gate=str(self.write_json("operations.json", {"status": "pass"})),
-            enterprise_readiness=str(self.write_json("enterprise.json", {"status": "pass"})),
+            operations_evidence=str(self.write_json("operations.json", {"status": "pass"})),
             model_lifecycle_gate=str(model),
             visual_regression_snapshots=str(visual),
             onboarding_manifest=str(onboarding),

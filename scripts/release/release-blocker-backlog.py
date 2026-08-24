@@ -96,9 +96,9 @@ def recommended_action(section_name: str) -> str:
         "operations_readiness": "Run operations-readiness-gate after soak, fleet, upgrade, SIEM, and RBAC evidence are available.",
         "open_source_readiness": "Run open-source-readiness-gate after onboarding, docs, approval, and plugin evidence are available.",
         "legal_documents": "Complete legal/privacy documents and remove unresolved placeholders.",
-        "delivery_documents": "Complete customer handoff, support, upgrade, and install documentation.",
+        "delivery_documents": "Complete operator handoff, support, upgrade, and install documentation.",
         "release_gate_status": "Attach or regenerate current release gate status evidence for CI, scans, approvals, and artifacts.",
-        "enterprise_readiness": "Run enterprise-readiness after release, secrets, PostgreSQL, detection, RBAC, reporting, SIEM, and upgrade evidence are available.",
+        "operations_evidence": "Run open-source-operations after release, secrets, PostgreSQL, detection, RBAC, reporting, SIEM, and upgrade evidence are available.",
         "model_lifecycle": "Run model-lifecycle-gate with closed-loop, deploy-gate, drift, baseline, feedback, and approval evidence.",
         "visual_baselines": "Capture the full Dashboard and Trace Viewer browser baseline matrix and rerun visual-regression-gate.",
         "onboarding_bundle": "Run onboarding-wizard and verify generated config and checklist outputs.",
@@ -148,13 +148,13 @@ def render_markdown(backlog: dict[str, Any]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert release/readiness gate failures into an actionable blocker backlog.")
-    parser.add_argument("--source-report", default="", help="Generic gate report with sections; overrides --customer-release-gate")
+    parser.add_argument("--source-report", default="", help="Generic gate report with sections; overrides --operator-release-gate")
     parser.add_argument("--source-label", default="release")
-    parser.add_argument("--customer-release-gate", default="build/customer-release/customer-release-gate.json")
-    parser.add_argument("--out-json", default="build/customer-release/release-blocker-backlog.json")
-    parser.add_argument("--out-md", default="build/customer-release/release-blocker-backlog.md")
+    parser.add_argument("--operator-release-gate", default="build/operator-release/operator-release-gate.json")
+    parser.add_argument("--out-json", default="build/operator-release/release-blocker-backlog.json")
+    parser.add_argument("--out-md", default="build/operator-release/release-blocker-backlog.md")
     args = parser.parse_args()
-    source_path = Path(args.source_report) if args.source_report else Path(args.customer_release_gate)
+    source_path = Path(args.source_report) if args.source_report else Path(args.operator_release_gate)
     backlog = build_backlog(load_json(source_path), args.source_label)
     out_json = Path(args.out_json)
     out_md = Path(args.out_md)

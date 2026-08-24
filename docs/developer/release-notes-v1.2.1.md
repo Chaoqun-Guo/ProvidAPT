@@ -10,7 +10,7 @@ This release moves ProvidAPT into a cleaner open-source-release posture by align
 
 ## Highlights
 
-### Commercial Control Plane
+### Open-Source Control Plane
 
 - Fleet inventory and metadata management
 - Role-based access control for `admin`, `analyst`, and `auditor`
@@ -20,12 +20,11 @@ This release moves ProvidAPT into a cleaner open-source-release posture by align
 ### Operational Safety
 
 - Support bundle export, redaction, retention, and audit visibility
-- Persistent audit records for support, fleet, policy, alert, license, and upgrade operations
+- Persistent audit records for support, fleet, policy, alert, and upgrade operations
 - Ticketing integration paths for Jira, generic webhook, and ServiceNow
 
-### License and Upgrade Controls
+### Upgrade Controls
 
-- License inspection with expiry, grace period, revocation, and signature verification
 - Upgrade download, checksum verification, signature verification, preflight, and rollback-plan tracking
 
 ### Release Engineering and Documentation

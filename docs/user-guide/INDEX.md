@@ -8,7 +8,6 @@ This section explains daily ProvidAPT operations, including CLI usage, queries, 
 | --- | --- |
 | [cli.md](cli.md) | `providaptctl` and related command reference |
 | [rbac.md](rbac.md) | Open-source access control, RBAC roles, and trusted-header SSO |
-| [api-auth.md](api-auth.md) | API authentication configuration and request examples |
 | [grpc.md](grpc.md) | gRPC API usage and integration examples |
 | [provql.md](provql.md) | ProvQL query syntax and examples |
 | [detection-rules.md](detection-rules.md) | Detection rule authoring |

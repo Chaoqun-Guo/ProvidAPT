@@ -1,6 +1,6 @@
 # Security Waiver Template
 
-Use this document when a release cannot complete every required security scan before a controlled customer handoff.
+Use this document when a release cannot complete every required security scan before a controlled operator handoff.
 
 ## Waiver Request
 
@@ -10,7 +10,7 @@ Use this document when a release cannot complete every required security scan be
 | Requested by | named release or security owner |
 | Requested date | ISO-8601 date |
 | Expiration date | ISO-8601 date |
-| Scope | exact release, artifact set, customer, and environment |
+| Scope | exact release, artifact set, operator, and environment |
 | Blocked control | scanner, review, or evidence control requiring waiver |
 | Reason | operational reason the control cannot complete before controlled handoff |
 
@@ -32,7 +32,7 @@ For `v1.2.3-rc.1`, `govulncheck` completed successfully and reported no reachabl
 | Control | Owner | Status |
 | --- | --- | --- |
 | Run missing scanner in an approved CI or security environment | Security | required before public release |
-| Restrict delivery to named reviewers or customer POC environment | Product / Sales Engineering | required for controlled handoff |
+| Restrict delivery to named reviewers or operator lab validation environment | Product / Maintainers | required for controlled handoff |
 | Do not publish immutable final release until waiver is closed or approved | Release owner | required gate |
 | Document all known limitations in the handoff bundle | Release owner | required gate |
 
@@ -41,7 +41,7 @@ For `v1.2.3-rc.1`, `govulncheck` completed successfully and reported no reachabl
 | Role | Approver | Decision | Date | Notes |
 | --- | --- | --- | --- | --- |
 | Security | named security owner | approve, reject, or request rerun | ISO-8601 date | waiver rationale and expiration |
-| Product | named product owner | approve or reject | ISO-8601 date | customer scope and restrictions |
+| Product | named product owner | approve or reject | ISO-8601 date | operator scope and restrictions |
 | Release owner | named release owner | approve or reject | ISO-8601 date | artifact scope and rollback |
 
 ## Closure

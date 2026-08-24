@@ -19,9 +19,9 @@ class ReleaseBlockerBacklogTest(unittest.TestCase):
                 "legal_documents": {"status": "warn", "warnings": ["placeholder remains"]},
                 "ml_readiness": {"status": "pass"},
             },
-        }, "customer-release")
+        }, "operator-release")
         self.assertEqual(backlog["task_count"], 2)
-        self.assertEqual(backlog["source_label"], "customer-release")
+        self.assertEqual(backlog["source_label"], "operator-release")
         self.assertEqual(backlog["tasks"][0]["severity"], "release_blocking")
         self.assertEqual(backlog["checklist_summary"]["section_count"], 3)
         self.assertEqual(backlog["checklist_summary"]["release_blocking_count"], 1)

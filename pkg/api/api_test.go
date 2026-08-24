@@ -145,43 +145,8 @@ func TestClusterOverviewEndpoint(t *testing.T) {
 	}
 }
 
-func TestTenantScopedClusterOverview(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
+func TestOpenSourceControlPlaneAllowsRequestsWithoutCredentials(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"tenant-key"},
-		map[string]string{"tenant-key": RoleAnalyst},
-		map[string]string{"tenant-key": "Tenant Analyst"},
-		true,
-	)
-	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod"})
-	ts.SetClusterOverviewFunc(func() ClusterOverview {
-		return ClusterOverview{
-			UpdatedAt: "2026-06-08T00:00:00Z",
-			Agents: []ClusterAgent{
-				{AgentID: "agent-prod", Group: "prod", Status: "HEALTHY"},
-				{AgentID: "agent-dev", Group: "dev", Status: "DEGRADED"},
-			},
-		}
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/overview", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp["tenant"] != "prod" || resp["total_agents"] != float64(1) {
-		t.Fatalf("tenant overview = %#v", resp)
-	}
-}
-
-func TestAPIAuthCompatibilityNoopAllowsRequests(t *testing.T) {
-	ts := testServer(t)
-	ts.SetAPIAuth(nil, nil, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
 	w := apiServe(ts, req)
@@ -192,7 +157,6 @@ func TestAPIAuthCompatibilityNoopAllowsRequests(t *testing.T) {
 
 func TestOpenSourceControlPlaneAllowsDashboardAndAPIWithoutKey(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)
 
 	for _, path := range []string{"/dashboard", "/", "/assets/dashboard.css", "/assets/dashboard-responsive.css", "/assets/dashboard-api.js", "/assets/dashboard.js", "/assets/trace-viewer.css", "/assets/trace-viewer.js", "/api/v1/alerts/p%3A100/svg/view"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -260,113 +224,6 @@ func TestFleetEndpoint(t *testing.T) {
 	}
 }
 
-func TestTenantScopedFleetAccess(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"tenant-key"},
-		map[string]string{"tenant-key": RoleAnalyst},
-		map[string]string{"tenant-key": "Tenant Analyst"},
-		true,
-	)
-	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod"})
-	var gotGroup string
-	ts.SetFleetListFunc(func(group, _ string) FleetList {
-		gotGroup = group
-		return FleetList{UpdatedAt: "2026-06-08T01:02:03Z", Group: group, Agents: []ClusterAgent{}}
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-	if gotGroup != "prod" {
-		t.Fatalf("group = %q", gotGroup)
-	}
-
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet?group=dev", nil)
-	w = apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("cross tenant status code = %d", w.Code)
-	}
-}
-
-func TestMultiTenantScopedFleetAccess(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"tenant-key"},
-		map[string]string{"tenant-key": RoleOperator},
-		map[string]string{"tenant-key": "Managed Operator"},
-		true,
-	)
-	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod,staging"})
-	ts.SetFleetListFunc(func(group, tag string) FleetList {
-		return FleetList{
-			UpdatedAt: "2026-06-08T01:02:03Z",
-			Group:     group,
-			Tag:       tag,
-			Agents: []ClusterAgent{
-				{AgentID: "agent-prod", Group: "prod", Status: "HEALTHY"},
-				{AgentID: "agent-staging", Group: "staging", Status: "HEALTHY"},
-				{AgentID: "agent-dev", Group: "dev", Status: "DEGRADED"},
-			},
-		}
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
-	}
-	var resp FleetList
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(resp.Agents) != 2 {
-		t.Fatalf("agents = %#v", resp.Agents)
-	}
-
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet?group=dev", nil)
-	w = apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("cross tenant status code = %d", w.Code)
-	}
-}
-
-func TestOperatorCanUpdateScopedFleetOnly(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"operator-key"},
-		map[string]string{"operator-key": RoleOperator},
-		map[string]string{"operator-key": "Managed Operator"},
-		true,
-	)
-	ts.SetAPIAuthTenants(map[string]string{"operator-key": "prod"})
-	var got FleetUpdate
-	ts.SetFleetUpdateFunc(func(update FleetUpdate) error {
-		got = update
-		return fmt.Errorf("legacy commercial auth test should be skipped before callback")
-	})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","action":"approved"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("scoped update status = %d: %s", w.Code, w.Body.String())
-	}
-	if got.Group != "prod" || got.Role != RoleOperator {
-		t.Fatalf("update scope = %#v", got)
-	}
-
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","group":"dev"}`))
-	w = apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("cross-tenant update status = %d", w.Code)
-	}
-}
-
 func TestFleetUpdateEndpoint(t *testing.T) {
 	ts := testServer(t)
 	var got FleetUpdate
@@ -416,12 +273,6 @@ func TestFleetBatchUpdateEndpoint(t *testing.T) {
 
 func TestFleetUpdateInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var got FleetUpdate
 	ts.SetFleetUpdateFunc(func(update FleetUpdate) error {
 		got = update
@@ -470,71 +321,6 @@ func TestHAStatusEndpoint(t *testing.T) {
 	}
 	if status.Mode != "active-passive" || !status.FailoverReady || status.PeerCount != 2 || status.UpdatedAt == "" {
 		t.Fatalf("ha status = %#v", status)
-	}
-}
-
-func TestRBACAnalystForbiddenFleetUpdate(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"a1"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
-func TestRBACCustomRolePermissions(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"ops-key"}, map[string]string{"ops-key": "responder"}, nil, true)
-	ts.SetAPIAuthPermissions(map[string][]string{
-		"responder": {"GET:/api/v1/control/fleet", "GET:/api/v1/control/ha"},
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/ha", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("custom role allowed status = %d: %s", w.Code, w.Body.String())
-	}
-
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"a1"}`))
-	w = apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("custom role forbidden status = %d", w.Code)
-	}
-}
-
-func TestRBACAuditorGraphDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/graph/export", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
-func TestRBACAuditorStatusAllowed(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp["role"] != "auditor" {
-		t.Fatalf("role = %v", resp["role"])
 	}
 }
 
@@ -623,7 +409,6 @@ func TestStatusIncludesRuntimeDiagnostics(t *testing.T) {
 
 func TestTrustedHeaderAuth(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth([]string{"admin-key"}, map[string]string{"admin-key": RoleAdmin}, nil, true)
 	ts.SetTrustedHeaderAuth(true, "X-SSO-User", "X-SSO-Role")
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
@@ -692,12 +477,6 @@ func TestSupportBundleEndpoint(t *testing.T) {
 
 func TestSupportBundleActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq SupportBundleActionRequest
 	ts.SetSupportBundleActionFunc(func(req SupportBundleActionRequest) (SupportBundleActionResult, error) {
 		gotReq = req
@@ -728,18 +507,6 @@ func TestSupportBundleActionInjectsActorAndRole(t *testing.T) {
 	}
 }
 
-func TestRBACAnalystSupportBundleDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/support", bytes.NewBufferString(`{"reason":"manual export"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
 func TestSupportBundleDownloadEndpoint(t *testing.T) {
 	ts := testServer(t)
 	dir := t.TempDir()
@@ -767,17 +534,6 @@ func TestSupportBundleDownloadEndpoint(t *testing.T) {
 	}
 	if body := w.Body.String(); body != "zip-bytes" {
 		t.Fatalf("body = %q", body)
-	}
-}
-
-func TestRBACAnalystSupportBundleDownloadDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/support/download", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -820,12 +576,6 @@ func TestBackupEndpoint(t *testing.T) {
 
 func TestBackupActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq BackupActionRequest
 	ts.SetBackupActionFunc(func(req BackupActionRequest) (BackupActionResult, error) {
 		gotReq = req
@@ -872,29 +622,6 @@ func TestBackupDownloadEndpoint(t *testing.T) {
 	}
 }
 
-func TestRBACAnalystBackupDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/backup", bytes.NewBufferString(`{"action":"create"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
-func TestRBACAuditorBackupDownloadDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/backup/download", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
 func TestSecurityEndpoint(t *testing.T) {
 	ts := testServer(t)
 	ts.SetSecurityStatusFunc(func() SecurityStatus {
@@ -929,12 +656,6 @@ func TestSecurityEndpoint(t *testing.T) {
 
 func TestSecurityActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq SecurityActionRequest
 	ts.SetSecurityActionFunc(func(req SecurityActionRequest) (SecurityActionResult, error) {
 		gotReq = req
@@ -953,17 +674,6 @@ func TestSecurityActionInjectsActorAndRole(t *testing.T) {
 	}
 	if gotReq.Role != RoleAdmin || gotReq.Actor != "open-source-operator (admin)" || gotReq.Note != "quarterly" {
 		t.Fatalf("request = %#v", gotReq)
-	}
-}
-
-func TestRBACAnalystSecurityActionDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/security", bytes.NewBufferString(`{"action":"rotate_server_cert"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -1040,55 +750,6 @@ func TestAuditFeedCSVExport(t *testing.T) {
 	}
 }
 
-func TestTenantScopedAuditFeed(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"tenant-key"},
-		map[string]string{"tenant-key": RoleAuditor},
-		map[string]string{"tenant-key": "Tenant Auditor"},
-		true,
-	)
-	ts.SetAPIAuthTenants(map[string]string{"tenant-key": "prod"})
-	ts.SetAuditQueryFunc(func(category, source string, _ int) AuditFeed {
-		return AuditFeed{
-			UpdatedAt: "2026-06-08T02:00:00Z",
-			Category:  category,
-			Source:    source,
-			Entries: []AuditEntry{
-				{ID: "audit-prod", Category: "admin", Source: "policy", Details: map[string]interface{}{"tenant": "prod"}},
-				{ID: "audit-dev", Category: "admin", Source: "policy", Details: map[string]interface{}{"tenant": "dev"}},
-			},
-		}
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/audit?category=admin", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	entries := resp["entries"].([]interface{})
-	if resp["tenant"] != "prod" || len(entries) != 1 {
-		t.Fatalf("tenant audit feed = %#v", resp)
-	}
-}
-
-func TestRBACAuditorAuditFeedAllowed(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/audit?category=admin&source=supportbundle", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
 func TestComplianceEndpoint(t *testing.T) {
 	ts := testServer(t)
 	ts.SetComplianceStatusFunc(func() ComplianceStatus {
@@ -1135,12 +796,6 @@ func TestComplianceEndpoint(t *testing.T) {
 
 func TestComplianceActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq ComplianceActionRequest
 	ts.SetComplianceActionFunc(func(req ComplianceActionRequest) (ComplianceActionResult, error) {
 		gotReq = req
@@ -1165,18 +820,6 @@ func TestComplianceActionInjectsActorAndRole(t *testing.T) {
 	}
 	if gotReq.Note != "monthly review" {
 		t.Fatalf("note = %q", gotReq.Note)
-	}
-}
-
-func TestRBACComplianceActionDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/compliance", bytes.NewBufferString(`{"action":"generate_report"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -1241,12 +884,6 @@ func TestUpgradeEndpoint(t *testing.T) {
 
 func TestUpgradeActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq UpgradeActionRequest
 	ts.SetUpgradeActionFunc(func(req UpgradeActionRequest) (UpgradeActionResult, error) {
 		gotReq = req
@@ -1286,30 +923,6 @@ func TestUpgradeActionInjectsActorAndRole(t *testing.T) {
 	}
 	if gotReq.SignaturePath != "/tmp/providapt-upgrade.tar.gz.sig" {
 		t.Fatalf("signature_path = %q", gotReq.SignaturePath)
-	}
-}
-
-func TestRBACAnalystUpgradeActionDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/upgrade", bytes.NewBufferString(`{"action":"check"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
-func TestRBACAuditorUpgradeAllowed(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/upgrade", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -1574,25 +1187,8 @@ func TestPolicyBundleDownloadEndpoint(t *testing.T) {
 	}
 }
 
-func TestRBACAnalystPolicyBundleDownloadDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/policies/bundle", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
 func TestPolicyActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq PolicyActionRequest
 	ts.SetPolicyActionFunc(func(req PolicyActionRequest) (PolicySummary, error) {
 		gotReq = req
@@ -1609,18 +1205,6 @@ func TestPolicyActionInjectsActorAndRole(t *testing.T) {
 	}
 	if gotReq.Actor != "open-source-operator (admin)" {
 		t.Fatalf("actor = %q", gotReq.Actor)
-	}
-}
-
-func TestRBACAnalystPolicyActionDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", bytes.NewBufferString(`{"action":"publish"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -1951,12 +1535,6 @@ func TestAlertWorkflowBulkActionEndpoint(t *testing.T) {
 
 func TestAlertWorkflowActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"analyst-key"},
-		map[string]string{"analyst-key": RoleAnalyst},
-		map[string]string{"analyst-key": "SOC Analyst 1"},
-		true,
-	)
 	var gotReq AlertWorkflowActionRequest
 	ts.SetAlertWorkflowActionFunc(func(req AlertWorkflowActionRequest) (AlertWorkflowItem, error) {
 		gotReq = req
@@ -1973,18 +1551,6 @@ func TestAlertWorkflowActionInjectsActorAndRole(t *testing.T) {
 	}
 	if gotReq.Actor != "open-source-operator (admin)" {
 		t.Fatalf("actor = %q", gotReq.Actor)
-	}
-}
-
-func TestRBACAuditorAlertWorkflowReadOnly(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"assign","alert_id":"a-1"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -2061,18 +1627,6 @@ func TestNotifyDeliveriesEndpoint(t *testing.T) {
 	}
 }
 
-func TestRBACAuditorNotifyDeliveriesAllowed(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/deliveries", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status code = %d", w.Code)
-	}
-}
-
 func TestNotifyDeliveryActionEndpoint(t *testing.T) {
 	ts := testServer(t)
 	var gotReq NotifyDeliveryActionRequest
@@ -2107,12 +1661,6 @@ func TestNotifyDeliveryActionEndpoint(t *testing.T) {
 
 func TestNotifyDeliveryActionInjectsActorAndRole(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq NotifyDeliveryActionRequest
 	ts.SetNotifyDeliveryActionFunc(func(req NotifyDeliveryActionRequest) (NotifyDeliveryActionResult, error) {
 		gotReq = req
@@ -2140,12 +1688,6 @@ func TestNotifyDeliveryActionInjectsActorAndRole(t *testing.T) {
 
 func TestNotifyDeliveryActionHeaderActorOverridesIdentity(t *testing.T) {
 	ts := testServer(t)
-	ts.SetAPIAuth(
-		[]string{"admin-key"},
-		map[string]string{"admin-key": RoleAdmin},
-		map[string]string{"admin-key": "SecOps On-Call"},
-		true,
-	)
 	var gotReq NotifyDeliveryActionRequest
 	ts.SetNotifyDeliveryActionFunc(func(req NotifyDeliveryActionRequest) (NotifyDeliveryActionResult, error) {
 		gotReq = req
@@ -2223,18 +1765,6 @@ func TestNotifyDeliveryCreateTicketAllEndpoint(t *testing.T) {
 	}
 	if resp["succeeded"] != float64(2) {
 		t.Fatalf("succeeded = %v", resp["succeeded"])
-	}
-}
-
-func TestRBACAnalystDeliveryActionDenied(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/deliveries", bytes.NewBufferString(`{"action":"replay","delivery_id":"dlq-1"}`))
-	w := apiServe(ts, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status code = %d", w.Code)
 	}
 }
 
@@ -2383,18 +1913,6 @@ func TestInvestigationReportMarkdown(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "ProvidAPT Investigation Report") {
 		t.Fatalf("unexpected markdown: %s", w.Body.String())
-	}
-}
-
-func TestRBACAuditorInvestigationReportAllowed(t *testing.T) {
-	t.Skip("legacy commercial auth and tenant scoping are removed in the open-source build")
-	ts := testServer(t)
-	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/investigation/report?pid=100", nil)
-	w := apiServe(ts, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("auditor investigation report status = %d: %s", w.Code, w.Body.String())
 	}
 }
 

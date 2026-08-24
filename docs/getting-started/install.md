@@ -717,7 +717,7 @@ Default behavior:
 
 - archives redact common secrets, emails, IPs, and bearer tokens using stable pseudonyms
 - only the most recent 5 bundle directories/zip archives are retained
-- archive downloads still pass through existing control-plane auth/RBAC checks
+- archive downloads are available to the open-source control plane; restrict access with network controls or trusted-header SSO when exposed
 
 #### Upgrade Controls
 
@@ -793,7 +793,7 @@ curl -s http://localhost:18080/api/v1/status
 
 ## Delivery Check
 
-Before customer handoff or production installation, validate installer assets,
+Before operator handoff or production installation, validate installer assets,
 production configuration, systemd service wiring, environment defaults, and
 required handoff documents:
 

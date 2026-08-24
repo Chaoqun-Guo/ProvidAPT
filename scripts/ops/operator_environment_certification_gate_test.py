@@ -6,16 +6,16 @@ from argparse import Namespace
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("customer-environment-certification-gate.py")
-SPEC = importlib.util.spec_from_file_location("customer_environment_certification_gate", SCRIPT)
+SCRIPT = Path(__file__).with_name("operator-environment-certification-gate.py")
+SPEC = importlib.util.spec_from_file_location("operator_environment_certification_gate", SCRIPT)
 subject = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(subject)
 
 
-class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
+class OperatorEnvironmentCertificationGateTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / ".tmp-customer-certification-test"
+        self.tmp = Path.cwd() / ".tmp-operator-certification-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir()
@@ -84,7 +84,7 @@ class CustomerEnvironmentCertificationGateTest(unittest.TestCase):
         values.update(overrides)
         return Namespace(**values)
 
-    def test_passes_complete_customer_certification_evidence(self):
+    def test_passes_complete_operator_certification_evidence(self):
         report = subject.build_report(self.args())
         self.assertEqual(report["status"], "pass")
         self.assertFalse(report["warnings"])

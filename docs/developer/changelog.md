@@ -10,7 +10,7 @@ This file records engineering-facing milestones for the current maintained relea
 - Required archive, Debian, RPM, Helm, and monitoring artifacts by default for open-source readiness.
 - Added host-mode package smoke testing for limited Linux validation hosts without Docker.
 - Upgraded the release build baseline to Go `1.25.12` and documented the security scan rerun.
-- Added release evidence, security scan summary, external approval request, and production configuration templates for customer handoff.
+- Added release evidence, security scan summary, external approval request, and production configuration templates for operator handoff.
 
 ### Validation
 

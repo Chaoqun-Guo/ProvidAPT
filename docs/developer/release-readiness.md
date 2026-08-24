@@ -62,7 +62,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 - Run `make release-gates` before final review. It writes `build/release-gate-status.md` and `build/release-gate-status.json` with CI, scanner availability, scanner evidence, approval, and artifact status.
 - Run `make artifact-signing-gate REQUIRED_ARTIFACTS="archive deb rpm helm monitoring"` after `make release-open-source`. It writes `build/artifact-signing/artifact-signing-gate.md` and `.json`, validates `dist/checksums.txt`, rejects unsafe checksum paths, verifies every listed artifact hash, and confirms detached signature evidence is present.
-- Run `make customer-release-gate` only after the artifact signing gate has produced passing evidence; the customer gate includes an `artifact_signing` section and blocks when that report is missing or failing.
+- Run `make operator-release-gate` only after the artifact signing gate has produced passing evidence; the operator gate includes an `artifact_signing` section and blocks when that report is missing or failing.
 - When GitHub Actions or scanner evidence is collected outside the local
   workstation, pass it explicitly:
 
@@ -95,7 +95,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - Confirm the checksum manifest includes the required release artifact types: `archive`, `deb`, `rpm`, `helm`, and `monitoring`
 - Confirm every artifact listed in `dist/checksums.txt` exists under `dist/` and matches its SHA-256 digest
 - Confirm `dist/checksums.txt.sig` or equivalent detached signature evidence is captured; `providapt-sign` Ed25519 bundles, GPG armored signatures, Minisign signatures, and Cosign bundle evidence are recognized in release reports. The artifact signing gate blocks unsigned marker files and verifies that ProvidAPT Ed25519 bundles are structurally valid and bound to the exact checksum manifest hash.
-- When using `providapt-sign`, publish `dist/checksums.txt.pub` with the release handoff package and keep the private key under customer-approved key custody
+- When using `providapt-sign`, publish `dist/checksums.txt.pub` with the release handoff package and keep the private key under operator-approved key custody
 - Confirm SBOM artifacts are generated in SPDX and CycloneDX JSON formats
 - Confirm container image labels include source, version, and revision
 - Confirm release artifacts can be verified from a clean machine
@@ -112,7 +112,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 
 ## 7. Open Source Readiness
 
-- Confirm customer-facing contacts are valid:
+- Confirm operator-facing contacts are valid:
   - `security@providapt.io`
   - `legal@providapt.io`
   - `dpo@providapt.io`
@@ -121,21 +121,21 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - Confirm support readiness matches `docs/project/support-sla.md`
 - Confirm Apache-2.0 license, DPA, privacy posture, and third-party notices are reviewed for the release
 - Confirm onboarding material exists for:
-  - trial / evaluation install
+  - lab / evaluation install
   - production deployment
   - first alert investigation
   - support bundle export
   - upgrade and rollback
-- Confirm sales engineering material is ready:
+- Confirm operator enablement material is ready:
   - sizing guidance
   - demo scenario
-  - POC success criteria
+  - validation success criteria
   - known limitations and supported platforms
-- Confirm customer handoff material matches `docs/project/customer-handoff.md`
+- Confirm operator handoff material matches `docs/project/operator-handoff.md`
 - Pass `-release-handoff` when a candidate handoff directory or zip exists, so stale approval text or mismatched commit evidence is caught before delivery.
 - Confirm final release approvals are captured in `docs/project/release-approval-record.md`
 - Public release approval records must contain named Product, Security, Legal,
-  Support, and Sales Engineering owner decisions. Delegate placeholders and
+  Support, and Maintainer owner decisions. Delegate placeholders and
   `approved_with_risk` decisions block final GA/public release.
 
 ## 8. Documentation Consistency
@@ -145,7 +145,7 @@ This checklist is for the final review before tagging a ProvidAPT product releas
 - `docs/user-guide/cli.md` reflects control-plane endpoints and admin workflows
 - `docs/developer/upgrade-guide.md` reflects upgrade / rollback / preflight behavior
 - `docs/project/documentation-audit.md` stays aligned with current document categories
-- Release notes / changelog mention customer-visible changes
+- Release notes / changelog mention operator-visible changes
 
 ## 9. Release Decision
 

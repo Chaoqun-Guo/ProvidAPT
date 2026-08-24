@@ -259,12 +259,12 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
 - ProvidAPT is now an open-source distribution: paid-edition UI/API entry points should remain removed.
 - Artifact signing has an explicit release gate:
   `make artifact-signing-gate REQUIRED_ARTIFACTS="archive deb rpm helm monitoring"`.
-  The customer-release gate consumes this evidence through its
+  The operator-release gate consumes this evidence through its
   `artifact_signing` section.
 - RBAC, audit, multi-tenant scope, and policy approval workflow have an
   explicit `make policy-approval-gate` evidence check.
 - Customer-environment certification can be aggregated with
-  `make customer-env-certification-gate` for delegated admin, tenant isolation,
+  `make operator-env-certification-gate` for delegated admin, tenant isolation,
   audit export, SIEM/SOAR certification, staged upgrade controls, 24-hour soak,
   TLS/state backend/backup evidence, plugin governance, and onboarding checks.
 - Backup/restore/cutover evidence has `make backup-readiness-gate`.
@@ -275,7 +275,7 @@ http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080/dashboard
 - Formal public-release closure now requires current-commit GitHub Actions
   evidence archived with `RELEASE_EVIDENCE=...`, current-commit security scan
   manifests, final tag artifacts/checksums/SBOMs/signatures, and named
-  Product/Security/Legal/Support/Sales Engineering approvals. The local gates
+  Product/Security/Legal/Support/Maintainer approvals. The local gates
   enforce the evidence; they do not replace real owner signatures.
 
 ## Useful Documentation Entry Points

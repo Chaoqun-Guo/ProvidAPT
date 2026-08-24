@@ -6,16 +6,16 @@ from argparse import Namespace
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("enterprise-readiness-report.py")
-SPEC = importlib.util.spec_from_file_location("enterprise_readiness_report", SCRIPT)
-enterprise = importlib.util.module_from_spec(SPEC)
+SCRIPT = Path(__file__).with_name("open-source-operations-report.py")
+SPEC = importlib.util.spec_from_file_location("open_source_operations_report", SCRIPT)
+operations = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(enterprise)
+SPEC.loader.exec_module(operations)
 
 
-class EnterpriseReadinessReportTest(unittest.TestCase):
+class OpenSourceOperationsReportTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path.cwd() / ".tmp-enterprise-readiness-test"
+        self.tmp = Path.cwd() / ".tmp-open-source-operations-test"
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
         self.tmp.mkdir()
@@ -38,7 +38,7 @@ class EnterpriseReadinessReportTest(unittest.TestCase):
         report_plan = self.write_json("report-plan.json", {"status": "pass", "cadence": "1w", "formats": ["markdown", "json"]})
         siem = self.write_json("siem.json", {"status": "pass", "endpoint": "file:///tmp/siem.ndjson", "delivered": 3, "dead_letter": 0})
         upgrade = self.write_json("upgrade.json", {"status": "planned", "target_version": "v1.2.4", "batches": [{"name": "canary"}]})
-        report = enterprise.build_report(Namespace(
+        report = operations.build_report(Namespace(
             release_gates=str(release),
             secret_manifest=str(secrets),
             postgres_drill=str(postgres),
@@ -54,7 +54,7 @@ class EnterpriseReadinessReportTest(unittest.TestCase):
         self.assertEqual(report["sections"]["scheduled_reports"]["status"], "pass")
         self.assertEqual(report["sections"]["siem_soar_delivery"]["status"], "pass")
         self.assertEqual(report["sections"]["upgrade_rollout"]["status"], "pass")
-        self.assertIn("Enterprise Readiness", enterprise.render_markdown(report))
+        self.assertIn("Open Source Operations", operations.render_markdown(report))
 
 
 if __name__ == "__main__":

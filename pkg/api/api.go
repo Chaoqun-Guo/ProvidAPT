@@ -1204,18 +1204,7 @@ func (s *Server) SetDefaultControlHandlers() {
 	}
 }
 
-// SetAPIKeyAuth is kept as a deprecated compatibility no-op. The open-source
-// control plane no longer supports built-in credential gates.
-func (s *Server) SetAPIKeyAuth(_ []string, _ bool) {}
-
-// SetAPIAuth is kept as a deprecated compatibility no-op. Operator identity is
-// now supplied either by trusted headers or by the default open-source actor.
-func (s *Server) SetAPIAuth(_ []string, _ map[string]string, _ map[string]string, _ bool) {}
-
-// SetAPIAuthTenants is kept as a deprecated compatibility no-op.
-func (s *Server) SetAPIAuthTenants(_ map[string]string) {}
-
-func (s *Server) SetAPIAuthPermissions(permissions map[string][]string) {
+func (s *Server) SetRolePermissions(permissions map[string][]string) {
 	s.authPermissions = permissions
 }
 

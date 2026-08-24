@@ -49,6 +49,6 @@ This file records the evidence required before publishing or handing off the `v1
 
 ## Final Decision
 
-- Release decision: Candidate ready for external approval review and customer handoff preparation
+- Release decision: Candidate ready for external approval review and operator handoff preparation
 - Approver: Engineering release owner
 - Decision date: 2026-07-19

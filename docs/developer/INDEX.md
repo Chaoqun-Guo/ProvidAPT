@@ -19,7 +19,7 @@ This section is for developers and maintainers who extend, integrate, test, or r
 | [rule-engine-internals.md](rule-engine-internals.md) | Rule matching, correlation, severity, whitelist, and rollout internals |
 | [testing.md](testing.md) | Unit, integration, and performance testing |
 | [upgrade-guide.md](upgrade-guide.md) | Upgrade, preflight, and rollback guidance |
-| [package-build.md](package-build.md) | Commercial Linux package lifecycle and installation asset requirements |
+| [package-build.md](package-build.md) | Linux package lifecycle and installation asset requirements |
 | [release-readiness.md](release-readiness.md) | Final pre-release checklist |
 | [release-notes-v1.2.3-rc.1.md](release-notes-v1.2.3-rc.1.md) | Release notes for `v1.2.3-rc.1` |
 | [release-notes-v1.2.2.md](release-notes-v1.2.2.md) | Release notes for `v1.2.2` |

@@ -6,10 +6,10 @@ This template defines the minimum support model required before an open-source P
 
 | Channel | Purpose | Owner |
 | --- | --- | --- |
-| Support portal or email | Customer incidents, defects, and operational questions | Support lead |
+| Support portal or email | Operator incidents, defects, and operational questions | Support lead |
 | Security reporting channel | Vulnerability reports and coordinated disclosure | Security lead |
-| Customer success contact | Onboarding, adoption, and renewal handoff | Customer success |
-| Sales engineering channel | POC and pre-production technical validation | Sales engineering |
+| Maintainer contact | Onboarding, adoption, and release handoff | Maintainers |
+| Operator validation channel | Lab and pre-production technical validation | Maintainers |
 
 ## Severity Levels
 
@@ -31,7 +31,7 @@ This template defines the minimum support model required before an open-source P
 ## Required Runbooks
 
 - collect and redact support bundle
-- validate license and seat limits
+- validate deployment version and supported platform
 - diagnose eBPF attach or kernel compatibility failures
 - recover from failed upgrade or rollback
 - restore from staged checkpoint backup
@@ -43,16 +43,16 @@ This template defines the minimum support model required before an open-source P
 
 Alertmanager routing is deployed by the Ansible monitoring role. Use
 `deploy/ansible/examples/alertmanager-extra-vars.yml` as the starting point for
-customer-specific webhook URLs, then store real values in Ansible Vault or the
-customer secret manager.
+site-specific webhook URLs, then store real values in Ansible Vault or the
+operator secret manager.
 
 ## Release Gate
 
 A open-source release is support-ready only when:
 
 - support contacts are active and monitored
-- severity definitions are published to customer-facing teams
+- severity definitions are published to operator-facing teams
 - support bundle redaction defaults are reviewed
 - escalation owners are assigned
 - kernel/eBPF compatibility escalation is documented
-- trial and enterprise SLA commitments are approved
+- public support expectations and escalation commitments are approved

@@ -6,9 +6,9 @@ Version: `v1.2.3-rc.1`
 
 ## Summary
 
-`v1.2.3-rc.1` is a open-source release candidate focused on release evidence, vulnerability scanning, package smoke testing, production configuration readiness, and customer handoff material.
+`v1.2.3-rc.1` is a open-source release candidate focused on release evidence, vulnerability scanning, package smoke testing, production configuration readiness, and operator handoff material.
 
-This candidate is ready for external Product, Security, Legal, Support, and Sales Engineering review. It should not be published as an immutable final release until those approvals are recorded and the candidate is rebuilt from a clean release commit.
+This candidate is ready for external Product, Security, Legal, Support, and Maintainer review. It should not be published as an immutable final release until those approvals are recorded and the candidate is rebuilt from a clean release commit.
 
 ## Added
 

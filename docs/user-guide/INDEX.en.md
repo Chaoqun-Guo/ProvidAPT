@@ -8,7 +8,6 @@ This section provides detailed instructions for daily operations with ProvidAPT,
 | --- | --- |
 | [cli.md](cli.md) | `providaptctl` command reference: parameters, subcommands, and usage examples |
 | [rbac.md](rbac.md) | Open-source access control, RBAC roles, and trusted-header SSO |
-| [api-auth.md](api-auth.md) | API authentication configuration and request examples |
 | [grpc.md](grpc.md) | gRPC API usage and integration examples |
 | [provql.md](provql.md) | ProvQL query syntax: graph traversal, time filtering, and aggregation operations |
 | [detection-rules.md](detection-rules.md) | Detection rule guide: rule structure, field mapping, and custom aggregation |

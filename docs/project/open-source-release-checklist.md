@@ -11,7 +11,7 @@ This checklist turns the engineering release into a public, operator-ready open-
 | Legal | Legal / project owner | Open-source license, notices, privacy, trademark guidance |
 | Maintainers | Maintainer lead | Support bundle workflow, issue triage, release notes |
 
-## Customer-Facing Package
+## Operator-Facing Package
 
 - Release notes and changelog describe customer-visible changes.
 - Installation and upgrade paths are documented for source, package, container, and Helm deployments.
@@ -37,7 +37,7 @@ This checklist turns the engineering release into a public, operator-ready open-
 
 - Support intake channel is active and monitored.
 - Security reporting channel is active and monitored.
-- SLA definitions exist for trial, standard, and enterprise customers.
+- Support expectations exist for lab, production, and community users.
 - Support bundle redaction defaults are reviewed.
 - Escalation path exists for kernel/eBPF compatibility issues.
 - Support severity, response targets, and runbooks are tracked in `docs/project/support-sla.md`.
@@ -47,9 +47,9 @@ This checklist turns the engineering release into a public, operator-ready open-
 - Demo scenario is scripted and repeatable.
 - POC success criteria are documented.
 - Sizing guidance covers small, medium, and large deployments.
-- Competitive positioning and limitations are understood by customer-facing teams.
-- Trial-to-production handoff checklist is available.
-- Customer handoff and POC success criteria are tracked in `docs/project/customer-handoff.md`.
+- Limitations are understood by maintainers and operator-facing teams.
+- Lab-to-production handoff checklist is available.
+- Operator handoff and validation success criteria are tracked in `docs/project/operator-handoff.md`.
 - Production readiness, sizing, RBAC, SIEM, backup/restore, and policy lifecycle guidance are published under `docs/project/` and `docs/user-guide/`.
 
 ## Final Open Source Gate

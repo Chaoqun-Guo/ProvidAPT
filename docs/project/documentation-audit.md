@@ -6,8 +6,8 @@ This file groups the current documentation by audience and purpose.
 
 - `README.md` - project overview, navigation, build/test quick start
 - `docs/INDEX.md` - audience-based documentation entry point
-- `CHANGELOG.md` - customer-visible release history
-- `docs/getting-started/evaluation.md` - customer evaluation and POC guide
+- `CHANGELOG.md` - operator-visible release history
+- `docs/getting-started/evaluation.md` - operator evaluation and POC guide
 - `docs/developer/release-notes-v1.2.3-rc.1.md` - current release candidate notes
 
 ## Legal and Governance
@@ -57,7 +57,7 @@ This file groups the current documentation by audience and purpose.
 - `docs/project/release-evidence-v1.2.3-rc.1.md`
 - `docs/project/release-security-scan-summary-v1.2.3-rc.1.md`
 - `docs/project/external-approval-request-v1.2.3-rc.1.md`
-- `docs/project/customer-acceptance-test.md`
+- `docs/project/operator-acceptance-test.md`
 - `docs/project/production-readiness.md`
 - `docs/project/sizing-guide.md`
 - `docs/project/security-waiver.md`
@@ -67,7 +67,7 @@ This file groups the current documentation by audience and purpose.
 - `docs/project/open-source-release-checklist.md`
 - `docs/project/release-artifact-matrix.md`
 - `docs/project/support-sla.md`
-- `docs/project/customer-handoff.md`
+- `docs/project/operator-handoff.md`
 - `docs/project/release-approval-record.md`
 - `docs/project/open-source-readiness-gap-register.md`
 

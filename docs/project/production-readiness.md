@@ -1,6 +1,6 @@
 # Production Readiness Checklist
 
-Use this checklist before deploying ProvidAPT into a production customer environment.
+Use this checklist before deploying ProvidAPT into a production operator environment.
 
 ## Platform
 
@@ -15,8 +15,8 @@ Use this checklist before deploying ProvidAPT into a production customer environ
 - TLS is enabled for operator and agent/server traffic.
 - CORS origins are restricted to approved consoles.
 - SIEM tokens, encryption keys, and TLS private keys are stored in operator-approved secret management.
-- Sample values from `examples/config/providapt.production.yaml` are replaced with customer-approved settings.
-- Audit retention matches customer compliance requirements.
+- Sample values from `examples/config/providapt.production.yaml` are replaced with operator-approved settings.
+- Audit retention matches operator compliance requirements.
 
 ## Storage and Retention
 
@@ -29,7 +29,7 @@ Use this checklist before deploying ProvidAPT into a production customer environ
 
 - systemd, Docker Compose, or Helm deployment path is documented.
 - Start, stop, restart, upgrade, rollback, backup, and uninstall procedures are tested.
-- Monitoring and alerting are connected to the customer's observability platform.
+- Monitoring and alerting are connected to the operator's observability platform.
 - SIEM delivery is tested or outbox retry behavior is accepted.
 - Support bundle collection is verified.
 
@@ -38,8 +38,8 @@ Use this checklist before deploying ProvidAPT into a production customer environ
 - Release evidence references the final clean commit and version.
 - SBOMs, checksums, and signatures are present.
 - Vulnerability scan evidence is approved by Security.
-- Product, Legal, Support, and Sales Engineering approvals are recorded.
-- Customer acceptance test is complete.
+- Product, Legal, Support, and Maintainer approvals are recorded.
+- Operator acceptance test is complete.
 
 ## Rollback
 

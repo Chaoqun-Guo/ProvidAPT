@@ -1191,7 +1191,7 @@ func main() {
 	securitySummaryState := &securityState{}
 	upgradeSummaryState := &upgradeState{}
 	complianceSummaryState := &complianceState{}
-	apiServer.SetAPIAuthPermissions(cfg.API.AuthPermissions)
+	apiServer.SetRolePermissions(cfg.API.AuthPermissions)
 	apiServer.SetTrustedHeaderAuth(cfg.SSO.TrustedHeaderAuth, cfg.SSO.UserHeader, cfg.SSO.RoleHeader)
 	apiServer.SetTrustedTenantHeader(cfg.SSO.TenantHeader)
 	apiServer.SetCORSOrigins(cfg.API.CORSOrigins)

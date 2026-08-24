@@ -73,9 +73,9 @@ TASKS = (
     TaskSpec(
         task_id="rbac-audit-hardening",
         title="RBAC, tenant isolation, audit, and role review",
-        command="make ops-rbac-audit PROVIDAPT_CONFIG=... && make policy-approval-gate && make customer-env-certification-gate REQUIRE_DELEGATED_ADMIN=1 REQUIRE_AUDIT_EXPORT=1 REQUIRE_ROLE_REVIEW=1",
+        command="make ops-rbac-audit PROVIDAPT_CONFIG=... && make policy-approval-gate && make operator-env-certification-gate REQUIRE_DELEGATED_ADMIN=1 REQUIRE_AUDIT_EXPORT=1 REQUIRE_ROLE_REVIEW=1",
         required_inputs=("providapt_config", "rbac_audit", "policy_approval_gate", "audit_export", "role_review"),
-        evidence_paths=("build/rbac/rbac-audit.json", "build/policy-approval/policy-approval-gate.json", "build/customer-certification/customer-environment-certification-gate.json"),
+        evidence_paths=("build/rbac/rbac-audit.json", "build/policy-approval/policy-approval-gate.json", "build/operator-certification/operator-environment-certification-gate.json"),
         notes=("Use real tenant-scoped keys, delegated admin records, audit export rows, and approved role-review entries.",),
     ),
     TaskSpec(

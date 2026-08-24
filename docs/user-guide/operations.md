@@ -171,7 +171,7 @@ capture per-agent JSON/Markdown action evidence.
 
 ## 7. Secret and TLS Operations
 
-Generate a customer-fillable secret template:
+Generate an operator-fillable secret template:
 
 ```bash
 make ops-secret-template
@@ -179,7 +179,7 @@ make ops-secret-validate SECRET_ENV=/secure/path/providapt.secrets.env
 ```
 
 The generated `build/providapt.secrets.env.example` is a template only. Replace
-all placeholders through the customer's secret manager or deployment pipeline,
+all placeholders through the operator's secret manager or deployment pipeline,
 then validate the filled file before wiring it into systemd, Docker Compose, or
 Kubernetes. See `docs/getting-started/secret-management.md` for deployment
 patterns.
@@ -199,7 +199,7 @@ The report blocks when any required secret backend artifact is missing,
 including Vault policy/loader/config outputs, TLS rotation material is
 incomplete, PostgreSQL backup evidence is missing, or fleet reports are stale.
 
-Validate install handoff assets before packaging or customer deployment:
+Validate install handoff assets before packaging or operator deployment:
 
 ```bash
 make install-delivery-check \
@@ -237,11 +237,11 @@ make security-hardening-gate \
 
 The gate verifies production config controls, systemd sandbox markers, risky
 environment bypass defaults, and optional RBAC audit evidence. Configuration
-checks include API auth keys, restricted CORS origins, REST TLS certificate
-paths, TLS rotation settings, encrypted storage, approval workflow, support
-bundle redaction, agent telemetry TLS, HTTPS policy pulls, and a production
-secret backend (`file` or `vault`). Placeholder database passwords
-are warnings in sample files and must be replaced by customer-approved secret
+checks include open-source control-plane mode, restricted CORS origins, REST TLS
+certificate paths, TLS rotation settings, encrypted storage, approval workflow,
+support bundle redaction, agent telemetry TLS, HTTPS policy pulls, and a
+production secret backend (`file` or `vault`). Placeholder database passwords
+are warnings in sample files and must be replaced by operator-approved secret
 material before release approval. eBPF-related systemd relaxations are reported
 as warnings so a release owner can explicitly approve them.
 
@@ -308,7 +308,7 @@ make ops-siem-verify
 ```
 
 The report bundle returns both JSON and HTML artifacts. Use JSON for automated
-release evidence checks and HTML for operator review or customer handoff.
+release evidence checks and HTML for operator review or operator handoff.
 
 Plan scheduled executive or compliance report generation:
 
@@ -323,7 +323,7 @@ make scheduled-report-plan \
 
 The generated plan records the report command, retention budget, systemd timer
 metadata, and Kubernetes CronJob schedule. Treat it as the approval artifact
-before wiring the schedule into customer automation.
+before wiring the schedule into operator automation.
 
 Gate policy approval workflow evidence after RBAC and compliance status are
 captured:
@@ -362,7 +362,6 @@ Gate runtime deployment diagnostics saved from `/api/v1/status`:
 ```bash
 make deployment-diagnostics-gate \
   STATUS_JSON=build/deploy/status.json \
-  REQUIRE_API_AUTH=1 \
   REQUIRE_TLS=1 \
   REQUIRE_STORAGE_ENCRYPTION=1 \
   REQUIRE_POLICY_SYNC=1 \
@@ -464,9 +463,9 @@ count, folded cluster count, and whether alerts were provided or discovered
 under `build/trace-stress/`. The JSON report also includes
 `evidence_summary` with the expected alert/layout matrix, missing pairs,
 per-layout pass/blocked counts, p50/p95/max latency, node-count ranges, and
-authentication diagnostics. If the API returns `401` or `403` without an API
-evidence, the report records suggested remediation actions so failed
-release evidence is immediately actionable.
+connection diagnostics. If the API endpoint is unreachable or returns an
+unexpected non-2xx response, the report records suggested remediation actions so
+failed release evidence is immediately actionable.
 
 For local development without a running API or real alert IDs, run the
 synthetic fixture:
@@ -481,7 +480,7 @@ path. It is useful for local smoke testing, but final release evidence must
 still use real alert IDs from the target deployment.
 
 Validate capture/enrichment field coverage from VM or evaluation NDJSON before
-training or customer evidence review:
+training or operator evidence review:
 
 ```bash
 make capture-enrichment-field-gate \
@@ -515,12 +514,12 @@ is exercised, aggregates them into a local evidence directory, and writes
 `capture-enrichment-field-gate.json`, and
 `capture-enrichment-field-gate.md`. Do not commit the copied NDJSON files.
 
-Aggregate enterprise delivery evidence after release gates, secret backend
+Aggregate open-source operations evidence after release gates, secret backend
 handoff, PostgreSQL drills, detection quality, RBAC audit, and scheduled report
 plan artifacts are generated:
 
 ```bash
-make enterprise-readiness \
+make open-source-operations \
   RBAC_AUDIT_JSON=build/rbac/rbac-audit.json \
   REPORT_PLAN_JSON=build/reports/scheduled-report-plan.json
 ```
@@ -543,7 +542,7 @@ make soak-readiness \
 ```
 
 Both commands write Markdown and JSON artifacts under `build/` for release
-review, support handoff, and customer readiness meetings.
+review, support handoff, and operator readiness meetings.
 
 Run `make soak-sample` on a schedule during 24-72 hour validation windows. Keep
 the generated `soak-samples.json` with the final `soak-readiness.json` and
@@ -578,24 +577,24 @@ missing or failed. Visual regression readiness carries screenshot coverage,
 default-matrix completion, baseline change counts, DOM assertion failures, and
 missing required screenshot counts from `visual_evidence_summary`.
 
-Close open-source readiness after release gates, operations, enterprise,
+Close open-source readiness after release gates, operations evidence,
 model lifecycle, visual baseline, onboarding, and plugin evidence are generated:
 
 ```bash
 make open-source-readiness-gate
 ```
 
-For customer or production-environment certification, aggregate harder
+For operator or production-environment certification, aggregate harder
 environment-specific evidence into one gate:
 
 ```bash
-make customer-env-certification-gate \
+make operator-env-certification-gate \
   RBAC_AUDIT=build/rbac/rbac-audit.json \
   POLICY_APPROVAL_GATE=build/policy-approval/policy-approval-gate.json \
   AUDIT_EXPORT=build/audit/audit-export.csv \
   ROLE_REVIEW=docs/project/role-review.md \
   SIEM_VERIFY=build/siem/siem-verification.json \
-  SIEM_CERTIFICATION=build/siem/customer-siem-certification.json \
+  SIEM_CERTIFICATION=build/siem/operator-siem-certification.json \
   UPGRADE_ROLLOUT=build/upgrade/rollout-plan.json \
   SOAK_READINESS=build/performance/soak-readiness.json \
   PRODUCTION_READINESS_GATE=build/production-readiness/production-readiness-gate.json \
@@ -618,7 +617,7 @@ fleet canary/pause/resume/rollback planning, 24-hour soak budgets, TLS/state
 backend/backup evidence, plugin signing and permission models, and onboarding
 environment checks.
 
-For a local smoke test of the RBAC/audit/customer-certification evidence shape,
+For a local smoke test of the RBAC/audit/operator-certification evidence shape,
 run:
 
 ```bash
@@ -627,7 +626,7 @@ make rbac-hardening-example-gate
 
 The fixture uses public test keys and synthetic approvals under
 `examples/rbac-hardening/`; replace those files with real tenant-scoped
-configuration, audit exports, role review sign-off, and customer environment
+configuration, audit exports, role review sign-off, and operator environment
 evidence for release closure.
 
 Audit export evidence may be CSV or JSON. CSV exports must include at least one
@@ -655,10 +654,10 @@ make upgrade-rollout-plan \
 
 Use `BATCH_BY_GROUP=1` when the fleet inventory includes `group` or
 `agent_group` fields. The generated evidence records the agent groups covered
-by each canary, wave, and rollback batch, which lets customer certification
+by each canary, wave, and rollback batch, which lets operator certification
 validate group-aware rollout coverage instead of only counting agents.
 
-Generate a first-run onboarding bundle for a new customer or lab deployment:
+Generate a first-run onboarding bundle for a new operator or lab deployment:
 
 ```bash
 make onboarding-wizard \
@@ -680,7 +679,7 @@ release evidence.
 
 The onboarding bundle includes a production-oriented starter config, checklist,
 environment checks for Tailscale/SSH/API/TLS/secrets/PostgreSQL, and manifest
-that can be attached to customer handoff evidence. It also writes
+that can be attached to operator handoff evidence. It also writes
 `onboarding-check-results.template.json`, a fill-in template containing every
 generated check command, and `onboarding-operator-flow.md`, a staged first-run
 flow for prepare, configure, start, verify, and handoff work. Set
@@ -711,9 +710,9 @@ prioritized next actions for each failed or unverified check. The same
 `action_summary` and staged `operator_flow` are written to
 `onboarding-manifest.json` for release evidence aggregation.
 
-## 9. Commercialization Readiness
+## 9. Open-Source Release Readiness
 
-Validate plugin release evidence before enabling customer-specific detection,
+Validate plugin release evidence before enabling site-specific detection,
 scoring, threat-intelligence, or enrichment extensions:
 
 ```bash
@@ -728,7 +727,7 @@ Close open-source readiness with the open-source readiness gate:
 make open-source-readiness-gate \
   RELEASE_GATES_JSON=build/release-gate-status.json \
   OPERATIONS_READINESS_GATE=build/operations-readiness/operations-readiness-gate.json \
-  ENTERPRISE_READINESS=build/enterprise-readiness.json \
+  OPERATIONS_EVIDENCE=build/open-source-operations.json \
   MODEL_LIFECYCLE_GATE=build/evaluation/model-lifecycle-gate.json \
   VISUAL_REGRESSION_SNAPSHOTS=build/visual-regression/visual-regression-snapshots.json \
   ONBOARDING_MANIFEST=build/onboarding/onboarding-manifest.json \
@@ -736,8 +735,8 @@ make open-source-readiness-gate \
   EXTERNAL_APPROVAL=docs/project/external-approval-request-v1.2.3-rc.1.md
 ```
 
-The open-source readiness gate verifies release gate status, operations and
-enterprise readiness, model promotion packet evidence, visual browser baseline
+The open-source readiness gate verifies release gate status, operations
+readiness, model promotion packet evidence, visual browser baseline
 coverage, onboarding artifacts, open-source documentation, external approval
 evidence, and optional plugin release gates. Missing optional local evidence is
 a warning for planning runs; supplied evidence that is failed or incomplete
@@ -774,7 +773,7 @@ make open-source-local-closure
 When gate paths are supplied, the development backlog runs in evidence-aware
 mode and marks mapped tasks as `done`, `needs_review`, or `needs_fix` based on
 the supplied gate status. Multi-evidence tasks, such as final artifacts or
-RBAC/customer certification, remain `needs_review` until every mapped evidence
+RBAC/operator certification, remain `needs_review` until every mapped evidence
 input is present and passing.
 The generated backlog also includes a `planning_summary` section with the next
 local tasks to work, external blockers, and missing or blocked evidence grouped
@@ -848,9 +847,9 @@ is ready to run locally and what still needs final-tag, server, alert, model,
 RBAC, or plugin evidence. Non-passing rows include `unable_reason` and
 `completion_requirement` fields so local-only development gaps can be separated
 from evidence that requires a live deployment, real alert IDs, scanner
-databases, or customer approval records.
+databases, or operator approval records.
 For local macOS release rehearsal, `scripts/release/open-source-release.sh`
 cross-compiles Linux artifacts by default, builds a host `providaptctl` for the
 readiness check, and uses portable checksum generation. Final publication still
 needs an approved release tag, complete Grype/Trivy evidence or waiver, and a
-customer-approved signing key.
+operator-approved signing key.

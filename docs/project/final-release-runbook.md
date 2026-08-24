@@ -15,7 +15,7 @@ Requirements:
 - version number is final
 - external approvals are recorded
 - waiver decisions are recorded
-- customer-facing release notes are complete
+- operator-facing release notes are complete
 
 ## 2. Create the Release Commit
 
@@ -119,26 +119,26 @@ providaptctl -release-check \
 ```
 
 Aggregate release, artifact, package-smoke, operational, ML, legal, and
-customer-handoff evidence:
+operator-handoff evidence:
 
 ```bash
-make customer-release-gate \
+make operator-release-gate \
   RELEASE_GATES_JSON=build/release-gate-status.json \
   RELEASE_EVIDENCE_CONSISTENCY_GATE=build/release-evidence/release-evidence-consistency-gate.json \
   PACKAGE_SMOKE_DIR=build/package-smoke
 
 make release-blocker-backlog \
-  CUSTOMER_RELEASE_GATE=build/customer-release/customer-release-gate.json
+  OPERATOR_RELEASE_GATE=build/operator-release/operator-release-gate.json
 ```
 
 The release evidence consistency gate checks that the dist SBOMs,
 `release-readiness.md`, scan manifest, artifact signing gate, release version,
 and commit all describe the same release build.
 
-The generated `build/customer-release/customer-release-gate.json` is the
+The generated `build/operator-release/operator-release-gate.json` is the
 machine-readable final delivery decision. It also consumes the release evidence
 consistency gate, so stale or mismatched release metadata blocks final delivery.
-`customer-release-gate.md` is the operator-facing blocker list.
+`operator-release-gate.md` is the operator-facing blocker list.
 `release-blocker-backlog.json` converts each blocked or warning section into an
 owner-ready action item.
 
@@ -159,7 +159,7 @@ Include:
 - vulnerability scan evidence
 - package smoke evidence
 - release notes
-- customer acceptance test
+- operator acceptance test
 - production readiness checklist
 - security waiver if applicable
 - checksums and signatures
@@ -170,7 +170,7 @@ Publish only after:
 
 - final tag is pushed
 - release readiness passes
-- customer release gate passes
+- public release gate passes
 - external approvals are signed
 - security waivers are closed or approved
 - artifacts are uploaded to the approved distribution channel
@@ -182,4 +182,4 @@ Before publishing, confirm:
 - previous version artifacts are available
 - database backup and config backup exist
 - rollback owner and decision window are defined
-- customer communication template is ready
+- operator communication template is ready

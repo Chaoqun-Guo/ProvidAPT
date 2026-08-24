@@ -21,7 +21,7 @@ REQUIRED_LEGAL_DOCS = [
 ]
 REQUIRED_DELIVERY_DOCS = [
     "docs/project/release-artifact-matrix.md",
-    "docs/project/customer-handoff.md",
+    "docs/project/operator-handoff.md",
     "docs/user-guide/upgrade-rollback.md",
     "docs/getting-started/install.md",
     "docs/getting-started/docker-compose.md",
@@ -292,8 +292,8 @@ def main() -> int:
     parser.add_argument("--legal-doc", action="append", default=[])
     parser.add_argument("--delivery-doc", action="append", default=[])
     parser.add_argument("--allow-skipped-ci", action="store_true")
-    parser.add_argument("--out-json", default="build/customer-release/customer-release-gate.json")
-    parser.add_argument("--out-md", default="build/customer-release/customer-release-gate.md")
+    parser.add_argument("--out-json", default="build/operator-release/operator-release-gate.json")
+    parser.add_argument("--out-md", default="build/operator-release/operator-release-gate.md")
     args = parser.parse_args()
     report = build_report(args)
     out_json = Path(args.out_json)

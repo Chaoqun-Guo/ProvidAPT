@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "providapt.customer_environment_certification.v1"
+SCHEMA = "providapt.operator_environment_certification.v1"
 
 
 def load_json(path: str | None) -> dict[str, Any]:
@@ -299,7 +299,7 @@ def onboarding_section(args: argparse.Namespace) -> dict[str, Any]:
     missing = sorted(required_names - present_names)
     if missing:
         failures.append("onboarding checks missing: " + ", ".join(missing))
-    return section("customer_onboarding", not failures, failures, checks=len(checks), mode=report.get("mode", ""))
+    return section("operator_onboarding", not failures, failures, checks=len(checks), mode=report.get("mode", ""))
 
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
@@ -326,7 +326,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# Customer Environment Certification Gate",
+        "# Operator Environment Certification Gate",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -348,7 +348,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Gate customer production certification evidence across security, operations, SIEM, upgrade, plugin, and onboarding areas.")
+    parser = argparse.ArgumentParser(description="Gate operator production certification evidence across security, operations, SIEM, upgrade, plugin, and onboarding areas.")
     parser.add_argument("--rbac-audit", default="build/rbac/rbac-audit.json")
     parser.add_argument("--policy-approval-gate", default="build/policy-approval/policy-approval-gate.json")
     parser.add_argument("--audit-export", default="")
@@ -382,8 +382,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--onboarding-manifest", default="build/onboarding/onboarding-manifest.json")
     parser.add_argument("--min-onboarding-checks", type=int, default=5)
     parser.add_argument("--required-onboarding-check", action="append", default=[])
-    parser.add_argument("--out-json", default="build/customer-certification/customer-environment-certification-gate.json")
-    parser.add_argument("--out-md", default="build/customer-certification/customer-environment-certification-gate.md")
+    parser.add_argument("--out-json", default="build/operator-certification/operator-environment-certification-gate.json")
+    parser.add_argument("--out-md", default="build/operator-certification/operator-environment-certification-gate.md")
     return parser.parse_args(argv)
 
 
@@ -396,7 +396,7 @@ def main(argv: list[str]) -> int:
     out_md.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     out_md.write_text(render_markdown(report), encoding="utf-8")
-    print(f"customer environment certification: status={report['status']} sections={len(report['sections'])}")
+    print(f"operator environment certification: status={report['status']} sections={len(report['sections'])}")
     return 1 if report["status"] == "blocked" else 0
 
 

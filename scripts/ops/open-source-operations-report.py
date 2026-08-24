@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "providapt.enterprise_readiness_report.v1"
+SCHEMA = "providapt.open_source_operations_report.v1"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -87,7 +87,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
-        "# ProvidAPT Enterprise Readiness Report",
+        "# ProvidAPT Open Source Operations Report",
         "",
         f"- Status: `{report['status']}`",
         f"- Generated at: `{report['generated_at']}`",
@@ -103,7 +103,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Aggregate enterprise delivery readiness evidence.")
+    parser = argparse.ArgumentParser(description="Aggregate open-source operations readiness evidence.")
     parser.add_argument("--release-gates", default="build/release-gate-status.json")
     parser.add_argument("--secret-manifest", default="build/secrets/secret-backend-manifest.json")
     parser.add_argument("--postgres-drill", default="build/postgres/postgres-drill.json")
@@ -112,8 +112,8 @@ def main() -> int:
     parser.add_argument("--report-plan", default="build/reports/scheduled-report-plan.json")
     parser.add_argument("--siem-verify", default="build/siem/siem-verification.json")
     parser.add_argument("--upgrade-rollout", default="build/upgrade/rollout-plan.json")
-    parser.add_argument("--out-json", default="build/enterprise-readiness.json")
-    parser.add_argument("--out-md", default="build/enterprise-readiness.md")
+    parser.add_argument("--out-json", default="build/open-source-operations.json")
+    parser.add_argument("--out-md", default="build/open-source-operations.md")
     args = parser.parse_args()
     report = build_report(args)
     out_json = Path(args.out_json)

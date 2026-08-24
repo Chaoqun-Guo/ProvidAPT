@@ -36,15 +36,15 @@ make package-smoke-matrix
 make github-actions-evidence
 make artifact-signing-gate
 make release-evidence-consistency-gate
-make customer-release-gate
+make operator-release-gate
 
 # Use explicit host mode only on disposable Linux validation hosts when Docker
 # registry access is unavailable; it installs and purges the Debian package on
 # the host, and validates RPM metadata/extraction without installing the RPM.
 PACKAGE_SMOKE_MODE=host make package-smoke-matrix
 
-# Aggregate all customer-release blockers into one JSON/Markdown report:
-make customer-release-gate \
+# Aggregate all operator-release blockers into one JSON/Markdown report:
+make operator-release-gate \
   RELEASE_GATES_JSON=build/release-gate-status.json \
   RELEASE_EVIDENCE_CONSISTENCY_GATE=build/release-evidence/release-evidence-consistency-gate.json \
   PACKAGE_SMOKE_DIR=build/package-smoke \
@@ -59,7 +59,7 @@ make release-gates CI_EVIDENCE=build/ci/github-actions-evidence.json
 
 # If blocked, convert the gate output into an owner-ready backlog:
 make release-blocker-backlog \
-  CUSTOMER_RELEASE_GATE=build/customer-release/customer-release-gate.json
+  OPERATOR_RELEASE_GATE=build/operator-release/operator-release-gate.json
 
 # Equivalent explicit release readiness check:
 providaptctl -release-check \
@@ -77,8 +77,8 @@ providaptctl -release-check \
 ## Acceptance Rules
 
 - Every published artifact must be built from the same release tag.
-- Package artifacts must pass `make package-smoke-matrix` before customer handoff.
-- `make customer-release-gate` must pass before final customer delivery. A warning is acceptable only for a named, controlled local handoff; public publication requires all customer-release sections to pass.
+- Package artifacts must pass `make package-smoke-matrix` before operator handoff.
+- `make operator-release-gate` must pass before final operator delivery. A warning is acceptable only for a named, controlled local handoff; public publication requires all operator-release sections to pass.
 - `make release-blocker-backlog` must produce zero release-blocking tasks before final publication.
 - Every published install artifact and SBOM in `dist/` must appear in `checksums.txt`; signature files, public keys, and readiness reports are release evidence and are excluded.
 - Every entry in `checksums.txt` must resolve to an existing file and match its SHA-256 digest.
@@ -87,12 +87,12 @@ providaptctl -release-check \
 - Required release artifact types are `archive`, `deb`, `rpm`, `helm`, and `monitoring` unless a signed release waiver is present.
 - SBOM files must be generated in SPDX JSON and CycloneDX JSON formats.
 - Container and Helm artifacts must include immutable version metadata.
-- Set `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container` when producing an offline customer handoff that includes a Docker image archive.
+- Set `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container` when producing an offline operator handoff that includes a Docker image archive.
 - All warnings require either remediation or an approved waiver with an expiry date.
 
 ## Air-Gapped Bundle
 
-The offline customer bundle must include:
+The offline operator bundle must include:
 
 - release packages and container image archive
 - Helm chart and default values

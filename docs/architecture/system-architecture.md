@@ -40,7 +40,7 @@ Kernel eBPF Layer
 - support bundle and ticketing: `pkg/supportbundle/`, `pkg/ticketing/`
 - management services: `internal/policy/mgmt/`
 
-## Commercial Deployment Topology
+## Open-Source Deployment Topology
 
 ```text
 Linux Agent(s)
@@ -49,7 +49,7 @@ Linux Agent(s)
   health reports
   provenance event forwarding
       |
-      | gRPC / mTLS or token-authenticated telemetry
+      | gRPC / mTLS telemetry
       v
 Control Plane Server
   dashboard and REST API
@@ -77,7 +77,7 @@ Recommended production posture:
 - use PostgreSQL for production control-plane state
 - keep agents close to monitored workloads
 - enable TLS and authentication before cross-host telemetry
-- route SIEM, support bundle, and backup exports to customer-approved destinations
+- route SIEM, support bundle, and backup exports to operator-approved destinations
 
 ## Data Flow
 

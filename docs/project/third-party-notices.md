@@ -17,7 +17,7 @@ This document tracks third-party notice obligations for open-source delivery. It
 | CycloneDX SBOM generated | required before publication |
 | direct Go module licenses reviewed | required before publication |
 | container base image notices reviewed when shipped | required for container artifacts |
-| third-party notices packaged or linked in handoff | required before customer handoff |
+| third-party notices packaged or linked in handoff | required before operator handoff |
 
 ## Notice Template
 

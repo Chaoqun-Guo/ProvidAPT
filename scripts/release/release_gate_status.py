@@ -193,7 +193,7 @@ def approval_gate(path: Path) -> Gate:
     if any(marker in text for marker in pending_markers):
         return Gate("external_approvals", "blocked", "Approval record still contains pending markers", "Record named decisions before release", str(path))
     if "delegate" in text or "approved_with_risk" in text:
-        return Gate("external_approvals", "blocked", "Approval record still uses delegate or approved_with_risk decisions", "Attach named Product, Security, Legal, Support, and Sales Engineering approvals before GA/public release", str(path))
+        return Gate("external_approvals", "blocked", "Approval record still uses delegate or approved_with_risk decisions", "Attach named Product, Security, Legal, Support, and Maintainer approvals before GA/public release", str(path))
     return Gate("external_approvals", "pass", "Approval record has no obvious pending markers", evidence=str(path))
 
 

@@ -468,7 +468,7 @@ Status: generated release candidate evidence
 ## Known Limitations
 
 - Deployment-specific CORS origins, TLS material, SIEM tokens, and encryption keys must be replaced before production deployment.
-- Detached checksum signature should be produced with customer-approved signing infrastructure for final publication.
+- Detached checksum signature should be produced with operator-approved signing infrastructure for final publication.
 - The built-in providapt-sign tool creates verifiable Ed25519 checksum signatures for air-gapped or operator-managed signing workflows.
 EOF
 	fi

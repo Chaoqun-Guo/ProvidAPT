@@ -7,7 +7,7 @@ Usage: render-secret-env.sh [-o output.env]
 
 Generate a production secret environment template for ProvidAPT.
 The output intentionally contains placeholders and must be filled by the
-customer-approved secret manager or deployment pipeline.
+operator-approved secret manager or deployment pipeline.
 EOF
 }
 
@@ -32,7 +32,7 @@ done
 
 content="$(cat <<'EOF'
 # ProvidAPT production secret template.
-# Replace every CHANGE_ME value through a customer-approved secret manager.
+# Replace every CHANGE_ME value through an operator-approved secret manager.
 
 PROVIDAPT_SIEM_TOKEN=CHANGE_ME_SIEM_TOKEN
 PROVIDAPT_UPGRADE_SIGNING_KEY=CHANGE_ME_UPGRADE_SIGNING_KEY_OR_USE_PUBLIC_KEY_PATH

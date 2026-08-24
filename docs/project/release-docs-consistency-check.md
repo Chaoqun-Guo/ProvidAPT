@@ -23,7 +23,7 @@ Release: `v1.2.3-rc.1`
 
 ## Verified Alignment
 
-- Current release-candidate identifier is consistently `v1.2.3-rc.1` in customer-facing entry points
+- Current release-candidate identifier is consistently `v1.2.3-rc.1` in operator-facing entry points
 - Build/test command references use current Makefile targets.
 - Deployment, release evidence, handoff, and approval examples align with
   `v1.2.3-rc.1` or intentionally documented historical release evidence.

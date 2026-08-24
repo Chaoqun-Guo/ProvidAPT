@@ -206,7 +206,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     sections = {
         "release_gate_status": release_gate_detail(load_json(Path(args.release_gates))),
         "operations_readiness": {"status": status_value(load_json(Path(args.operations_readiness_gate)), {"pass", "warn"})},
-        "enterprise_readiness": {"status": status_value(load_json(Path(args.enterprise_readiness)), {"pass", "warn"})},
+        "operations_evidence": {"status": status_value(load_json(Path(args.operations_evidence)), {"pass", "warn"})},
         "model_lifecycle": model_lifecycle_detail(load_json(Path(args.model_lifecycle_gate))),
         "visual_baselines": visual_baseline_detail(load_json(Path(args.visual_regression_snapshots))),
         "onboarding_bundle": onboarding_detail(load_json(Path(args.onboarding_manifest))),
@@ -263,7 +263,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Aggregate open-source release, documentation, onboarding, and plugin readiness evidence.")
     parser.add_argument("--release-gates", default="build/release-gate-status.json")
     parser.add_argument("--operations-readiness-gate", default="build/operations-readiness/operations-readiness-gate.json")
-    parser.add_argument("--enterprise-readiness", default="build/enterprise-readiness.json")
+    parser.add_argument("--open-source-operations", dest="operations_evidence", default="build/open-source-operations.json")
     parser.add_argument("--model-lifecycle-gate", default="build/evaluation/model-lifecycle-gate.json")
     parser.add_argument("--visual-regression-snapshots", default="build/visual-regression/visual-regression-snapshots.json")
     parser.add_argument("--onboarding-manifest", default="build/onboarding/onboarding-manifest.json")

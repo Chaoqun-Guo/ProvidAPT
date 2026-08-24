@@ -71,7 +71,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 - Start PostgreSQL when `postgres_dsn` is configured.
 - Start server on REST port `{args.rest_port}` and gRPC port `{args.grpc_port}`.
 - Open dashboard and confirm all agents report healthy.
-- Run `make enterprise-readiness` before customer handoff.
+- Run `make open-source-operations` before operator handoff.
 - Fill `onboarding-check-results.template.json` with observed results, then
   rerun `{onboarding_make_command(args, check_results=str(result_template_path))}`.
 - Follow `onboarding-operator-flow.md` for the staged first-run sequence and

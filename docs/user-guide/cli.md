@@ -83,8 +83,8 @@ multiple paths with commas or semicolons.
 {
   "waivers": [
     {
-      "check": "api_auth",
-      "reason": "isolated customer acceptance environment",
+      "check": "cors_origins",
+      "reason": "private lab network with browser-only access",
       "approved_by": "release-manager",
       "expires": "2026-12-31"
     }

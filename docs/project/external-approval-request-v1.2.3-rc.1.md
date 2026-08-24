@@ -8,11 +8,11 @@ Commit evidence: `6e459ff0-worktree`
 
 | Area | Requested Decision | Evidence |
 | --- | --- | --- |
-| Product | Approve scope, customer-visible value, and known limitations | `docs/project/release-evidence-v1.2.3-rc.1.md` |
+| Product | Approve scope, operator-visible value, and known limitations | `docs/project/release-evidence-v1.2.3-rc.1.md` |
 | Security | Approve govulncheck results and decide whether the Grype/Trivy waiver is acceptable | `docs/project/release-security-scan-summary-v1.2.3-rc.1.md` |
 | Legal | Approve Apache-2.0 license, DPA, privacy notice, third-party notices, and trademark readiness | `docs/project/open-source-release-checklist.md` |
 | Support | Approve SLA, support bundle workflow, and escalation readiness | `docs/project/support-sla.md` |
-| Sales Engineering | Approve POC flow, sizing, onboarding, and customer handoff readiness | `docs/project/customer-handoff.md` |
+| Maintainers | Approve validation flow, sizing, onboarding, and operator handoff readiness | `docs/project/operator-handoff.md` |
 
 ## Approval Outcomes
 
@@ -22,7 +22,7 @@ Commit evidence: `6e459ff0-worktree`
 | Security | named security owner | approve, reject, or request waiver | Must accept govulncheck-only evidence or request Grype/Trivy rerun |
 | Legal | named legal owner | approve or reject | External owner required |
 | Support | named support owner | approve or reject | External owner required |
-| Sales Engineering | named SE owner | approve or reject | External owner required |
+| Maintainers | named maintainer owner | approve or reject | External owner required |
 
 ## Engineering Recommendation
 

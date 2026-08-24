@@ -87,11 +87,11 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         report = subject.build_report(evidence_paths={
             "release_evidence_consistency_gate": pass_gate,
             "artifact_signing_gate": pass_gate,
-            "customer_release_gate": pass_gate,
+            "operator_release_gate": pass_gate,
             "capture_enrichment_gate": pass_gate,
             "soak_readiness": warn_gate,
             "siem_verify": pass_gate,
-            "customer_env_certification_gate": blocked_gate,
+            "operator_env_certification_gate": blocked_gate,
             "rbac_audit": pass_gate,
             "policy_approval_gate": pass_gate,
         })
@@ -105,10 +105,10 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         planning = report["planning_summary"]
         self.assertIn("soak-24-72h", planning["external_blockers"])
         self.assertIn("siem-soar-certification", planning["external_blockers"])
-        self.assertIn("rbac-audit-hardening", planning["by_evidence_key"]["customer_env_certification_gate"])
+        self.assertIn("rbac-audit-hardening", planning["by_evidence_key"]["operator_env_certification_gate"])
         rendered = subject.render_markdown(report)
         self.assertIn("artifact_signing_gate:pass", rendered)
-        self.assertIn("customer_env_certification_gate:blocked", rendered)
+        self.assertIn("operator_env_certification_gate:blocked", rendered)
 
     def test_release_security_scans_use_scanner_subgates(self):
         release_gates = self.write_json("release-gates.json", {

@@ -40,8 +40,8 @@ TASKS: list[dict[str, Any]] = [
         "status": "needs_evidence",
         "local": True,
         "summary": "Rebuild final dist artifacts, checksums, SBOMs, signatures, and handoff bundle from the release tag.",
-        "acceptance": "Artifact signing and customer release gates pass against artifacts from the final tag.",
-        "command": "make release-open-source && make artifact-signing-gate && make customer-release-gate",
+        "acceptance": "Artifact signing and operator release gates pass against artifacts from the final tag.",
+        "command": "make release-open-source && make artifact-signing-gate && make operator-release-gate",
         "external_dependency": "Final release tag and signing key custody.",
     },
     {
@@ -106,9 +106,9 @@ TASKS: list[dict[str, Any]] = [
         "status": "blocked_external",
         "local": False,
         "summary": "Certify Splunk, Elastic, and webhook delivery in target SIEM/SOAR environments.",
-        "acceptance": "Customer environment certification includes retry, backpressure, field mapping, and alert landing evidence.",
-        "command": "make customer-env-certification-gate REQUIRE_SIEM_CERTIFICATION=1 SIEM_CERTIFICATION=...",
-        "external_dependency": "Target SIEM/SOAR endpoints and customer environment access.",
+        "acceptance": "Operator environment certification includes retry, backpressure, field mapping, and alert landing evidence.",
+        "command": "make operator-env-certification-gate REQUIRE_SIEM_CERTIFICATION=1 SIEM_CERTIFICATION=...",
+        "external_dependency": "Target SIEM/SOAR endpoints and operator environment access.",
     },
     {
         "id": "rbac-audit-hardening",
@@ -117,7 +117,7 @@ TASKS: list[dict[str, Any]] = [
         "status": "needs_evidence",
         "local": True,
         "summary": "Harden RBAC evidence for delegated admin, tenant isolation, audit export, and role review.",
-        "acceptance": "policy-approval-gate and customer-env-certification-gate pass with audit export and role-review evidence.",
+        "acceptance": "policy-approval-gate and operator-env-certification-gate pass with audit export and role-review evidence.",
         "command": "make ops-rbac-audit PROVIDAPT_CONFIG=... && make policy-approval-gate",
         "external_dependency": "Representative tenant-scoped configuration and role review record.",
     },
@@ -169,14 +169,14 @@ def selected_tasks(local_only: bool, phase: str) -> list[dict[str, Any]]:
 EVIDENCE_MAP = {
     "release-ci-evidence": ["github_actions_evidence"],
     "release-security-scans": ["release_gates"],
-    "release-final-artifacts": ["release_evidence_consistency_gate", "artifact_signing_gate", "customer_release_gate"],
+    "release-final-artifacts": ["release_evidence_consistency_gate", "artifact_signing_gate", "operator_release_gate"],
     "release-owner-approval": ["external_approval"],
     "visual-browser-baselines": ["visual_regression_gate"],
     "trace-svg-stress-evidence": ["trace_svg_stress"],
     "capture-field-evidence-refresh": ["capture_enrichment_gate"],
     "model-lifecycle-baseline": ["model_lifecycle_gate"],
-    "siem-soar-certification": ["siem_verify", "customer_env_certification_gate"],
-    "rbac-audit-hardening": ["rbac_audit", "policy_approval_gate", "customer_env_certification_gate"],
+    "siem-soar-certification": ["siem_verify", "operator_env_certification_gate"],
+    "rbac-audit-hardening": ["rbac_audit", "policy_approval_gate", "operator_env_certification_gate"],
     "soak-24-72h": ["soak_readiness"],
     "plugin-distribution": ["plugin_catalog_gate"],
     "onboarding-first-run-polish": ["onboarding_manifest"],
@@ -474,7 +474,7 @@ def main() -> int:
     parser.add_argument("--release-gates", default="")
     parser.add_argument("--release-evidence-consistency-gate", default="")
     parser.add_argument("--artifact-signing-gate", default="")
-    parser.add_argument("--customer-release-gate", default="")
+    parser.add_argument("--operator-release-gate", default="")
     parser.add_argument("--visual-regression-gate", default="")
     parser.add_argument("--trace-svg-stress", default="")
     parser.add_argument("--capture-enrichment-gate", default="")
@@ -483,7 +483,7 @@ def main() -> int:
     parser.add_argument("--rbac-audit", default="")
     parser.add_argument("--policy-approval-gate", default="")
     parser.add_argument("--soak-readiness", default="")
-    parser.add_argument("--customer-env-certification-gate", default="")
+    parser.add_argument("--operator-env-certification-gate", default="")
     parser.add_argument("--plugin-catalog-gate", default="")
     parser.add_argument("--onboarding-manifest", default="")
     parser.add_argument("--external-approval", default="")
@@ -495,7 +495,7 @@ def main() -> int:
         "release_gates": args.release_gates,
         "release_evidence_consistency_gate": args.release_evidence_consistency_gate,
         "artifact_signing_gate": args.artifact_signing_gate,
-        "customer_release_gate": args.customer_release_gate,
+        "operator_release_gate": args.operator_release_gate,
         "visual_regression_gate": args.visual_regression_gate,
         "trace_svg_stress": args.trace_svg_stress,
         "capture_enrichment_gate": args.capture_enrichment_gate,
@@ -504,7 +504,7 @@ def main() -> int:
         "rbac_audit": args.rbac_audit,
         "policy_approval_gate": args.policy_approval_gate,
         "soak_readiness": args.soak_readiness,
-        "customer_env_certification_gate": args.customer_env_certification_gate,
+        "operator_env_certification_gate": args.operator_env_certification_gate,
         "plugin_catalog_gate": args.plugin_catalog_gate,
         "onboarding_manifest": args.onboarding_manifest,
         "external_approval": args.external_approval,

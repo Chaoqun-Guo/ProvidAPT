@@ -116,7 +116,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate install delivery assets before customer handoff.")
+    parser = argparse.ArgumentParser(description="Validate install delivery assets before operator handoff.")
     parser.add_argument("--root", default=".")
     parser.add_argument("--bin-dir", default="build/bin")
     parser.add_argument("--config", default="examples/config/providapt.production.yaml")
