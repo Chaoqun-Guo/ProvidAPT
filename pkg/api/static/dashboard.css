@@ -43,6 +43,8 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .sidebar-subtitle { color:#8b949e; font-size:11px; margin:4px 0 12px; line-height:1.35; }
 .sidebar-section { color:#484f58; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin:12px 0 6px; }
 .sidebar-nav { display:grid; gap:6px; }
+.sidebar-nav.secondary-workflow { margin-top:2px; }
+.sidebar-nav.secondary-workflow .sidebar-button { background:#111820; border-style:dashed; }
 .sidebar-button { width:100%; text-align:left; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:8px; padding:8px 9px; cursor:pointer; font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .sidebar-button:hover { border-color:#58a6ff; color:#58a6ff; }
 .sidebar-button.active { background:#1f6feb; color:#fff; border-color:#1f6feb; }
@@ -85,7 +87,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .workspace-view-menu summary { list-style:none; background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:6px; padding:0 13px; height:30px; min-width:70px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center; }
 .workspace-view-menu summary::-webkit-details-marker { display:none; }
 .workspace-view-menu[open] summary, .workspace-view-menu summary:hover { border-color:#58a6ff; color:#58a6ff; }
-.workspace-tools { position:absolute; top:36px; right:0; z-index:12; width:min(360px, calc(100vw - 36px)); display:grid; grid-template-columns:72px repeat(3, minmax(0, 1fr)); gap:6px; padding:10px; background:#161b22; border:1px solid #30363d; border-radius:8px; box-shadow:0 18px 40px rgba(1,4,9,0.35); }
+.workspace-tools { position:absolute; top:36px; right:0; z-index:12; width:min(430px, calc(100vw - 36px)); display:grid; grid-template-columns:72px repeat(3, minmax(94px, 1fr)); gap:6px; padding:10px; background:#161b22; border:1px solid #30363d; border-radius:8px; box-shadow:0 18px 40px rgba(1,4,9,0.35); }
 .workspace-tools span { align-self:center; color:#8b949e; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
 .workspace-hint { color:#484f58; font-size:11px; flex:1 1 220px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dashboard-density-compact .content { grid-auto-rows: minmax(300px, auto); }
@@ -1042,6 +1044,14 @@ body.panel-resize-active {
 
 .dashboard-panel[data-section="govern"] {
   --panel-accent: #66d9ff;
+}
+
+.dashboard-panel.tier-secondary {
+  background: #141b23;
+}
+
+.dashboard-panel.tier-secondary::before {
+  opacity: 0.58;
 }
 
 .dashboard-panel::before {
@@ -2192,6 +2202,12 @@ body::after {
 
 .workspace-tools {
   opacity: 0.82;
+  width: min(430px, calc(100vw - 36px));
+  grid-template-columns: 72px repeat(3, minmax(94px, 1fr));
+}
+
+.workspace-tools button {
+  max-width: none;
 }
 
 .workspace-tabs button,
@@ -2598,6 +2614,10 @@ button[data-action-kind="warning"],
   .workspace-tools button {
     flex: 1 1 92px;
     min-width: 0;
+  }
+
+  .workspace-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .sidebar-nav,

@@ -3464,6 +3464,9 @@ function normalizeDashboardPanelStructure(panel) {
   panel.classList.toggle('has-summary', hasSummary);
   panel.classList.toggle('has-toolbar', hasToolbar);
   panel.classList.toggle('has-list', hasList);
+  const tier = dashboardPanelTier(panel);
+  panel.dataset.tier = tier;
+  panel.classList.toggle('tier-secondary', tier === 'secondary');
 }
 
 function normalizeDashboardPanels() {
@@ -3519,6 +3522,18 @@ function dashboardOverviewPanelIDs() {
     'agent-overview',
     'deployment-diagnostics',
   ];
+}
+
+function dashboardPanelTier(panel) {
+  const id = panelID(panel);
+  return [
+    'support-bundle',
+    'backup-restore',
+    'delivery-health',
+    'compliance-siem',
+    'version-update',
+    'evaluation-ground-truth',
+  ].includes(id) ? 'secondary' : 'primary';
 }
 
 function setDashboardDensity(density) {

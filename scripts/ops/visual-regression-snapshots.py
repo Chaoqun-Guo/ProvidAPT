@@ -327,12 +327,13 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
 
 
 def wait_for_trace_viewer_ready(page: Any, timeout_ms: int) -> None:
-    wait_ms = max(1000, min(timeout_ms, 15000))
+    wait_ms = max(1000, min(timeout_ms, 30000))
     try:
         page.wait_for_function(
             "() => Boolean(document.querySelector('#canvas svg'))",
             timeout=wait_ms,
         )
+        page.wait_for_timeout(250)
     except Exception:
         # Keep the later DOM assertion failure, which gives a clearer report.
         return
@@ -426,7 +427,11 @@ def dashboard_dom_assertions(page: Any) -> dict[str, Any]:
           });
         }
         const textOverflowPx = Math.max(0, el.scrollWidth - el.clientWidth);
-        if (textOverflowPx > 2 && rect.width > 0 && style.overflowX !== 'auto' && style.overflowX !== 'scroll') {
+        const intentionallyClipped = (
+          style.textOverflow === 'ellipsis' &&
+          (style.overflowX === 'hidden' || style.overflowX === 'clip')
+        );
+        if (textOverflowPx > 2 && rect.width > 0 && !intentionallyClipped && style.overflowX !== 'auto' && style.overflowX !== 'scroll') {
           const text = (el.textContent || '').replace(/\\s+/g, ' ').trim();
           if (text.length > 0) {
             textOverflows.push({

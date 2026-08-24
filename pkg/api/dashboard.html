@@ -68,13 +68,16 @@
 <aside class="dashboard-sidebar" aria-label="Security operations navigation">
   <div class="sidebar-title">Operations</div>
   <div class="sidebar-subtitle">Follow the workflow from alerts to release evidence.</div>
-  <div class="sidebar-section">Sections</div>
-  <div class="sidebar-nav" role="tablist" aria-label="Structured dashboard sections">
+  <div class="sidebar-section">Daily Workflow</div>
+  <div class="sidebar-nav primary-workflow" role="tablist" aria-label="Primary dashboard sections">
     <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Overview</span><span>All</span></button>
     <button class="sidebar-button" data-dashboard-section="detect" onclick="switchDashboardSection('detect')"><span>Alerts</span><span>Triage</span></button>
     <button class="sidebar-button" data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')"><span>Investigate</span><span>Trace</span></button>
-    <button class="sidebar-button" data-dashboard-section="respond" onclick="switchDashboardSection('respond')"><span>Respond</span><span>Actions</span></button>
     <button class="sidebar-button" data-dashboard-section="platform" onclick="switchDashboardSection('platform')"><span>Platform</span><span>Fleet</span></button>
+  </div>
+  <div class="sidebar-section">Evidence Workspace</div>
+  <div class="sidebar-nav secondary-workflow" role="tablist" aria-label="Secondary evidence and operations sections">
+    <button class="sidebar-button" data-dashboard-section="respond" onclick="switchDashboardSection('respond')"><span>Respond</span><span>Ops</span></button>
     <button class="sidebar-button" data-dashboard-section="govern" onclick="switchDashboardSection('govern')"><span>Release</span><span>Evidence</span></button>
   </div>
   <div class="sidebar-section">Live Status</div>
