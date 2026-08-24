@@ -3,7 +3,7 @@ module github.com/Chaoqun-Guo/ProvidAPT
 go 1.25.12
 
 require (
-	github.com/cilium/ebpf v0.16.0
+	github.com/cilium/ebpf v0.22.0
 	github.com/cockroachdb/pebble v1.1.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/klauspost/compress v1.18.0
@@ -36,7 +36,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
 	golang.org/x/net v0.56.0 // indirect

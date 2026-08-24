@@ -26,6 +26,7 @@ CGO_ENABLED="${CGO_ENABLED:-0}"
 GOOS="${GOOS:-linux}"
 GOARCH="${GOARCH:-amd64}"
 RELEASE_CHECK_CTL="${RELEASE_CHECK_CTL:-}"
+RELEASE_SIGN_CTL="${RELEASE_SIGN_CTL:-}"
 KEEP_BUILD_DIST="${KEEP_BUILD_DIST:-0}"
 SYFT_IMAGE="${SYFT_IMAGE:-anchore/syft:v1.38.0}"
 GRYPE_IMAGE="${GRYPE_IMAGE:-anchore/grype:v0.104.0}"
@@ -213,8 +214,8 @@ sign_checksums() {
 			printf 'unsigned checksums accepted by SIGN_CHECKSUMS=%s at %s\n' "$SIGN_CHECKSUMS" "$DATE" > "$DIST_DIR/checksums.txt.sig"
 			;;
 		auto)
-			if [ -x "$BUILD_DIR/bin/providapt-sign" ]; then
-				"$BUILD_DIR/bin/providapt-sign" \
+			if build_release_sign_tool; then
+				"$RELEASE_SIGN_CTL" \
 					-in "$manifest" \
 					-out "$DIST_DIR/checksums.txt.sig" \
 					-key "$BUILD_DIR/release-signing.key" \
@@ -235,8 +236,9 @@ sign_checksums() {
 			minisign -Sm "$manifest" -x "$DIST_DIR/checksums.txt.sig"
 			;;
 		providapt|ed25519)
-			need_file "$BUILD_DIR/bin/providapt-sign"
-			"$BUILD_DIR/bin/providapt-sign" \
+			build_release_sign_tool
+			need_file "$RELEASE_SIGN_CTL"
+			"$RELEASE_SIGN_CTL" \
 				-in "$manifest" \
 				-out "$DIST_DIR/checksums.txt.sig" \
 				-key "$BUILD_DIR/release-signing.key" \
@@ -247,6 +249,47 @@ sign_checksums() {
 			exit 1
 			;;
 	esac
+}
+
+build_host_go_tool() {
+	local package="$1"
+	local output="$2"
+	local host_os host_arch
+	host_os="$(go env GOHOSTOS 2>/dev/null || uname | tr '[:upper:]' '[:lower:]')"
+	host_arch="$(go env GOHOSTARCH 2>/dev/null || uname -m)"
+	mkdir -p "$(dirname "$output")"
+	(
+		cd "$PROJECT_DIR"
+		local tag_args=()
+		if [ -n "$GO_TAGS" ]; then
+			tag_args=(-tags "$GO_TAGS")
+		fi
+		local ldflags=(
+			-ldflags
+			"-X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version=$VERSION -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit=$COMMIT -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date=$DATE"
+		)
+		GOOS="$host_os" GOARCH="$host_arch" CGO_ENABLED=0 \
+			go build ${tag_args+"${tag_args[@]}"} "${ldflags[@]}" -o "$output" "$package"
+	)
+}
+
+build_release_sign_tool() {
+	if [ -n "$RELEASE_SIGN_CTL" ]; then
+		need_file "$RELEASE_SIGN_CTL"
+		return 0
+	fi
+	local host_os host_arch
+	host_os="$(go env GOHOSTOS 2>/dev/null || uname | tr '[:upper:]' '[:lower:]')"
+	host_arch="$(go env GOHOSTARCH 2>/dev/null || uname -m)"
+	if [ "$GOOS" = "$host_os" ] && [ "$GOARCH" = "$host_arch" ] && [ -x "$BUILD_DIR/bin/providapt-sign" ]; then
+		RELEASE_SIGN_CTL="$BUILD_DIR/bin/providapt-sign"
+		return 0
+	fi
+	if build_host_go_tool ./cmd/cli/providapt-sign "$BUILD_DIR/host-bin/providapt-sign"; then
+		RELEASE_SIGN_CTL="$BUILD_DIR/host-bin/providapt-sign"
+		return 0
+	fi
+	return 1
 }
 
 run_vulnerability_scans() {
@@ -356,20 +399,7 @@ build_release_check_tool() {
 		RELEASE_CHECK_CTL="$BUILD_DIR/bin/providaptctl"
 		return
 	fi
-	mkdir -p "$BUILD_DIR/host-bin"
-	(
-		cd "$PROJECT_DIR"
-		local tag_args=()
-		if [ -n "$GO_TAGS" ]; then
-			tag_args=(-tags "$GO_TAGS")
-		fi
-		local ldflags=(
-			-ldflags
-			"-X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Version=$VERSION -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Commit=$COMMIT -X github.com/Chaoqun-Guo/ProvidAPT/internal/version.Date=$DATE"
-		)
-		GOOS="$host_os" GOARCH="$host_arch" CGO_ENABLED=0 \
-			go build ${tag_args+"${tag_args[@]}"} "${ldflags[@]}" -o "$BUILD_DIR/host-bin/providaptctl" ./cmd/cli/providaptctl
-	)
+	build_host_go_tool ./cmd/cli/providaptctl "$BUILD_DIR/host-bin/providaptctl"
 	RELEASE_CHECK_CTL="$BUILD_DIR/host-bin/providaptctl"
 }
 
