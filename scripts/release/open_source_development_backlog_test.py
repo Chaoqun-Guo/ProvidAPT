@@ -110,6 +110,23 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         self.assertIn("artifact_signing_gate:pass", rendered)
         self.assertIn("customer_env_certification_gate:blocked", rendered)
 
+    def test_release_security_scans_use_scanner_subgates(self):
+        release_gates = self.write_json("release-gates.json", {
+            "gates": [
+                {"name": "github_actions", "status": "skipped"},
+                {"name": "govulncheck_evidence", "status": "pass"},
+                {"name": "grype_evidence", "status": "pass"},
+                {"name": "trivy_evidence", "status": "pass"},
+                {"name": "external_approvals", "status": "blocked"},
+            ],
+        })
+        report = subject.build_report(evidence_paths={"release_gates": release_gates})
+        tasks = {task["id"]: task for task in report["tasks"]}
+        self.assertEqual(tasks["release-security-scans"]["status"], "done")
+        self.assertEqual(tasks["release-security-scans"]["evidence_status"], "pass")
+        self.assertEqual(tasks["release-owner-approval"]["status"], "blocked_external")
+        self.assertNotIn("release-security-scans", report["planning_summary"]["next_local_tasks"])
+
 
 if __name__ == "__main__":
     unittest.main()

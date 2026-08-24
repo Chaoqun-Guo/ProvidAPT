@@ -208,6 +208,33 @@ def evidence_status(report: dict[str, Any]) -> str:
     return "missing"
 
 
+def release_security_evidence_status(report: dict[str, Any]) -> str:
+    if not report:
+        return "missing"
+    if report.get("schema") == "providapt.release_security_local_gate.v1":
+        return evidence_status(report)
+    gates = report.get("gates")
+    if not isinstance(gates, list):
+        return evidence_status(report)
+    required = {"govulncheck_evidence", "grype_evidence", "trivy_evidence"}
+    statuses: dict[str, str] = {}
+    for gate in gates:
+        if not isinstance(gate, dict):
+            continue
+        name = str(gate.get("name") or "")
+        if name in required:
+            statuses[name] = str(gate.get("status") or "").lower()
+    if set(statuses) != required:
+        return "missing"
+    if all(statuses[name] == "pass" for name in required):
+        return "pass"
+    if any(statuses[name] in {"blocked", "fail", "failed"} for name in required):
+        return "blocked"
+    if any(statuses[name] in {"warn", "warning"} for name in required):
+        return "warn"
+    return "missing"
+
+
 def aggregate_evidence_status(statuses: list[str]) -> str:
     if not statuses:
         return ""
@@ -231,7 +258,11 @@ def apply_evidence_status(tasks: list[dict[str, Any]], evidence_paths: dict[str,
         statuses: list[str] = []
         for key in evidence_keys:
             path = evidence_paths.get(key, "")
-            status = evidence_status(load_json(path))
+            report = load_json(path)
+            if item["id"] == "release-security-scans" and key == "release_gates":
+                status = release_security_evidence_status(report)
+            else:
+                status = evidence_status(report)
             statuses.append(status)
             evidence_items.append({"key": key, "path": path, "status": status})
         status = aggregate_evidence_status(statuses)
