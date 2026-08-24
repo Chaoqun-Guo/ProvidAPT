@@ -33,8 +33,6 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     warnings: list[str] = []
     if not diag:
         failures.append("runtime diagnostics evidence is missing")
-    if args.require_api_auth and not bool(diag.get("api_auth_enabled")):
-        failures.append("API authentication is not enabled")
     if args.require_tls and not bool(diag.get("tls_enabled")):
         failures.append("TLS is not enabled")
     if args.require_storage_encryption and not bool(diag.get("storage_encrypted")):
@@ -67,7 +65,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "status": status,
         "version": diag.get("version", ""),
-        "api_auth_enabled": bool(diag.get("api_auth_enabled")),
+        "open_source_control_plane": bool(diag.get("open_source_control_plane")),
         "tls_enabled": bool(diag.get("tls_enabled")),
         "kernel_attachment_mode": kernel_mode,
         "policy_enabled": bool(diag.get("policy_enabled")),
@@ -88,7 +86,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Status: `{report['status']}`",
         f"- Version: `{report['version']}`",
         f"- Kernel mode: `{report['kernel_attachment_mode']}`",
-        f"- API auth: `{report['api_auth_enabled']}`",
+        f"- Control plane access: `{'open-source' if report['open_source_control_plane'] else 'custom'}`",
         f"- TLS: `{report['tls_enabled']}`",
         f"- Storage encrypted: `{report['storage_encrypted']}`",
         f"- Policy version: `{report['applied_policy_version']}`",
@@ -108,7 +106,6 @@ def render_markdown(report: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Gate runtime deployment diagnostics from /api/v1/status evidence.")
     parser.add_argument("--status-json", default="build/deploy/status.json")
-    parser.add_argument("--require-api-auth", action="store_true")
     parser.add_argument("--require-tls", action="store_true")
     parser.add_argument("--require-storage-encryption", action="store_true")
     parser.add_argument("--require-policy-sync", action="store_true")

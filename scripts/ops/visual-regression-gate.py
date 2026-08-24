@@ -154,7 +154,7 @@ def visual_evidence_summary(
         "capture_diagnostics": {
             "mode": diagnostics.get("mode", ""),
             "server": diagnostics.get("server", ""),
-            "api_key_supplied": bool(diagnostics.get("api_key_supplied")),
+            "control_plane_access": diagnostics.get("control_plane_access", "open-source"),
             "playwright_available": bool(diagnostics.get("playwright_available")),
             "requested_viewports": list(diagnostics.get("requested_viewports") or []),
             "install_hint": diagnostics.get("playwright_install_hint", ""),
@@ -257,7 +257,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"| Baseline status | {report['visual_evidence_summary']['baseline']['status'] or 'none'} |",
         f"| Baseline counts | {json.dumps(report['visual_evidence_summary']['baseline']['counts'], sort_keys=True)} |",
         f"| DOM assertions | failed={report['visual_evidence_summary']['dom_assertions']['failed']} missing={report['visual_evidence_summary']['dom_assertions']['missing']} total={report['visual_evidence_summary']['dom_assertions']['total']} |",
-        f"| Capture diagnostics | mode={report['visual_evidence_summary']['capture_diagnostics']['mode'] or 'unknown'} playwright={str(report['visual_evidence_summary']['capture_diagnostics']['playwright_available']).lower()} api_key={str(report['visual_evidence_summary']['capture_diagnostics']['api_key_supplied']).lower()} |",
+        f"| Capture diagnostics | mode={report['visual_evidence_summary']['capture_diagnostics']['mode'] or 'unknown'} playwright={str(report['visual_evidence_summary']['capture_diagnostics']['playwright_available']).lower()} access={report['visual_evidence_summary']['capture_diagnostics']['control_plane_access']} |",
         "",
         "| Required Page | Required Viewports |",
         "| --- | --- |",

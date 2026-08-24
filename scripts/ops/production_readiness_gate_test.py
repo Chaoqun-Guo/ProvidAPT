@@ -57,7 +57,6 @@ class P1ReadinessReportTest(unittest.TestCase):
             tls_manifest=str(tls_manifest),
             postgres_report=str(postgres_report),
             server="",
-            api_key="",
             min_agents=3,
             min_healthy=3,
             max_report_age_seconds=60,

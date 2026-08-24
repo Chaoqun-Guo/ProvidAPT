@@ -66,6 +66,6 @@ curl -s http://localhost:18080/api/v1/status
 ## Security Notes
 
 - Keep privileged DaemonSet permissions limited to agent pods that require host capture.
-- Store API keys, TLS keys, SIEM tokens, and database credentials in Kubernetes secrets or an external secret manager.
+- Store TLS keys, SIEM tokens, and database credentials in Kubernetes secrets or an external secret manager.
 - Review hostPath mounts with the cluster security team.
 - Use network policies to restrict dashboard, gRPC, PostgreSQL, and metrics access.

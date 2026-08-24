@@ -28,7 +28,7 @@ Kernel / host boundary
 | Threat | Impact | Controls |
 | --- | --- | --- |
 | compromised agent host | forged or missing telemetry | mTLS/API auth, enrollment state, report-age monitoring, audit review |
-| unauthorized dashboard access | policy or evidence manipulation | TLS, API keys, RBAC, trusted-header SSO only behind controlled proxy |
+| unauthorized dashboard access | policy or evidence manipulation | TLS, network ACLs, RBAC roles, trusted-header SSO only behind controlled proxy |
 | policy tampering | reduced detection coverage | policy diff, approvals, audit records, rollback |
 | evidence deletion | investigation loss | backups, retention policy, support bundle export, audit trail |
 | SIEM token exposure | unauthorized event injection or read | secret management, token rotation, outbox controls |

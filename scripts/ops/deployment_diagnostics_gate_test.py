@@ -32,7 +32,6 @@ class DeploymentDiagnosticsGateTest(unittest.TestCase):
     def args(self, path, **overrides):
         values = {
             "status_json": str(path),
-            "require_api_auth": True,
             "require_tls": True,
             "require_storage_encryption": True,
             "require_policy_sync": True,
@@ -48,7 +47,7 @@ class DeploymentDiagnosticsGateTest(unittest.TestCase):
         return {
             "diagnostics": {
                 "version": "v1.2.3",
-                "api_auth_enabled": True,
+                "open_source_control_plane": True,
                 "tls_enabled": True,
                 "kernel_attachment_mode": "lsm",
                 "policy_enabled": True,
@@ -69,12 +68,10 @@ class DeploymentDiagnosticsGateTest(unittest.TestCase):
 
     def test_blocks_insecure_diagnostics(self):
         status = self.complete_status()
-        status["diagnostics"]["api_auth_enabled"] = False
         status["diagnostics"]["storage_encrypted"] = False
         path = self.write_json("status.json", status)
         report = subject.build_report(self.args(path))
         self.assertEqual(report["status"], "blocked")
-        self.assertIn("API authentication", "\n".join(report["failures"]))
         self.assertIn("storage encryption", "\n".join(report["failures"]))
 
     def test_accepts_flat_diagnostics_document(self):

@@ -14,10 +14,8 @@ from typing import Any
 SCHEMA = "providapt.soak_samples.v1"
 
 
-def load_status_from_url(url: str, api_key: str = "", timeout: float = 5.0) -> dict[str, Any]:
+def load_status_from_url(url: str, timeout: float = 5.0) -> dict[str, Any]:
     request = urllib.request.Request(url)
-    if api_key:
-        request.add_header("X-API-Key", api_key)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
@@ -94,14 +92,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Append one ProvidAPT runtime sample for long-duration soak readiness.")
     parser.add_argument("--status-url", help="Status or metrics JSON endpoint, for example http://localhost:18080/api/v1/status")
     parser.add_argument("--status-json", help="Read a captured status JSON file instead of fetching an endpoint")
-    parser.add_argument("--api-key", default="")
     parser.add_argument("--host", default="")
     parser.add_argument("--started-at-epoch", type=float, default=0)
     parser.add_argument("--out", default="build/performance/soak-samples.json")
     args = parser.parse_args()
     if not args.status_url and not args.status_json:
         raise SystemExit("set --status-url or --status-json")
-    status = load_status_from_url(args.status_url, args.api_key) if args.status_url else json.loads(Path(args.status_json).read_text(encoding="utf-8-sig"))
+    status = load_status_from_url(args.status_url) if args.status_url else json.loads(Path(args.status_json).read_text(encoding="utf-8-sig"))
     if not isinstance(status, dict):
         raise SystemExit("status input must be a JSON object")
     started_at = args.started_at_epoch or time.time()

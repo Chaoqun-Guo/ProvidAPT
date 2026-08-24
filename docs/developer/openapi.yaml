@@ -5,9 +5,6 @@ info:
   description: HTTP API surface used by the dashboard, agents, and release tooling.
 servers:
   - url: http://localhost:18080
-security:
-  - ApiKeyAuth: []
-  - BearerAuth: []
 paths:
   /api/v1/status:
     get:
@@ -206,12 +203,3 @@ paths:
       responses:
         "200":
           description: Investigation report JSON or Markdown.
-components:
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
-    BearerAuth:
-      type: http
-      scheme: bearer

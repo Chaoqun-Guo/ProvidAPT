@@ -25,7 +25,7 @@ func cmdConfigCheck(cfgPath string) {
 	t.AddRow("Log Level", cfg.Log.Level)
 	t.AddRow("REST API", cfg.API.REST)
 	t.AddRow("gRPC", cfg.API.GRPC)
-	t.AddRow("Auth Enabled", yesNo(cfg.API.AuthEnabled))
+	t.AddRow("Control Plane Access", "open-source")
 	t.AddRow("Rate Limit", formatRateLimit(cfg.API.RateLimitPerSec))
 	t.AddRow("CORS Origins", formatStrings(cfg.API.CORSOrigins))
 	t.AddRow("TLS Enabled", yesNo(cfg.TLS.Enable))

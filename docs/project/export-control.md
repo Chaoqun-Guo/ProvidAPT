@@ -22,7 +22,7 @@ ProvidAPT is a provenance-driven security monitoring and detection platform. It 
 - TLS for API and telemetry protection.
 - Ed25519 or configured signing workflows for release/checksum/license evidence.
 - Hashing for integrity verification and checksums.
-- API key authentication and optional trusted-header SSO integration.
+- open-source control-plane access with optional trusted-header SSO integration.
 
 ## Decision
 

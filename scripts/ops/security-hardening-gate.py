@@ -127,10 +127,6 @@ def check_config(path: Path) -> dict[str, Any]:
     support = cfg.get("support_bundle", {})
     secrets = cfg.get("secrets", {})
 
-    if not truthy(api.get("auth_enabled")):
-        failures.append("api.auth_enabled must be true")
-    if not has_value(api, "auth_keys"):
-        failures.append("api.auth_keys must define at least one operator key")
     cors = api.get("cors_origins") or []
     if not isinstance(cors, list) or not cors:
         failures.append("api.cors_origins must restrict browser origins")
@@ -158,8 +154,6 @@ def check_config(path: Path) -> dict[str, Any]:
         failures.append("policy.enable_tls must be true")
     if not str(policy.get("endpoint", "")).startswith("https://"):
         failures.append("policy.endpoint must use https")
-    if not has_value(policy, "api_key"):
-        failures.append("policy.api_key must use a secret reference")
 
     if not truthy(storage.get("encrypt")):
         failures.append("storage.encrypt must be true")
@@ -174,7 +168,7 @@ def check_config(path: Path) -> dict[str, Any]:
     if provider == "file" and not has_value(secrets, "base_dir"):
         failures.append("secrets.base_dir is required for file-backed secrets")
 
-    placeholders = placeholder_values([api.get("auth_keys", []), api.get("auth_roles", {}), api.get("auth_identities", {}), api.get("auth_tenants", {}), cfg.get("control_plane", {}).get("state_backend", "")])
+    placeholders = placeholder_values([cfg.get("control_plane", {}).get("state_backend", "")])
     if placeholders:
         warnings.append("placeholder values remain in sensitive fields: " + ", ".join(sorted(set(placeholders))[:5]))
     return {"status": "blocked" if failures else ("warn" if warnings else "pass"), "path": str(path), "failures": failures, "warnings": warnings}

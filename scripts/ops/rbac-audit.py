@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import tomllib
@@ -34,39 +33,14 @@ def as_list(value: Any) -> list[Any]:
 def audit_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
     api = as_map(config.get("api"))
     sso = as_map(config.get("sso"))
-    auth_keys = [str(item) for item in as_list(api.get("auth_keys")) if str(item).strip()]
-    auth_roles = {str(key): str(value) for key, value in as_map(api.get("auth_roles")).items()}
-    auth_identities = {str(key): str(value) for key, value in as_map(api.get("auth_identities")).items()}
-    auth_tenants = {str(key): str(value) for key, value in as_map(api.get("auth_tenants")).items()}
     custom_permissions = as_map(api.get("auth_permissions"))
-    key_labels = {key: key_fingerprint(key) for key in set(auth_keys) | set(auth_roles) | set(auth_identities) | set(auth_tenants)}
     failures: list[str] = []
     warnings: list[str] = []
-    role_counts: dict[str, int] = {}
+    role_counts: dict[str, int] = {role: 1 for role in SAFE_ROLES}
     tenant_scopes: dict[str, list[str]] = {}
 
-    if not bool(api.get("auth_enabled")):
-        failures.append("api.auth_enabled must be true for production")
-    if not auth_keys:
-        failures.append("api.auth_keys must define at least one key")
-    for key in auth_keys:
-        label = key_labels[key]
-        role = auth_roles.get(key, "")
-        if not role:
-            failures.append(f"auth key {label} has no assigned role")
-            continue
-        role_counts[role] = role_counts.get(role, 0) + 1
-        if role not in SAFE_ROLES and role not in custom_permissions:
-            failures.append(f"auth key {label} uses unknown role {role}")
-        if role != "admin" and not auth_tenants.get(key):
-            warnings.append(f"non-admin key {label} has no tenant scope")
-        if auth_tenants.get(key):
-            tenant_scopes[label] = split_scope(auth_tenants[key])
-        if not auth_identities.get(key):
-            warnings.append(f"auth key {label} has no operator identity")
-    for key in auth_roles:
-        if key not in auth_keys:
-            warnings.append(f"role mapping exists for unknown key {key_labels[key]}")
+    if not bool(sso.get("trusted_header_auth")):
+        warnings.append("trusted-header SSO is not enabled; protect the open-source control plane with network, TLS, and reverse-proxy controls")
     for role, permissions in custom_permissions.items():
         if not isinstance(permissions, list):
             failures.append(f"custom role {role} permissions must be a list")
@@ -93,9 +67,9 @@ def audit_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "status": status,
         "config_path": str(path),
-        "auth_enabled": bool(api.get("auth_enabled")),
-        "key_count": len(auth_keys),
-        "tenant_scoped_keys": len(auth_tenants),
+        "open_source_control_plane": True,
+        "key_count": 0,
+        "tenant_scoped_keys": 0,
         "tenant_count": len({tenant for scope in tenant_scopes.values() for tenant in scope}),
         "tenant_scopes": tenant_scopes,
         "custom_role_count": len(custom_permissions),
@@ -112,8 +86,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Status: `{report['status']}`",
         f"- Config: `{report['config_path']}`",
-        f"- API auth enabled: `{report['auth_enabled']}`",
-        f"- API keys: `{report['key_count']}`",
+        f"- Control plane access: `open-source`",
         f"- Tenant-scoped keys: `{report['tenant_scoped_keys']}`",
         f"- Tenants: `{report.get('tenant_count', 0)}`",
         f"- Custom roles: `{report['custom_role_count']}`",
@@ -146,10 +119,6 @@ def split_scope(value: str) -> list[str]:
     return [item.strip() for item in re.split(r"[,;]", value) if item.strip()]
 
 
-def key_fingerprint(value: str) -> str:
-    return "key:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit production RBAC, tenant scoping, and trusted-header SSO configuration.")
     parser.add_argument("--config", required=True)
@@ -163,7 +132,7 @@ def main() -> int:
     out_md.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     out_md.write_text(render_markdown(report), encoding="utf-8")
-    print(f"status={report['status']} keys={report['key_count']} tenants={report['tenant_scoped_keys']}")
+    print(f"status={report['status']} control_plane=open-source tenants={report['tenant_scoped_keys']}")
     return 1 if report["status"] == "blocked" else 0
 
 

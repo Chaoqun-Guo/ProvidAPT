@@ -1,25 +1,3 @@
-[api]
-auth_enabled = true
-auth_keys = [
-  "fixture-admin-key",
-  "fixture-analyst-prod-key",
-  "fixture-delegated-ops-key"
-]
-
-[api.auth_roles]
-fixture-admin-key = "admin"
-fixture-analyst-prod-key = "analyst"
-fixture-delegated-ops-key = "tenant_admin"
-
-[api.auth_identities]
-fixture-admin-key = "Open Source Admin"
-fixture-analyst-prod-key = "Open Source Analyst"
-fixture-delegated-ops-key = "Open Source Delegated Operator"
-
-[api.auth_tenants]
-fixture-analyst-prod-key = "prod"
-fixture-delegated-ops-key = "prod, staging"
-
 [api.auth_permissions]
 tenant_admin = [
   "GET:/api/v1/control/agents",

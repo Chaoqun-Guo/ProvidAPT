@@ -33,7 +33,7 @@ class InstallDeliveryCheckTest(unittest.TestCase):
             path = root / doc
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("doc\n", encoding="utf-8")
-        config = self.write("providapt.yaml", "auth_enabled: true\nenable: true\nencrypt: true\n")
+        config = self.write("providapt.yaml", "enable: true\nencrypt: true\n")
         service = self.write("providapt.service", "ExecStart=x\nEnvironmentFile=x\nRestart=on-failure\nRuntimeDirectory=providapt\nPrivateTmp=true\nProtectHome=true\nReadWritePaths=/var/log/providapt\n")
         env_file = self.write("providapt.env", 'PROVIDAPT_SKIP_PRIVILEGE_DROP=""\n')
         args = SimpleNamespace(root=str(root), bin_dir=str(bin_dir), config=str(config), service=str(service), env_file=str(env_file), strict_binaries=True)

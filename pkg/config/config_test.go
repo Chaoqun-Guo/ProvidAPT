@@ -67,17 +67,6 @@ func TestLoadNonExistent(t *testing.T) {
 	}
 }
 
-func TestEnvOverridesAPIAuthKeys(t *testing.T) {
-	t.Setenv("PROVIDAPT_API_AUTH_KEYS", "admin-key, analyst-key ")
-	cfg, err := Load("/tmp/nonexistent_providapt_config.json")
-	if err != nil {
-		t.Fatalf("Load with env auth keys: %v", err)
-	}
-	if len(cfg.API.AuthKeys) != 2 || cfg.API.AuthKeys[0] != "admin-key" || cfg.API.AuthKeys[1] != "analyst-key" {
-		t.Fatalf("auth keys = %#v", cfg.API.AuthKeys)
-	}
-}
-
 func TestValidateAPIListenAddressesAllowHostPort(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.API.REST = "127.0.0.1:18080"
@@ -406,27 +395,8 @@ capture:
 	}
 }
 
-func TestValidateAuthRoles(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.API.AuthRoles = map[string]string{"admin-key": "admin", "auditor-key": "auditor"}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate: %v", err)
-	}
-
-	cfg.API.AuthRoles["operator-key"] = "operator"
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("operator role should be built in: %v", err)
-	}
-
-	cfg.API.AuthRoles["bad-key"] = "owner"
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected error for invalid role")
-	}
-}
-
 func TestValidateCustomAuthRolePermissions(t *testing.T) {
 	cfg := DefaultConfig()
-	cfg.API.AuthRoles = map[string]string{"ops-key": "responder"}
 	cfg.API.AuthPermissions = map[string][]string{
 		"responder": {"GET:/api/v1/control/fleet"},
 	}
@@ -468,7 +438,6 @@ func TestAIStabilityEnvOverrides(t *testing.T) {
 func TestPolicyEnvOverrides(t *testing.T) {
 	t.Setenv("PROVIDAPT_POLICY_ENABLED", "true")
 	t.Setenv("PROVIDAPT_POLICY_ENDPOINT", "https://control.example.test:8443")
-	t.Setenv("PROVIDAPT_POLICY_API_KEY", "policy-key")
 	t.Setenv("PROVIDAPT_POLICY_POLL_INTERVAL", "15s")
 	t.Setenv("PROVIDAPT_POLICY_BUNDLE_DIR", "/var/lib/providapt/policies")
 	t.Setenv("PROVIDAPT_POLICY_ENABLE_TLS", "true")
@@ -484,7 +453,7 @@ func TestPolicyEnvOverrides(t *testing.T) {
 	if cfg.Policy.Endpoint != "https://control.example.test:8443" {
 		t.Fatalf("endpoint = %q", cfg.Policy.Endpoint)
 	}
-	if cfg.Policy.APIKey != "policy-key" || cfg.Policy.PollInterval != "15s" {
+	if cfg.Policy.PollInterval != "15s" {
 		t.Fatalf("policy config = %#v", cfg.Policy)
 	}
 	if cfg.Policy.BundleDir != "/var/lib/providapt/policies" || !cfg.Policy.EnableTLS || cfg.Policy.CAFile != "/etc/providapt/ca.pem" {
@@ -544,27 +513,6 @@ func TestValidateControlPlaneSettings(t *testing.T) {
 	cfg.ControlPlane.ElectionTimeout = "soon"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected invalid control plane election timeout")
-	}
-}
-
-func TestLoadAuthIdentities(t *testing.T) {
-	yaml := `
-api:
-  auth_enabled: true
-  auth_keys:
-    - admin-key
-  auth_roles:
-    admin-key: admin
-  auth_identities:
-    admin-key: SecOps On-Call
-`
-	path := writeTempFile(t, "config.*.yaml", yaml)
-	cfg, err := Load(path)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.API.AuthIdentities["admin-key"] != "SecOps On-Call" {
-		t.Fatalf("auth identity = %q", cfg.API.AuthIdentities["admin-key"])
 	}
 }
 
@@ -767,15 +715,6 @@ func TestValidateBackupConfig(t *testing.T) {
 
 func TestSSOAndTenantConfig(t *testing.T) {
 	yaml := `
-api:
-  auth_enabled: true
-  auth_keys: ["tenant-key"]
-  auth_roles:
-    tenant-key: analyst
-  auth_identities:
-    tenant-key: Tenant Analyst
-  auth_tenants:
-    tenant-key: prod
 sso:
   trusted_header_auth: true
   user_header: X-SSO-User
@@ -789,9 +728,6 @@ sso:
 	}
 	if !cfg.SSO.TrustedHeaderAuth || cfg.SSO.UserHeader != "X-SSO-User" || cfg.SSO.TenantHeader != "X-SSO-Tenant" {
 		t.Fatalf("sso config = %#v", cfg.SSO)
-	}
-	if cfg.API.AuthTenants["tenant-key"] != "prod" {
-		t.Fatalf("tenant config = %#v", cfg.API.AuthTenants)
 	}
 }
 
@@ -1007,19 +943,12 @@ func TestSecretResolverSupportsFileAndVaultReferences(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Secrets.Provider = "vault"
 	cfg.Secrets.BaseDir = dir
-	cfg.Secrets.Vault = map[string]string{
-		"policy/api-key": "vault-policy-key",
-	}
 	cfg.SIEM.Token = "file:siem-token"
-	cfg.Policy.APIKey = "vault:policy/api-key"
 
 	resolveSecrets(cfg)
 
 	if cfg.SIEM.Token != "file-secret" {
 		t.Fatalf("siem token = %q", cfg.SIEM.Token)
-	}
-	if cfg.Policy.APIKey != "vault-policy-key" {
-		t.Fatalf("policy api key = %q", cfg.Policy.APIKey)
 	}
 }
 

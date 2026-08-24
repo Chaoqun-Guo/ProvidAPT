@@ -28,7 +28,7 @@ class RenderSecretBackendsTest(unittest.TestCase):
     def test_writes_redacted_backend_bundle(self):
         env_file = self.tmp / "providapt.secrets.env"
         env_file.write_text(
-            "\ufeffPROVIDAPT_API_AUTH_KEYS=abcdef1234567890\n"
+            "\ufeffPROVIDAPT_SIEM_TOKEN=abcdef1234567890\n"
             "PROVIDAPT_DATABASE_DSN=postgres://providapt:supersecretpassword@example/db\n",
             encoding="utf-8",
         )
@@ -54,7 +54,7 @@ class RenderSecretBackendsTest(unittest.TestCase):
         self.assertIn("kind: Secret", k8s)
         self.assertNotIn("supersecretpassword", k8s)
         vault_loader = (out_dir / "providapt-vault-load.sh").read_text(encoding="utf-8")
-        self.assertIn("vault kv put secret/providapt/runtime/PROVIDAPT_API_AUTH_KEYS", vault_loader)
+        self.assertIn("vault kv put secret/providapt/runtime/PROVIDAPT_SIEM_TOKEN", vault_loader)
         self.assertNotIn("supersecretpassword", vault_loader)
         redacted = base64.b64encode("abcd<redacted>7890".encode()).decode()
         self.assertIn(redacted, k8s)

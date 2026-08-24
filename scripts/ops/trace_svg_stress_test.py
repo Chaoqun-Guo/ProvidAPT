@@ -1,5 +1,4 @@
 import importlib.util
-import io
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -34,7 +33,7 @@ class TraceSVGStressTest(unittest.TestCase):
         self.assertEqual(subject.percentile([], 0.95), 0.0)
 
     def test_build_report_blocks_slow_or_small_trace(self):
-        def fake_request(server, alert_id, layout, api_key, timeout):
+        def fake_request(server, alert_id, layout, timeout):
             return 200, '<svg width="10" height="10"></svg>', 2000.0
 
         original = subject.request_svg
@@ -44,7 +43,6 @@ class TraceSVGStressTest(unittest.TestCase):
                 server="http://example.test",
                 alert_id=["p:1"],
                 layout=["tree"],
-                api_key="",
                 timeout_seconds=1,
                 discover_limit=3,
                 max_latency_ms=100,
@@ -60,10 +58,10 @@ class TraceSVGStressTest(unittest.TestCase):
         self.assertFalse(report["evidence_summary"]["complete_matrix"])
 
     def test_discovers_alert_ids_when_omitted(self):
-        def fake_discover(server, api_key, timeout, limit):
+        def fake_discover(server, timeout, limit):
             return ["a:1", "a:2"]
 
-        def fake_request(server, alert_id, layout, api_key, timeout):
+        def fake_request(server, alert_id, layout, timeout):
             return 200, '<svg width="100" height="100"><g data-node-id="p:1"></g></svg>', 10.0
 
         original_discover = subject.discover_alert_ids
@@ -75,7 +73,6 @@ class TraceSVGStressTest(unittest.TestCase):
                 server="http://example.test",
                 alert_id=[],
                 layout=["tree"],
-                api_key="",
                 timeout_seconds=1,
                 discover_limit=3,
                 max_latency_ms=100,
@@ -92,13 +89,12 @@ class TraceSVGStressTest(unittest.TestCase):
 
     def test_blocks_when_no_alert_ids_are_available(self):
         original_discover = subject.discover_alert_ids
-        subject.discover_alert_ids = lambda server, api_key, timeout, limit: []
+        subject.discover_alert_ids = lambda server, timeout, limit: []
         try:
             report = subject.build_report(Namespace(
                 server="http://example.test",
                 alert_id=[],
                 layout=["tree"],
-                api_key="",
                 timeout_seconds=1,
                 discover_limit=3,
                 max_latency_ms=100,
@@ -116,7 +112,6 @@ class TraceSVGStressTest(unittest.TestCase):
             server="synthetic://local",
             alert_id=[],
             layout=list(subject.LAYOUTS),
-            api_key="",
             timeout_seconds=1,
             discover_limit=3,
             max_latency_ms=100,
@@ -133,9 +128,9 @@ class TraceSVGStressTest(unittest.TestCase):
         self.assertEqual(set(report["evidence_summary"]["by_layout"].keys()), set(subject.LAYOUTS))
         self.assertGreaterEqual(report["evidence_summary"]["latency"]["p95_ms"], 0)
 
-    def test_auth_failure_records_api_key_hint(self):
-        def fake_request(server, alert_id, layout, api_key, timeout):
-            raise QuietHTTPError("http://example.test", 401, "unauthorized", hdrs=None, fp=io.BytesIO(b"unauthorized"))
+    def test_http_failure_records_fetch_error(self):
+        def fake_request(server, alert_id, layout, timeout):
+            raise QuietHTTPError("http://example.test", 401, "unauthorized", hdrs=None, fp=None)
 
         original = subject.request_svg
         subject.request_svg = fake_request
@@ -144,7 +139,6 @@ class TraceSVGStressTest(unittest.TestCase):
                 server="http://example.test",
                 alert_id=["p:1"],
                 layout=["tree"],
-                api_key="",
                 timeout_seconds=1,
                 discover_limit=3,
                 max_latency_ms=100,
@@ -154,9 +148,7 @@ class TraceSVGStressTest(unittest.TestCase):
             subject.request_svg = original
 
         self.assertEqual(report["status"], "blocked")
-        self.assertEqual(report["evidence_summary"]["auth"]["auth_failure_count"], 1)
-        self.assertIn("PROVIDAPT_API_KEY", report["evidence_summary"]["auth"]["suggested_action"])
-        self.assertIn("API authentication failed", "\n".join(report["failures"]))
+        self.assertIn("HTTP 401", "\n".join(report["failures"]))
 
     def test_parse_args_single_layout_does_not_append_defaults(self):
         args = subject.parse_args(["--server", "http://example.test", "--layout", "tree"])

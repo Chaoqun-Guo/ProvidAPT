@@ -35,7 +35,7 @@ class SecurityHardeningGateTest(unittest.TestCase):
         self.assertEqual(report["sections"]["configuration"]["status"], "warn")
         self.assertTrue(any("rotation_auto" in item for item in report["sections"]["configuration"]["warnings"]))
 
-    def test_blocks_missing_auth_and_tls(self):
+    def test_blocks_missing_tls_and_runtime_hardening(self):
         config = self.write("providapt.yaml", "encrypt: true\n")
         service = self.write("providapt.service", "")
         env_file = self.write("providapt.env", "")
@@ -80,9 +80,6 @@ class SecurityHardeningGateTest(unittest.TestCase):
 
     def production_config(self, cors="https://soc.example.com", rotation_auto=True, secrets_provider="file"):
         return f"""api:
-  auth_enabled: true
-  auth_keys:
-    - replace-with-key
   cors_origins:
     - {cors}
 tls:
@@ -103,7 +100,6 @@ telemetry:
 policy:
   enabled: true
   endpoint: https://cp-0.example.com:18080
-  api_key: env:PROVIDAPT_POLICY_API_KEY
   enable_tls: true
   ca_file: /etc/providapt/tls/ca.crt
 storage:

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 import time
@@ -23,13 +22,11 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def request_svg(server: str, alert_id: str, layout: str, api_key: str, timeout: float) -> tuple[int, str, float]:
+def request_svg(server: str, alert_id: str, layout: str, timeout: float) -> tuple[int, str, float]:
     base = server.rstrip("/")
     encoded = quote(alert_id, safe="")
     query = urlencode({"layout": layout})
     req = Request(f"{base}/api/v1/alerts/{encoded}/svg?{query}")
-    if api_key:
-        req.add_header("X-API-Key", api_key)
     start = time.perf_counter()
     opener = build_opener(ProxyHandler({}))
     with opener.open(req, timeout=timeout) as resp:
@@ -38,11 +35,9 @@ def request_svg(server: str, alert_id: str, layout: str, api_key: str, timeout: 
         return int(resp.status), body, elapsed
 
 
-def request_json(server: str, path: str, api_key: str, timeout: float) -> dict[str, Any]:
+def request_json(server: str, path: str, timeout: float) -> dict[str, Any]:
     base = server.rstrip("/")
     req = Request(f"{base}{path}")
-    if api_key:
-        req.add_header("X-API-Key", api_key)
     opener = build_opener(ProxyHandler({}))
     with opener.open(req, timeout=timeout) as resp:
         body = resp.read().decode("utf-8", errors="replace")
@@ -52,10 +47,10 @@ def request_json(server: str, path: str, api_key: str, timeout: float) -> dict[s
     return data
 
 
-def discover_alert_ids(server: str, api_key: str, timeout: float, limit: int) -> list[str]:
+def discover_alert_ids(server: str, timeout: float, limit: int) -> list[str]:
     if limit <= 0:
         return []
-    data = request_json(server, "/api/v1/control/alerts", api_key, timeout)
+    data = request_json(server, "/api/v1/control/alerts", timeout)
     alerts = data.get("alerts") if isinstance(data.get("alerts"), list) else []
     ids: list[str] = []
     for alert in alerts:
@@ -158,10 +153,6 @@ def evidence_summary(
             "min_node_count": min(nodes) if nodes else 0,
             "max_node_count": max(nodes) if nodes else 0,
         }
-    auth_failures = [
-        item for item in results
-        if int(item.get("http_status") or 0) in {401, 403}
-    ]
     return {
         "expected_result_count": len(expected),
         "result_count": len(results),
@@ -176,14 +167,6 @@ def evidence_summary(
             "p50_ms": percentile([float(item.get("latency_ms") or 0) for item in results], 0.50),
             "p95_ms": percentile([float(item.get("latency_ms") or 0) for item in results], 0.95),
             "max_ms": round(max([float(item.get("latency_ms") or 0) for item in results] or [0.0]), 2),
-        },
-        "auth": {
-            "api_key_supplied": False,
-            "auth_failure_count": len(auth_failures),
-            "auth_failed_pairs": [
-                {"alert_id": str(item.get("alert_id") or ""), "layout": str(item.get("layout") or ""), "http_status": int(item.get("http_status") or 0)}
-                for item in auth_failures
-            ],
         },
         "failure_count": len(failures),
     }
@@ -241,7 +224,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     if not alert_ids and not synthetic:
         discovered = True
         try:
-            alert_ids = discover_alert_ids(args.server, args.api_key, args.timeout_seconds, args.discover_limit)
+            alert_ids = discover_alert_ids(args.server, args.timeout_seconds, args.discover_limit)
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
             failures.append(f"alert discovery failed: {exc}")
     if not alert_ids:
@@ -257,7 +240,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                     elapsed_ms = (time.perf_counter() - start) * 1000.0
                     status = 200
                 else:
-                    status, body, elapsed_ms = request_svg(args.server, alert_id, layout, args.api_key, args.timeout_seconds)
+                    status, body, elapsed_ms = request_svg(args.server, alert_id, layout, args.timeout_seconds)
                 result.update({"http_status": status, "latency_ms": round(elapsed_ms, 2)})
                 result.update(svg_stats(body))
                 if status != 200:
@@ -285,16 +268,11 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                         fp.close()
                 result.update({"http_status": exc.code, "latency_ms": elapsed_ms, "error": body[:500] or str(exc)})
                 failures.append(f"{alert_id}/{layout}: HTTP {exc.code}")
-                if exc.code in {401, 403} and not args.api_key:
-                    failures.append(f"{alert_id}/{layout}: API authentication failed; set PROVIDAPT_API_KEY before running trace-svg-stress")
             except (URLError, TimeoutError, OSError) as exc:
                 result.update({"http_status": 0, "latency_ms": 0.0, "error": str(exc)})
                 failures.append(f"{alert_id}/{layout}: request failed: {exc}")
             results.append(result)
     summary = evidence_summary(results, alert_ids, list(args.layout), args.max_latency_ms, args.min_node_count, failures)
-    summary["auth"]["api_key_supplied"] = bool(args.api_key)
-    if summary["auth"]["auth_failure_count"] and not args.api_key:
-        summary["auth"]["suggested_action"] = "Set PROVIDAPT_API_KEY or disable API auth for the local test daemon."
     return {
         "schema": SCHEMA,
         "generated_at": utc_now(),
@@ -353,13 +331,6 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"| {item.get('alert_id', '')} | {item.get('layout', '')} | {item.get('status', '')} | "
                 f"{item.get('http_status', 0)} | {item.get('latency_ms', 0)} | {item.get('node_count', 0)} |"
             )
-    auth = summary.get("auth") if isinstance(summary.get("auth"), dict) else {}
-    if auth.get("auth_failure_count"):
-        lines.extend(["", "## Authentication Diagnostics", ""])
-        lines.append(f"- API key supplied: `{str(auth.get('api_key_supplied', False)).lower()}`")
-        lines.append(f"- Auth failures: `{auth.get('auth_failure_count', 0)}`")
-        if auth.get("suggested_action"):
-            lines.append(f"- Suggested action: {auth['suggested_action']}")
     if report["failures"]:
         lines.extend(["", "## Failures", ""])
         lines.extend(f"- {item}" for item in report["failures"])
@@ -373,7 +344,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--alert-id", action="append", default=[])
     parser.add_argument("--discover-limit", type=int, default=3, help="Discover up to N alert IDs from /api/v1/control/alerts when --alert-id is omitted")
     parser.add_argument("--layout", action="append", choices=LAYOUTS, default=[])
-    parser.add_argument("--api-key", default=os.environ.get("PROVIDAPT_API_KEY", ""))
     parser.add_argument("--max-latency-ms", type=float, default=1500.0)
     parser.add_argument("--min-node-count", type=int, default=1)
     parser.add_argument("--timeout-seconds", type=float, default=10.0)

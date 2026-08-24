@@ -157,7 +157,7 @@ def support_bundle_detail(report: dict[str, Any]) -> dict[str, Any]:
 def deployment_diagnostics_detail(report: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": status_value(report, {"pass", "warn"}),
-        "api_auth_enabled": bool(report.get("api_auth_enabled")),
+        "open_source_control_plane": bool(report.get("open_source_control_plane")),
         "tls_enabled": bool(report.get("tls_enabled")),
         "kernel_attachment_mode": report.get("kernel_attachment_mode", ""),
         "storage_encrypted": bool(report.get("storage_encrypted")),

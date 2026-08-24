@@ -100,7 +100,6 @@ type agentPolicyBundle struct {
 
 type agentPolicyClientConfig struct {
 	Endpoint  string
-	APIKey    string
 	BundleDir string
 	EnableTLS bool
 	CAFile    string
@@ -1192,8 +1191,6 @@ func main() {
 	securitySummaryState := &securityState{}
 	upgradeSummaryState := &upgradeState{}
 	complianceSummaryState := &complianceState{}
-	apiServer.SetAPIAuth(nil, nil, nil, false)
-	apiServer.SetAPIAuthTenants(cfg.API.AuthTenants)
 	apiServer.SetAPIAuthPermissions(cfg.API.AuthPermissions)
 	apiServer.SetTrustedHeaderAuth(cfg.SSO.TrustedHeaderAuth, cfg.SSO.UserHeader, cfg.SSO.RoleHeader)
 	apiServer.SetTrustedTenantHeader(cfg.SSO.TenantHeader)
@@ -1233,7 +1230,6 @@ func main() {
 	}
 	policyClientCfg := agentPolicyClientConfig{
 		Endpoint:  resolvePolicyEndpoint(cfg.Policy.Endpoint, cfg.Telemetry.Endpoint),
-		APIKey:    cfg.Policy.APIKey,
 		BundleDir: cfg.Policy.BundleDir,
 		EnableTLS: cfg.Policy.EnableTLS,
 		CAFile:    cfg.Policy.CAFile,
@@ -1304,7 +1300,7 @@ func main() {
 			Version:                  version.String(),
 			APIRest:                  cfg.API.REST,
 			APIGRPC:                  cfg.API.GRPC,
-			APIAuthEnabled:           false,
+			OpenSourceControlPlane:   true,
 			TLSEnabled:               cfg.TLS.Enable,
 			MTLSEnabled:              cfg.TLS.Enable,
 			KernelAttachmentMode:     bpfLoader.ModeName(),

@@ -43,7 +43,7 @@ Current closure progress:
 - Constrained VM deployment is guarded by ELF, bpf-tag, SHA-256, service-active, and log-budget checks through `make deploy-vms`.
 - Ground-truth dataset export and ATT&CK coverage reporting are available through `make export-ground-truth`.
 - Alert quality reporting is available through `make alert-quality ALERTS=...`.
-- RBAC and tenant-scope configuration audits are available through `make ops-rbac-audit PROVIDAPT_CONFIG=...`; reports fingerprint API keys instead of writing raw key material.
+- RBAC configuration audits are available through `make ops-rbac-audit PROVIDAPT_CONFIG=...`; reports cover trusted-header SSO and custom permission syntax.
 
 ## Detection and Investigation
 
@@ -68,9 +68,9 @@ Current closure progress:
 - Trace SVG layout pressure evidence can be collected against real alerts through `make trace-svg-stress`, including per-layout latency, SVG dimensions, node/edge counts, folded cluster counts, and automatic alert-ID discovery from `/api/v1/control/alerts` when `ALERT_IDS` is omitted.
   Trace SVG stress reports now include an `evidence_summary` with complete
   alert/layout matrix coverage, missing pairs, per-layout pass/blocked counts,
-  p50/p95/max latency, node-count ranges, and API authentication diagnostics so
-  missing `PROVIDAPT_API_KEY` evidence is surfaced as an actionable release
-  blocker rather than a generic HTTP failure.
+  p50/p95/max latency, node-count ranges, and HTTP fetch diagnostics so missing
+  trace evidence is surfaced as an actionable release blocker rather than a
+  generic failure.
 - `make trace-svg-stress-example` now generates deterministic large synthetic
   Trace SVGs for every layout mode so the stress report path can be smoke-tested
   locally without a running API; final release evidence still requires real
@@ -187,8 +187,8 @@ Current closure progress:
   and gate reports group missing screenshots by exact pair, page, and viewport.
   DOM failure details summarize Dashboard overflow metrics and Trace Viewer
   missing layout/export controls. Snapshot and gate evidence now include
-  capture diagnostics for Playwright availability, capture mode, API-key
-  presence, requested viewports, and browser install hints. Passing captures can
+  capture diagnostics for Playwright availability, capture mode, control-plane
+  access, requested viewports, and browser install hints. Passing captures can
   be promoted into a stable baseline directory with `PROMOTE_BASELINE=...`,
   which copies PNG files, rewrites baseline paths, recalculates hashes, and
   blocks promotion when the capture status is not `pass`.

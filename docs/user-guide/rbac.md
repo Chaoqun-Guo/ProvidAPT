@@ -1,32 +1,14 @@
-# RBAC and API Authorization
+# Access Control and RBAC
 
-ProvidAPT supports API key authentication, role-based access control, tenant scoping, and trusted-header SSO for deployments behind an identity-aware reverse proxy.
-
-## Enable API Authentication
-
-```toml
-[api]
-rest = ":18080"
-auth_enabled = true
-auth_keys = ["admin-key", "analyst-key", "auditor-key"]
-auth_roles = { "admin-key" = "admin", "analyst-key" = "analyst", "auditor-key" = "auditor" }
-auth_identities = { "admin-key" = "ops-admin", "analyst-key" = "soc-analyst" }
-auth_tenants = { "analyst-key" = "prod" }
-```
-
-## Request Authentication
-
-```bash
-curl -H "X-API-Key: admin-key" http://localhost:18080/api/v1/status
-```
-
-Bearer token syntax is also accepted for API keys:
-
-```bash
-curl -H "Authorization: Bearer admin-key" http://localhost:18080/api/v1/status
-```
+ProvidAPT is now fully open-source and no longer ships a built-in credential gate
+for the local control plane. Operators should protect the dashboard and REST API
+with network controls, TLS, host firewall rules, Tailscale ACLs, or an
+identity-aware reverse proxy.
 
 ## Built-In Roles
+
+The daemon still uses roles internally so trusted reverse proxies can pass an
+operator identity into audit records and permission checks.
 
 | Role | Intended User | Access |
 | --- | --- | --- |
@@ -35,12 +17,15 @@ curl -H "Authorization: Bearer admin-key" http://localhost:18080/api/v1/status
 | `analyst` | SOC analyst | read-only graph, alert, fleet, policy, delivery, and upgrade views |
 | `auditor` | compliance reviewer | read-only audit, status, dashboard, and compliance evidence views |
 
-## Custom Roles
+Requests without trusted identity headers run as the default
+`open-source-operator` admin actor. This keeps local, VM, and Tailscale lab
+deployments usable without local credentials.
+
+## Custom Permissions
+
+Custom roles can still be defined for trusted-header deployments:
 
 ```toml
-[api.auth_roles]
-"operator-key" = "operator"
-
 [api.auth_permissions]
 operator = [
   "GET:/api/v1/control/fleet",
@@ -50,33 +35,13 @@ operator = [
 ]
 ```
 
-Permission entries use `METHOD:/path/prefix`. Use `*` only when a broad role is intentionally approved.
-
-## Tenant Scoping
-
-Tenant-scoped API keys are restricted to the matching fleet group:
-
-```toml
-[api.auth_tenants]
-"prod-analyst-key" = "prod"
-```
-
-Use comma-separated values when one managed-service operator needs access to
-multiple tenant scopes:
-
-```toml
-[api.auth_tenants]
-"mssp-operator-key" = "prod,staging"
-```
-
-Non-admin requests to fleet, audit, and compliance views are filtered by tenant
-where supported. Scoped fleet writes must target a tenant in the key scope. If a
-key has multiple tenant scopes, write requests must include an explicit
-`group`.
+Permission entries use `METHOD:/path/prefix`. Use `*` only when a broad role is
+intentionally approved.
 
 ## Trusted-Header SSO
 
-Trusted headers are safe only when a reverse proxy authenticates the user and strips untrusted inbound headers:
+Trusted headers are safe only when a reverse proxy authenticates the user and
+strips untrusted inbound headers:
 
 ```toml
 [sso]
@@ -88,16 +53,16 @@ tenant_header = "X-Forwarded-Tenant"
 
 ## Operational Rules
 
-- Enable TLS before sending API keys or trusted headers over a network.
-- Rotate keys through configuration management and reload or restart the service.
-- Keep admin keys out of scripts used by analysts.
-- Prefer tenant-scoped keys for customer-facing or managed-service use.
+- Restrict dashboard/API reachability with Tailscale ACLs, firewall rules, or a
+  reverse proxy.
+- Enable TLS before exposing the service beyond a local lab network.
+- Do not forward arbitrary inbound trusted headers from clients.
 - Review custom wildcard permissions before production approval.
 
-## Production RBAC Audit
+## RBAC Audit
 
-Run the RBAC audit before customer handoff, release readiness review, and after
-every identity-provider or reverse-proxy change:
+Run the RBAC audit before handoff, release readiness review, and after every
+identity-provider or reverse-proxy change:
 
 ```bash
 make ops-rbac-audit \
@@ -105,18 +70,15 @@ make ops-rbac-audit \
   OUT_DIR=build/rbac
 ```
 
-The audit blocks production readiness when API authentication is disabled,
-configured keys have no roles, custom permissions are malformed, or custom roles
-use unrestricted wildcard access. It warns when non-admin keys are not
-tenant-scoped or when keys are missing operator identities.
+The audit checks trusted-header settings and custom permission syntax. It warns
+when no trusted-header SSO is configured so reviewers can confirm equivalent
+network and TLS controls.
 
 Outputs:
 
 | File | Purpose |
 | --- | --- |
-| `rbac-audit.json` | Machine-readable status, role counts, tenant-scoped key count, failures, and warnings |
-| `rbac-audit.md` | Reviewer-facing checklist for security and customer handoff |
-
-Attach the JSON output to `make enterprise-readiness` with
+| `rbac-audit.json` | Machine-readable status, custom role counts, failures, and warnings |
+| `rbac-audit.md` | Reviewer-facing checklist for security and handoff |
 `RBAC_AUDIT_JSON=build/rbac/rbac-audit.json` when the file is not in the default
 location.

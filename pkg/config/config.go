@@ -58,11 +58,6 @@ type Config struct {
 	API struct {
 		GRPC            string              `json:"grpc" yaml:"grpc"`
 		REST            string              `json:"rest" yaml:"rest"`
-		AuthEnabled     bool                `json:"auth_enabled" yaml:"auth_enabled"`
-		AuthKeys        []string            `json:"auth_keys" yaml:"auth_keys"`
-		AuthRoles       map[string]string   `json:"auth_roles" yaml:"auth_roles"`
-		AuthIdentities  map[string]string   `json:"auth_identities" yaml:"auth_identities"`
-		AuthTenants     map[string]string   `json:"auth_tenants" yaml:"auth_tenants"`
 		AuthPermissions map[string][]string `json:"auth_permissions" yaml:"auth_permissions"`
 		RateLimitPerSec float64             `json:"rate_limit_per_sec" yaml:"rate_limit_per_sec"`
 		RateLimitBurst  int                 `json:"rate_limit_burst" yaml:"rate_limit_burst"`
@@ -182,7 +177,6 @@ type Config struct {
 
 	Policy struct {
 		Endpoint     string `json:"endpoint" yaml:"endpoint"`
-		APIKey       string `json:"api_key" yaml:"api_key"`
 		PollInterval string `json:"poll_interval" yaml:"poll_interval"`
 		BundleDir    string `json:"bundle_dir" yaml:"bundle_dir"`
 		EnableTLS    bool   `json:"enable_tls" yaml:"enable_tls"`
@@ -442,7 +436,6 @@ func resolveSecrets(cfg *Config) {
 	resolver.resolve(&cfg.Notify.TicketWebhookAuth, "PROVIDAPT_NOTIFY_TICKET_WEBHOOK_AUTH")
 	resolver.resolve(&cfg.Notify.JiraAPIToken, "PROVIDAPT_NOTIFY_JIRA_API_TOKEN")
 	resolver.resolve(&cfg.Notify.ServiceNowPass, "PROVIDAPT_NOTIFY_SERVICENOW_PASS")
-	resolver.resolve(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
 	resolver.resolve(&cfg.Upgrade.SigningKey, "PROVIDAPT_UPGRADE_SIGNING_KEY")
 	resolver.resolve(&cfg.SIEM.Token, "PROVIDAPT_SIEM_TOKEN")
 }
@@ -592,12 +585,6 @@ func (c *Config) Validate() error {
 	if strings.TrimSpace(c.ControlPlane.ElectionTimeout) != "" {
 		if err := validateDurationString(c.ControlPlane.ElectionTimeout); err != nil {
 			return fmt.Errorf("control_plane.election_timeout: %w", err)
-		}
-	}
-	for key, role := range c.API.AuthRoles {
-		role = strings.ToLower(strings.TrimSpace(role))
-		if role != "admin" && role != "analyst" && role != "auditor" && role != "operator" && len(c.API.AuthPermissions[role]) == 0 {
-			return fmt.Errorf("unsupported API auth role %q for key %q", role, key)
 		}
 	}
 	if strings.TrimSpace(c.AI.Timeout) != "" {
@@ -753,7 +740,6 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Output.Format, "PROVIDAPT_OUTPUT_FORMAT")
 	overrideString(&cfg.API.GRPC, "PROVIDAPT_API_GRPC")
 	overrideString(&cfg.API.REST, "PROVIDAPT_API_REST")
-	overrideStringSlice(&cfg.API.AuthKeys, "PROVIDAPT_API_AUTH_KEYS")
 	overrideString(&cfg.AI.Provider, "PROVIDAPT_AI_PROVIDER")
 	overrideString(&cfg.AI.Endpoint, "PROVIDAPT_AI_ENDPOINT")
 	overrideString(&cfg.AI.Model, "PROVIDAPT_AI_MODEL")
@@ -785,7 +771,6 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString(&cfg.Telemetry.CAFile, "PROVIDAPT_TELEMETRY_CA_FILE")
 	overrideString(&cfg.Telemetry.ServerName, "PROVIDAPT_TELEMETRY_SERVER_NAME")
 	overrideString(&cfg.Policy.Endpoint, "PROVIDAPT_POLICY_ENDPOINT")
-	overrideString(&cfg.Policy.APIKey, "PROVIDAPT_POLICY_API_KEY")
 	overrideString(&cfg.Policy.PollInterval, "PROVIDAPT_POLICY_POLL_INTERVAL")
 	overrideString(&cfg.Policy.BundleDir, "PROVIDAPT_POLICY_BUNDLE_DIR")
 	overrideString(&cfg.Policy.CAFile, "PROVIDAPT_POLICY_CA_FILE")
@@ -838,7 +823,6 @@ func applyEnvOverrides(cfg *Config) {
 	overrideBool(&cfg.TLS.Enable, "PROVIDAPT_TLS_ENABLE")
 	overrideBool(&cfg.TLS.RotationAuto, "PROVIDAPT_TLS_ROTATION_AUTO")
 	overrideBool(&cfg.TLS.RotationRestartAfter, "PROVIDAPT_TLS_ROTATION_RESTART_AFTER")
-	overrideBool(&cfg.API.AuthEnabled, "PROVIDAPT_API_AUTH_ENABLED")
 	overrideBool(&cfg.AI.FallbackWithoutLLM, "PROVIDAPT_AI_FALLBACK_WITHOUT_LLM")
 	overrideBool(&cfg.ControlPlane.FailoverReady, "PROVIDAPT_CONTROL_PLANE_FAILOVER_READY")
 	overrideBool(&cfg.SSO.TrustedHeaderAuth, "PROVIDAPT_SSO_TRUSTED_HEADER_AUTH")

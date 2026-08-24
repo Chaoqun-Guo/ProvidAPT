@@ -66,7 +66,7 @@ class OperationsReadinessGateTest(unittest.TestCase):
             "policy_approval": self.write_json("policy-approval.json", {"status": "pass", "approval_enabled": True, "tenant_scoped_keys": 1, "tenant_count": 1, "audit_matches": 1}),
             "backup": self.write_json("backup.json", {"status": "pass", "size_bytes": 4096, "history_count": 3, "restore_required": True, "cutover_required": True}),
             "support": self.write_json("support.json", {"status": "pass", "redacted": True, "history_count": 1, "export_events": 1}),
-            "diagnostics": self.write_json("diagnostics.json", {"status": "pass", "api_auth_enabled": True, "tls_enabled": True, "kernel_attachment_mode": "lsm", "storage_encrypted": True, "applied_policy_version": 3}),
+            "diagnostics": self.write_json("diagnostics.json", {"status": "pass", "open_source_control_plane": True, "tls_enabled": True, "kernel_attachment_mode": "lsm", "storage_encrypted": True, "applied_policy_version": 3}),
             "install": self.write_json("install.json", {"status": "pass"}),
             "observability": self.write_json("observability.json", {"status": "pass"}),
             "security": self.write_json("security.json", {"status": "pass"}),

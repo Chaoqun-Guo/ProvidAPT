@@ -44,7 +44,7 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertEqual(manifest["schema"], onboarding.SCHEMA)
         config = (self.tmp / "providapt.onboarding.yaml").read_text(encoding="utf-8")
         self.assertIn("postgres://providapt", config)
-        self.assertIn("auth_enabled: true", config)
+        self.assertIn('rest: ":18080"', config)
         self.assertIn("endpoint: http://vm-ubuntu-master:18080", config)
         loaded = json.loads((self.tmp / "onboarding-manifest.json").read_text(encoding="utf-8"))
         self.assertTrue(loaded["postgres"])

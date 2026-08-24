@@ -23,48 +23,39 @@ class RBACAuditTest(unittest.TestCase):
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
 
-    def test_warns_for_unscoped_non_admin(self):
+    def test_warns_when_trusted_header_sso_is_absent(self):
         config = rbac.load_toml(self.write_config("""
 [api]
-auth_enabled = true
-auth_keys = ["admin-key", "analyst-key"]
-auth_roles = { "admin-key" = "admin", "analyst-key" = "analyst" }
-auth_identities = { "admin-key" = "ops", "analyst-key" = "soc" }
+auth_permissions = { operator = ["GET:/api/v1/control/fleet"] }
 """))
         report = rbac.audit_config(config, self.tmp / "providapt.toml")
         self.assertEqual(report["status"], "warn")
-        self.assertTrue(any("no tenant scope" in item for item in report["warnings"]))
-        self.assertNotIn("analyst-key", json.dumps(report))
-        self.assertIn(rbac.key_fingerprint("analyst-key"), json.dumps(report))
+        self.assertTrue(any("trusted-header SSO" in item for item in report["warnings"]))
+        self.assertEqual(report["key_count"], 0)
+        self.assertIn("open-source", json.dumps(report))
 
-    def test_blocks_disabled_auth_and_wildcard(self):
+    def test_blocks_unrestricted_custom_permission(self):
         config = rbac.load_toml(self.write_config("""
 [api]
-auth_enabled = false
-auth_keys = ["operator-key"]
-auth_roles = { "operator-key" = "operator" }
 auth_permissions = { operator = ["*"] }
 """))
         report = rbac.audit_config(config, self.tmp / "providapt.toml")
         self.assertEqual(report["status"], "blocked")
-        self.assertTrue(any("auth_enabled" in item for item in report["failures"]))
         self.assertTrue(any("wildcard" in item for item in report["failures"]))
 
-    def test_reports_operator_multi_tenant_scope(self):
+    def test_reports_trusted_header_sso(self):
         config = rbac.load_toml(self.write_config("""
-[api]
-auth_enabled = true
-auth_keys = ["operator-key"]
-auth_roles = { "operator-key" = "operator" }
-auth_identities = { "operator-key" = "managed-ops" }
-auth_tenants = { "operator-key" = "prod, staging" }
+[sso]
+trusted_header_auth = true
+user_header = "X-Forwarded-User"
+role_header = "X-Forwarded-Role"
+tenant_header = "X-Forwarded-Tenant"
 """))
         report = rbac.audit_config(config, self.tmp / "providapt.toml")
         self.assertEqual(report["status"], "pass")
-        self.assertEqual(report["tenant_count"], 2)
-        label = rbac.key_fingerprint("operator-key")
-        self.assertEqual(report["tenant_scopes"][label], ["prod", "staging"])
-        self.assertNotIn("operator-key", rbac.render_markdown(report))
+        self.assertTrue(report["trusted_header_sso"])
+        self.assertEqual(report["tenant_count"], 0)
+        self.assertIn("open-source", rbac.render_markdown(report))
 
     def write_config(self, text):
         path = self.tmp / "providapt.toml"

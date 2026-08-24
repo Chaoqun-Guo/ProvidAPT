@@ -7,7 +7,7 @@ This section explains daily ProvidAPT operations, including CLI usage, queries, 
 | Document | Description |
 | --- | --- |
 | [cli.md](cli.md) | `providaptctl` and related command reference |
-| [rbac.md](rbac.md) | RBAC, API keys, tenant scoping, and trusted-header SSO |
+| [rbac.md](rbac.md) | Open-source access control, RBAC roles, and trusted-header SSO |
 | [api-auth.md](api-auth.md) | API authentication configuration and request examples |
 | [grpc.md](grpc.md) | gRPC API usage and integration examples |
 | [provql.md](provql.md) | ProvQL query syntax and examples |

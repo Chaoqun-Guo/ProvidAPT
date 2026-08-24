@@ -165,7 +165,6 @@ func TestTenantScopedClusterOverview(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/overview", nil)
-	req.Header.Set("X-API-Key", "tenant-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -179,17 +178,14 @@ func TestTenantScopedClusterOverview(t *testing.T) {
 	}
 }
 
-func TestAPIAuthEnabledWithoutKeysDeniesRequests(t *testing.T) {
+func TestAPIAuthCompatibilityNoopAllowsRequests(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth(nil, nil, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
 	w := apiServe(ts, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("status code = %d, want %d", w.Code, http.StatusUnauthorized)
-	}
-	if !strings.Contains(w.Body.String(), "no API keys are configured") {
-		t.Fatalf("response body = %q", w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", w.Code, http.StatusOK)
 	}
 }
 
@@ -279,7 +275,6 @@ func TestTenantScopedFleetAccess(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet", nil)
-	req.Header.Set("X-API-Key", "tenant-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -289,7 +284,6 @@ func TestTenantScopedFleetAccess(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet?group=dev", nil)
-	req.Header.Set("X-API-Key", "tenant-key")
 	w = apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("cross tenant status code = %d", w.Code)
@@ -319,7 +313,6 @@ func TestMultiTenantScopedFleetAccess(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet", nil)
-	req.Header.Set("X-API-Key", "tenant-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d: %s", w.Code, w.Body.String())
@@ -333,7 +326,6 @@ func TestMultiTenantScopedFleetAccess(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/control/fleet?group=dev", nil)
-	req.Header.Set("X-API-Key", "tenant-key")
 	w = apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("cross tenant status code = %d", w.Code)
@@ -356,7 +348,6 @@ func TestOperatorCanUpdateScopedFleetOnly(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","action":"approved"}`))
-	req.Header.Set("X-API-Key", "operator-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("scoped update status = %d: %s", w.Code, w.Body.String())
@@ -366,7 +357,6 @@ func TestOperatorCanUpdateScopedFleetOnly(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","group":"dev"}`))
-	req.Header.Set("X-API-Key", "operator-key")
 	w = apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("cross-tenant update status = %d", w.Code)
@@ -435,7 +425,6 @@ func TestFleetUpdateInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"agent-a","group":"prod","tags":["linux"],"note":"owner confirmed"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -485,7 +474,6 @@ func TestRBACAnalystForbiddenFleetUpdate(t *testing.T) {
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"a1"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -500,14 +488,12 @@ func TestRBACCustomRolePermissions(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/ha", nil)
-	req.Header.Set("X-API-Key", "ops-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("custom role allowed status = %d: %s", w.Code, w.Body.String())
 	}
 
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/control/fleet", bytes.NewBufferString(`{"agent_id":"a1"}`))
-	req.Header.Set("X-API-Key", "ops-key")
 	w = apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("custom role forbidden status = %d", w.Code)
@@ -519,7 +505,6 @@ func TestRBACAuditorGraphDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/graph/export", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -531,7 +516,6 @@ func TestRBACAuditorStatusAllowed(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -592,7 +576,7 @@ func TestStatusIncludesRuntimeDiagnostics(t *testing.T) {
 		Version:                  "v-test",
 		APIRest:                  ":18080",
 		APIGRPC:                  ":18081",
-		APIAuthEnabled:           true,
+		OpenSourceControlPlane:   true,
 		TLSEnabled:               true,
 		MTLSEnabled:              true,
 		KernelAttachmentMode:     "lsm",
@@ -631,7 +615,7 @@ func TestStatusIncludesRuntimeDiagnostics(t *testing.T) {
 	if resp.Diagnostics.KernelAttachmentMode != "lsm" {
 		t.Fatalf("kernel attachment mode = %q", resp.Diagnostics.KernelAttachmentMode)
 	}
-	if !resp.Diagnostics.APIAuthEnabled || !resp.Diagnostics.StorageEncrypted {
+	if !resp.Diagnostics.OpenSourceControlPlane || !resp.Diagnostics.StorageEncrypted {
 		t.Fatalf("diagnostics security fields not preserved: %+v", resp.Diagnostics)
 	}
 	if resp.Diagnostics.ControlPlaneStateBackend != "postgres://providapt" {
@@ -737,7 +721,6 @@ func TestSupportBundleActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/support", bytes.NewBufferString(`{"reason":"manual export","note":"triage package"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -758,7 +741,6 @@ func TestRBACAnalystSupportBundleDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/support", bytes.NewBufferString(`{"reason":"manual export"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -799,7 +781,6 @@ func TestRBACAnalystSupportBundleDownloadDenied(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/support/download", nil)
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -864,7 +845,6 @@ func TestBackupActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/backup", bytes.NewBufferString(`{"action":"create","note":"pre-upgrade"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -903,7 +883,6 @@ func TestRBACAnalystBackupDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/backup", bytes.NewBufferString(`{"action":"create"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -914,7 +893,6 @@ func TestRBACAuditorBackupDownloadDenied(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/backup/download", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -973,7 +951,6 @@ func TestSecurityActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/security", bytes.NewBufferString(`{"action":"rotate_server_cert","note":"quarterly"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -987,7 +964,6 @@ func TestRBACAnalystSecurityActionDenied(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/security", bytes.NewBufferString(`{"action":"rotate_server_cert"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -1089,7 +1065,6 @@ func TestTenantScopedAuditFeed(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/audit?category=admin", nil)
-	req.Header.Set("X-API-Key", "tenant-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -1109,7 +1084,6 @@ func TestRBACAuditorAuditFeedAllowed(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/audit?category=admin&source=supportbundle", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -1180,7 +1154,6 @@ func TestComplianceActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/compliance", bytes.NewBufferString(`{"action":"generate_report","note":"monthly review"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -1201,7 +1174,6 @@ func TestRBACComplianceActionDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/compliance", bytes.NewBufferString(`{"action":"generate_report"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -1293,7 +1265,6 @@ func TestUpgradeActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/upgrade", bytes.NewBufferString(`{"action":"record","note":"schedule during Sunday window","package_path":"/tmp/providapt-upgrade.tar.gz","download_url":"https://downloads.example.com/providapt.tar.gz","expected_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","signature_path":"/tmp/providapt-upgrade.tar.gz.sig","rollback_plan":"snapshot VM before rollout"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -1323,7 +1294,6 @@ func TestRBACAnalystUpgradeActionDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/upgrade", bytes.NewBufferString(`{"action":"check"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -1335,7 +1305,6 @@ func TestRBACAuditorUpgradeAllowed(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/upgrade", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -1607,7 +1576,6 @@ func TestRBACAnalystPolicyBundleDownloadDenied(t *testing.T) {
 	ts := testServer(t)
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/policies/bundle", nil)
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -1629,7 +1597,6 @@ func TestPolicyActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", bytes.NewBufferString(`{"action":"publish","notes":"ship it"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -1647,7 +1614,6 @@ func TestRBACAnalystPolicyActionDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/policies", bytes.NewBufferString(`{"action":"publish"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -1994,7 +1960,6 @@ func TestAlertWorkflowActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"assign","alert_id":"a-1","assignee":"alice","note":"triage"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -2012,7 +1977,6 @@ func TestRBACAuditorAlertWorkflowReadOnly(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/alerts", bytes.NewBufferString(`{"action":"assign","alert_id":"a-1"}`))
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -2097,7 +2061,6 @@ func TestRBACAuditorNotifyDeliveriesAllowed(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/control/deliveries", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -2154,7 +2117,6 @@ func TestNotifyDeliveryActionInjectsActorAndRole(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/deliveries", bytes.NewBufferString(`{"action":"replay","delivery_id":"dlq-1","note":"manual retry"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status code = %d", w.Code)
@@ -2188,7 +2150,6 @@ func TestNotifyDeliveryActionHeaderActorOverridesIdentity(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/deliveries", bytes.NewBufferString(`{"action":"replay","delivery_id":"dlq-1"}`))
-	req.Header.Set("X-API-Key", "admin-key")
 	req.Header.Set("X-ProvidAPT-Actor", "alice")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
@@ -2264,7 +2225,6 @@ func TestRBACAnalystDeliveryActionDenied(t *testing.T) {
 	ts.SetAPIAuth([]string{"analyst-key"}, map[string]string{"analyst-key": RoleAnalyst}, nil, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/control/deliveries", bytes.NewBufferString(`{"action":"replay","delivery_id":"dlq-1"}`))
-	req.Header.Set("X-API-Key", "analyst-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status code = %d", w.Code)
@@ -2424,7 +2384,6 @@ func TestRBACAuditorInvestigationReportAllowed(t *testing.T) {
 	ts.SetAPIAuth([]string{"auditor-key"}, map[string]string{"auditor-key": RoleAuditor}, nil, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/investigation/report?pid=100", nil)
-	req.Header.Set("X-API-Key", "auditor-key")
 	w := apiServe(ts, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("auditor investigation report status = %d: %s", w.Code, w.Body.String())

@@ -54,7 +54,7 @@ def check_config(config: Path) -> dict[str, Any]:
     for placeholder in ("replace-with", "change-me", "example.com"):
         if placeholder in text:
             warnings.append(f"config still contains placeholder marker {placeholder}")
-    for required in ("auth_enabled: true", "enable: true", "encrypt: true"):
+    for required in ("enable: true", "encrypt: true"):
         if required not in text:
             warnings.append(f"config does not visibly include {required}")
     return {"status": "blocked" if failures else ("warn" if warnings else "pass"), "path": str(config), "failures": failures, "warnings": warnings}

@@ -738,7 +738,7 @@ function boolState(value, onText, offText) {
 
 function renderDeploymentDiagnostics(diag) {
   const apiSecurity = [
-    'open-source',
+    boolState(diag.open_source_control_plane, 'open-source', 'custom'),
     boolState(diag.tls_enabled, 'tls', 'plain')
   ].join(' · ');
   const policyState = diag.policy_enabled ? ('v' + (diag.applied_policy_version || 0)) : 'disabled';

@@ -31,6 +31,6 @@ This directory contains practical ProvidAPT examples for local testing, API inte
 
 ## Safety Notes
 
-- Replace all sample API keys, tokens, TLS paths, and domains before production use.
+- Replace all sample tokens, TLS paths, and domains before production use.
 - Review every rule for customer environment fit before publishing.
 - Do not run production agents with local evaluation secrets.

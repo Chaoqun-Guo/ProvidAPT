@@ -6,11 +6,8 @@ Set common variables:
 
 ```bash
 export PROVIDAPT_URL=http://localhost:18080
-export PROVIDAPT_TOKEN=replace-with-api-token
-alias providapt_api='curl -fsS -H "Authorization: Bearer $PROVIDAPT_TOKEN"'
+alias providapt_api='curl -fsS'
 ```
-
-Use `X-API-Key: $PROVIDAPT_TOKEN` instead if your reverse proxy standardizes on API-key headers.
 
 ## Status and Overview
 

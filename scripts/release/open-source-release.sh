@@ -89,11 +89,6 @@ output:
 api:
   grpc: ":50051"
   rest: ":8080"
-  auth_enabled: true
-  auth_keys:
-    - release-admin-key
-  auth_roles:
-    release-admin-key: admin
   cors_origins:
     - https://soc.example.com
 control_plane:
@@ -106,7 +101,6 @@ storage:
 policy:
   enabled: true
   endpoint: http://127.0.0.1:8080
-  api_key: release-admin-key
   poll_interval: 30s
   bundle_dir: /var/log/providapt/applied-policy-bundles
 support_bundle:
@@ -424,11 +418,6 @@ output:
 api:
   grpc: ":50051"
   rest: ":18080"
-  auth_enabled: true
-  auth_keys:
-    - release-admin-key
-  auth_roles:
-    release-admin-key: admin
   cors_origins:
     - https://soc.example.com
 control_plane:
@@ -478,7 +467,7 @@ Status: generated release candidate evidence
 
 ## Known Limitations
 
-- Deployment-specific API keys, CORS origins, TLS material, SIEM tokens, and encryption keys must be replaced before production deployment.
+- Deployment-specific CORS origins, TLS material, SIEM tokens, and encryption keys must be replaced before production deployment.
 - Detached checksum signature should be produced with customer-approved signing infrastructure for final publication.
 - The built-in providapt-sign tool creates verifiable Ed25519 checksum signatures for air-gapped or operator-managed signing workflows.
 EOF

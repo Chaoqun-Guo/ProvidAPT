@@ -19,10 +19,8 @@ DEFAULT_MARKERS = [
 ]
 
 
-def fetch(url: str, api_key: str = "", timeout: float = 10.0) -> tuple[int, bytes, str]:
+def fetch(url: str, timeout: float = 10.0) -> tuple[int, bytes, str]:
     request = urllib.request.Request(url)
-    if api_key:
-        request.add_header("X-API-Key", api_key)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
         with opener.open(request, timeout=timeout) as response:
@@ -33,8 +31,8 @@ def fetch(url: str, api_key: str = "", timeout: float = 10.0) -> tuple[int, byte
         raise SystemExit(f"fetch failed for {url}: {exc}") from exc
 
 
-def load_json_url(base_url: str, path: str, api_key: str = "") -> dict[str, Any]:
-    status, body, _ = fetch(base_url.rstrip("/") + path, api_key)
+def load_json_url(base_url: str, path: str) -> dict[str, Any]:
+    status, body, _ = fetch(base_url.rstrip("/") + path)
     if status != 200:
         raise SystemExit(f"{path}: HTTP {status}: {body[:200]!r}")
     try:
@@ -76,16 +74,16 @@ def agent_summary(agent: dict[str, Any]) -> dict[str, Any]:
 def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
     failures: list[str] = []
     warnings: list[str] = []
-    status_doc = load_json_url(base_url, "/api/v1/status", args.api_key)
-    overview = load_json_url(base_url, "/api/v1/control/overview", args.api_key)
-    fleet = load_json_url(base_url, "/api/v1/control/fleet", args.api_key)
-    graph = load_json_url(base_url, "/api/v1/graph/export", args.api_key)
-    alerts = load_json_url(base_url, "/api/v1/control/alerts", args.api_key)
-    html_status, html_body, _ = fetch(base_url.rstrip("/") + "/dashboard", args.api_key)
+    status_doc = load_json_url(base_url, "/api/v1/status")
+    overview = load_json_url(base_url, "/api/v1/control/overview")
+    fleet = load_json_url(base_url, "/api/v1/control/fleet")
+    graph = load_json_url(base_url, "/api/v1/graph/export")
+    alerts = load_json_url(base_url, "/api/v1/control/alerts")
+    html_status, html_body, _ = fetch(base_url.rstrip("/") + "/dashboard")
     if html_status != 200:
         failures.append(f"dashboard returned HTTP {html_status}")
     dashboard_assets = html_body.decode("utf-8", errors="replace")
-    js_status, js_body, _ = fetch(base_url.rstrip("/") + "/assets/dashboard.js", args.api_key)
+    js_status, js_body, _ = fetch(base_url.rstrip("/") + "/assets/dashboard.js")
     if js_status != 200:
         failures.append(f"dashboard.js returned HTTP {js_status}")
     else:
@@ -182,7 +180,6 @@ def render_markdown(report: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify a deployed ProvidAPT control plane and reporting VM fleet.")
     parser.add_argument("--server", required=True, help="Control-plane base URL, for example http://vm-ubuntu-master.<TAILSCALE_DOMAIN>:18080")
-    parser.add_argument("--api-key", default="")
     parser.add_argument("--min-agents", type=int, default=3)
     parser.add_argument("--min-healthy", type=int, default=3)
     parser.add_argument("--max-report-age-seconds", type=int, default=30)

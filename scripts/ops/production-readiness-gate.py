@@ -30,10 +30,8 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def fetch_json(base_url: str, path: str, api_key: str = "", timeout: float = 10.0) -> dict[str, Any]:
+def fetch_json(base_url: str, path: str, timeout: float = 10.0) -> dict[str, Any]:
     request = urllib.request.Request(base_url.rstrip("/") + path)
-    if api_key:
-        request.add_header("X-API-Key", api_key)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             body = response.read()
@@ -176,7 +174,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         sections["postgres_state"] = check_postgres(load_json(Path(args.postgres_report)))
     if args.server:
         sections["fleet"] = check_fleet(
-            fetch_json(args.server, "/api/v1/control/fleet", args.api_key),
+            fetch_json(args.server, "/api/v1/control/fleet"),
             args.min_agents,
             args.min_healthy,
             args.max_report_age_seconds,
@@ -196,7 +194,6 @@ def main() -> int:
     parser.add_argument("--tls-manifest", default="build/tls/manifest.json")
     parser.add_argument("--postgres-report", default="")
     parser.add_argument("--server", default="")
-    parser.add_argument("--api-key", default="")
     parser.add_argument("--min-agents", type=int, default=3)
     parser.add_argument("--min-healthy", type=int, default=3)
     parser.add_argument("--max-report-age-seconds", type=int, default=60)

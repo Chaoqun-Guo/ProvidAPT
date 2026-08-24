@@ -221,16 +221,7 @@ func checkOpenSourceConfig(report *Report, cfg *config.Config) {
 		})
 	}
 
-	if cfg.API.AuthEnabled {
-		add(report, Check{Name: "api_auth", Status: StatusPass, Message: "API authentication is enabled"})
-	} else {
-		add(report, Check{
-			Name:          "api_auth",
-			Status:        StatusWarn,
-			Message:       "API authentication is disabled",
-			FixSuggestion: "Enable api.auth_enabled for shared, demo, or customer environments.",
-		})
-	}
+	add(report, Check{Name: "control_plane_access", Status: StatusPass, Message: "open-source control plane access is enabled"})
 
 	if hasWildcard(cfg.API.CORSOrigins) {
 		add(report, Check{

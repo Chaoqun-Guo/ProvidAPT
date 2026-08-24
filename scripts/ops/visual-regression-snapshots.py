@@ -5,7 +5,6 @@ import argparse
 import hashlib
 import importlib.util
 import json
-import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -158,7 +157,7 @@ def write_outputs(report: dict[str, Any], out_dir: Path) -> None:
     if diagnostics:
         lines[7:7] = [
             f"- Playwright available: `{str(diagnostics.get('playwright_available', False)).lower()}`",
-            f"- API credential supplied: `{str(diagnostics.get('api_key_supplied', False)).lower()}`",
+            f"- Control plane access: `{diagnostics.get('control_plane_access', 'open-source')}`",
             f"- Capture mode: `{diagnostics.get('mode', 'unknown')}`",
         ]
     comparison = report.get("comparison_summary") if isinstance(report.get("comparison_summary"), dict) else {}
@@ -278,14 +277,13 @@ def promote_baseline(report: dict[str, Any], baseline_dir_value: str) -> dict[st
     return promotion
 
 
-def capture(report: dict[str, Any], api_key: str, timeout_ms: int) -> dict[str, Any]:
+def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
         raise SystemExit("Playwright is not installed. Install with: python3 -m pip install playwright && python3 -m playwright install chromium") from exc
 
     failures: list[str] = []
-    headers = {"X-API-Key": api_key} if api_key else {}
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         try:
@@ -293,7 +291,6 @@ def capture(report: dict[str, Any], api_key: str, timeout_ms: int) -> dict[str, 
                 viewport = shot["viewport"]
                 page = browser.new_page(
                     viewport={"width": viewport["width"], "height": viewport["height"]},
-                    extra_http_headers=headers,
                 )
                 try:
                     page.goto(shot["url"], wait_until="networkidle", timeout=timeout_ms)
@@ -332,7 +329,7 @@ def capture_diagnostics(args: argparse.Namespace) -> dict[str, Any]:
         "mode": "dry-run" if args.dry_run else "capture",
         "server": args.server,
         "alert_id": args.alert_id,
-        "api_key_supplied": bool(args.api_key),
+        "control_plane_access": "open-source",
         "playwright_available": playwright_available,
         "playwright_install_hint": "" if playwright_available else "python3 -m pip install playwright && python3 -m playwright install chromium",
         "default_viewports": DEFAULT_VIEWPORTS,
@@ -557,7 +554,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Capture dashboard and trace viewer screenshots for visual regression review.")
     parser.add_argument("--server", required=True, help="ProvidAPT base URL, for example http://127.0.0.1:18080")
     parser.add_argument("--alert-id", default="p:100")
-    parser.add_argument("--api-key", default=os.environ.get("PROVIDAPT_API_KEY", ""))
     parser.add_argument("--out-dir", default="build/visual-regression")
     parser.add_argument("--baseline", default="", help="Existing visual-regression-snapshots.json to compare against")
     parser.add_argument("--promote-baseline", default="", help="Directory where passing captured screenshots should be copied as a new baseline")
@@ -575,7 +571,7 @@ def main() -> int:
     report = planned_manifest(args)
     if not args.dry_run:
         try:
-            report = capture(report, args.api_key, args.timeout_ms)
+            report = capture(report, args.timeout_ms)
         except SystemExit as exc:
             message = str(exc)
             report["status"] = "blocked"

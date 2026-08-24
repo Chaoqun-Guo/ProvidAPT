@@ -64,7 +64,7 @@ This file records the evidence required before publishing or handing off an open
 
 - The CentOS 4.18 validation host runs in compatibility mode with `kprobe_fallback`; Linux 5.11+ remains recommended for full BPF LSM coverage.
 - CI status could not be read from this workstation because GitHub CLI is not authenticated; remote CI remains the external source of truth after push.
-- Deployment-specific API keys, CORS origins, and encryption keys must be replaced before production deployment.
+- Deployment-specific CORS origins and encryption keys must be replaced before production deployment.
 
 ## Final Decision
 

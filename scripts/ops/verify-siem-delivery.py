@@ -17,7 +17,6 @@ def request_json(
     method: str,
     server: str,
     path: str,
-    api_key: str,
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     url = urljoin(server.rstrip("/") + "/", path.lstrip("/"))
@@ -26,8 +25,6 @@ def request_json(
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
     req = Request(url, data=body, headers=headers, method=method)
     with urlopen(req, timeout=15) as response:
         data = response.read()
@@ -56,7 +53,6 @@ def status_satisfies(status: dict[str, Any], require_forwarded: bool) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--server", required=True, help="Control-plane URL, for example http://localhost:18080")
-    parser.add_argument("--api-key", default="", help="Bearer token for authenticated control-plane APIs")
     parser.add_argument("--note", default="ops-siem-verify", help="Operator note attached to the test event")
     parser.add_argument("--wait-seconds", type=float, default=45.0, help="Maximum time to poll compliance status")
     parser.add_argument("--poll-interval", type=float, default=3.0, help="Seconds between status polls")
@@ -69,7 +65,6 @@ def main() -> int:
             "POST",
             args.server,
             "/api/v1/control/compliance",
-            args.api_key,
             {"action": "test_siem", "note": args.note, "actor": "ops-siem-verify"},
         )
         latest = siem_status(result)
@@ -77,7 +72,7 @@ def main() -> int:
             if status_satisfies(latest, args.require_forwarded):
                 print(json.dumps({"ok": True, "action_result": result, "siem": latest}, indent=2, sort_keys=True))
                 return 0
-            status = request_json("GET", args.server, "/api/v1/control/compliance", args.api_key)
+            status = request_json("GET", args.server, "/api/v1/control/compliance")
             latest = siem_status(status)
             time.sleep(args.poll_interval)
         print(

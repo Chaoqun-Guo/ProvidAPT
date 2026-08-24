@@ -93,7 +93,6 @@ func TestRunStrictReleaseReady(t *testing.T) {
 output:
   dir: /tmp/providapt
 api:
-  auth_enabled: true
   cors_origins: ["https://soc.example.com"]
 storage:
   encrypt: true
@@ -134,7 +133,6 @@ func TestRunWarnsOnStaleReleaseEvidenceCommit(t *testing.T) {
 output:
   dir: /tmp/providapt
 api:
-  auth_enabled: true
   cors_origins: ["https://soc.example.com"]
 storage:
   encrypt: true
@@ -260,7 +258,6 @@ func TestRunIgnoresExternalGateWaivers(t *testing.T) {
 output:
   dir: /tmp/providapt
 api:
-  auth_enabled: true
   cors_origins: ["https://soc.example.com"]
 storage:
   encrypt: true

@@ -30,10 +30,10 @@ class VerifyVMFleetTest(unittest.TestCase):
             "/api/v1/control/alerts": {"alerts": [{"id": "alert-a"}]},
         }
 
-        def fake_load_json(base_url, path, api_key=""):
+        def fake_load_json(base_url, path):
             return responses[path]
 
-        def fake_fetch(url, api_key="", timeout=10.0):
+        def fake_fetch(url, timeout=10.0):
             if url.endswith("/dashboard"):
                 return 200, b"<html><script src=\"/assets/dashboard.js\"></script></html>", "text/html"
             if url.endswith("/assets/dashboard.js"):
@@ -41,7 +41,6 @@ class VerifyVMFleetTest(unittest.TestCase):
             raise AssertionError(url)
 
         args = Namespace(
-            api_key="",
             min_agents=3,
             min_healthy=3,
             max_report_age_seconds=30,
@@ -69,14 +68,13 @@ class VerifyVMFleetTest(unittest.TestCase):
         }
 
         args = Namespace(
-            api_key="",
             min_agents=3,
             min_healthy=3,
             max_report_age_seconds=30,
             expected_commit="abc123",
             dashboard_markers=["missingMarker"],
         )
-        with mock.patch.object(verify_vm, "load_json_url", side_effect=lambda base, path, api_key="": responses[path]), mock.patch.object(verify_vm, "fetch", return_value=(200, b"dashboard", "text/html")):
+        with mock.patch.object(verify_vm, "load_json_url", side_effect=lambda base, path: responses[path]), mock.patch.object(verify_vm, "fetch", return_value=(200, b"dashboard", "text/html")):
             report = verify_vm.verify("http://server", args)
         self.assertEqual(report["status"], "blocked")
         self.assertTrue(any("expected at least" in item for item in report["failures"]))
@@ -110,7 +108,7 @@ class VerifyVMFleetTest(unittest.TestCase):
         sentinel_handler = object()
         with mock.patch.object(verify_vm.urllib.request, "ProxyHandler", return_value=sentinel_handler) as proxy_handler:
             with mock.patch.object(verify_vm.urllib.request, "build_opener", return_value=fake_opener) as build_opener:
-                status, body, content_type = verify_vm.fetch("http://vm-ubuntu-master:18080/api/v1/status", "key", timeout=3)
+                status, body, content_type = verify_vm.fetch("http://vm-ubuntu-master:18080/api/v1/status", timeout=3)
 
         self.assertEqual(status, 200)
         self.assertEqual(body, b"{}")

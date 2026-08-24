@@ -47,7 +47,7 @@ class VisualRegressionGateTest(unittest.TestCase):
                 "capture_diagnostics": {
                     "mode": "capture",
                     "server": "http://127.0.0.1:18080",
-                    "api_key_supplied": True,
+                    "control_plane_access": "open-source",
                     "playwright_available": True,
                     "requested_viewports": ["390x844", "1366x768", "1920x1080", "2560x1080"],
                 },

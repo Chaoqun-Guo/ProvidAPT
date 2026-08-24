@@ -17,7 +17,6 @@ const (
 // Client is a ProvidAPT API client.
 type Client struct {
 	baseURL    string
-	apiKey     string
 	httpClient *http.Client
 }
 
@@ -36,10 +35,10 @@ func New(baseURL string, opts ...Option) *Client {
 // Option configures a Client.
 type Option func(*Client)
 
-// WithAPIKey sets the API key for authentication.
+// WithAPIKey is kept as a deprecated compatibility no-op. ProvidAPT's
+// open-source API client does not attach built-in credentials.
 func WithAPIKey(key string) Option {
 	return func(c *Client) {
-		c.apiKey = key
 	}
 }
 
@@ -82,9 +81,6 @@ func (c *Client) post(path string, body, dst interface{}) error {
 }
 
 func (c *Client) do(req *http.Request, dst interface{}) error {
-	if c.apiKey != "" {
-		req.Header.Set("X-API-Key", c.apiKey)
-	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -172,8 +168,8 @@ type GraphMeta struct {
 
 // GraphElement is a graph node or edge.
 type GraphElement struct {
-	Group string        `json:"group"`
-	Data  ElementData   `json:"data"`
+	Group string      `json:"group"`
+	Data  ElementData `json:"data"`
 }
 
 // ElementData contains element-specific data.
@@ -229,10 +225,10 @@ func (c *Client) RecentEvents() ([]Event, error) {
 
 // Event is a provenance event.
 type Event struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	PID     uint32 `json:"pid"`
-	Comm    string `json:"comm"`
-	Path    string `json:"path,omitempty"`
-	Time    string `json:"time"`
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	PID  uint32 `json:"pid"`
+	Comm string `json:"comm"`
+	Path string `json:"path,omitempty"`
+	Time string `json:"time"`
 }

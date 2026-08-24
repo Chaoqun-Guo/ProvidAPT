@@ -96,7 +96,7 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
             self.assertEqual(manifest["schema"], "providapt.visual_regression_snapshots.v1")
             self.assertEqual(manifest["status"], "planned")
             self.assertEqual(manifest["capture_diagnostics"]["mode"], "dry-run")
-            self.assertFalse(manifest["capture_diagnostics"]["api_key_supplied"])
+            self.assertEqual(manifest["capture_diagnostics"]["control_plane_access"], "open-source")
             self.assertEqual(len(manifest["screenshots"]), 2)
             self.assertTrue(any("/dashboard" in item["url"] for item in manifest["screenshots"]))
             self.assertTrue(any("/api/v1/alerts/p%3A100/svg/view" in item["url"] for item in manifest["screenshots"]))

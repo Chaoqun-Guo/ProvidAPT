@@ -115,11 +115,10 @@ func TestClientAlerts(t *testing.T) {
 	}
 }
 
-func TestClientAPIKey(t *testing.T) {
+func TestClientAPIKeyOptionIsNoop(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-API-Key") != "test-key" {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+		if r.Header.Get("Accept") == "" {
+			t.Fatalf("expected Accept header to be present")
 		}
 		json.NewEncoder(w).Encode(map[string]string{"status": "running"})
 	}))
@@ -151,9 +150,6 @@ func TestClientOptions(t *testing.T) {
 		WithAPIKey("key"),
 		WithTimeout(5*time.Second),
 	)
-	if c.apiKey != "key" {
-		t.Errorf("apiKey = %q", c.apiKey)
-	}
 	if c.httpClient.Timeout != 5*time.Second {
 		t.Errorf("timeout = %v", c.httpClient.Timeout)
 	}

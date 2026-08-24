@@ -11,10 +11,7 @@
       "properties": {
         "rest": { "type": "string", "examples": [":8080"] },
         "grpc": { "type": "string", "examples": [":50051"] },
-        "auth_enabled": { "type": "boolean" },
-        "auth_keys": { "type": "array", "items": { "type": "string" } },
-        "auth_roles": { "type": "object", "additionalProperties": { "type": "string" } },
-        "auth_tenants": { "type": "object", "additionalProperties": { "type": "string" } },
+        "auth_permissions": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } },
         "cors_origins": { "type": "array", "items": { "type": "string" } }
       }
     },
@@ -101,7 +98,6 @@
       "additionalProperties": true,
       "properties": {
         "endpoint": { "type": "string" },
-        "api_key": { "type": "string" },
         "bundle_dir": { "type": "string" }
       }
     },

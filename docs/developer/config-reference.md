@@ -8,10 +8,7 @@ This reference summarizes the major ProvidAPT configuration sections. Use `provi
 | --- | --- |
 | `api.rest` | REST dashboard/API listener |
 | `api.grpc` | gRPC telemetry/API listener |
-| `api.auth_enabled` | enables API key or trusted-header authorization |
-| `api.auth_keys` | accepted API keys |
-| `api.auth_roles` | maps keys to roles |
-| `api.auth_tenants` | maps keys to fleet groups or tenants; use comma-separated values for managed multi-tenant scopes |
+| `api.auth_permissions` | optional custom role permissions for trusted-header deployments |
 | `api.cors_origins` | allowed browser origins |
 
 ## AI Analysis
@@ -92,7 +89,6 @@ output:
 | Field | Purpose |
 | --- | --- |
 | `policy.endpoint` | control-plane endpoint for policy bundle pulls |
-| `policy.api_key` | API key for policy operations |
 | `policy.bundle_dir` | applied policy bundle cache |
 
 ## Secrets
@@ -103,19 +99,17 @@ output:
 | `secrets.base_dir` | base directory for relative `file:<name>` secret references |
 | `secrets.vault` | config-managed Vault material map used by `vault:<key>` references |
 
-Sensitive fields such as `policy.api_key`, `siem.token`,
-`upgrade.signing_key`, and notification credentials can use:
+Sensitive fields such as `siem.token`, `upgrade.signing_key`, and notification
+credentials can use:
 
 ```yaml
 secrets:
   provider: vault
   base_dir: /run/secrets/providapt
   vault:
-    policy/api-key: "injected-by-config-management"
-policy:
-  api_key: vault:policy/api-key
+    siem/token: "injected-by-config-management"
 siem:
-  token: file:siem-token
+  token: vault:siem/token
 ```
 
 ## TLS Rotation

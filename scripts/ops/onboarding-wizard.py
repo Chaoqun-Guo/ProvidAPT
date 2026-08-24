@@ -25,11 +25,6 @@ def config_yaml(args: argparse.Namespace) -> str:
 api:
   grpc: ":{args.grpc_port}"
   rest: ":{args.rest_port}"
-  auth_enabled: true
-  auth_keys:
-    - ${{PROVIDAPT_API_AUTH_KEYS}}
-  auth_roles:
-    ${{PROVIDAPT_API_AUTH_KEYS}}: admin
 control_plane:
   mode: {args.mode}
   role: leader
@@ -40,7 +35,6 @@ storage:
 policy:
   enabled: true
   endpoint: {policy_endpoint}
-  api_key: ${{PROVIDAPT_POLICY_API_KEY}}
   poll_interval: 30s
 support_bundle:
   redact_archives: true
@@ -288,7 +282,7 @@ def operator_flow(args: argparse.Namespace, checks: list[dict[str, str]], action
             "configure",
             "Generate configuration",
             [onboarding_make_command(args), "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env"],
-            ["PROVIDAPT_API_AUTH_KEYS from the operator secret store", "TLS material or lab bootstrap certificates"],
+            ["TLS material or lab bootstrap certificates", "storage and SIEM secrets from the operator secret store"],
             "Config, secrets, and TLS checks are ready for first daemon start",
             check_status(checks, ["secrets", "tls"]),
         ),

@@ -82,10 +82,8 @@ def check_dashboard(path: Path) -> Dict[str, Any]:
     return {"status": "blocked" if failures else ("warn" if warnings else "pass"), "path": str(path), "panel_count": panels, "failures": failures, "warnings": warnings}
 
 
-def fetch(url: str, api_key: str = "") -> str:
+def fetch(url: str) -> str:
     request = urllib.request.Request(url)
-    if api_key:
-        request.add_header("X-API-Key", api_key)
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return response.read().decode("utf-8", errors="replace")
@@ -93,12 +91,12 @@ def fetch(url: str, api_key: str = "") -> str:
         raise SystemExit(f"fetch failed for {url}: {exc}") from exc
 
 
-def check_live(server: str, api_key: str) -> Dict[str, Any]:
+def check_live(server: str) -> Dict[str, Any]:
     if not server:
         return {"status": "skipped", "message": "server URL not supplied"}
     base = server.rstrip("/")
-    metrics = fetch(base + "/metrics", api_key)
-    status_text = fetch(base + "/api/v1/status", api_key)
+    metrics = fetch(base + "/metrics")
+    status_text = fetch(base + "/api/v1/status")
     failures = [f"live metrics missing {metric}" for metric in REQUIRED_METRICS if metric not in metrics]
     try:
         status = json.loads(status_text)
@@ -131,7 +129,7 @@ def build_report(args: argparse.Namespace) -> Dict[str, Any]:
         "prometheus": check_prometheus(Path(args.prometheus)),
         "alerts": check_alerts(Path(args.alerts)),
         "dashboard": check_dashboard(Path(args.dashboard)),
-        "live": check_live(args.server, args.api_key),
+        "live": check_live(args.server),
     }
     return {"schema": SCHEMA, "generated_at": utc_now(), "status": overall(sections), "sections": sections}
 
@@ -142,7 +140,6 @@ def main() -> int:
     parser.add_argument("--alerts", default="scripts/docker/providapt_alerts.yml")
     parser.add_argument("--dashboard", default="scripts/docker/providapt_dashboard.json")
     parser.add_argument("--server", default="")
-    parser.add_argument("--api-key", default="")
     parser.add_argument("--out-json", default="build/observability/observability-pack-check.json")
     parser.add_argument("--out-md", default="build/observability/observability-pack-check.md")
     args = parser.parse_args()

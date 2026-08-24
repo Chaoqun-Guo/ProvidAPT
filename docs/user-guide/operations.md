@@ -240,7 +240,7 @@ environment bypass defaults, and optional RBAC audit evidence. Configuration
 checks include API auth keys, restricted CORS origins, REST TLS certificate
 paths, TLS rotation settings, encrypted storage, approval workflow, support
 bundle redaction, agent telemetry TLS, HTTPS policy pulls, and a production
-secret backend (`file` or `vault`). Placeholder API keys or database passwords
+secret backend (`file` or `vault`). Placeholder database passwords
 are warnings in sample files and must be replaced by customer-approved secret
 material before release approval. eBPF-related systemd relaxations are reported
 as warnings so a release owner can explicitly approve them.
@@ -465,7 +465,7 @@ under `build/trace-stress/`. The JSON report also includes
 `evidence_summary` with the expected alert/layout matrix, missing pairs,
 per-layout pass/blocked counts, p50/p95/max latency, node-count ranges, and
 authentication diagnostics. If the API returns `401` or `403` without an API
-key, the report records a suggested `PROVIDAPT_API_KEY` action so failed
+evidence, the report records suggested remediation actions so failed
 release evidence is immediately actionable.
 
 For local development without a running API or real alert IDs, run the
@@ -835,7 +835,7 @@ setup, place a matching `*-attempt.json` record in `build/security`; the
 manifest includes those attempt details next to the missing report so release
 reviewers can distinguish not-run evidence from attempted-but-blocked evidence.
 Visual snapshot manifests include capture diagnostics for the browser runtime:
-capture mode, Playwright availability, API-key presence, requested viewports,
+capture mode, Playwright availability, control-plane access, requested viewports,
 server URL, and install hints. Use `DRY_RUN=1` with
 `ALLOW_PLANNED_VISUALS=1` to generate planning evidence, and omit both flags
 for release-blocking browser screenshots.

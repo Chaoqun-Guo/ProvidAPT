@@ -11,11 +11,10 @@ import (
 
 func main() {
 	baseURL := getenv("PROVIDAPT_URL", "http://localhost:18080")
-	token := os.Getenv("PROVIDAPT_TOKEN")
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	for _, path := range []string{"/api/v1/status", "/api/v1/control/fleet", "/api/v1/alerts"} {
-		body, err := get(client, baseURL+path, token)
+		body, err := get(client, baseURL+path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
 			continue
@@ -30,13 +29,10 @@ func main() {
 	}
 }
 
-func get(client *http.Client, url string, token string) ([]byte, error) {
+func get(client *http.Client, url string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
-	}
-	if token != "" {
-		req.Header.Set("X-API-Key", token)
 	}
 	resp, err := client.Do(req)
 	if err != nil {

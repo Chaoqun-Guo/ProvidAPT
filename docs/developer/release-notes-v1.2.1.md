@@ -44,7 +44,7 @@ This release moves ProvidAPT into a cleaner open-source-release posture by align
 
 Before rollout, confirm:
 
-- API key role mappings
+- trusted-header role mappings
 - license public key / revocation source settings
 - upgrade download URL, expected SHA256, signature path, and rollback plan
 - support bundle retention and redaction settings

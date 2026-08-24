@@ -65,7 +65,7 @@ type RuntimeDiagnostics struct {
 	Version                  string  `json:"version,omitempty"`
 	APIRest                  string  `json:"api_rest,omitempty"`
 	APIGRPC                  string  `json:"api_grpc,omitempty"`
-	APIAuthEnabled           bool    `json:"api_auth_enabled"`
+	OpenSourceControlPlane   bool    `json:"open_source_control_plane"`
 	TLSEnabled               bool    `json:"tls_enabled"`
 	MTLSEnabled              bool    `json:"mtls_enabled"`
 	KernelAttachmentMode     string  `json:"kernel_attachment_mode,omitempty"`
@@ -856,12 +856,7 @@ type Server struct {
 	mux                      *http.ServeMux
 	startTime                time.Time
 	reloadFn                 func() error
-	authKeys                 []string
-	authRoles                map[string]string
-	authIDs                  map[string]string
-	authTenants              map[string]string
 	authPermissions          map[string][]string
-	authEnabled              bool
 	trustedHeaderAuthEnabled bool
 	trustedUserHeader        string
 	trustedRoleHeader        string
@@ -1209,23 +1204,16 @@ func (s *Server) SetDefaultControlHandlers() {
 	}
 }
 
-// SetAPIKeyAuth enables API key authentication.
-// When enabled, requests must include X-API-Key header with a matching key.
-func (s *Server) SetAPIKeyAuth(keys []string, enabled bool) {
-	s.authKeys = keys
-	s.authEnabled = enabled
-}
+// SetAPIKeyAuth is kept as a deprecated compatibility no-op. The open-source
+// control plane no longer supports built-in credential gates.
+func (s *Server) SetAPIKeyAuth(_ []string, _ bool) {}
 
-func (s *Server) SetAPIAuth(keys []string, roles map[string]string, identities map[string]string, enabled bool) {
-	s.authKeys = keys
-	s.authRoles = roles
-	s.authIDs = identities
-	s.authEnabled = enabled
-}
+// SetAPIAuth is kept as a deprecated compatibility no-op. Operator identity is
+// now supplied either by trusted headers or by the default open-source actor.
+func (s *Server) SetAPIAuth(_ []string, _ map[string]string, _ map[string]string, _ bool) {}
 
-func (s *Server) SetAPIAuthTenants(tenants map[string]string) {
-	s.authTenants = tenants
-}
+// SetAPIAuthTenants is kept as a deprecated compatibility no-op.
+func (s *Server) SetAPIAuthTenants(_ map[string]string) {}
 
 func (s *Server) SetAPIAuthPermissions(permissions map[string][]string) {
 	s.authPermissions = permissions
@@ -1263,7 +1251,7 @@ func (s *Server) buildHandlerChain() http.Handler {
 		h = rateLimitMiddleware(s.rateLimiter)(h)
 	}
 	h = authorizationMiddleware(s.authPermissions)(h)
-	h = authMiddleware(s.authKeys, s.authRoles, s.authIDs, s.authTenants, s.authEnabled, trustedHeaderAuthConfig{
+	h = authMiddleware(trustedHeaderAuthConfig{
 		Enabled:      s.trustedHeaderAuthEnabled,
 		UserHeader:   s.trustedUserHeader,
 		RoleHeader:   s.trustedRoleHeader,
@@ -1281,9 +1269,7 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) Start() error {
 	metrics.MustRegister()
 	log.Printf("[api] listening on %s", s.addr)
-	if s.authEnabled {
-		log.Printf("[api] authentication enabled (%d key(s))", len(s.authKeys))
-	}
+	log.Printf("[api] open-source control plane access enabled")
 	if s.rateLimiter != nil {
 		log.Printf("[api] rate limiting enabled (%.0f req/s, burst %d)", s.rateLimiter.rate, s.rateLimiter.burst)
 	}

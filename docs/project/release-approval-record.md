@@ -29,7 +29,7 @@ This record captures release-blocking closure for an open-source release candida
 | --- | --- | --- | --- | --- |
 | GitHub Actions evidence is intentionally excluded from this release-blocking run | Public release cannot rely on this record alone | Attach authenticated GitHub Actions evidence before public publication | Release Engineering | Before public publication |
 | Grype and Trivy source scans are waived for this local run | Source and filesystem vulnerability evidence is incomplete | Run scanners in approved CI or security workstation before unrestricted release | Release Engineering / Security | 2026-08-10 |
-| API keys, TLS certificates, CORS origins, SIEM tokens, and encryption keys are environment-specific | Default artifacts cannot be deployed unchanged to production | Replace values during deployment with approved secret management and rerun operational readiness checks | Deployment owner | Before production rollout |
+| TLS certificates, CORS origins, SIEM tokens, and encryption keys are environment-specific | Default artifacts cannot be deployed unchanged to production | Replace values during deployment with approved secret management and rerun operational readiness checks | Deployment owner | Before production rollout |
 | Named owner approvals are not attached yet | This record is not sufficient for a public release | Replace pending decisions with named Engineering, Security, Legal/project-owner, and Maintainer approvals | Release owner | Before public release |
 
 ## Final Decision

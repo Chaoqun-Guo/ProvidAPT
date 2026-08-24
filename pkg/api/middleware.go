@@ -35,8 +35,8 @@ type trustedHeaderAuthConfig struct {
 }
 
 // authMiddleware preserves trusted-header identity support while keeping the
-// open-source control plane reachable without API-key credentials.
-func authMiddleware(_ []string, _ map[string]string, _ map[string]string, _ map[string]string, _ bool, trusted trustedHeaderAuthConfig) func(http.Handler) http.Handler {
+// open-source control plane reachable without built-in credentials.
+func authMiddleware(trusted trustedHeaderAuthConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if trusted.Enabled {
@@ -64,10 +64,6 @@ func authMiddleware(_ []string, _ map[string]string, _ map[string]string, _ map[
 			next.ServeHTTP(w, withActorName(withRole(r, RoleAdmin), "open-source-operator", RoleAdmin))
 		})
 	}
-}
-
-func isPublicDashboardShell(r *http.Request) bool {
-	return isPublicDashboardPath(r.Method, r.URL.Path)
 }
 
 func authorizationMiddleware(rolePermissions map[string][]string) func(http.Handler) http.Handler {

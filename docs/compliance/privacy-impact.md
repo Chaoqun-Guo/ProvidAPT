@@ -28,7 +28,7 @@ ProvidAPT is designed to collect metadata, not file contents. Customer configura
 - approve monitored hosts and data categories
 - configure redaction for sensitive paths and identifiers
 - set retention based on policy and law
-- protect API keys, SIEM tokens, TLS keys, and encryption material
+- protect SIEM tokens, TLS keys, and encryption material
 - review support bundles before external sharing
 - document employee notice or consent requirements where applicable
 

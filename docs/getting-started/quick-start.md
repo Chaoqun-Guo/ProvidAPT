@@ -45,7 +45,7 @@ sudo cp examples/config/providapt.local.toml /etc/providapt/providapt.toml
 providaptctl -config-check -config /etc/providapt/providapt.toml
 ```
 
-For production, replace every customer-specific value in `examples/config/providapt.production.yaml`, including API keys, TLS paths, CORS origins, SIEM token, and upgrade signatures.
+For production, replace every customer-specific value in `examples/config/providapt.production.yaml`, including TLS paths, CORS origins, SIEM token, and upgrade signatures.
 
 ## 4. Start the Services
 

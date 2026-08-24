@@ -45,7 +45,7 @@ This file records the evidence required before publishing or handing off the `v1
 - This candidate was built from the current working tree and records commit evidence as `6e459ff0-worktree`; create a clean commit and rebuild before immutable public publication.
 - Grype and Trivy were unavailable in the Linux rerun environment because Docker registry / Docker socket access was unavailable; Security approval is required if govulncheck-only evidence is accepted.
 - Container image archive was not generated. For air-gapped Docker handoff, rerun with `BUILD_CONTAINER=1 REQUIRED_ARTIFACTS=archive,deb,rpm,helm,monitoring,container`.
-- Deployment-specific API keys, CORS origins, TLS certificates, SIEM tokens, and encryption keys must be replaced before production deployment.
+- Deployment-specific CORS origins, TLS certificates, SIEM tokens, and encryption keys must be replaced before production deployment.
 
 ## Final Decision
 

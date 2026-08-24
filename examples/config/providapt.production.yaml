@@ -31,17 +31,6 @@ capture:
 api:
   grpc: ":50051"
   rest: ":18080"
-  auth_enabled: true
-  auth_keys:
-    - replace-with-customer-admin-api-key
-  auth_roles:
-    replace-with-customer-admin-api-key: admin
-    replace-with-mssp-operator-key: operator
-  auth_identities:
-    replace-with-customer-admin-api-key: customer-admin
-    replace-with-mssp-operator-key: managed-operator
-  auth_tenants:
-    replace-with-mssp-operator-key: prod,staging
   cors_origins:
     - https://soc.example.com
   rate_limit_per_sec: 20
@@ -102,7 +91,6 @@ telemetry:
 policy:
   enabled: true
   endpoint: https://cp-0.example.com:18080
-  api_key: env:PROVIDAPT_POLICY_API_KEY
   poll_interval: 30s
   bundle_dir: /var/log/providapt/applied-policy-bundles
   enable_tls: true
