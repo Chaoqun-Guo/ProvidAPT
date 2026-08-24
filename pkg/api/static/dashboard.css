@@ -2358,6 +2358,143 @@ button[data-action-kind="warning"],
   gap: 12px;
 }
 
+/* Visual gate hardening: keep dense operator cards stable at mobile and wide sizes. */
+.dashboard-panel .policy-grid,
+.dashboard-panel .mini-metrics,
+.dashboard-panel .delivery-summary,
+.workflow-summary-grid,
+.metrics {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)) !important;
+}
+
+.mini-card,
+.policy-item,
+.agent-card,
+.agent-head,
+.agent-meta,
+.agent-env,
+.card,
+.sidebar-status,
+.alert-item,
+.detail-row,
+.detail-value {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mini-card .value,
+.mini-card .label,
+.policy-item .value,
+.policy-item .label,
+.card .value,
+.card .label,
+.sidebar-status .value,
+.sidebar-status .label,
+.agent-card span,
+.agent-name,
+.detail-value {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.mini-card .value,
+.policy-item .value,
+.card .value {
+  line-height: 1.15;
+}
+
+.agent-meta,
+.agent-env {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+
+#diagAPI,
+#diagControl,
+#diagPolicy,
+#diagTelemetry,
+#diagStorage {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.alert-item .alert-time {
+  flex: 0 1 128px;
+  max-width: 128px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: right;
+}
+
+.dashboard-panel[data-panel-id="investigation-console"] .policy-editor.wide {
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, 132px));
+  align-items: stretch;
+}
+
+.dashboard-panel[data-panel-id="investigation-console"] .policy-editor.wide button {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.file-picker {
+  min-height: 32px;
+  height: auto;
+}
+
+.file-picker-name {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 520px) {
+  .dashboard-panel .policy-grid,
+  .dashboard-panel .mini-metrics,
+  .dashboard-panel .delivery-summary,
+  .workflow-summary-grid,
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-panel .action-row,
+  .dashboard-panel .console-toolbar,
+  .dashboard-panel .fleet-toolbar,
+  .dashboard-panel .ground-truth-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-panel .action-row button,
+  .dashboard-panel .console-toolbar button,
+  .dashboard-panel .fleet-toolbar button,
+  .dashboard-panel .ground-truth-toolbar button {
+    max-width: none;
+  }
+
+  .dashboard-panel[data-panel-id="investigation-console"] .policy-editor.wide {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-panel[data-panel-id="investigation-console"] .policy-editor.wide input {
+    grid-column: 1 / -1;
+  }
+
+  .alert-item .alert-time {
+    flex-basis: 92px;
+    max-width: 92px;
+  }
+
+  .agent-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 .panel h2 {
   color: var(--operator-text) !important;
   font-size: 13px;

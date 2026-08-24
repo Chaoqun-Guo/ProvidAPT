@@ -8,10 +8,10 @@
 //
 // Modes (in order of preference):
 //
-//   ModeFentry — fentry/fexit + fmod_ret + LSM (kernel ≥5.11, optimal)
-//   ModeKprobe — kprobe/kretprobe + LSM        (kernel ≥5.5, fallback)
-//   ModeTrace  — tracepoints only               (kernel ≥4.7, minimal)
-//   ModeNone   — no eBPF support
+//	ModeFentry — fentry/fexit + fmod_ret + LSM (kernel ≥5.11, optimal)
+//	ModeKprobe — kprobe/kretprobe + LSM        (kernel ≥5.5, fallback)
+//	ModeTrace  — tracepoints only               (kernel ≥4.7, minimal)
+//	ModeNone   — no eBPF support
 package probe
 
 import (
@@ -26,10 +26,10 @@ import (
 type Mode int
 
 const (
-	ModeNone    Mode = 0
-	ModeTrace   Mode = 1
-	ModeKprobe  Mode = 2
-	ModeFentry  Mode = 3
+	ModeNone   Mode = 0
+	ModeTrace  Mode = 1
+	ModeKprobe Mode = 2
+	ModeFentry Mode = 3
 )
 
 func (m Mode) String() string {
@@ -95,14 +95,14 @@ func ReleaseString() string {
 
 // Result is returned by Probe().
 type Result struct {
-	Mode        Mode   `json:"mode"`
-	ModeName    string `json:"mode_name"`
-	KernelVer   string `json:"kernel_version"`
-	BTFAvailable bool  `json:"btf_available"`
-	BpfLSM      bool   `json:"bpf_lsm"`
-	HasFentry   bool   `json:"has_fentry"`
-	HasKprobe   bool   `json:"has_kprobe"`
-	Reason      string `json:"reason,omitempty"`
+	Mode         Mode   `json:"mode"`
+	ModeName     string `json:"mode_name"`
+	KernelVer    string `json:"kernel_version"`
+	BTFAvailable bool   `json:"btf_available"`
+	BpfLSM       bool   `json:"bpf_lsm"`
+	HasFentry    bool   `json:"has_fentry"`
+	HasKprobe    bool   `json:"has_kprobe"`
+	Reason       string `json:"reason,omitempty"`
 }
 
 // Probe detects the optimal eBPF attachment mode.
@@ -184,10 +184,10 @@ func checkBpfLSM() bool {
 // In production, this controls which BPF programs to load and how.
 func (r *Result) Structopt() map[string]interface{} {
 	return map[string]interface{}{
-		"mode":        r.Mode.String(),
-		"use_lsm":     r.BpfLSM,
-		"use_fentry":  r.HasFentry,
-		"use_kprobe":  r.HasKprobe,
-		"btf_avail":   r.BTFAvailable,
+		"mode":       r.Mode.String(),
+		"use_lsm":    r.BpfLSM,
+		"use_fentry": r.HasFentry,
+		"use_kprobe": r.HasKprobe,
+		"btf_avail":  r.BTFAvailable,
 	}
 }

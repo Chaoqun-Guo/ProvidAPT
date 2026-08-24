@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Pattern matcher tests ───────────────────────────────────
@@ -174,7 +174,7 @@ func TestSummaryFromMatch(t *testing.T) {
 func TestSummaryMarkdown(t *testing.T) {
 	as := &AlertSummary{
 		Title: "Test Alert", Severity: "CRITICAL",
-		AttackPath: "p:1 → p:2",
+		AttackPath:  "p:1 → p:2",
 		KeyEntities: []string{"bash (process)"},
 	}
 	md := as.Markdown()

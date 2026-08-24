@@ -50,15 +50,15 @@ EXAMPLES
 
 func main() {
 	var (
-		pid         = flag.Int("pid", 0, "Malicious process PID")
-		nodeID      = flag.String("node", "", "Malicious node ID (p:1234)")
-		graphPath   = flag.String("graph", "/var/log/providapt/provenance.json", "Provenance graph JSON path")
-		dryRun      = flag.Bool("dry-run", true, "Preview actions without executing")
-		rollback    = flag.Bool("rollback", false, "Execute rollback (kill procs, quarantine files)")
-		firewall    = flag.Bool("firewall", false, "Block C2 IPs via iptables/nftables")
-		output      = flag.String("output", "", "Save impact report to file")
-		maxDepth    = flag.Int("depth", 5, "Max traversal depth")
-		jsonOut     = flag.Bool("json", false, "Output in JSON format")
+		pid       = flag.Int("pid", 0, "Malicious process PID")
+		nodeID    = flag.String("node", "", "Malicious node ID (p:1234)")
+		graphPath = flag.String("graph", "/var/log/providapt/provenance.json", "Provenance graph JSON path")
+		dryRun    = flag.Bool("dry-run", true, "Preview actions without executing")
+		rollback  = flag.Bool("rollback", false, "Execute rollback (kill procs, quarantine files)")
+		firewall  = flag.Bool("firewall", false, "Block C2 IPs via iptables/nftables")
+		output    = flag.String("output", "", "Save impact report to file")
+		maxDepth  = flag.Int("depth", 5, "Max traversal depth")
+		jsonOut   = flag.Bool("json", false, "Output in JSON format")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -167,7 +167,6 @@ func loadGraph(path string) *provenance.Graph {
 	if err := json.Unmarshal(data, &cyto); err != nil {
 		clioutput.Fatalf("Parse graph: %v", err)
 	}
-
 
 	return graph
 }

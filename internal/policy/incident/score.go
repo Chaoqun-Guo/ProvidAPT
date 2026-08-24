@@ -15,11 +15,11 @@ import (
 // ScoreConfig controls scoring parameters.
 type ScoreConfig struct {
 	// Base scores per event type
-	ExecScore      float64
-	FileWriteScore float64
+	ExecScore       float64
+	FileWriteScore  float64
 	NetConnectScore float64
-	MemfdScore     float64
-	MprotectScore  float64
+	MemfdScore      float64
+	MprotectScore   float64
 
 	// Multipliers
 	SensitivePathMultiplier float64 // ×2 for /etc/shadow etc.
@@ -27,19 +27,19 @@ type ScoreConfig struct {
 	PathLengthMultiplier    float64 // ×0.1 per hop
 
 	// Thresholds
-	MediumThreshold float64
-	HighThreshold   float64
+	MediumThreshold   float64
+	HighThreshold     float64
 	CriticalThreshold float64
 }
 
 // DefaultScoreConfig returns default scoring parameters.
 func DefaultScoreConfig() *ScoreConfig {
 	return &ScoreConfig{
-		ExecScore:      20,
-		FileWriteScore: 10,
+		ExecScore:       20,
+		FileWriteScore:  10,
 		NetConnectScore: 15,
-		MemfdScore:     60,
-		MprotectScore:  100,
+		MemfdScore:      60,
+		MprotectScore:   100,
 
 		SensitivePathMultiplier: 2.0,
 		TaintMultiplier:         1.5,

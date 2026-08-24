@@ -30,10 +30,10 @@ type Incident struct {
 
 // IncidentManager aggregates and deduplicates alerts.
 type IncidentManager struct {
-	mu         sync.Mutex
-	incidents  map[string]*Incident // keyed by pattern + hash of nodes
-	window     time.Duration        // merge window (default 5 min)
-	resolveAfter time.Duration      // auto-resolve after (default 30 min)
+	mu           sync.Mutex
+	incidents    map[string]*Incident // keyed by pattern + hash of nodes
+	window       time.Duration        // merge window (default 5 min)
+	resolveAfter time.Duration        // auto-resolve after (default 30 min)
 }
 
 // NewIncidentManager creates an incident manager.

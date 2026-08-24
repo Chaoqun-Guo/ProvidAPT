@@ -6,8 +6,8 @@ package provenance
 import (
 	"testing"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 func TestAddMemfdEvent(t *testing.T) {

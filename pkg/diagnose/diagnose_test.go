@@ -42,12 +42,12 @@ func TestCollectCreatesArchive(t *testing.T) {
 
 	tr := tar.NewReader(gzr)
 	expected := map[string]bool{
-		"kernel.txt":   false,
-		"probes.json":  false,
-		"errors.log":   false,
+		"kernel.txt":    false,
+		"probes.json":   false,
+		"errors.log":    false,
 		"resources.txt": false,
-		"config.json":  false,
-		"metrics.txt":  false,
+		"config.json":   false,
+		"metrics.txt":   false,
 		"buildinfo.txt": false,
 	}
 	for {

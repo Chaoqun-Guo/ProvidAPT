@@ -16,21 +16,21 @@ import (
 
 // IsolationEngine executes isolation commands on the local agent.
 type IsolationEngine struct {
-	mu      sync.Mutex
-	uidBlock   map[uint32]time.Time   // UID → expiry
-	commBlock  map[string]time.Time   // comm → expiry
-	fileLocks  map[string]time.Time   // file hash → expiry
-	ipBlock    map[string]time.Time   // IP → expiry
+	mu           sync.Mutex
+	uidBlock     map[uint32]time.Time // UID → expiry
+	commBlock    map[string]time.Time // comm → expiry
+	fileLocks    map[string]time.Time // file hash → expiry
+	ipBlock      map[string]time.Time // IP → expiry
 	processBlock map[uint32]time.Time // PID → expiry
 }
 
 // NewIsolationEngine creates an isolation engine.
 func NewIsolationEngine() *IsolationEngine {
 	return &IsolationEngine{
-		uidBlock:   make(map[uint32]time.Time),
-		commBlock:  make(map[string]time.Time),
-		fileLocks:  make(map[string]time.Time),
-		ipBlock:    make(map[string]time.Time),
+		uidBlock:     make(map[uint32]time.Time),
+		commBlock:    make(map[string]time.Time),
+		fileLocks:    make(map[string]time.Time),
+		ipBlock:      make(map[string]time.Time),
 		processBlock: make(map[uint32]time.Time),
 	}
 }
@@ -109,10 +109,10 @@ func (ie *IsolationEngine) BlockedCounts() map[string]int {
 	ie.mu.Lock()
 	defer ie.mu.Unlock()
 	return map[string]int{
-		"uid_blocks":    len(ie.uidBlock),
-		"comm_blocks":   len(ie.commBlock),
-		"file_locks":    len(ie.fileLocks),
-		"ip_blocks":     len(ie.ipBlock),
+		"uid_blocks":     len(ie.uidBlock),
+		"comm_blocks":    len(ie.commBlock),
+		"file_locks":     len(ie.fileLocks),
+		"ip_blocks":      len(ie.ipBlock),
 		"process_blocks": len(ie.processBlock),
 	}
 }

@@ -40,7 +40,7 @@ func DefaultDetectorConfig() *DetectorConfig {
 
 // DetectorResult is returned by the detector for each analysed subgraph.
 type DetectorResult struct {
-	SubgraphRoot string       `json:"subgraph_root"`
+	SubgraphRoot string        `json:"subgraph_root"`
 	Features     FeatureVector `json:"features"`
 	AnomalyScore float64       `json:"anomaly_score"`
 	IsAnomaly    bool          `json:"is_anomaly"`
@@ -169,10 +169,10 @@ func (md *MLDetector) GlobalStats(graph *provenance.Graph) map[string]float64 {
 		}
 	}
 	return map[string]float64{
-		"count":          float64(len(results)),
-		"mean_score":     total / float64(len(results)),
-		"max_score":      max,
-		"anomaly_count":  anomalyCount,
-		"anomaly_ratio":  anomalyCount / float64(len(results)),
+		"count":         float64(len(results)),
+		"mean_score":    total / float64(len(results)),
+		"max_score":     max,
+		"anomaly_count": anomalyCount,
+		"anomaly_ratio": anomalyCount / float64(len(results)),
 	}
 }

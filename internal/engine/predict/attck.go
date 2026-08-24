@@ -4,14 +4,14 @@
 // Package predict implements a prediction engine for ProvidAPT that
 // helps security teams stay ahead of attackers.  It provides:
 //
-//   1. Intention prediction — match partial attack graphs against
-//      MITRE ATT&CK chains to predict the attacker's next move.
+//  1. Intention prediction — match partial attack graphs against
+//     MITRE ATT&CK chains to predict the attacker's next move.
 //
-//   2. Blast radius calculation — real-time assessment of all
-//      assets reachable from a compromised process.
+//  2. Blast radius calculation — real-time assessment of all
+//     assets reachable from a compromised process.
 //
-//   3. Automated defense recommendations — actionable remediation
-//      suggestions based on the attack context.
+//  3. Automated defense recommendations — actionable remediation
+//     suggestions based on the attack context.
 package predict
 
 import (
@@ -27,10 +27,10 @@ import (
 
 // ATTACKPhase represents a phase in the attack lifecycle.
 type ATTACKPhase struct {
-	Phase      string `json:"phase"`      // "initial-access", "execution", etc.
-	Technique  string `json:"technique"`  // T1190, T1059, etc.
+	Phase         string `json:"phase"`          // "initial-access", "execution", etc.
+	Technique     string `json:"technique"`      // T1190, T1059, etc.
 	TechniqueName string `json:"technique_name"` // "Exploit Public-Facing Application"
-	Signal     string `json:"signal"`     // provenance pattern to detect this
+	Signal        string `json:"signal"`         // provenance pattern to detect this
 }
 
 // ATTACKChain is a complete attack flow.

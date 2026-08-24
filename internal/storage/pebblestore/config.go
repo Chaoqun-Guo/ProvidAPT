@@ -4,9 +4,9 @@
 // Package store — RocksDB (Pebble) performance tuning
 //
 // Optimisations for high-throughput provenance data:
-//   1. Bloom filters — accelerate point lookups on SSTables
-//   2. Leveled compaction — optimised for time-decaying access
-//   3. Block cache — LRU cache for edge index queries
+//  1. Bloom filters — accelerate point lookups on SSTables
+//  2. Leveled compaction — optimised for time-decaying access
+//  3. Block cache — LRU cache for edge index queries
 package pebblestore
 
 import (
@@ -41,7 +41,6 @@ func DefaultPebbleOptions(dbPath string) *pebble.Options {
 		// Stop writes if L0 exceeds 4 files
 		L0StopWritesThreshold: 4,
 
-
 		// Max compaction goroutines
 		MaxConcurrentCompactions: func() int {
 			n := runtime.NumCPU() / 2
@@ -72,9 +71,10 @@ func DefaultPebbleOptions(dbPath string) *pebble.Options {
 //
 // Each SSTable gets a Bloom filter of `bitsPerKey` bits per key.
 // Recommended values:
-//   10 — 1% false positive rate, ~10% space overhead
-//   20 — 0.1% false positive rate, ~20% space overhead
-//   5  — 10% false positive rate, ~5% space overhead (minimal)
+//
+//	10 — 1% false positive rate, ~10% space overhead
+//	20 — 0.1% false positive rate, ~20% space overhead
+//	5  — 10% false positive rate, ~5% space overhead (minimal)
 func WithBloomFilters(opts *pebble.Options, bitsPerKey int) *pebble.Options {
 	if bitsPerKey <= 0 {
 		bitsPerKey = 10 // default: 1% FPR
@@ -166,10 +166,10 @@ func ApplyCompactionConfig(opts *pebble.Options, cfg *CompactionConfig) *pebble.
 // CacheSize returns the recommended block cache size based on
 // available system memory.
 //
-//   < 4 GB:  128 MB cache
-//   4-8 GB:  256 MB cache
-//   8-16 GB: 512 MB cache
-//   > 16 GB: 1 GB cache
+//	< 4 GB:  128 MB cache
+//	4-8 GB:  256 MB cache
+//	8-16 GB: 512 MB cache
+//	> 16 GB: 1 GB cache
 func CacheSize() int64 {
 	total := detectMemoryMB()
 	switch {

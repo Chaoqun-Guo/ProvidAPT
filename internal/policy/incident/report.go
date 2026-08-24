@@ -15,18 +15,18 @@ import (
 
 // IncidentReport is the enriched output for an incident.
 type IncidentReport struct {
-	IncidentID    string    `json:"incident_id"`
-	GeneratedAt   time.Time `json:"generated_at"`
-	RiskScore     float64   `json:"risk_score"`
-	RiskLevel     string    `json:"risk_level"`
-	AlertCount    int       `json:"alert_count"`
+	IncidentID  string    `json:"incident_id"`
+	GeneratedAt time.Time `json:"generated_at"`
+	RiskScore   float64   `json:"risk_score"`
+	RiskLevel   string    `json:"risk_level"`
+	AlertCount  int       `json:"alert_count"`
 
-	EntryPoint    string    `json:"entry_point"`     // initial compromise
-	FarthestPoint string    `json:"farthest_point"`  // deepest impact
-	AttackChain   []string  `json:"attack_chain"`    // step-by-step
+	EntryPoint    string   `json:"entry_point"`    // initial compromise
+	FarthestPoint string   `json:"farthest_point"` // deepest impact
+	AttackChain   []string `json:"attack_chain"`   // step-by-step
 
-	Briefing      string    `json:"briefing"`        // natural language summary
-	TTPs          []string  `json:"ttps,omitempty"`  // MITRE ATT&CK refs
+	Briefing string   `json:"briefing"`       // natural language summary
+	TTPs     []string `json:"ttps,omitempty"` // MITRE ATT&CK refs
 }
 
 // ReportGenerator creates context-enriched incident reports.

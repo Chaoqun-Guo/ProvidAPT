@@ -7,17 +7,17 @@
 //
 // Architecture:
 //
-//   PAM Module (C)           → Login Event (username, IP, session_id)
-//        │
-//        ▼
-//   SessionTracker (Go)      → BPF Map: PID → Identity
-//        │
-//        ├── fork → identity propagates to child
-//        ├── sudo → identity preserved (with escalation flag)
-//        └── exit → identity cleaned up
-//        │
-//        ▼
-//   IdentityEnricher (Go)    → Provenance Graph gets identity attributes
+//	PAM Module (C)           → Login Event (username, IP, session_id)
+//	     │
+//	     ▼
+//	SessionTracker (Go)      → BPF Map: PID → Identity
+//	     │
+//	     ├── fork → identity propagates to child
+//	     ├── sudo → identity preserved (with escalation flag)
+//	     └── exit → identity cleaned up
+//	     │
+//	     ▼
+//	IdentityEnricher (Go)    → Provenance Graph gets identity attributes
 //
 // Result: Every process node shows "employee A via SSH session X",
 // even after sudo, su, or container boundary crossing.
@@ -37,15 +37,15 @@ import (
 
 // Identity holds the user identity for a process.
 type Identity struct {
-	UserID       string    `json:"user_id"`       // LDAP UID / login name
-	SessionID    string    `json:"session_id"`    // SSH session / login session
-	SourceIP     string    `json:"source_ip"`     // login source IP (SSH)
-	AuthMethod   string    `json:"auth_method"`   // password, pubkey, MFA, ldap
-	MFAStatus    string    `json:"mfa_status"`    // verified, skipped, failed
-	LoginTime    time.Time `json:"login_time"`
-	OriginalUID  uint32    `json:"original_uid"`  // UID at login time
-	CurrentUID   uint32    `json:"current_uid"`   // UID now (may have changed)
-	Escalated    bool      `json:"escalated"`      // true if sudo/su was used
+	UserID      string    `json:"user_id"`     // LDAP UID / login name
+	SessionID   string    `json:"session_id"`  // SSH session / login session
+	SourceIP    string    `json:"source_ip"`   // login source IP (SSH)
+	AuthMethod  string    `json:"auth_method"` // password, pubkey, MFA, ldap
+	MFAStatus   string    `json:"mfa_status"`  // verified, skipped, failed
+	LoginTime   time.Time `json:"login_time"`
+	OriginalUID uint32    `json:"original_uid"` // UID at login time
+	CurrentUID  uint32    `json:"current_uid"`  // UID now (may have changed)
+	Escalated   bool      `json:"escalated"`    // true if sudo/su was used
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -59,7 +59,7 @@ type LoginEvent struct {
 	SourceIP   string `json:"source_ip"`
 	AuthMethod string `json:"auth_method"`
 	MFAStatus  string `json:"mfa_status"`
-	PID        int    `json:"pid"`         // shell PID after login
+	PID        int    `json:"pid"` // shell PID after login
 	Timestamp  int64  `json:"timestamp_ns"`
 }
 
@@ -69,7 +69,7 @@ type LoginEvent struct {
 
 // SessionTracker maintains the mapping from PIDs to identities.
 type SessionTracker struct {
-	mu      sync.RWMutex
+	mu       sync.RWMutex
 	sessions map[string]*Identity // session_id → identity
 	byPID    map[uint32]string    // PID → session_id
 }

@@ -17,16 +17,16 @@ import (
 
 // VerifyReport is the output of a full integrity check.
 type VerifyReport struct {
-	TotalRecords    int      `json:"total_records"`
-	ChainIntact     bool     `json:"chain_intact"`
-	HMACValid       bool     `json:"hmac_valid"`
-	Gaps            int      `json:"gaps"`
-	Breakpoints     []int64  `json:"breakpoints"`
-	FirstRecord     string   `json:"first_hash"`
-	LatestRecord    string   `json:"latest_hash"`
-	AnchorsFound    int      `json:"anchors_found"`
-	AnchorsMatched  int      `json:"anchors_matched"`
-	Issues          []string `json:"issues"`
+	TotalRecords   int      `json:"total_records"`
+	ChainIntact    bool     `json:"chain_intact"`
+	HMACValid      bool     `json:"hmac_valid"`
+	Gaps           int      `json:"gaps"`
+	Breakpoints    []int64  `json:"breakpoints"`
+	FirstRecord    string   `json:"first_hash"`
+	LatestRecord   string   `json:"latest_hash"`
+	AnchorsFound   int      `json:"anchors_found"`
+	AnchorsMatched int      `json:"anchors_matched"`
+	Issues         []string `json:"issues"`
 }
 
 // Verify performs a full integrity check on the chain store.

@@ -9,18 +9,19 @@
 //
 // Example Sigma rule:
 //
-//   title: Suspicious Shadow File Access
-//   logsource:
-//     category: file_access
-//   detection:
-//     selection:
-//       Image: /bin/bash
-//       Target: /etc/shadow
-//     condition: selection
-//   level: high
+//	title: Suspicious Shadow File Access
+//	logsource:
+//	  category: file_access
+//	detection:
+//	  selection:
+//	    Image: /bin/bash
+//	    Target: /etc/shadow
+//	  condition: selection
+//	level: high
 //
 // This is mapped to a graph query:
-//   match: process("bash") → used → file("/etc/shadow")
+//
+//	match: process("bash") → used → file("/etc/shadow")
 package sigma
 
 import (
@@ -29,8 +30,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/pkg/plugin"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/plugin"
 	"gopkg.in/yaml.v3"
 )
 
@@ -40,17 +41,17 @@ import (
 
 // Rule represents a parsed Sigma rule.
 type Rule struct {
-	Title       string            `yaml:"title"`
-	ID          string            `yaml:"id"`
-	Description string            `yaml:"description"`
-	Author      string            `yaml:"author"`
-	Date        string            `yaml:"date"`
-	Level       string            `yaml:"level"` // low, medium, high, critical
-	Tags        []string          `yaml:"tags"`
-	LogSource   LogSource         `yaml:"logsource"`
-	Detection   Detection         `yaml:"detection"`
-	FalsePositives []string       `yaml:"falsepositives"`
-	Raw         map[string]interface{} `yaml:",inline"`
+	Title          string                 `yaml:"title"`
+	ID             string                 `yaml:"id"`
+	Description    string                 `yaml:"description"`
+	Author         string                 `yaml:"author"`
+	Date           string                 `yaml:"date"`
+	Level          string                 `yaml:"level"` // low, medium, high, critical
+	Tags           []string               `yaml:"tags"`
+	LogSource      LogSource              `yaml:"logsource"`
+	Detection      Detection              `yaml:"detection"`
+	FalsePositives []string               `yaml:"falsepositives"`
+	Raw            map[string]interface{} `yaml:",inline"`
 }
 
 // LogSource describes the provenance event category.
@@ -72,8 +73,8 @@ type Detection struct {
 
 // SigmaRulePlugin executes Sigma rules against provenance graphs.
 type SigmaRulePlugin struct {
-	Name_  string
-	Rules  []*Rule
+	Name_ string
+	Rules []*Rule
 }
 
 func (p *SigmaRulePlugin) Name() string { return p.Name_ }

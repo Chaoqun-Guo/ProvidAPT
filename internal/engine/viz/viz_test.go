@@ -463,7 +463,6 @@ func TestExtractSubgraphWithOptsTimeout(t *testing.T) {
 
 // ─── Helper ───────────────────────────────────────────────────
 
-
 // ─── Partial extraction tests ─────────────────────────────────
 
 func TestExtractPartialFirstLevel(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -323,7 +323,10 @@ func TestPrunerExtraSet(t *testing.T) {
 }
 
 func TestIsPathSensitive(t *testing.T) {
-	tests := []struct{ path string; sensitive bool }{
+	tests := []struct {
+		path      string
+		sensitive bool
+	}{
 		{"/etc/shadow", true},
 		{"/etc/passwd", true},
 		{"/root/.bashrc", true},

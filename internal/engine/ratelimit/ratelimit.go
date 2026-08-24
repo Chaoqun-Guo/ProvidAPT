@@ -37,13 +37,13 @@ var eventPriority = map[uint32]int{
 	21: PriorityCritical, // EV_NET_ACCEPT
 	50: PriorityCritical, // EV_MEMFD_CREATE
 	51: PriorityCritical, // EV_MPROTECT_RX
-	1:  PriorityHigh,    // EV_PROCESS_FORK
-	11: PriorityHigh,    // EV_FILE_CREATE
-	12: PriorityHigh,    // EV_FILE_MODIFY
-	13: PriorityHigh,    // EV_FILE_DELETE
-	10: PriorityNormal,  // EV_FILE_OPEN
-	52: PriorityNormal,  // EV_PIPE_WRITE
-	53: PriorityNormal,  // EV_PIPE_READ
+	1:  PriorityHigh,     // EV_PROCESS_FORK
+	11: PriorityHigh,     // EV_FILE_CREATE
+	12: PriorityHigh,     // EV_FILE_MODIFY
+	13: PriorityHigh,     // EV_FILE_DELETE
+	10: PriorityNormal,   // EV_FILE_OPEN
+	52: PriorityNormal,   // EV_PIPE_WRITE
+	53: PriorityNormal,   // EV_PIPE_READ
 }
 
 // Low-risk path prefixes — dropped first under pressure.
@@ -81,11 +81,11 @@ type Config struct {
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		QueueHighWaterMark:      0.8,
-		QueueLowWaterMark:       0.5,
-		MaxQueueSize:            10000,
-		SampleInterval:          2 * time.Second,
-		DropLogInterval:         10 * time.Second,
+		QueueHighWaterMark:       0.8,
+		QueueLowWaterMark:        0.5,
+		MaxQueueSize:             10000,
+		SampleInterval:           2 * time.Second,
+		DropLogInterval:          10 * time.Second,
 		EnableKernelBackpressure: true,
 	}
 }
@@ -103,7 +103,7 @@ type BPFRateLimiter interface {
 // DropStats tracks what was dropped during rate limiting.
 type DropStats struct {
 	mu           sync.Mutex
-	byPriority   map[int]int64  // priority → count dropped
+	byPriority   map[int]int64    // priority → count dropped
 	byEventType  map[uint32]int64 // event type → count dropped
 	totalDropped int64
 	lastLogTime  time.Time
@@ -121,7 +121,7 @@ type RateLimiter struct {
 	queueDepth atomic.Int64
 
 	// Whether we are currently rate-limiting
-	throttling atomic.Bool
+	throttling    atomic.Bool
 	throttleLevel atomic.Int64 // 0=off, 1=light, 2=aggressive
 
 	// Drop tracking
@@ -141,7 +141,7 @@ func New(cfg *Config, bpf BPFRateLimiter) *RateLimiter {
 	}
 	rl := &RateLimiter{
 		cfg:        cfg,
-		bpfBPF:    bpf,
+		bpfBPF:     bpf,
 		lowRiskSet: lowRiskPaths,
 		stopCh:     make(chan struct{}),
 	}
@@ -252,9 +252,10 @@ func (rl *RateLimiter) signalKernel(level int64) {
 // Returns true if the event should be dropped.
 //
 // Priority-based drop rules:
-//   Level 1 (light): drop PriorityLow events only
-//   Level 2 (aggressive): drop PriorityLow + PriorityNormal
-//   Level 0 (off): never drop
+//
+//	Level 1 (light): drop PriorityLow events only
+//	Level 2 (aggressive): drop PriorityLow + PriorityNormal
+//	Level 0 (off): never drop
 func (rl *RateLimiter) ShouldDrop(eventType uint32, pathname string) bool {
 	level := rl.throttleLevel.Load()
 	if level == 0 {
@@ -340,11 +341,11 @@ func (rl *RateLimiter) Stats() map[string]interface{} {
 	rl.drops.mu.Unlock()
 
 	return map[string]interface{}{
-		"throttling":     rl.throttling.Load(),
-		"throttle_level": rl.throttleLevel.Load(),
-		"queue_depth":    rl.QueueDepth(),
-		"max_queue":      rl.cfg.MaxQueueSize,
-		"total_dropped":  total,
+		"throttling":               rl.throttling.Load(),
+		"throttle_level":           rl.throttleLevel.Load(),
+		"queue_depth":              rl.QueueDepth(),
+		"max_queue":                rl.cfg.MaxQueueSize,
+		"total_dropped":            total,
 		"priority_critical_events": 0,
 	}
 }

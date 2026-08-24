@@ -72,9 +72,9 @@ func (de *DefenseEngine) containmentRecs(nodeID, comm string, pid uint32) []*Def
 		strings.Contains(lower, "nc") || strings.Contains(lower, "ncat") {
 		recs = append(recs, &DefenseRecommendation{
 			Priority: "IMMEDIATE", Action: "contain",
-			Target: fmt.Sprintf("PID %d", pid),
+			Target:     fmt.Sprintf("PID %d", pid),
 			Suggestion: fmt.Sprintf("Immediately terminate PID %d (%s) and block its outbound connections", pid, comm),
-			Rationale: "Network-capable process in suspicious context — likely C2 or exfiltration",
+			Rationale:  "Network-capable process in suspicious context — likely C2 or exfiltration",
 		})
 	}
 
@@ -82,9 +82,9 @@ func (de *DefenseEngine) containmentRecs(nodeID, comm string, pid uint32) []*Def
 	if strings.Contains(lower, "bash") || strings.Contains(lower, "sh") {
 		recs = append(recs, &DefenseRecommendation{
 			Priority: "HIGH", Action: "contain",
-			Target: fmt.Sprintf("PID %d", pid),
+			Target:     fmt.Sprintf("PID %d", pid),
 			Suggestion: fmt.Sprintf("Investigate shell process PID %d — determine if it was legitimately invoked", pid),
-			Rationale: "Interactive shell in automated/service context may indicate backdoor access",
+			Rationale:  "Interactive shell in automated/service context may indicate backdoor access",
 		})
 	}
 
@@ -100,23 +100,23 @@ func (de *DefenseEngine) predictionRecs(pred *PredictionResult) []*DefenseRecomm
 		case strings.Contains(next, "credential-access") || strings.Contains(next, "T1003"):
 			recs = append(recs, &DefenseRecommendation{
 				Priority: "HIGH", Action: "prevent",
-				Target: "/etc/shadow and /etc/passwd",
+				Target:     "/etc/shadow and /etc/passwd",
 				Suggestion: "Restrict read access to /etc/shadow using appropriate permissions and auditd rules",
-				Rationale: "Predictor indicates credential dumping is the likely next step",
+				Rationale:  "Predictor indicates credential dumping is the likely next step",
 			})
 		case strings.Contains(next, "lateral-movement") || strings.Contains(next, "T1021"):
 			recs = append(recs, &DefenseRecommendation{
 				Priority: "IMMEDIATE", Action: "contain",
-				Target: "SSH service",
+				Target:     "SSH service",
 				Suggestion: "Temporarily restrict SSH access from this host using iptables/nftables",
-				Rationale: "Predictor indicates lateral movement via SSH is imminent",
+				Rationale:  "Predictor indicates lateral movement via SSH is imminent",
 			})
 		case strings.Contains(next, "persistence") || strings.Contains(next, "T1505"):
 			recs = append(recs, &DefenseRecommendation{
 				Priority: "HIGH", Action: "detect",
-				Target: "System binaries and startup scripts",
+				Target:     "System binaries and startup scripts",
 				Suggestion: "Audit recent modifications to system binaries and startup scripts",
-				Rationale: "Predictor indicates persistence mechanism installation",
+				Rationale:  "Predictor indicates persistence mechanism installation",
 			})
 		}
 	}
@@ -133,9 +133,9 @@ func (de *DefenseEngine) blastRecs(blast *BlastRadius) []*DefenseRecommendation 
 		if f.Critical {
 			recs = append(recs, &DefenseRecommendation{
 				Priority: "CRITICAL", Action: "contain",
-				Target: f.Label,
+				Target:     f.Label,
 				Suggestion: fmt.Sprintf("Isolate container/host — K8s secrets at risk via %s", f.Label),
-				Rationale: "Critical credential/config file within blast radius",
+				Rationale:  "Critical credential/config file within blast radius",
 			})
 		}
 	}

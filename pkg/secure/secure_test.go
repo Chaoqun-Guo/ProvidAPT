@@ -125,7 +125,7 @@ type memAnchorStore struct {
 	data map[string][]byte
 }
 
-func newMemAnchor() *memAnchorStore { return &memAnchorStore{data: make(map[string][]byte)} }
+func newMemAnchor() *memAnchorStore                    { return &memAnchorStore{data: make(map[string][]byte)} }
 func (m *memAnchorStore) Put(k string, v []byte) error { m.data[k] = v; return nil }
 func (m *memAnchorStore) Get(k string) ([]byte, error) { v, _ := m.data[k]; return v, nil }
 
@@ -379,4 +379,3 @@ func stringContains(s, substr string) bool {
 	}
 	return false
 }
-

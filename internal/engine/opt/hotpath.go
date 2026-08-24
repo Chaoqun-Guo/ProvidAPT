@@ -21,17 +21,17 @@ type PathEntry struct {
 	Key string `json:"key"`
 
 	// Source and target node IDs
-	Source string `json:"source"`
-	Target string `json:"target"`
+	Source   string `json:"source"`
+	Target   string `json:"target"`
 	Relation string `json:"relation"`
 
 	// Cached data (pre-joined subgraph summary)
 	SubgraphSummary string `json:"subgraph_summary,omitempty"`
 
 	// Timestamps
-	FirstSeen  time.Time `json:"first_seen"`
-	LastSeen   time.Time `json:"last_seen"`
-	AccessCount int      `json:"access_count"`
+	FirstSeen   time.Time `json:"first_seen"`
+	LastSeen    time.Time `json:"last_seen"`
+	AccessCount int       `json:"access_count"`
 
 	// Internal LRU list element
 	element *list.Element
@@ -41,13 +41,13 @@ type PathEntry struct {
 // provenance graph paths.  Reduces RocksDB reads by serving
 // repeated queries from memory.
 type HotPathCache struct {
-	mu       sync.RWMutex
-	entries  map[string]*PathEntry // key → entry
-	lru      *list.List            // LRU ordering
-	maxSize  int                   // default 10000
-	ttl      time.Duration         // default 5 min
-	hits     int64
-	misses   int64
+	mu      sync.RWMutex
+	entries map[string]*PathEntry // key → entry
+	lru     *list.List            // LRU ordering
+	maxSize int                   // default 10000
+	ttl     time.Duration         // default 5 min
+	hits    int64
+	misses  int64
 }
 
 // NewHotPathCache creates an LRU hot path cache.
@@ -178,12 +178,12 @@ func (hc *HotPathCache) Stats() map[string]interface{} {
 		hitRate = float64(hc.hits) / float64(total) * 100.0
 	}
 	return map[string]interface{}{
-		"size":       hc.lru.Len(),
-		"max_size":   hc.maxSize,
-		"ttl":        hc.ttl.String(),
-		"hits":       hc.hits,
-		"misses":     hc.misses,
-		"hit_rate":   fmt.Sprintf("%.1f%%", hitRate),
+		"size":     hc.lru.Len(),
+		"max_size": hc.maxSize,
+		"ttl":      hc.ttl.String(),
+		"hits":     hc.hits,
+		"misses":   hc.misses,
+		"hit_rate": fmt.Sprintf("%.1f%%", hitRate),
 	}
 }
 

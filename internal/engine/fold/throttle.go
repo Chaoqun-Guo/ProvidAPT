@@ -52,13 +52,13 @@ func DefaultThrottleConfig() *ThrottleConfig {
 
 // ThrottleController adjusts aggregation thresholds based on CPU load.
 type ThrottleController struct {
-	cfg       *ThrottleConfig
-	agg       *IOAggregator
-	filter    *RedundancyFilter
-	mu        sync.Mutex
+	cfg           *ThrottleConfig
+	agg           *IOAggregator
+	filter        *RedundancyFilter
+	mu            sync.Mutex
 	currentWindow time.Duration
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
+	stopCh        chan struct{}
+	wg            sync.WaitGroup
 }
 
 // NewThrottleController creates a throttle controller.

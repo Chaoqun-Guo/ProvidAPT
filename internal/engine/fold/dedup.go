@@ -20,18 +20,18 @@ import (
 // In production, this logic runs in eBPF using a BPF_MAP_TYPE_HASH.
 // The userspace component manages configuration and monitors stats.
 type RedundancyFilter struct {
-	mu      sync.Mutex
-	cache   map[string]*CacheEntry
-	ttl     time.Duration // how long to cache results
-	suppr   int64         // suppressed events count
-	passed  int64         // passed events count
+	mu     sync.Mutex
+	cache  map[string]*CacheEntry
+	ttl    time.Duration // how long to cache results
+	suppr  int64         // suppressed events count
+	passed int64         // passed events count
 }
 
 // CacheEntry stores a cached syscall result.
 type CacheEntry struct {
-	Result   int         `json:"result"`   // return value (0=success, -1=error)
-	CachedAt time.Time   `json:"cached_at"`
-	Count    int         `json:"count"`    // how many times this was repeated
+	Result   int       `json:"result"` // return value (0=success, -1=error)
+	CachedAt time.Time `json:"cached_at"`
+	Count    int       `json:"count"` // how many times this was repeated
 }
 
 // NewRedundancyFilter creates a redundancy filter.
@@ -100,10 +100,10 @@ func (rf *RedundancyFilter) Stats() map[string]interface{} {
 		efficiency = float64(rf.suppr) / float64(total) * 100.0
 	}
 	return map[string]interface{}{
-		"cache_size":  len(rf.cache),
-		"passed":      rf.passed,
-		"suppressed":  rf.suppr,
-		"efficiency":  fmt.Sprintf("%.1f%%", efficiency),
-		"ttl":         rf.ttl.String(),
+		"cache_size": len(rf.cache),
+		"passed":     rf.passed,
+		"suppressed": rf.suppr,
+		"efficiency": fmt.Sprintf("%.1f%%", efficiency),
+		"ttl":        rf.ttl.String(),
 	}
 }

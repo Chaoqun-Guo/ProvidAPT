@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	jsonMode   = false
-	colorsOn   = true
+	jsonMode = false
+	colorsOn = true
 )
 
 // Init initialises the output package. Call once at program start.

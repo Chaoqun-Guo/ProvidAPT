@@ -8,18 +8,18 @@
 //
 // Dimensions (inspired by ATT&CK):
 //
-//   C2              — network callback / beaconing
-//   SENSITIVE_FILE  — access to /etc/shadow, /root/* etc.
-//   PRIV_ESC        — setuid / credential change
-//   PERSISTENCE     — cron, rc.d, systemd unit writes
-//   LATERAL_MOVE    — SSH, scp, remote copy
-//   INJECTION       — ptrace, /proc/*/mem access
+//	C2              — network callback / beaconing
+//	SENSITIVE_FILE  — access to /etc/shadow, /root/* etc.
+//	PRIV_ESC        — setuid / credential change
+//	PERSISTENCE     — cron, rc.d, systemd unit writes
+//	LATERAL_MOVE    — SSH, scp, remote copy
+//	INJECTION       — ptrace, /proc/*/mem access
 //
 // Each dimension has a base weight.  When multiple dimensions hit
 // the same subgraph, the score compounds non-linearly:
 //
-//   combined = sum(weights) * multiplier(count)
-//   where multiplier = 1 + 0.5 * (count - 1)   for count > 1
+//	combined = sum(weights) * multiplier(count)
+//	where multiplier = 1 + 0.5 * (count - 1)   for count > 1
 package scoring
 
 import (
@@ -27,8 +27,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/pkg/plugin"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/plugin"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -268,7 +268,7 @@ func (p *ScoringPlugin) Analyse(snap *provenance.Graph) []*plugin.Finding {
 		return []*plugin.Finding{
 			{
 				PluginName: p.Name_,
-				Title:      fmt.Sprintf("Multi-dimensional attack: %d signals (score=%.1f, level=%s)",
+				Title: fmt.Sprintf("Multi-dimensional attack: %d signals (score=%.1f, level=%s)",
 					result.HitCount, result.TotalScore, result.RiskLevel),
 				Severity: result.RiskLevel,
 				Score:    result.TotalScore,

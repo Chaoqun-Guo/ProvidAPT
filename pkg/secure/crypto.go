@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	AESKeySize   = 32 // 256-bit
-	NonceSize    = 12 // AES-GCM standard nonce
+	AESKeySize   = 32     // 256-bit
+	NonceSize    = 12     // AES-GCM standard nonce
 	pbkdf2Iters  = 600000 // OWASP 2023 recommended minimum for SHA-256
 	pbkdf2KeyLen = 32
 )

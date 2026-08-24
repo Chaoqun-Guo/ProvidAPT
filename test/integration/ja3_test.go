@@ -16,14 +16,14 @@ import (
 // buildMinimalClientHello creates a minimal TLS Client Hello packet.
 func buildMinimalClientHello(cipherIDs []uint16, extTypes []uint16) []byte {
 	var p []byte
-	p = append(p, 0x16)                                     // ContentType: Handshake
-	p = append(p, 0x03, 0x01)                               // Version: TLS 1.0
-	p = append(p, 0x00, 0x00)                               // Length (placeholder)
+	p = append(p, 0x16)       // ContentType: Handshake
+	p = append(p, 0x03, 0x01) // Version: TLS 1.0
+	p = append(p, 0x00, 0x00) // Length (placeholder)
 
 	// Handshake: Client Hello
-	p = append(p, 0x01)                                     // HandshakeType: Client Hello
-	p = append(p, 0x00, 0x00, 0x00)                         // Length (placeholder)
-	p = append(p, 0x03, 0x03)                               // Version: TLS 1.2
+	p = append(p, 0x01)             // HandshakeType: Client Hello
+	p = append(p, 0x00, 0x00, 0x00) // Length (placeholder)
+	p = append(p, 0x03, 0x03)       // Version: TLS 1.2
 
 	// Random (32 bytes)
 	for i := 0; i < 32; i++ {

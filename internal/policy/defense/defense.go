@@ -4,14 +4,14 @@
 // Package defense provides runtime self-protection for ProvidAPT
 // through eBPF-backed mechanisms:
 //
-//   1. Log protection — registers RocksDB storage inodes with the
-//      kernel eBPF program to prevent unauthorised writes.
+//  1. Log protection — registers RocksDB storage inodes with the
+//     kernel eBPF program to prevent unauthorised writes.
 //
-//   2. Death monitoring — registers the agent PID so the kernel
-//      can emit EV_AGENT_KILLED events if the process is killed.
+//  2. Death monitoring — registers the agent PID so the kernel
+//     can emit EV_AGENT_KILLED events if the process is killed.
 //
-//   3. Watchdog integration — exposes an event channel consumed by
-//      the providapt-watchdog binary.
+//  3. Watchdog integration — exposes an event channel consumed by
+//     the providapt-watchdog binary.
 package defense
 
 import (
@@ -20,8 +20,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cilium/ebpf"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/cilium/ebpf"
 )
 
 // ─── Constants (matching kernel/bpf/defense.bpf.c) ────────

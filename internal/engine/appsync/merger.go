@@ -29,17 +29,17 @@ import (
 
 // TransactionNode represents a merged application-level transaction.
 type TransactionNode struct {
-	ID         string    `json:"id"`
-	Label      string    `json:"label"`       // "HTTP GET /admin/config"
-	Method     string    `json:"method"`      // HTTP method or SQL command
-	Path       string    `json:"path"`        // URL path or query
-	RequestID  string    `json:"request_id"`
-	PID        uint32    `json:"pid"`
-	TID        uint32    `json:"tid"`
-	AppName    string    `json:"app_name"`
-	StartTime  time.Time `json:"start_time"`
-	EndTime    time.Time `json:"end_time,omitempty"`
-	Duration   string    `json:"duration,omitempty"`
+	ID        string    `json:"id"`
+	Label     string    `json:"label"`  // "HTTP GET /admin/config"
+	Method    string    `json:"method"` // HTTP method or SQL command
+	Path      string    `json:"path"`   // URL path or query
+	RequestID string    `json:"request_id"`
+	PID       uint32    `json:"pid"`
+	TID       uint32    `json:"tid"`
+	AppName   string    `json:"app_name"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time,omitempty"`
+	Duration  string    `json:"duration,omitempty"`
 
 	// Associated resources identified during this transaction
 	FilesRead    []string `json:"files_read,omitempty"`

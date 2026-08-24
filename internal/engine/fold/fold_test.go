@@ -21,8 +21,8 @@ func TestNewIOAggregator(t *testing.T) {
 
 func TestRecordIO(t *testing.T) {
 	ia := NewIOAggregator()
-	ia.RecordIO(100, "bash", 3, 0, 4096)  // read
-	ia.RecordIO(100, "bash", 3, 0, 2048)  // read (same key)
+	ia.RecordIO(100, "bash", 3, 0, 4096) // read
+	ia.RecordIO(100, "bash", 3, 0, 2048) // read (same key)
 
 	ia.mu.Lock()
 	key := AggKey{PID: 100, FD: 3, OpType: 0}
@@ -143,8 +143,8 @@ func TestCheckFirstCall(t *testing.T) {
 func TestCheckSuppressRepeat(t *testing.T) {
 	rf := NewRedundancyFilter(time.Minute)
 
-	rf.Check(100, 217, "/etc", 0)  // first — pass
-	suppr := rf.Check(100, 217, "/etc", 0)  // repeat — suppress
+	rf.Check(100, 217, "/etc", 0)          // first — pass
+	suppr := rf.Check(100, 217, "/etc", 0) // repeat — suppress
 
 	if suppr {
 		t.Error("same result should be suppressed")
@@ -159,7 +159,7 @@ func TestCheckSuppressRepeat(t *testing.T) {
 func TestCheckDifferentResult(t *testing.T) {
 	rf := NewRedundancyFilter(time.Minute)
 
-	rf.Check(100, 217, "/etc", 0)   // first
+	rf.Check(100, 217, "/etc", 0)          // first
 	pass := rf.Check(100, 217, "/etc", -1) // different result — should pass
 
 	if !pass {
@@ -170,9 +170,9 @@ func TestCheckDifferentResult(t *testing.T) {
 func TestCheckTTLExpiry(t *testing.T) {
 	rf := NewRedundancyFilter(time.Nanosecond)
 
-	rf.Check(100, 217, "/etc", 0)  // first
+	rf.Check(100, 217, "/etc", 0) // first
 	time.Sleep(10 * time.Millisecond)
-	pass := rf.Check(100, 217, "/etc", 0)  // TTL expired — should pass
+	pass := rf.Check(100, 217, "/etc", 0) // TTL expired — should pass
 
 	if !pass {
 		t.Log("repeat after TTL expiry may still be suppressed")

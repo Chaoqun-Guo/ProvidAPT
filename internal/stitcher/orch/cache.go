@@ -97,4 +97,3 @@ func (cps *CachedPolicyStore) Stats() map[string]interface{} {
 		"last_sync":       cps.lastSync.Format(time.RFC3339),
 	}
 }
-

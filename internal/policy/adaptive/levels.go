@@ -7,27 +7,29 @@
 //
 // Monitoring levels:
 //
-//   Level 1 (DEFAULT) — Core events only:
-//     exec, fork, socket_connect
-//     No path resolution, no file detail
+//	Level 1 (DEFAULT) — Core events only:
+//	  exec, fork, socket_connect
+//	  No path resolution, no file detail
 //
-//   Level 2 (SUSPICIOUS) — Detailed event capture:
-//     File open/read/write with full paths
-//     Socket data flow tracking
-//     Environment variable snapshots
+//	Level 2 (SUSPICIOUS) — Detailed event capture:
+//	  File open/read/write with full paths
+//	  Socket data flow tracking
+//	  Environment variable snapshots
 //
-//   Level 3 (INVESTIGATING) — Full forensic capture:
-//     All syscall tracing (kprobes)
-//     Memory mapping (mmap, mprotect)
-//     Process memory dumps
-//     Context captures
+//	Level 3 (INVESTIGATING) — Full forensic capture:
+//	  All syscall tracing (kprobes)
+//	  Memory mapping (mmap, mprotect)
+//	  Process memory dumps
+//	  Context captures
 //
 // Dynamic policy delivery:
-//   Analyzer detects alert → AdaptiveController.Upgrade(pid)
-//     → Writes PID→Level2/3 to BPF map → eBPF enforces within 1µs
+//
+//	Analyzer detects alert → AdaptiveController.Upgrade(pid)
+//	  → Writes PID→Level2/3 to BPF map → eBPF enforces within 1µs
 //
 // Feedback loop:
-//   10-minute cooldown timer → no new alerts → downgrade to Level 1
+//
+//	10-minute cooldown timer → no new alerts → downgrade to Level 1
 package adaptive
 
 import "fmt"
@@ -40,11 +42,11 @@ import "fmt"
 type Level int
 
 const (
-	LevelDefault      Level = 1 // Core events only
-	LevelSuspicious   Level = 2 // Full file, socket, env detail
+	LevelDefault       Level = 1 // Core events only
+	LevelSuspicious    Level = 2 // Full file, socket, env detail
 	LevelInvestigating Level = 3 // Full syscall + memory + dump
-	LevelMax          Level = 3
-	LevelMin          Level = 1
+	LevelMax           Level = 3
+	LevelMin           Level = 1
 )
 
 func (l Level) String() string {

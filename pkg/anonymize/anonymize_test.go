@@ -96,7 +96,10 @@ func TestHMACKeyManagement(t *testing.T) {
 }
 
 func TestIsAnonymizedPath(t *testing.T) {
-	tests := []struct{ s string; want bool }{
+	tests := []struct {
+		s    string
+		want bool
+	}{
 		{"a3f8b2c1e4d5f6a7", true},
 		{"/etc/shadow", false},
 		{"short", false},

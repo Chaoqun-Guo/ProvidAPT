@@ -50,8 +50,8 @@ type bpfLsmHooks struct {
 
 // bpfNetwork holds programs and maps from network.bpf.c.
 type bpfNetwork struct {
-	ProbeNetConnect *ebpf.Program `ebpf:"probe_net_connect"`
+	ProbeNetConnect    *ebpf.Program `ebpf:"probe_net_connect"`
 	ProbeSocketConnect *ebpf.Program `ebpf:"probe_socket_connect"`
-	ProbeSocketAccept *ebpf.Program `ebpf:"probe_socket_accept"`
-	RbNetwork         *ebpf.Map     `ebpf:"rb_network"`
+	ProbeSocketAccept  *ebpf.Program `ebpf:"probe_socket_accept"`
+	RbNetwork          *ebpf.Map     `ebpf:"rb_network"`
 }

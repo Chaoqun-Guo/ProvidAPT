@@ -17,15 +17,15 @@ import (
 
 // HoneyAlert is emitted when a honey path is accessed.
 type HoneyAlert struct {
-	Timestamp   time.Time `json:"timestamp"`
-	PID         uint32    `json:"pid"`
-	Comm        string    `json:"comm"`
-	Path        string    `json:"path"`
-	PathDesc    string    `json:"path_description"`
-	Severity    string    `json:"severity"` // always CRITICAL
-	TTPRef      string    `json:"ttp_ref"`
-	Category    string    `json:"category"`
-	Action      string    `json:"action"` // read, stat, write
+	Timestamp time.Time `json:"timestamp"`
+	PID       uint32    `json:"pid"`
+	Comm      string    `json:"comm"`
+	Path      string    `json:"path"`
+	PathDesc  string    `json:"path_description"`
+	Severity  string    `json:"severity"` // always CRITICAL
+	TTPRef    string    `json:"ttp_ref"`
+	Category  string    `json:"category"`
+	Action    string    `json:"action"` // read, stat, write
 }
 
 // AlertHandler is called when a honey path is triggered.

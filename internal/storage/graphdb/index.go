@@ -152,9 +152,8 @@ func (gi *GlobalIndex) Stats() map[string]interface{} {
 	gi.mu.RLock()
 	defer gi.mu.RUnlock()
 	return map[string]interface{}{
-		"by_host_id": len(gi.byHostID),
-		"by_ip":      len(gi.byIP),
+		"by_host_id":  len(gi.byHostID),
+		"by_ip":       len(gi.byIP),
 		"by_identity": len(gi.byIdent),
 	}
 }
-

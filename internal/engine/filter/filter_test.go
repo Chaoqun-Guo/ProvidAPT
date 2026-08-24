@@ -6,8 +6,8 @@ package filter
 import (
 	"testing"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Hash tests ──────────────────────────────────────────────
@@ -51,8 +51,8 @@ type memStore struct {
 	data map[string][]byte
 }
 
-func newMemStore() *memStore { return &memStore{data: make(map[string][]byte)} }
-func (m *memStore) Get(key string) ([]byte, error) { v, _ := m.data[key]; return v, nil }
+func newMemStore() *memStore                           { return &memStore{data: make(map[string][]byte)} }
+func (m *memStore) Get(key string) ([]byte, error)     { v, _ := m.data[key]; return v, nil }
 func (m *memStore) Put(key string, value []byte) error { m.data[key] = value; return nil }
 
 func TestBaselineRecordAndKnown(t *testing.T) {
@@ -124,7 +124,10 @@ func TestBaselineTrainingRemaining(t *testing.T) {
 
 func TestRepScoreComm(t *testing.T) {
 	r := NewReputation()
-	tests := []struct{ comm string; minScore int }{
+	tests := []struct {
+		comm     string
+		minScore int
+	}{
 		{"systemd", 80},
 		{"bash", 30},
 		{"curl", 20},
@@ -141,7 +144,10 @@ func TestRepScoreComm(t *testing.T) {
 
 func TestRepScorePath(t *testing.T) {
 	r := NewReputation()
-	tests := []struct{ path string; minScore, maxScore int }{
+	tests := []struct {
+		path               string
+		minScore, maxScore int
+	}{
 		{"/usr/bin/nginx", 80, 100},
 		{"/bin/ls", 80, 100},
 		{"/tmp/evil.sh", 0, 10},
@@ -161,7 +167,10 @@ func TestRepScorePath(t *testing.T) {
 
 func TestRepClassify(t *testing.T) {
 	r := NewReputation()
-	tests := []struct{ score int; expected string }{
+	tests := []struct {
+		score    int
+		expected string
+	}{
 		{90, "trusted"},
 		{60, "normal"},
 		{30, "suspicious"},

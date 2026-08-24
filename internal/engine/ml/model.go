@@ -298,7 +298,7 @@ func (sd *StatisticalDetector) Predict(vec FeatureVector) float64 {
 
 	// Convert z-score to anomaly score (sigmoid-like mapping)
 	// z=0 → score=0.1, z=2 → score=0.5, z=4 → score=0.9
-	return 1.0 / (1.0 + math.Exp(-((avgZ - 2.0))))
+	return 1.0 / (1.0 + math.Exp(-(avgZ - 2.0)))
 }
 
 // ═══════════════════════════════════════════════════════════════

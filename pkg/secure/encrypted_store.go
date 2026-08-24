@@ -89,16 +89,16 @@ type EncryptedIterator struct {
 	key  []byte
 }
 
-func (ei *EncryptedIterator) First() bool                { return ei.iter.First() }
-func (ei *EncryptedIterator) Last() bool                 { return ei.iter.Last() }
-func (ei *EncryptedIterator) SeekGE(key []byte) bool     { return ei.iter.SeekGE(key) }
-func (ei *EncryptedIterator) SeekLT(key []byte) bool     { return ei.iter.SeekLT(key) }
-func (ei *EncryptedIterator) Next() bool                 { return ei.iter.Next() }
-func (ei *EncryptedIterator) Prev() bool                 { return ei.iter.Prev() }
-func (ei *EncryptedIterator) Valid() bool                { return ei.iter.Valid() }
-func (ei *EncryptedIterator) Error() error               { return ei.iter.Error() }
-func (ei *EncryptedIterator) Key() []byte                { return ei.iter.Key() }
-func (ei *EncryptedIterator) Close() error               { return ei.iter.Close() }
+func (ei *EncryptedIterator) First() bool            { return ei.iter.First() }
+func (ei *EncryptedIterator) Last() bool             { return ei.iter.Last() }
+func (ei *EncryptedIterator) SeekGE(key []byte) bool { return ei.iter.SeekGE(key) }
+func (ei *EncryptedIterator) SeekLT(key []byte) bool { return ei.iter.SeekLT(key) }
+func (ei *EncryptedIterator) Next() bool             { return ei.iter.Next() }
+func (ei *EncryptedIterator) Prev() bool             { return ei.iter.Prev() }
+func (ei *EncryptedIterator) Valid() bool            { return ei.iter.Valid() }
+func (ei *EncryptedIterator) Error() error           { return ei.iter.Error() }
+func (ei *EncryptedIterator) Key() []byte            { return ei.iter.Key() }
+func (ei *EncryptedIterator) Close() error           { return ei.iter.Close() }
 
 // Value decrypts the value at the current iterator position.
 func (ei *EncryptedIterator) Value() []byte {

@@ -18,13 +18,13 @@ import (
 type MmapEntry struct {
 	PID        uint32    `json:"pid"`
 	Comm       string    `json:"comm"`
-	Addr       uint64    `json:"addr"`       // start address
-	Size       uint64    `json:"size"`       // mapping size
-	Prot       uint32    `json:"prot"`       // memory protection flags
-	Flags      uint32    `json:"flags"`      // mapping flags
-	SourceFD   int       `json:"source_fd"`  // source file descriptor (if any)
+	Addr       uint64    `json:"addr"`        // start address
+	Size       uint64    `json:"size"`        // mapping size
+	Prot       uint32    `json:"prot"`        // memory protection flags
+	Flags      uint32    `json:"flags"`       // mapping flags
+	SourceFD   int       `json:"source_fd"`   // source file descriptor (if any)
 	SourceFile string    `json:"source_file"` // source file path
-	IsMemFD    bool      `json:"is_memfd"`   // mapped from a memfd?
+	IsMemFD    bool      `json:"is_memfd"`    // mapped from a memfd?
 	Timestamp  time.Time `json:"timestamp"`
 }
 

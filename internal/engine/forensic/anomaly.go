@@ -26,10 +26,10 @@ import (
 
 // BinaryAnomaly describes a detected binary anomaly.
 type BinaryAnomaly struct {
-	PID     int    `json:"pid"`
-	ExePath string `json:"exe_path"`
-	Anomaly string `json:"anomaly"` // type of anomaly detected
-	Detail  string `json:"detail"`
+	PID      int    `json:"pid"`
+	ExePath  string `json:"exe_path"`
+	Anomaly  string `json:"anomaly"` // type of anomaly detected
+	Detail   string `json:"detail"`
 	Severity string `json:"severity"` // LOW, MEDIUM, HIGH, CRITICAL
 }
 
@@ -98,9 +98,9 @@ func (ad *AnomalyDetector) CheckProcess(pid int) *BinaryAnomaly {
 	if procStat.Ino != exeStat.Ino {
 		comm, _ := os.ReadFile(commPath)
 		return &BinaryAnomaly{
-			PID:      pid,
-			Anomaly:  "FILE_REPLACEMENT",
-			Detail:   fmt.Sprintf("Binary %s replaced after exec (inode diff: %d vs %d, comm: %s)",
+			PID:     pid,
+			Anomaly: "FILE_REPLACEMENT",
+			Detail: fmt.Sprintf("Binary %s replaced after exec (inode diff: %d vs %d, comm: %s)",
 				exeTarget, procStat.Ino, exeStat.Ino, strings.TrimSpace(string(comm))),
 			Severity: "HIGH",
 		}

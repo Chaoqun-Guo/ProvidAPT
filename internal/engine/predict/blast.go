@@ -16,22 +16,22 @@ import (
 
 // BlastRadius describes all assets reachable from a compromised process.
 type BlastRadius struct {
-	CompromisedNode string        `json:"compromised_node"`
-	CompromisedComm string        `json:"compromised_comm"`
-	Files           []Asset       `json:"files"`
-	NetworkEndpoints []Asset     `json:"network_endpoints"`
-	Processes       []Asset      `json:"processes"`
-	Credentials     []Asset      `json:"credentials"`
-	TotalImpacted   int           `json:"total_impacted"`
+	CompromisedNode  string  `json:"compromised_node"`
+	CompromisedComm  string  `json:"compromised_comm"`
+	Files            []Asset `json:"files"`
+	NetworkEndpoints []Asset `json:"network_endpoints"`
+	Processes        []Asset `json:"processes"`
+	Credentials      []Asset `json:"credentials"`
+	TotalImpacted    int     `json:"total_impacted"`
 }
 
 // Asset is a single reachable resource.
 type Asset struct {
-	ID        string `json:"id"`
-	Type      string `json:"type"`      // file, network, process, credential
-	Label     string `json:"label"`     // file path, IP, process name
-	Critical  bool   `json:"critical"`  // is this a critical asset?
-	Distance  int    `json:"distance"`  // hops from compromised node
+	ID       string `json:"id"`
+	Type     string `json:"type"`     // file, network, process, credential
+	Label    string `json:"label"`    // file path, IP, process name
+	Critical bool   `json:"critical"` // is this a critical asset?
+	Distance int    `json:"distance"` // hops from compromised node
 }
 
 // BlastCalculator computes the blast radius from a compromised node.

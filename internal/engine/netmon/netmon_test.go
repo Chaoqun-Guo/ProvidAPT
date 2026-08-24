@@ -77,10 +77,10 @@ func TestParseDNSResponseBasic(t *testing.T) {
 func buildDNSResponse(domain, ip string) []byte {
 	var p []byte
 	// Header: 12 bytes (transaction ID + flags + counts)
-	p = append(p, 0x12, 0x34)           // Transaction ID
-	p = append(p, 0x81, 0x80)           // Flags: response, no error
-	p = append(p, 0x00, 0x01)           // Questions: 1
-	p = append(p, 0x00, 0x01)           // Answers: 1
+	p = append(p, 0x12, 0x34)             // Transaction ID
+	p = append(p, 0x81, 0x80)             // Flags: response, no error
+	p = append(p, 0x00, 0x01)             // Questions: 1
+	p = append(p, 0x00, 0x01)             // Answers: 1
 	p = append(p, 0x00, 0x00, 0x00, 0x00) // Authority, Additional
 
 	// Question: domain name + type A + class IN
@@ -88,16 +88,16 @@ func buildDNSResponse(domain, ip string) []byte {
 		p = append(p, byte(len(part)))
 		p = append(p, []byte(part)...)
 	}
-	p = append(p, 0x00)     // End of domain name
+	p = append(p, 0x00)       // End of domain name
 	p = append(p, 0x00, 0x01) // Type A
 	p = append(p, 0x00, 0x01) // Class IN
 
 	// Answer: compressed name + type A + class IN + TTL + RDATA
-	p = append(p, 0xC0, 0x0C)           // Compressed name pointer
-	p = append(p, 0x00, 0x01)           // Type A
-	p = append(p, 0x00, 0x01)           // Class IN
+	p = append(p, 0xC0, 0x0C)             // Compressed name pointer
+	p = append(p, 0x00, 0x01)             // Type A
+	p = append(p, 0x00, 0x01)             // Class IN
 	p = append(p, 0x00, 0x00, 0x0E, 0x10) // TTL: 3600
-	p = append(p, 0x00, 0x04)           // Data length: 4
+	p = append(p, 0x00, 0x04)             // Data length: 4
 	// IP: 93.184.216.34
 	parts := strings.Split(ip, ".")
 	for _, part := range parts {

@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/pkg/plugin"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/pkg/plugin"
 )
 
 // ─── IOC types ──────────────────────────────────────────────
@@ -26,18 +26,18 @@ import (
 type IOCType int
 
 const (
-	IOCIP      IOCType = iota // IP address
-	IOCDomain                 // domain name
-	IOCFileHash               // SHA256 hash
+	IOCIP       IOCType = iota // IP address
+	IOCDomain                  // domain name
+	IOCFileHash                // SHA256 hash
 )
 
 // IOC represents a single indicator of compromise.
 type IOC struct {
-	Type        IOCType
-	Value       string
-	Label       string   // human-readable description
-	Source      string   // e.g. "misp", "local-blacklist"
-	Confidence  float64  // 0.0 – 1.0
+	Type       IOCType
+	Value      string
+	Label      string  // human-readable description
+	Source     string  // e.g. "misp", "local-blacklist"
+	Confidence float64 // 0.0 – 1.0
 }
 
 // ─── Cache ──────────────────────────────────────────────────
@@ -227,9 +227,9 @@ func (p *ThreatIntelPlugin) Analyse(snap *provenance.Graph) []*plugin.Finding {
 					Score:      9,
 					NodeIDs:    []string{n.ID},
 					Evidence: map[string]interface{}{
-						"ip":          ip,
-						"matches":     labels,
-						"confidence":  iocs[0].Confidence,
+						"ip":         ip,
+						"matches":    labels,
+						"confidence": iocs[0].Confidence,
 					},
 				})
 			}

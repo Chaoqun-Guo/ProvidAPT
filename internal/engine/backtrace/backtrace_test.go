@@ -6,9 +6,9 @@ package backtrace
 import (
 	"testing"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -114,7 +114,7 @@ func TestTraceDepthLimit(t *testing.T) {
 
 	// Trace with max depth 3
 	result, _ := bt.Trace(&TraceRequest{
-		StartID: "p:8",
+		StartID:  "p:8",
 		MaxDepth: 3,
 	})
 
@@ -167,8 +167,8 @@ func TestTracePagination(t *testing.T) {
 
 	// Limit to 5 nodes per segment
 	result, _ := bt.Trace(&TraceRequest{
-		StartID:          "p:2",
-		MaxDepth:         3,
+		StartID:            "p:2",
+		MaxDepth:           3,
 		MaxNodesPerSegment: 5,
 	})
 

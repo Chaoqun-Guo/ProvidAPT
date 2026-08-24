@@ -5,9 +5,9 @@
 // capabilities for provenance process nodes.
 //
 // Features:
-//   1. SHA-256 hashing — auto-compute binary hash on execve
-//   2. YARA scanning — trigger YARA on suspicious binaries
-//   3. Binary anomaly detection — detect memory execution / file replace
+//  1. SHA-256 hashing — auto-compute binary hash on execve
+//  2. YARA scanning — trigger YARA on suspicious binaries
+//  3. Binary anomaly detection — detect memory execution / file replace
 package forensic
 
 import (
@@ -25,8 +25,8 @@ import (
 
 // Hasher computes and caches SHA-256 hashes for executable files.
 type Hasher struct {
-	mu     sync.Mutex
-	cache  map[string]string // path → sha256 hex
+	mu    sync.Mutex
+	cache map[string]string // path → sha256 hex
 }
 
 // NewHasher creates a file hasher with an LRU-ish cache.

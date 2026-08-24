@@ -57,26 +57,26 @@ func (k SocketKey) String() string {
 
 // SocketState tracks the full lifecycle of a TCP connection.
 type SocketState struct {
-	Key        SocketKey   `json:"key"`
-	State      int         `json:"state"`
-	StateName  string      `json:"state_name"`
-	PID        uint32      `json:"pid"`
-	Comm       string      `json:"comm"`
+	Key       SocketKey `json:"key"`
+	State     int       `json:"state"`
+	StateName string    `json:"state_name"`
+	PID       uint32    `json:"pid"`
+	Comm      string    `json:"comm"`
 
 	// Timestamps for each state transition
-	SYNSent    time.Time   `json:"syn_sent,omitempty"`
-	SYNRecv    time.Time   `json:"syn_recv,omitempty"`
-	Established time.Time  `json:"established,omitempty"`
-	Closed     time.Time   `json:"closed,omitempty"`
+	SYNSent     time.Time `json:"syn_sent,omitempty"`
+	SYNRecv     time.Time `json:"syn_recv,omitempty"`
+	Established time.Time `json:"established,omitempty"`
+	Closed      time.Time `json:"closed,omitempty"`
 
 	// Duration metrics
-	HandshakeDuration string `json:"handshake_duration,omitempty"` // SYN→EST
+	HandshakeDuration  string `json:"handshake_duration,omitempty"`  // SYN→EST
 	ConnectionDuration string `json:"connection_duration,omitempty"` // EST→CLOSE
 
 	// Metadata
-	Domain      string `json:"domain,omitempty"`  // from DNS cache
-	HTTPHost    string `json:"http_host,omitempty"` // from HTTP analysis
-	HTTPPath    string `json:"http_path,omitempty"`
+	Domain   string `json:"domain,omitempty"`    // from DNS cache
+	HTTPHost string `json:"http_host,omitempty"` // from HTTP analysis
+	HTTPPath string `json:"http_path,omitempty"`
 }
 
 // SocketTracker maintains the state of all tracked TCP connections.

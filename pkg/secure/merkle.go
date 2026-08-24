@@ -4,15 +4,15 @@
 // Package secure provides forensic-grade storage security for
 // ProvidAPT provenance data.  It implements:
 //
-//   1. Merkle tree hash chain — every event is a leaf in a binary
-//      Merkle tree.  The root hash is anchored to protected kernel
-//      memory and/or a remote trusted log server.
+//  1. Merkle tree hash chain — every event is a leaf in a binary
+//     Merkle tree.  The root hash is anchored to protected kernel
+//     memory and/or a remote trusted log server.
 //
-//   2. SST file signing — each RocksDB SST file is HMAC-signed
-//      after compaction to detect offline tampering.
+//  2. SST file signing — each RocksDB SST file is HMAC-signed
+//     after compaction to detect offline tampering.
 //
-//   3. Self-verification — standalone tool that scans all stored
-//      data and verifies the hash chain integrity.
+//  3. Self-verification — standalone tool that scans all stored
+//     data and verifies the hash chain integrity.
 package secure
 
 import (
@@ -180,8 +180,8 @@ func (mt *MerkleTree) LeafCount() int {
 type AnchorRecord struct {
 	Timestamp   time.Time `json:"timestamp"`
 	LeafCount   int       `json:"leaf_count"`
-	RootHashHex string   `json:"root_hash"`
-	Signature   string   `json:"signature"` // HMAC of the above
+	RootHashHex string    `json:"root_hash"`
+	Signature   string    `json:"signature"` // HMAC of the above
 }
 
 // AnchorStore persists root hash anchors.
@@ -192,12 +192,12 @@ type AnchorStore interface {
 
 // MerkleAnchoring manages periodic anchoring of root hashes.
 type MerkleAnchoring struct {
-	tree        *MerkleTree
-	store       AnchorStore
-	hmacKey     []byte
-	anchors     []*AnchorRecord
-	interval    time.Duration
-	lastAnchor  time.Time
+	tree       *MerkleTree
+	store      AnchorStore
+	hmacKey    []byte
+	anchors    []*AnchorRecord
+	interval   time.Duration
+	lastAnchor time.Time
 }
 
 // NewMerkleAnchoring creates an anchoring manager.

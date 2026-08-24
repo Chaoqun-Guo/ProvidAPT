@@ -142,10 +142,10 @@ func TestRepair(t *testing.T) {
 
 func TestParseEdgeKeyV1(t *testing.T) {
 	tests := []struct {
-		key        string
-		wantSrc    string
-		wantTgt    string
-		wantOK     bool
+		key     string
+		wantSrc string
+		wantTgt string
+		wantOK  bool
 	}{
 		{"e:00000000000000001000:p:1234:f:5678", "p:1234", "f:5678", true},
 		{"e:00000000000000001000:f:5000:8:3:p:1", "f:5000:8:3", "p:1", true},
@@ -163,10 +163,10 @@ func TestParseEdgeKeyV1(t *testing.T) {
 
 func TestParseReverseKeyV1(t *testing.T) {
 	tests := []struct {
-		key        string
-		wantSrc    string
-		wantTgt    string
-		wantOK     bool
+		key     string
+		wantSrc string
+		wantTgt string
+		wantOK  bool
 	}{
 		{"r:f:5678:00000000000000001000:p:1234", "p:1234", "f:5678", true},
 		{"r:f:5000:8:3:00000000000000001000:p:1", "p:1", "f:5000:8:3", true},

@@ -29,8 +29,8 @@ type DiffResult struct {
 
 // DiffNode represents a node that appeared in the diff.
 type DiffNode struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
+	ID    string `json:"id"`
+	Type  string `json:"type"`
 	Label string `json:"label"`
 }
 
@@ -58,10 +58,10 @@ func NewDiffEngine(active *ActiveTable, sm *SnapManager) *DiffEngine {
 // GetDiff computes the delta between two time points.
 //
 // The diff uses two strategies:
-//   1. If snapshots exist at both t1 and t2, open both as read-only
-//      and scan for new keys in t2 that don't exist in t1.
-//   2. If no snapshots, use the active entity table to report
-//      recently changed entities as the diff.
+//  1. If snapshots exist at both t1 and t2, open both as read-only
+//     and scan for new keys in t2 that don't exist in t1.
+//  2. If no snapshots, use the active entity table to report
+//     recently changed entities as the diff.
 //
 // This is a simplified implementation.  In production, the scan
 // would use Pebble's iterator to compare key sets efficiently.

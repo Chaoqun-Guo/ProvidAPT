@@ -21,11 +21,11 @@ import (
 
 // ClientConfig for the gRPC/HTTP export client.
 type ClientConfig struct {
-	ServerAddr  string        // central server address
-	AgentID     string        // this agent's unique ID
-	BatchSize   int           // events per batch (default 100)
-	FlushEvery  time.Duration // flush interval (default 10s)
-	EnableHTTP  bool          // use HTTP instead of gRPC
+	ServerAddr string        // central server address
+	AgentID    string        // this agent's unique ID
+	BatchSize  int           // events per batch (default 100)
+	FlushEvery time.Duration // flush interval (default 10s)
+	EnableHTTP bool          // use HTTP instead of gRPC
 }
 
 // Client handles exporting events to the central server.

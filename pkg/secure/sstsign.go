@@ -23,11 +23,11 @@ import (
 
 // SSTSignature records the hash and HMAC for a single SST file.
 type SSTSignature struct {
-	FilePath   string `json:"file_path"`
-	FileSize   int64  `json:"file_size"`
-	SHA256     string `json:"sha256"`     // hex
-	Timestamp  int64  `json:"timestamp_ns"`
-	Signature  string `json:"signature"`  // HMAC-SHA256 hex
+	FilePath  string `json:"file_path"`
+	FileSize  int64  `json:"file_size"`
+	SHA256    string `json:"sha256"` // hex
+	Timestamp int64  `json:"timestamp_ns"`
+	Signature string `json:"signature"` // HMAC-SHA256 hex
 }
 
 // SSTSigner manages SST file signing.

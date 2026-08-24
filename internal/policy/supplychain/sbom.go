@@ -17,10 +17,10 @@ import (
 // and provides path-based resolution for binding metadata to graph nodes.
 type SBOMStore struct {
 	mu           sync.Mutex
-	documents    map[string]*SBOMDocument  // ID -> document
-	byPurl       map[string]*SBOMEntry     // purl -> entry
-	byPath       map[string]*SBOMEntry     // file path -> entry (longest prefix match)
-	bindingCache map[string]string         // file path -> SBOM ID
+	documents    map[string]*SBOMDocument // ID -> document
+	byPurl       map[string]*SBOMEntry    // purl -> entry
+	byPath       map[string]*SBOMEntry    // file path -> entry (longest prefix match)
+	bindingCache map[string]string        // file path -> SBOM ID
 }
 
 // NewSBOMStore creates an SBOM store.
@@ -57,16 +57,16 @@ func (s *SBOMStore) ImportSBOM(data []byte, source string) (*SBOMDocument, error
 // ImportSPDX imports an SPDX 2.3 JSON document.
 func (s *SBOMStore) ImportSPDX(data []byte, source string) (*SBOMDocument, error) {
 	var raw struct {
-		SPDXID        string `json:"spdxId"`
-		Name          string `json:"name"`
+		SPDXID            string `json:"spdxId"`
+		Name              string `json:"name"`
 		DocumentNamespace string `json:"documentNamespace"`
-		Packages      []struct {
-			SPDXID        string `json:"spdxId"`
-			Name          string `json:"name"`
-			VersionInfo   string `json:"versionInfo"`
-			Supplier      string `json:"supplier"`
+		Packages          []struct {
+			SPDXID          string `json:"spdxId"`
+			Name            string `json:"name"`
+			VersionInfo     string `json:"versionInfo"`
+			Supplier        string `json:"supplier"`
 			LicenseDeclared string `json:"licenseDeclared"`
-			Checksums     []struct {
+			Checksums       []struct {
 				Algorithm string `json:"algorithm"`
 				Value     string `json:"value"`
 			} `json:"checksums"`
@@ -102,11 +102,11 @@ func (s *SBOMStore) ImportSPDX(data []byte, source string) (*SBOMDocument, error
 	}
 
 	doc := &SBOMDocument{
-		ID:     docID,
-		Format: "spdx",
-		Packages: make([]SBOMEntry, 0, len(raw.Packages)),
+		ID:        docID,
+		Format:    "spdx",
+		Packages:  make([]SBOMEntry, 0, len(raw.Packages)),
 		CreatedAt: created,
-		Source: source,
+		Source:    source,
 	}
 
 	s.mu.Lock()
@@ -114,10 +114,10 @@ func (s *SBOMStore) ImportSPDX(data []byte, source string) (*SBOMDocument, error
 
 	for _, p := range raw.Packages {
 		entry := SBOMEntry{
-			Name:     p.Name,
-			Version:  p.VersionInfo,
-			Supplier: strings.TrimPrefix(p.Supplier, "Organization: "),
-			License:  p.LicenseDeclared,
+			Name:      p.Name,
+			Version:   p.VersionInfo,
+			Supplier:  strings.TrimPrefix(p.Supplier, "Organization: "),
+			License:   p.LicenseDeclared,
 			Checksums: make(map[string]string),
 		}
 
@@ -157,16 +157,16 @@ func (s *SBOMStore) ImportSPDX(data []byte, source string) (*SBOMDocument, error
 // ImportCycloneDX imports a CycloneDX 1.4+ JSON document.
 func (s *SBOMStore) ImportCycloneDX(data []byte, source string) (*SBOMDocument, error) {
 	var raw struct {
-		BOMFormat   string `json:"bomFormat"`
-		SpecVersion string `json:"specVersion"`
+		BOMFormat    string `json:"bomFormat"`
+		SpecVersion  string `json:"specVersion"`
 		SerialNumber string `json:"serialNumber"`
-		Metadata    struct {
+		Metadata     struct {
 			Timestamp string `json:"timestamp"`
 		} `json:"metadata"`
-		Components  []struct {
-			Type    string `json:"type"`
-			Name    string `json:"name"`
-			Version string `json:"version"`
+		Components []struct {
+			Type     string `json:"type"`
+			Name     string `json:"name"`
+			Version  string `json:"version"`
 			Supplier struct {
 				Name string `json:"name"`
 			} `json:"supplier"`
@@ -205,11 +205,11 @@ func (s *SBOMStore) ImportCycloneDX(data []byte, source string) (*SBOMDocument, 
 	}
 
 	doc := &SBOMDocument{
-		ID:     docID,
-		Format: "cyclonedx",
-		Packages: make([]SBOMEntry, 0, len(raw.Components)),
+		ID:        docID,
+		Format:    "cyclonedx",
+		Packages:  make([]SBOMEntry, 0, len(raw.Components)),
 		CreatedAt: created,
-		Source: source,
+		Source:    source,
 	}
 
 	s.mu.Lock()
@@ -217,9 +217,9 @@ func (s *SBOMStore) ImportCycloneDX(data []byte, source string) (*SBOMDocument, 
 
 	for _, c := range raw.Components {
 		entry := SBOMEntry{
-			Name:     c.Name,
-			Version:  c.Version,
-			Supplier: c.Supplier.Name,
+			Name:      c.Name,
+			Version:   c.Version,
+			Supplier:  c.Supplier.Name,
 			Checksums: make(map[string]string),
 		}
 
@@ -448,9 +448,9 @@ func (s *SBOMStore) Stats() map[string]interface{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return map[string]interface{}{
-		"documents":      len(s.documents),
-		"purl_entries":   len(s.byPurl),
-		"path_mappings":  len(s.byPath),
-		"binding_cache":  len(s.bindingCache),
+		"documents":     len(s.documents),
+		"purl_entries":  len(s.byPurl),
+		"path_mappings": len(s.byPath),
+		"binding_cache": len(s.bindingCache),
 	}
 }

@@ -38,8 +38,8 @@ type VerificationResult struct {
 
 // Verifier scans and validates the stored provenance data.
 type Verifier struct {
-	dataDir    string
-	anchorKey  []byte // HMAC key used for anchoring
+	dataDir   string
+	anchorKey []byte // HMAC key used for anchoring
 }
 
 // NewVerifier creates a verification engine.

@@ -5,9 +5,9 @@ package profile
 
 import (
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
-	"sync/atomic"
 )
 
 // ─── BPF stats tests ────────────────────────────────────────

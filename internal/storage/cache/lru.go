@@ -24,13 +24,13 @@ type EvictCallback func(id string) error
 // Cache is a fixed-size LRU cache for provenance nodes.
 // It is safe for concurrent use.
 type Cache struct {
-	mu       sync.RWMutex
-	maxSize  int
-	evictFn  EvictCallback
-	items    map[string]*list.Element
-	order    *list.List
-	hits     int64
-	misses   int64
+	mu      sync.RWMutex
+	maxSize int
+	evictFn EvictCallback
+	items   map[string]*list.Element
+	order   *list.List
+	hits    int64
+	misses  int64
 }
 
 type entry struct {
@@ -41,8 +41,8 @@ type entry struct {
 
 // New creates an LRU cache.
 //
-//   maxSize  — maximum number of nodes kept in memory (0 = 4096)
-//   evictFn  — called synchronously during eviction; persists the node
+//	maxSize  — maximum number of nodes kept in memory (0 = 4096)
+//	evictFn  — called synchronously during eviction; persists the node
 func New(maxSize int, evictFn EvictCallback) (*Cache, error) {
 	if maxSize <= 0 {
 		maxSize = 4096

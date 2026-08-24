@@ -49,12 +49,12 @@ EXAMPLES
 
 func main() {
 	var (
-		hash       = flag.String("hash", "", "Anonymized hash to de-anonymize")
-		hashFile   = flag.String("hash-file", "", "File containing hashes (one per line)")
-		storePath  = flag.String("store", "/var/lib/providapt/deanon.json", "De-anonymization store path")
-		keyFile    = flag.String("key", "", "Key file (JSON with HMACKeyHex and EncKeyHex)")
-		listKeys   = flag.Bool("list", false, "List all available de-anon entries")
-		jsonOut    = flag.Bool("json", false, "Output in JSON format")
+		hash      = flag.String("hash", "", "Anonymized hash to de-anonymize")
+		hashFile  = flag.String("hash-file", "", "File containing hashes (one per line)")
+		storePath = flag.String("store", "/var/lib/providapt/deanon.json", "De-anonymization store path")
+		keyFile   = flag.String("key", "", "Key file (JSON with HMACKeyHex and EncKeyHex)")
+		listKeys  = flag.Bool("list", false, "List all available de-anon entries")
+		jsonOut   = flag.Bool("json", false, "Output in JSON format")
 	)
 	flag.Usage = usage
 	flag.Parse()

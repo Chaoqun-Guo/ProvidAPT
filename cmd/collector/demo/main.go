@@ -13,9 +13,9 @@ import (
 	"os"
 	"time"
 
-	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 	query "github.com/Chaoqun-Guo/ProvidAPT/internal/engine/graphquery"
 	store "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/pebblestore"
+	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
 func main() {
@@ -40,17 +40,17 @@ func main() {
 	fmt.Println("Writing nodes...")
 
 	processNode := &pb.Node{
-		Id:          "p:1337",
-		Type:        "process",
-		Label:       "nginx",
-		Pid:         1337,
-		Ppid:        1,
-		Uid:         0,
-		Comm:        "nginx",
-		FirstSeenNs: uint64(time.Now().UnixNano()),
-		Identity:    "nginx-service-account",
+		Id:           "p:1337",
+		Type:         "process",
+		Label:        "nginx",
+		Pid:          1337,
+		Ppid:         1,
+		Uid:          0,
+		Comm:         "nginx",
+		FirstSeenNs:  uint64(time.Now().UnixNano()),
+		Identity:     "nginx-service-account",
 		MonitorLevel: 0,
-		Attrs:       map[string]string{"version": "1.24", "config": "/etc/nginx/nginx.conf"},
+		Attrs:        map[string]string{"version": "1.24", "config": "/etc/nginx/nginx.conf"},
 	}
 	if err := st.PutNode(processNode); err != nil {
 		log.Fatalf("put process node: %v", err)

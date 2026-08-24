@@ -8,14 +8,15 @@ import "time"
 // Edge is a directed relation in the provenance graph.
 // It follows the W3C PROV semantics:
 //
-//   prov:used           Activity → Entity         (process read a file)
-//   prov:wasGeneratedBy Entity   → Activity         (file was written by process)
-//   prov:wasInformedBy  Activity → Activity         (child was informed by parent)
+//	prov:used           Activity → Entity         (process read a file)
+//	prov:wasGeneratedBy Entity   → Activity         (file was written by process)
+//	prov:wasInformedBy  Activity → Activity         (child was informed by parent)
 //
 // In the internal representation:
-//   Source and Target are Node IDs.
-//   The direction is the natural PROV direction (source → target in the
-//   PROV statement sense, not necessarily the temporal arrow).
+//
+//	Source and Target are Node IDs.
+//	The direction is the natural PROV direction (source → target in the
+//	PROV statement sense, not necessarily the temporal arrow).
 type Edge struct {
 	// ID is a unique edge identifier (relation + source → target + dedup count).
 	ID string `json:"id"`

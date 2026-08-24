@@ -8,8 +8,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -20,9 +20,9 @@ import (
 type Decision int
 
 const (
-	DecisionProcess    Decision = iota // persist + analyse (default)
-	DecisionLowLevel                   // memory-only counter, no persist
-	DecisionDrop                       // completely discard
+	DecisionProcess  Decision = iota // persist + analyse (default)
+	DecisionLowLevel                 // memory-only counter, no persist
+	DecisionDrop                     // completely discard
 )
 
 func (d Decision) String() string {
@@ -48,14 +48,14 @@ type Engine struct {
 	baseline *Baseline
 	repute   *Reputation
 
-	mu      sync.Mutex
-	counters map[string]int64  // hash → count (low-level events)
+	mu       sync.Mutex
+	counters map[string]int64 // hash → count (low-level events)
 
 	// statistics
-	totalEvents      int64
-	lowLevelEvents   int64
-	droppedEvents    int64
-	filteredBytes    int64 // estimated saved storage
+	totalEvents    int64
+	lowLevelEvents int64
+	droppedEvents  int64
+	filteredBytes  int64 // estimated saved storage
 }
 
 // NewEngine creates a filtering engine.
@@ -192,7 +192,6 @@ func (e *Engine) FlushSummary(store PersistReadWriter) error {
 	log.Printf("[filter] flushed %d low-level summaries", len(counts))
 	return nil
 }
-
 
 // ── Stats ───────────────────────────────────────────────────
 

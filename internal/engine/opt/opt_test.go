@@ -4,11 +4,11 @@
 package opt
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-	"fmt"
 )
 
 // ─── Sketch tests ───────────────────────────────────────────
@@ -157,8 +157,8 @@ func TestHitRate(t *testing.T) {
 	hc := NewHotPathCache(100, time.Hour)
 	hc.Set("p:1", "f:100", "used", "")
 
-	hc.Get("p:1", "f:100", "used") // hit
-	hc.Get("p:1", "f:100", "used") // hit
+	hc.Get("p:1", "f:100", "used")  // hit
+	hc.Get("p:1", "f:100", "used")  // hit
 	hc.Get("p:99", "f:999", "used") // miss
 
 	stats := hc.Stats()

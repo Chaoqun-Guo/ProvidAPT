@@ -17,13 +17,13 @@ import (
 
 // AlertSummary is a concise, human-readable alert for webhook delivery.
 type AlertSummary struct {
-	Title       string `json:"title"`
-	Severity    string `json:"severity"`
-	Timestamp   string `json:"timestamp"`
-	AttackPath  string `json:"attack_path"`
-	NodeCount   int    `json:"node_count"`
+	Title       string   `json:"title"`
+	Severity    string   `json:"severity"`
+	Timestamp   string   `json:"timestamp"`
+	AttackPath  string   `json:"attack_path"`
+	NodeCount   int      `json:"node_count"`
 	KeyEntities []string `json:"key_entities"`
-	Description string `json:"description"`
+	Description string   `json:"description"`
 }
 
 // SummaryGenerator extracts concise summaries from the graph.
@@ -39,10 +39,10 @@ func NewSummaryGenerator(graph *provenance.Graph) *SummaryGenerator {
 // Generate produces an alert summary from an incident.
 func (sg *SummaryGenerator) Generate(inc *Incident) *AlertSummary {
 	summary := &AlertSummary{
-		Title:      fmt.Sprintf("%s — %s", inc.PatternName, inc.Severity),
-		Severity:   inc.Severity,
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
-		AttackPath: strings.Join(inc.Nodes, " → "),
+		Title:       fmt.Sprintf("%s — %s", inc.PatternName, inc.Severity),
+		Severity:    inc.Severity,
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
+		AttackPath:  strings.Join(inc.Nodes, " → "),
 		Description: inc.PatternID,
 	}
 
@@ -66,10 +66,10 @@ func (sg *SummaryGenerator) Generate(inc *Incident) *AlertSummary {
 func (sg *SummaryGenerator) GenerateFromMatch(match *MatchResult) *AlertSummary {
 	now := time.Now().UTC()
 	summary := &AlertSummary{
-		Title:      fmt.Sprintf("%s — %s", match.Pattern.Name, match.Pattern.Severity),
-		Severity:   match.Pattern.Severity,
-		Timestamp:  now.Format(time.RFC3339),
-		AttackPath: strings.Join(match.Nodes, " → "),
+		Title:       fmt.Sprintf("%s — %s", match.Pattern.Name, match.Pattern.Severity),
+		Severity:    match.Pattern.Severity,
+		Timestamp:   now.Format(time.RFC3339),
+		AttackPath:  strings.Join(match.Nodes, " → "),
 		Description: match.Pattern.Description,
 	}
 

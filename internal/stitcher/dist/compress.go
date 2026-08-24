@@ -19,20 +19,20 @@ import (
 //   - Repeated HostID/BootID pairs are replaced with dictionary indices
 //   - Typical compression ratio: 64-char hex → 2-4 bytes + delta
 type Compressor struct {
-	mu       sync.Mutex
-	dict     map[string]uint32 // string → index
-	reverse  map[uint32]string // index → string
-	nextIdx  uint32
-	hits     int64
-	misses   int64
+	mu      sync.Mutex
+	dict    map[string]uint32 // string → index
+	reverse map[uint32]string // index → string
+	nextIdx uint32
+	hits    int64
+	misses  int64
 }
 
 // CompressedGUID is the wire format for a compressed GUID.
 type CompressedGUID struct {
-	HostIdx uint32 `json:"host_idx"` // dictionary index for HostID
-	BootLen uint8  `json:"boot_len"` // length of delta-encoded BootID
+	HostIdx  uint32 `json:"host_idx"`            // dictionary index for HostID
+	BootLen  uint8  `json:"boot_len"`            // length of delta-encoded BootID
 	BootData []byte `json:"boot_data,omitempty"` // delta-encoded BootID
-	LocalID  string `json:"local_id"` // local entity ID (short)
+	LocalID  string `json:"local_id"`            // local entity ID (short)
 }
 
 // NewCompressor creates a GUID dictionary compressor.
@@ -154,8 +154,8 @@ func (c *Compressor) Stats() map[string]interface{} {
 	defer c.mu.Unlock()
 	return map[string]interface{}{
 		"dictionary_size": len(c.dict),
-		"hits":           c.hits,
-		"misses":         c.misses,
-		"ratio":          fmt.Sprintf("%.1f%%", float64(c.hits)/float64(c.hits+c.misses+1)*100),
+		"hits":            c.hits,
+		"misses":          c.misses,
+		"ratio":           fmt.Sprintf("%.1f%%", float64(c.hits)/float64(c.hits+c.misses+1)*100),
 	}
 }

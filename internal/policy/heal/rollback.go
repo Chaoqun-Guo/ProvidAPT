@@ -16,22 +16,22 @@ import (
 
 // RollbackResult summarizes the rollback actions taken.
 type RollbackResult struct {
-	ProcessesKilled  int      `json:"processes_killed"`
-	FilesQuarantined int      `json:"files_quarantined"`
-	SnapshotsTriggered int    `json:"snapshots_triggered"`
-	Errors           []string `json:"errors,omitempty"`
-	DryRun           bool     `json:"dry_run"`
+	ProcessesKilled    int      `json:"processes_killed"`
+	FilesQuarantined   int      `json:"files_quarantined"`
+	SnapshotsTriggered int      `json:"snapshots_triggered"`
+	Errors             []string `json:"errors,omitempty"`
+	DryRun             bool     `json:"dry_run"`
 }
 
 // RollbackConfig controls rollback behaviour.
 type RollbackConfig struct {
-	DryRun           bool   // if true, only log actions (no execution)
-	KillProcesses    bool   // kill malicious child processes
-	QuarantineFiles  bool   // rename contaminated files
-	UseSnapshots     bool   // trigger BTRFS/ZFS rollback
-	SnapshotCmd      string // "auto", "btrfs", "zfs"
-	SnapshotName     string // snapshot to roll back to
-	QuarantineDir    string // move quarantined files here
+	DryRun          bool   // if true, only log actions (no execution)
+	KillProcesses   bool   // kill malicious child processes
+	QuarantineFiles bool   // rename contaminated files
+	UseSnapshots    bool   // trigger BTRFS/ZFS rollback
+	SnapshotCmd     string // "auto", "btrfs", "zfs"
+	SnapshotName    string // snapshot to roll back to
+	QuarantineDir   string // move quarantined files here
 }
 
 // DefaultRollbackConfig returns a safe default (dry-run only).

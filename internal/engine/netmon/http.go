@@ -15,16 +15,16 @@ import (
 
 // HTTPRequest captures key metadata from an HTTP request.
 type HTTPRequest struct {
-	Method      string `json:"method"`      // GET, POST, etc.
-	Host        string `json:"host"`        // Host header
-	Path        string `json:"path"`        // URL path
+	Method      string `json:"method"` // GET, POST, etc.
+	Host        string `json:"host"`   // Host header
+	Path        string `json:"path"`   // URL path
 	UserAgent   string `json:"user_agent,omitempty"`
 	ContentType string `json:"content_type,omitempty"`
 }
 
 // HTTPTracker extracts and caches HTTP request metadata.
 type HTTPTracker struct {
-	mu      sync.Mutex
+	mu       sync.Mutex
 	bySocket map[SocketKey]*HTTPRequest // socket → HTTP metadata
 }
 

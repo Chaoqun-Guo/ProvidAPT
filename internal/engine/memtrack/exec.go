@@ -17,32 +17,32 @@ import (
 
 // ExecChain represents a complete "memory download → memory execution" chain.
 type ExecChain struct {
-	MemfdCreate  *MemfdEntry  `json:"memfd_create"`  // memfd_create event
-	MemfdWrite   *WriteEvent  `json:"memfd_write"`   // data written to memfd
-	MmapExec     *MmapEntry   `json:"mmap_exec"`     // executable mapping
-	Fexecve      *FexecveEvent `json:"fexecve"`      // execution via fexecve
-	Complete     bool         `json:"complete"`      // all 4 stages present
+	MemfdCreate *MemfdEntry   `json:"memfd_create"` // memfd_create event
+	MemfdWrite  *WriteEvent   `json:"memfd_write"`  // data written to memfd
+	MmapExec    *MmapEntry    `json:"mmap_exec"`    // executable mapping
+	Fexecve     *FexecveEvent `json:"fexecve"`      // execution via fexecve
+	Complete    bool          `json:"complete"`     // all 4 stages present
 }
 
 // WriteEvent records data written to a memfd.
 type WriteEvent struct {
-	FD       int       `json:"fd"`
-	PID      uint32    `json:"pid"`
-	Comm     string    `json:"comm"`
-	Size     int64     `json:"size"`
-	Offset   int64     `json:"offset,omitempty"`
-	ContentHash string `json:"content_hash,omitempty"` // SHA256 of first 4KB
-	Time     time.Time `json:"time"`
+	FD          int       `json:"fd"`
+	PID         uint32    `json:"pid"`
+	Comm        string    `json:"comm"`
+	Size        int64     `json:"size"`
+	Offset      int64     `json:"offset,omitempty"`
+	ContentHash string    `json:"content_hash,omitempty"` // SHA256 of first 4KB
+	Time        time.Time `json:"time"`
 }
 
 // FexecveEvent records execution via fexecve syscall.
 type FexecveEvent struct {
-	FD          int       `json:"fd"`
-	PID         uint32    `json:"pid"`
-	Comm        string    `json:"comm"`
-	Filename    string    `json:"filename"`  // /proc/self/fd/<N>
-	Argv        string    `json:"argv,omitempty"` // first 128 chars
-	Time        time.Time `json:"time"`
+	FD       int       `json:"fd"`
+	PID      uint32    `json:"pid"`
+	Comm     string    `json:"comm"`
+	Filename string    `json:"filename"`       // /proc/self/fd/<N>
+	Argv     string    `json:"argv,omitempty"` // first 128 chars
+	Time     time.Time `json:"time"`
 }
 
 // ExecFlowTracker ties memfd_create → write → mmap → fexecve into chains.

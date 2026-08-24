@@ -24,10 +24,10 @@ import (
 
 // NVMeInfo describes detected NVMe drives.
 type NVMeInfo struct {
-	Present   bool     `json:"present"`
-	Devices   []string `json:"devices"`
-	Model     string   `json:"model,omitempty"`
-	Firmware  string   `json:"firmware,omitempty"`
+	Present  bool     `json:"present"`
+	Devices  []string `json:"devices"`
+	Model    string   `json:"model,omitempty"`
+	Firmware string   `json:"firmware,omitempty"`
 }
 
 // DetectNVMe probes for NVMe drives.
@@ -69,27 +69,27 @@ func DetectNVMe() *NVMeInfo {
 func RocksDBConfig(nvme *NVMeInfo) map[string]interface{} {
 	cfg := map[string]interface{}{
 		// Default SATA SSD values
-		"block_size":           32 * 1024,      // 32KB
-		"write_buffer_size":    64 * 1024 * 1024, // 64MB
-		"max_write_buffer_number": 4,
-		"min_write_buffer_number": 2,
-		"max_background_compactions": 4,
-		"max_background_flushes": 2,
-		"bytes_per_sync":       1 * 1024 * 1024, // 1MB
-		"use_direct_reads":     false,
+		"block_size":                             32 * 1024,        // 32KB
+		"write_buffer_size":                      64 * 1024 * 1024, // 64MB
+		"max_write_buffer_number":                4,
+		"min_write_buffer_number":                2,
+		"max_background_compactions":             4,
+		"max_background_flushes":                 2,
+		"bytes_per_sync":                         1 * 1024 * 1024, // 1MB
+		"use_direct_reads":                       false,
 		"use_direct_io_for_flush_and_compaction": false,
 	}
 
 	if nvme != nil && nvme.Present {
 		// NVMe-optimised values: higher parallelism, larger blocks
-		cfg["block_size"] = 64 * 1024                      // 64KB
-		cfg["write_buffer_size"] = 128 * 1024 * 1024       // 128MB
+		cfg["block_size"] = 64 * 1024                // 64KB
+		cfg["write_buffer_size"] = 128 * 1024 * 1024 // 128MB
 		cfg["max_write_buffer_number"] = 6
 		cfg["min_write_buffer_number"] = 2
-		cfg["max_background_compactions"] = 8               // more compaction threads
+		cfg["max_background_compactions"] = 8 // more compaction threads
 		cfg["max_background_flushes"] = 4
-		cfg["bytes_per_sync"] = 2 * 1024 * 1024             // 2MB
-		cfg["use_direct_reads"] = true                      // bypass page cache
+		cfg["bytes_per_sync"] = 2 * 1024 * 1024 // 2MB
+		cfg["use_direct_reads"] = true          // bypass page cache
 		cfg["use_direct_io_for_flush_and_compaction"] = true
 		cfg["compaction_readahead_size"] = 2 * 1024 * 1024 // 2MB readahead
 

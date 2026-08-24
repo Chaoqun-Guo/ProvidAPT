@@ -4,9 +4,9 @@
 // Package store — storage lifecycle management for ProvidAPT v2.
 //
 // Provides:
-//   1. Reference counting — track node references, identify orphans
-//   2. Orphan cleanup — remove nodes > 7 days old with no high-risk tag
-//   3. Index consistency — verify edges point to valid nodes, auto-repair
+//  1. Reference counting — track node references, identify orphans
+//  2. Orphan cleanup — remove nodes > 7 days old with no high-risk tag
+//  3. Index consistency — verify edges point to valid nodes, auto-repair
 package pebblestore
 
 import (
@@ -19,8 +19,8 @@ import (
 	"github.com/cockroachdb/pebble"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/schema"
+	pb "github.com/Chaoqun-Guo/ProvidAPT/pkg/api/proto/core"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -58,22 +58,22 @@ func DefaultLifecycleConfig() *LifecycleConfig {
 
 // LifecycleManager handles storage maintenance.
 type LifecycleManager struct {
-	db          *pebble.DB
-	cfg         *LifecycleConfig
-	mu          sync.Mutex
-	stats       LifecycleStats
-	stopCh      chan struct{}
-	wg          sync.WaitGroup
+	db     *pebble.DB
+	cfg    *LifecycleConfig
+	mu     sync.Mutex
+	stats  LifecycleStats
+	stopCh chan struct{}
+	wg     sync.WaitGroup
 }
 
 // LifecycleStats tracks maintenance operations.
 type LifecycleStats struct {
-	OrphansRemoved      int
-	OrphansScanned      int
+	OrphansRemoved       int
+	OrphansScanned       int
 	InconsistenciesFound int
 	InconsistenciesFixed int
-	LastCleanup         time.Time
-	LastCheck           time.Time
+	LastCleanup          time.Time
+	LastCheck            time.Time
 }
 
 // NewLifecycleManager creates a storage lifecycle manager.
@@ -336,7 +336,7 @@ func (lm *LifecycleManager) Stats() map[string]interface{} {
 		"orphans_removed":       lm.stats.OrphansRemoved,
 		"inconsistencies_found": lm.stats.InconsistenciesFound,
 		"inconsistencies_fixed": lm.stats.InconsistenciesFixed,
-		"last_cleanup":         lm.stats.LastCleanup.Format(time.RFC3339),
+		"last_cleanup":          lm.stats.LastCleanup.Format(time.RFC3339),
 		"last_check":            lm.stats.LastCheck.Format(time.RFC3339),
 		"dry_run":               lm.cfg.DryRun,
 	}

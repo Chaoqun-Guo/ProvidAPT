@@ -34,13 +34,13 @@ import (
 
 // ShadowStatus represents the health of the primary monitor.
 type ShadowStatus struct {
-	ModuleAName    string    `json:"module_a"`
-	ModuleBName    string    `json:"module_b"`
-	Heartbeat      bool      `json:"heartbeat"`
-	LastHeartbeat  time.Time `json:"last_heartbeat"`
-	MapIntegrity   bool      `json:"map_integrity"`
-	HookIntegrity  bool      `json:"hook_integrity"`
-	Alerts         []string  `json:"alerts,omitempty"`
+	ModuleAName   string    `json:"module_a"`
+	ModuleBName   string    `json:"module_b"`
+	Heartbeat     bool      `json:"heartbeat"`
+	LastHeartbeat time.Time `json:"last_heartbeat"`
+	MapIntegrity  bool      `json:"map_integrity"`
+	HookIntegrity bool      `json:"hook_integrity"`
+	Alerts        []string  `json:"alerts,omitempty"`
 }
 
 // ShadowMonitor implements Module B's monitoring logic.
@@ -55,8 +55,8 @@ type ShadowMonitor struct {
 func NewShadowMonitor() *ShadowMonitor {
 	return &ShadowMonitor{
 		status: ShadowStatus{
-			ModuleAName: "lsm_hooks.bpf.c",
-			ModuleBName: "shadow_monitor",
+			ModuleAName:   "lsm_hooks.bpf.c",
+			ModuleBName:   "shadow_monitor",
 			LastHeartbeat: time.Now(),
 		},
 		heartbeatLimit: 3,
@@ -104,10 +104,10 @@ func (sm *ShadowMonitor) CheckMapIntegrity(agentPID int) bool {
 	// 3. Verify map type and key/value sizes match expectations
 
 	expectedMaps := []string{
-		"rb",          // ring buffer
-		"proc_map",    // process ancestry
-		"taint_map",   // process taint
-		"agent_pids",  // agent identity
+		"rb",         // ring buffer
+		"proc_map",   // process ancestry
+		"taint_map",  // process taint
+		"agent_pids", // agent identity
 	}
 
 	allFound := true
@@ -220,10 +220,10 @@ func checkBPFMapExists(name string) bool {
 
 // AntiRootkitScanner runs all anti-rootkit checks.
 type AntiRootkitScanner struct {
-	auditor   *MapAuditor
-	kmon      *KallsymsMonitor
-	shadow    *ShadowMonitor
-	agentPID  int
+	auditor  *MapAuditor
+	kmon     *KallsymsMonitor
+	shadow   *ShadowMonitor
+	agentPID int
 }
 
 // NewAntiRootkitScanner creates a combined anti-rootkit scanner.

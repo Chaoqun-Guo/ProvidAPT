@@ -43,10 +43,10 @@ type LifecycleConfig struct {
 // DefaultLifecycleConfig returns sensible defaults.
 func DefaultLifecycleConfig() *LifecycleConfig {
 	return &LifecycleConfig{
-		HotRetention:      7,
-		WarmRetention:     30,
+		HotRetention:       7,
+		WarmRetention:      30,
 		EnableAutoArchival: true,
-		DryRun:            true,
+		DryRun:             true,
 	}
 }
 
@@ -61,9 +61,9 @@ type DataRecord struct {
 
 // LifecycleManager handles data tier transitions.
 type LifecycleManager struct {
-	cfg    *LifecycleConfig
-	mu     sync.Mutex
-	stats  LifecycleStats
+	cfg   *LifecycleConfig
+	mu    sync.Mutex
+	stats LifecycleStats
 }
 
 // LifecycleStats tracks archival operations.
@@ -165,11 +165,11 @@ func (lm *LifecycleManager) Stats() map[string]interface{} {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	return map[string]interface{}{
-		"hot_retention_days": lm.cfg.HotRetention,
+		"hot_retention_days":  lm.cfg.HotRetention,
 		"warm_retention_days": lm.cfg.WarmRetention,
-		"hot_to_warm":        lm.stats.HotToWarm,
-		"warm_to_cold":       lm.stats.WarmToCold,
-		"alert_chains_kept":  lm.stats.AlertOnly,
-		"dry_run":            lm.cfg.DryRun,
+		"hot_to_warm":         lm.stats.HotToWarm,
+		"warm_to_cold":        lm.stats.WarmToCold,
+		"alert_chains_kept":   lm.stats.AlertOnly,
+		"dry_run":             lm.cfg.DryRun,
 	}
 }

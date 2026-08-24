@@ -14,20 +14,20 @@ import (
 
 // Known package manager executables.
 var packageManagers = map[string]string{
-	"apt":        "apt",
-	"apt-get":    "apt",
-	"dpkg":       "dpkg",
-	"yum":        "yum",
-	"rpm":        "rpm",
-	"dnf":        "dnf",
-	"pip":        "pip",
-	"pip3":       "pip",
-	"npm":        "npm",
-	"yarn":       "yarn",
-	"go":         "go",
-	"cargo":      "cargo",
-	"gem":        "gem",
-	"docker":     "docker",
+	"apt":     "apt",
+	"apt-get": "apt",
+	"dpkg":    "dpkg",
+	"yum":     "yum",
+	"rpm":     "rpm",
+	"dnf":     "dnf",
+	"pip":     "pip",
+	"pip3":    "pip",
+	"npm":     "npm",
+	"yarn":    "yarn",
+	"go":      "go",
+	"cargo":   "cargo",
+	"gem":     "gem",
+	"docker":  "docker",
 }
 
 // systemBinDirs lists directories monitored for package-manager writes.
@@ -45,10 +45,10 @@ var systemBinDirs = []string{
 // PackageManagerMonitor intercepts execve + file_write events to track
 // package manager activity and bind installed files to package metadata.
 type PackageManagerMonitor struct {
-	mu          sync.Mutex
-	sessions    map[uint32]*PmSession   // PID -> session
-	fileIndex   map[string]*PackageInfo // file path -> package info
-	alertCh     chan SupplyChainAlert
+	mu        sync.Mutex
+	sessions  map[uint32]*PmSession   // PID -> session
+	fileIndex map[string]*PackageInfo // file path -> package info
+	alertCh   chan SupplyChainAlert
 }
 
 // NewPackageManagerMonitor creates a package manager monitor.
@@ -136,8 +136,8 @@ func (pmm *PackageManagerMonitor) OnFileWrite(pid uint32, filepath string, inode
 // file written during a package manager session.
 func (pmm *PackageManagerMonitor) extractPackageInfo(filePath string, session *PmSession) *PackageInfo {
 	pkg := &PackageInfo{
-		PackageManager: session.Manager,
-		SourceRepo:     "official", // official repo is default
+		PackageManager:  session.Manager,
+		SourceRepo:      "official", // official repo is default
 		SigningVerified: true,
 	}
 
@@ -199,10 +199,12 @@ func inferPackageName(filePath string, installed []string) string {
 	// e.g. /usr/bin/nginx -> "nginx", /usr/lib/python3/dist-packages/requests/ -> "python3-requests"
 	dir := filepath.ToSlash(filepath.Dir(filePath))
 	if strings.Contains(dir, "/usr/lib/python") || strings.Contains(dir, "site-packages") {
-		parent := filepath.Base(dir); return "python3-" + parent
+		parent := filepath.Base(dir)
+		return "python3-" + parent
 	}
 	if strings.Contains(dir, "/usr/lib/node_modules") {
-		parent := filepath.Base(dir); return "node-" + parent
+		parent := filepath.Base(dir)
+		return "node-" + parent
 	}
 	if strings.Contains(dir, "/opt/") {
 		parts := strings.Split(dir, "/")

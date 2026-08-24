@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Rolling snapshot tests ──────────────────────────────────
@@ -138,7 +138,10 @@ func TestNFAMultiplePatterns(t *testing.T) {
 }
 
 func TestNFAWildcardMatch(t *testing.T) {
-	tests := []struct{ pattern, value string; want bool }{
+	tests := []struct {
+		pattern, value string
+		want           bool
+	}{
 		{"curl", "curl", true},
 		{"python*", "python3", true},
 		{"/tmp/*", "/tmp/evil.sh", true},

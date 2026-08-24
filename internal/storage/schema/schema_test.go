@@ -100,11 +100,11 @@ func TestEdgeTimeRange(t *testing.T) {
 
 func TestParseEdgeKey(t *testing.T) {
 	tests := []struct {
-		key        string
-		wantSrc    string
-		wantTgt    string
-		wantTS     uint64
-		wantOK     bool
+		key     string
+		wantSrc string
+		wantTgt string
+		wantTS  uint64
+		wantOK  bool
 	}{
 		{"e:00000000000003e8|p:1|f:500", "p:1", "f:500", 1000, true},
 		{"e:00000000000007d0|f:5000:8:3|p:100", "f:5000:8:3", "p:100", 2000, true},

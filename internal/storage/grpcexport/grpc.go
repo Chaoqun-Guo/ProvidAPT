@@ -22,20 +22,20 @@ import (
 
 // ExportEvent is the wire format for gRPC streaming export.
 type ExportEvent struct {
-	AgentID     string `json:"agent_id"`
-	Timestamp   int64  `json:"timestamp_ns"`
-	EventType   uint32 `json:"event_type"`
-	PID         uint32 `json:"pid"`
-	PPID        uint32 `json:"ppid"`
-	UID         uint32 `json:"uid"`
-	Comm        string `json:"comm"`
-	Pathname    string `json:"pathname,omitempty"`
-	Inode       uint64 `json:"inode,omitempty"`
-	Daddr       uint32 `json:"daddr,omitempty"`
-	Dport       uint32 `json:"dport,omitempty"`
-	Score       float64 `json:"score,omitempty"`
-	IsHighRisk  bool    `json:"is_high_risk"`
-	SubgraphID  string  `json:"subgraph_id,omitempty"`
+	AgentID    string  `json:"agent_id"`
+	Timestamp  int64   `json:"timestamp_ns"`
+	EventType  uint32  `json:"event_type"`
+	PID        uint32  `json:"pid"`
+	PPID       uint32  `json:"ppid"`
+	UID        uint32  `json:"uid"`
+	Comm       string  `json:"comm"`
+	Pathname   string  `json:"pathname,omitempty"`
+	Inode      uint64  `json:"inode,omitempty"`
+	Daddr      uint32  `json:"daddr,omitempty"`
+	Dport      uint32  `json:"dport,omitempty"`
+	Score      float64 `json:"score,omitempty"`
+	IsHighRisk bool    `json:"is_high_risk"`
+	SubgraphID string  `json:"subgraph_id,omitempty"`
 }
 
 // GRPCExporterConfig configures the gRPC export client.
@@ -62,22 +62,22 @@ type GRPCExporterConfig struct {
 // DefaultGRPCConfig returns sensible defaults.
 func DefaultGRPCConfig() *GRPCExporterConfig {
 	return &GRPCExporterConfig{
-		RemoteAddr:    "localhost:50051",
-		BatchSize:     50,
-		FlushInterval: 5 * time.Second,
-		HighRiskOnly:  false,
+		RemoteAddr:     "localhost:50051",
+		BatchSize:      50,
+		FlushInterval:  5 * time.Second,
+		HighRiskOnly:   false,
 		ScoreThreshold: 0,
 	}
 }
 
 // GRPCExporter manages streaming export to a remote server.
 type GRPCExporter struct {
-	cfg      *GRPCExporterConfig
-	mu       sync.Mutex
-	stopOnce sync.Once
-	buffer   []*ExportEvent
-	stopCh   chan struct{}
-	wg       sync.WaitGroup
+	cfg       *GRPCExporterConfig
+	mu        sync.Mutex
+	stopOnce  sync.Once
+	buffer    []*ExportEvent
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
 	totalSent int64
 }
 

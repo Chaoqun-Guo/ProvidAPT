@@ -16,10 +16,10 @@ import (
 
 // PatternStep is one hop in an attack pattern.
 type PatternStep struct {
-	SourceType string // "process", "file", "network", etc.
+	SourceType  string // "process", "file", "network", etc.
 	SourceMatch string // process comm or file path pattern
-	Relation   string // "used", "wasGeneratedBy", "wasInformedBy"
-	TargetType string
+	Relation    string // "used", "wasGeneratedBy", "wasInformedBy"
+	TargetType  string
 	TargetMatch string
 }
 
@@ -78,8 +78,8 @@ func NewPatternMatcher() *PatternMatcher {
 
 // MatchResult is returned when a pattern matches.
 type MatchResult struct {
-	Pattern   AttackPattern
-	Nodes     []string // node IDs along the path
+	Pattern    AttackPattern
+	Nodes      []string // node IDs along the path
 	Confidence float64
 }
 

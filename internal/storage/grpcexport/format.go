@@ -40,8 +40,9 @@ var cefSeverity = map[string]int{
 // FormatCEF converts an export event to CEF format.
 //
 // Output: CEF:0|ProvidAPT|ProvidAPT|2.0|1001|Suspicious File Access|7|
-//   src=192.168.1.1 spt=443 dst=10.0.0.1 dpt=22 filePath=/etc/shadow
-//   pid=1234 cs1Label=comm cs1=bash
+//
+//	src=192.168.1.1 spt=443 dst=10.0.0.1 dpt=22 filePath=/etc/shadow
+//	pid=1234 cs1Label=comm cs1=bash
 func FormatCEF(evt *ExportEvent) string {
 	// Determine signature ID and name based on event type
 	sigID := eventToSigID(evt.EventType)
@@ -106,9 +107,9 @@ type ASIMEvent struct {
 	DstIPAddr   string `json:"DstIpAddr,omitempty"`
 	DstPortNum  int    `json:"DstPortNumber,omitempty"`
 
-	ThreatScore    int    `json:"ThreatScore,omitempty"`
-	ThreatRisk     string `json:"ThreatRisk,omitempty"`
-	SubgraphID     string `json:"SubgraphId,omitempty"`
+	ThreatScore int    `json:"ThreatScore,omitempty"`
+	ThreatRisk  string `json:"ThreatRisk,omitempty"`
+	SubgraphID  string `json:"SubgraphId,omitempty"`
 }
 
 // FormatASIMJSON converts an export event to ASIM-compliant JSON.
@@ -145,11 +146,11 @@ func FormatASIMJSON(evt *ExportEvent) string {
 
 // JSONOutput is the standard JSON output envelope for CLI tools.
 type JSONOutput struct {
-	Version   string        `json:"version"`
-	Timestamp string        `json:"timestamp"`
-	Count     int           `json:"count"`
+	Version   string         `json:"version"`
+	Timestamp string         `json:"timestamp"`
+	Count     int            `json:"count"`
 	Events    []*ExportEvent `json:"events,omitempty"`
-	Error     string        `json:"error,omitempty"`
+	Error     string         `json:"error,omitempty"`
 }
 
 // FormatJSONCLI wraps export events in a standard JSON envelope.

@@ -25,13 +25,13 @@ type LSASSEvent struct {
 
 // RemoteLoginEvent represents a subsequent login from a stolen identity.
 type RemoteLoginEvent struct {
-	ID        string    `json:"id"`
-	SourceHost string   `json:"source_host"`
-	TargetHost string   `json:"target_host"`
-	Identity  string    `json:"identity"` // stolen user identity
-	PID       uint32    `json:"pid"`
-	Comm      string    `json:"comm"`
-	Timestamp time.Time `json:"timestamp"`
+	ID         string    `json:"id"`
+	SourceHost string    `json:"source_host"`
+	TargetHost string    `json:"target_host"`
+	Identity   string    `json:"identity"` // stolen user identity
+	PID        uint32    `json:"pid"`
+	Comm       string    `json:"comm"`
+	Timestamp  time.Time `json:"timestamp"`
 }
 
 // CredentialIncident links LSASS theft to lateral movement.

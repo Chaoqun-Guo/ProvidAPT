@@ -17,10 +17,10 @@ import (
 
 // YARAResult holds the outcome of a YARA scan.
 type YARAResult struct {
-	ScannedPath string     `json:"scanned_path"`
-	RulesCount  int        `json:"rules_count"`
+	ScannedPath string      `json:"scanned_path"`
+	RulesCount  int         `json:"rules_count"`
 	Matches     []YARAMatch `json:"matches,omitempty"`
-	Error       string     `json:"error,omitempty"`
+	Error       string      `json:"error,omitempty"`
 }
 
 // YARAMatch is a single rule match from a YARA scan.
@@ -41,8 +41,8 @@ type YARAConfig struct {
 // DefaultYARAConfig uses the system yara binary.
 func DefaultYARAConfig() *YARAConfig {
 	return &YARAConfig{
-		Binary:    "yara",
-		Timeout:   30,
+		Binary:  "yara",
+		Timeout: 30,
 	}
 }
 

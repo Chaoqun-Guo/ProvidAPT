@@ -20,24 +20,24 @@ import (
 type Server struct {
 	addr string
 
-	mu              sync.RWMutex
-	socketEvents    []*SocketEvent
-	recentSockets   map[string][]*SocketEvent // agentID → events (last 5 min)
-	stitchedEdges   []*CrossHostEdge
-	stitchEnabled   bool
+	mu            sync.RWMutex
+	socketEvents  []*SocketEvent
+	recentSockets map[string][]*SocketEvent // agentID → events (last 5 min)
+	stitchedEdges []*CrossHostEdge
+	stitchEnabled bool
 
-	mux *http.ServeMux
+	mux    *http.ServeMux
 	stopCh chan struct{}
 }
 
 // NewServer creates a central correlation server.
 func NewServer(addr string) *Server {
 	s := &Server{
-		addr:            addr,
-		recentSockets:   make(map[string][]*SocketEvent),
-		stitchedEdges:   make([]*CrossHostEdge, 0),
-		stitchEnabled:   true,
-		stopCh:          make(chan struct{}),
+		addr:          addr,
+		recentSockets: make(map[string][]*SocketEvent),
+		stitchedEdges: make([]*CrossHostEdge, 0),
+		stitchEnabled: true,
+		stopCh:        make(chan struct{}),
 	}
 	s.mux = s.router()
 	return s
@@ -103,8 +103,8 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"total_events":     len(s.socketEvents),
-		"active_agents":    len(s.recentSockets),
-		"stitched_edges":   len(s.stitchedEdges),
+		"total_events":   len(s.socketEvents),
+		"active_agents":  len(s.recentSockets),
+		"stitched_edges": len(s.stitchedEdges),
 	})
 }

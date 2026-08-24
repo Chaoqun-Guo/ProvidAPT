@@ -10,27 +10,28 @@ const (
 	EventFlagIsRoot     uint32 = 1 << 1
 	EventFlagExecSetuid uint32 = 1 << 2
 )
+
 type EventType uint32
 
 const (
-	EventProcessFork  EventType = 1
-	EventProcessExec  EventType = 2
-	EventProcessExit  EventType = 3
-	EventFileOpen     EventType = 10
-	EventFileCreate   EventType = 11
-	EventFileModify   EventType = 12
-	EventFileDelete   EventType = 13
-	EventFileRename   EventType = 14
-	EventNetConnect   EventType = 20
-	EventNetAccept    EventType = 21
-	EventNetSend      EventType = 22
-	EventNetRecv      EventType = 23
-	EventCredSetuid   EventType = 40
-	EventCredCapable  EventType = 41
-	EventMemfdCreate  EventType = 50
-	EventMprotectRX   EventType = 51
-	EventPipeWrite    EventType = 52
-	EventPipeRead     EventType = 53
+	EventProcessFork EventType = 1
+	EventProcessExec EventType = 2
+	EventProcessExit EventType = 3
+	EventFileOpen    EventType = 10
+	EventFileCreate  EventType = 11
+	EventFileModify  EventType = 12
+	EventFileDelete  EventType = 13
+	EventFileRename  EventType = 14
+	EventNetConnect  EventType = 20
+	EventNetAccept   EventType = 21
+	EventNetSend     EventType = 22
+	EventNetRecv     EventType = 23
+	EventCredSetuid  EventType = 40
+	EventCredCapable EventType = 41
+	EventMemfdCreate EventType = 50
+	EventMprotectRX  EventType = 51
+	EventPipeWrite   EventType = 52
+	EventPipeRead    EventType = 53
 )
 
 // String returns a human-readable event type name.

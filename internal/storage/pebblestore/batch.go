@@ -4,16 +4,16 @@
 // Package store — asynchronous dual-trigger batch writer.
 //
 // Two commit triggers:
-//   1. Time-based:  every 100ms
-//   2. Count-based:  every 1000 records
+//  1. Time-based:  every 100ms
+//  2. Count-based:  every 1000 records
 //
 // Whichever fires first triggers a WriteBatch commit.
 // On SIGINT/SIGTERM, the final flush drains all pending writes.
 package pebblestore
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	defaultBatchSize    = 1000
+	defaultBatchSize     = 1000
 	defaultFlushInterval = 100 * time.Millisecond
 )
 
@@ -36,28 +36,28 @@ const (
 // BatchWriter commits writes to RocksDB using dual-trigger batching
 // (time or count) and ensures final flush on process exit.
 type BatchWriter struct {
-	db          *pebble.DB
-	wb          *pebble.Batch
-	wbMu        sync.Mutex
-	pending     int
-	batchSize   int
+	db            *pebble.DB
+	wb            *pebble.Batch
+	wbMu          sync.Mutex
+	pending       int
+	batchSize     int
 	flushInterval time.Duration
 
-	stats     BatchStats
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
-	signalCh  chan os.Signal
+	stats    BatchStats
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
+	signalCh chan os.Signal
 }
 
 // BatchStats tracks write performance.
 type BatchStats struct {
-	NodesWritten      int64
-	EdgesWritten      int64
-	BatchesCommitted  int64
-	BytesWritten      int64
-	FlushByCount      int64
-	FlushByTime       int64
-	FlushBySignal     int64
+	NodesWritten     int64
+	EdgesWritten     int64
+	BatchesCommitted int64
+	BytesWritten     int64
+	FlushByCount     int64
+	FlushByTime      int64
+	FlushBySignal    int64
 }
 
 // NewBatchWriter creates a dual-trigger batch writer.

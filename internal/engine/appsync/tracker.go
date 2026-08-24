@@ -22,24 +22,24 @@ import (
 
 // RequestInfo holds the application context for a thread.
 type RequestInfo struct {
-	TID        uint32    `json:"tid"`
-	PID        uint32    `json:"pid"`
-	RequestID  string    `json:"request_id"`  // extracted trace ID
-	Method     string    `json:"method"`      // HTTP: GET, POST
-	Path       string    `json:"path"`        // HTTP: /admin/config
-	Query      string    `json:"query,omitempty"` // SQL query, etc.
-	AppName    string    `json:"app_name"`
-	StartTime  time.Time `json:"start_time"`
+	TID       uint32    `json:"tid"`
+	PID       uint32    `json:"pid"`
+	RequestID string    `json:"request_id"`      // extracted trace ID
+	Method    string    `json:"method"`          // HTTP: GET, POST
+	Path      string    `json:"path"`            // HTTP: /admin/config
+	Query     string    `json:"query,omitempty"` // SQL query, etc.
+	AppName   string    `json:"app_name"`
+	StartTime time.Time `json:"start_time"`
 }
 
 // RequestTracker maintains the mapping between TIDs and request IDs.
 // In production, this is backed by a BPF map; for the framework we
 // implement the userspace correlation logic.
 type RequestTracker struct {
-	mu       sync.RWMutex
-	active   map[uint32]*RequestInfo // TID → request
-	history  []*RequestInfo          // completed requests
-	maxKeep  int                     // max history entries
+	mu      sync.RWMutex
+	active  map[uint32]*RequestInfo // TID → request
+	history []*RequestInfo          // completed requests
+	maxKeep int                     // max history entries
 }
 
 // NewRequestTracker creates a request tracker.

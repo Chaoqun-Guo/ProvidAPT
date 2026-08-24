@@ -68,10 +68,10 @@ func DefaultHoneyPaths() []HoneyPath {
 
 // Manager oversees honey path deployment and alert handling.
 type Manager struct {
-	mu          sync.Mutex
-	paths       []HoneyPath
-	hashes      map[string]string // hash16 → path (for reverse lookup)
-	triggered   map[string]bool   // path → triggered
+	mu           sync.Mutex
+	paths        []HoneyPath
+	hashes       map[string]string // hash16 → path (for reverse lookup)
+	triggered    map[string]bool   // path → triggered
 	triggerCount int
 }
 
@@ -149,9 +149,9 @@ func (m *Manager) Stats() map[string]interface{} {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return map[string]interface{}{
-		"total_paths":    len(m.paths),
-		"trigger_count":  m.triggerCount,
-		"triggered":      len(m.triggered),
+		"total_paths":   len(m.paths),
+		"trigger_count": m.triggerCount,
+		"triggered":     len(m.triggered),
 	}
 }
 

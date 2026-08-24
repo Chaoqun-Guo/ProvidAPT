@@ -14,12 +14,12 @@ import (
 
 // BlastRadiusResult shows all affected resources across the data center.
 type BlastRadiusResult struct {
-	RootNode    string       `json:"root_node"`
-	RootHost    string       `json:"root_host"`
+	RootNode      string       `json:"root_node"`
+	RootHost      string       `json:"root_host"`
 	AffectedHosts []HostImpact `json:"affected_hosts"`
-	TotalHosts  int          `json:"total_hosts"`
-	TotalAssets int          `json:"total_assets"`
-	MaxDepth    int          `json:"max_depth"`
+	TotalHosts    int          `json:"total_hosts"`
+	TotalAssets   int          `json:"total_assets"`
+	MaxDepth      int          `json:"max_depth"`
 }
 
 // HostImpact describes the impact on a single host.
@@ -35,11 +35,11 @@ type HostImpact struct {
 // BlastRadiusEngine calculates the datacenter-wide impact of a compromise.
 //
 // Algorithm:
-//   1. Start from an infected host/node
-//   2. BFS traverse the global graph following lateral movement edges
-//   3. For each reachable host, aggregate impacted resources
-//   4. Calculate cumulative risk score
-//   5. Return complete blast radius report
+//  1. Start from an infected host/node
+//  2. BFS traverse the global graph following lateral movement edges
+//  3. For each reachable host, aggregate impacted resources
+//  4. Calculate cumulative risk score
+//  5. Return complete blast radius report
 type BlastRadiusEngine struct {
 	maxDepth int
 	maxHosts int
@@ -56,9 +56,9 @@ func NewBlastRadiusEngine() *BlastRadiusEngine {
 // framework, it works on a set of declared edges.
 func (bre *BlastRadiusEngine) Calculate(rootNode, rootHost string, lateralEdges []LateralEdge) *BlastRadiusResult {
 	result := &BlastRadiusResult{
-		RootNode:    rootNode,
-		RootHost:    rootHost,
-		MaxDepth:    bre.maxDepth,
+		RootNode: rootNode,
+		RootHost: rootHost,
+		MaxDepth: bre.maxDepth,
 	}
 
 	// BFS traversal
@@ -124,7 +124,7 @@ func (bre *BlastRadiusEngine) Calculate(rootNode, rootHost string, lateralEdges 
 type LateralEdge struct {
 	SourceHost string `json:"source_host"`
 	TargetHost string `json:"target_host"`
-	Relation   string `json:"relation"`   // "ssh", "rdp", "wmi", "scp"
+	Relation   string `json:"relation"` // "ssh", "rdp", "wmi", "scp"
 	PID        uint32 `json:"pid"`
 	Comm       string `json:"comm"`
 	Tainted    bool   `json:"tainted"`

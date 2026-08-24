@@ -6,9 +6,9 @@
 // When a file is written and later read, new version nodes are
 // created to preserve the causal DAG structure:
 //
-//   v1 ──wasDerivedFrom──▶ process ──wasGeneratedBy──▶ v2
-//   (old)                    │                        (new)
-//                         (writer)
+//	v1 ──wasDerivedFrom──▶ process ──wasGeneratedBy──▶ v2
+//	(old)                    │                        (new)
+//	                      (writer)
 //
 // Storage key: v:<inode>:<dev_major>:<dev_minor>:<version>
 // Version edges stored as regular edges in the edge index.
@@ -29,8 +29,8 @@ const versionPrefix = "v:"
 // VersionTracker manages per-file version numbers.
 // Thread-safe.
 type VersionTracker struct {
-	mu      sync.Mutex
-	latest  map[string]int64 // fileKey → current version
+	mu     sync.Mutex
+	latest map[string]int64 // fileKey → current version
 }
 
 // fileKey builds a unique key for a file from its inode and device.
@@ -115,16 +115,16 @@ func (vt *VersionTracker) CurrentVersion(inode uint64, devMajor, devMinor uint32
 
 // VersionRecord stores the metadata for a single version change.
 type VersionRecord struct {
-	VersionID    string `json:"version_id"`
-	Inode        uint64 `json:"inode"`
-	DevMajor     uint32 `json:"dev_major"`
-	DevMinor     uint32 `json:"dev_minor"`
-	VersionNum   int64  `json:"version_num"`
-	TriggerPID   uint32 `json:"trigger_pid"`
-	TriggerComm  string `json:"trigger_comm"`
-	Operation    string `json:"operation"` // "write", "read"
-	PrevVersion  string `json:"prev_version,omitempty"`
-	TimestampNS  uint64 `json:"timestamp_ns"`
+	VersionID   string `json:"version_id"`
+	Inode       uint64 `json:"inode"`
+	DevMajor    uint32 `json:"dev_major"`
+	DevMinor    uint32 `json:"dev_minor"`
+	VersionNum  int64  `json:"version_num"`
+	TriggerPID  uint32 `json:"trigger_pid"`
+	TriggerComm string `json:"trigger_comm"`
+	Operation   string `json:"operation"` // "write", "read"
+	PrevVersion string `json:"prev_version,omitempty"`
+	TimestampNS uint64 `json:"timestamp_ns"`
 }
 
 // VersionEdge returns the edge description between versions.
@@ -193,12 +193,12 @@ func (vs *VersionStore) RecordRead(inode uint64, devMajor, devMinor uint32,
 
 	// No existing record — first access (implicit v1)
 	return &VersionRecord{
-		VersionID:  versionID,
-		Inode:      inode,
-		DevMajor:   devMajor,
-		DevMinor:   devMinor,
-		VersionNum: 1,
-		Operation:  "read",
+		VersionID:   versionID,
+		Inode:       inode,
+		DevMajor:    devMajor,
+		DevMinor:    devMinor,
+		VersionNum:  1,
+		Operation:   "read",
 		TimestampNS: timestamp,
 	}
 }

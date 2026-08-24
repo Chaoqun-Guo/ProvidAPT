@@ -18,23 +18,23 @@ import (
 
 // Incident clusters multiple related alerts into one group.
 type Incident struct {
-	ID          string       `json:"id"`
-	AlertIDs    []string     `json:"alert_ids"`
-	Nodes       []string     `json:"nodes"`       // all nodes in this incident
-	TotalAlerts int          `json:"total_alerts"`
-	FirstSeen   time.Time    `json:"first_seen"`
-	LastSeen    time.Time    `json:"last_seen"`
-	RiskScore   float64      `json:"risk_score"`
-	EntryPoint  string       `json:"entry_point"`
-	FarthestPoint string     `json:"farthest_point"`
-	Briefing    string       `json:"briefing"`
-	Resolved    bool         `json:"resolved"`
+	ID            string    `json:"id"`
+	AlertIDs      []string  `json:"alert_ids"`
+	Nodes         []string  `json:"nodes"` // all nodes in this incident
+	TotalAlerts   int       `json:"total_alerts"`
+	FirstSeen     time.Time `json:"first_seen"`
+	LastSeen      time.Time `json:"last_seen"`
+	RiskScore     float64   `json:"risk_score"`
+	EntryPoint    string    `json:"entry_point"`
+	FarthestPoint string    `json:"farthest_point"`
+	Briefing      string    `json:"briefing"`
+	Resolved      bool      `json:"resolved"`
 }
 
 // AlertNode is a single alert with graph context.
 type AlertNode struct {
 	ID        string    `json:"id"`
-	Type      string    `json:"type"`       // "taint", "file_write", "net_connect"
+	Type      string    `json:"type"` // "taint", "file_write", "net_connect"
 	PID       uint32    `json:"pid,omitempty"`
 	Comm      string    `json:"comm,omitempty"`
 	Target    string    `json:"target,omitempty"`
@@ -86,13 +86,13 @@ func (ic *IncidentCluster) Ingest(alert *AlertNode) *Incident {
 
 	// Create new incident
 	inc := &Incident{
-		ID:        fmt.Sprintf("INC-%d", len(ic.incidents)+1),
-		AlertIDs:  []string{alert.ID},
-		Nodes:     []string{fmt.Sprintf("%s:%s", alert.Type, alert.Target)},
+		ID:          fmt.Sprintf("INC-%d", len(ic.incidents)+1),
+		AlertIDs:    []string{alert.ID},
+		Nodes:       []string{fmt.Sprintf("%s:%s", alert.Type, alert.Target)},
 		TotalAlerts: 1,
-		FirstSeen: now,
-		LastSeen:  now,
-		RiskScore: alert.Score,
+		FirstSeen:   now,
+		LastSeen:    now,
+		RiskScore:   alert.Score,
 	}
 	ic.incidents = append(ic.incidents, inc)
 	return inc
@@ -152,8 +152,8 @@ func (ic *IncidentCluster) Stats() map[string]interface{} {
 	ic.mu.Lock()
 	defer ic.mu.Unlock()
 	return map[string]interface{}{
-		"total_alerts":     len(ic.alerts),
-		"total_incidents":  len(ic.incidents),
+		"total_alerts":    len(ic.alerts),
+		"total_incidents": len(ic.incidents),
 		"active_incidents": func() int {
 			n := 0
 			for _, inc := range ic.incidents {

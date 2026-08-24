@@ -149,7 +149,7 @@ func TestIndexByIdentity(t *testing.T) {
 	node := &store.GlobalNode{
 		ID: "p:100", Type: "process", Label: "bash",
 		HostID: "host-abc",
-		Props: map[string]interface{}{"identity": "alice"},
+		Props:  map[string]interface{}{"identity": "alice"},
 	}
 	gi.IndexNode(node)
 

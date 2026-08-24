@@ -233,4 +233,3 @@ func TestDetectIntegration(t *testing.T) {
 
 	t.Log("Lateral movement detection integration OK")
 }
-

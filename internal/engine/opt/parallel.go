@@ -15,10 +15,10 @@ import (
 
 // TraversalResult holds the output of a parallel backward trace.
 type TraversalResult struct {
-	StartNode string      `json:"start_node"`
-	Path      []PathStep  `json:"path"`
-	Duration  string      `json:"duration"`
-	CacheHit  bool        `json:"cache_hit"`
+	StartNode string     `json:"start_node"`
+	Path      []PathStep `json:"path"`
+	Duration  string     `json:"duration"`
+	CacheHit  bool       `json:"cache_hit"`
 }
 
 // PathStep is a single step in a traced path.
@@ -32,9 +32,9 @@ type PathStep struct {
 // ParallelTraverser performs concurrent backward tracing from
 // multiple suspicious points, reducing query latency.
 type ParallelTraverser struct {
-	cache       *HotPathCache
-	maxWorkers  int
-	traverseFn  TraverseFunc
+	cache      *HotPathCache
+	maxWorkers int
+	traverseFn TraverseFunc
 }
 
 // TraverseFunc is the user-defined function for a single trace.

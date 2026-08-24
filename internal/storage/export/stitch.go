@@ -28,14 +28,14 @@ import (
 
 // Stitcher correlates socket events across agents.
 type Stitcher struct {
-	mu         sync.RWMutex
-	agents     map[string]*AgentState
-	edges      []*CrossHostEdge
-	edgeIndex  map[string]bool // dedup key → true
+	mu        sync.RWMutex
+	agents    map[string]*AgentState
+	edges     []*CrossHostEdge
+	edgeIndex map[string]bool // dedup key → true
 
 	// Config
-	TimeWindow time.Duration // correlation time window (default 5s)
-	MinConfidence float64   // minimum confidence to emit (default 0.5)
+	TimeWindow    time.Duration // correlation time window (default 5s)
+	MinConfidence float64       // minimum confidence to emit (default 0.5)
 }
 
 // AgentState tracks the recent history of one agent.

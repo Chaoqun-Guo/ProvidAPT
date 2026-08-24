@@ -29,10 +29,10 @@ type RollingSnapshot struct {
 	mu      sync.RWMutex
 	window  time.Duration
 	events  []*snapEntry
-	byPID   map[uint32][]int  // PID → event indices
-	head    int               // ring buffer head
-	tail    int               // ring buffer tail
-	maxSize int               // ring buffer capacity
+	byPID   map[uint32][]int // PID → event indices
+	head    int              // ring buffer head
+	tail    int              // ring buffer tail
+	maxSize int              // ring buffer capacity
 }
 
 type snapEntry struct {

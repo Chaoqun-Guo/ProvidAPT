@@ -37,18 +37,18 @@ func (et EntityType) String() string {
 
 // ActiveEntry records a recent change to an entity.
 type ActiveEntry struct {
-	ID        string     `json:"id"`         // entity ID (PID, inode key)
-	EntityType EntityType `json:"entity_type"`
-	LastSeen  time.Time  `json:"last_seen"`
-	ChangeCount int      `json:"change_count"`
+	ID          string     `json:"id"` // entity ID (PID, inode key)
+	EntityType  EntityType `json:"entity_type"`
+	LastSeen    time.Time  `json:"last_seen"`
+	ChangeCount int        `json:"change_count"`
 }
 
 // ActiveTable tracks entities that changed in the last N minutes.
 // Used to limit diff computation to only recently active entities.
 type ActiveTable struct {
-	mu       sync.Mutex
-	entries  map[string]*ActiveEntry
-	window   time.Duration // default 5 min
+	mu      sync.Mutex
+	entries map[string]*ActiveEntry
+	window  time.Duration // default 5 min
 }
 
 // NewActiveTable creates an active entity tracker.
@@ -74,10 +74,10 @@ func (at *ActiveTable) Touch(id string, etype EntityType) {
 		entry.ChangeCount++
 	} else {
 		at.entries[id] = &ActiveEntry{
-			ID:           id,
-			EntityType:   etype,
-			LastSeen:     now,
-			ChangeCount:  1,
+			ID:          id,
+			EntityType:  etype,
+			LastSeen:    now,
+			ChangeCount: 1,
 		}
 	}
 }
@@ -134,11 +134,11 @@ func (at *ActiveTable) Stats() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"total_active":   len(at.entries),
-		"processes":      byType[EntityProcess],
-		"files":          byType[EntityFile],
-		"networks":       byType[EntityNetwork],
-		"window":         at.window.String(),
+		"total_active": len(at.entries),
+		"processes":    byType[EntityProcess],
+		"files":        byType[EntityFile],
+		"networks":     byType[EntityNetwork],
+		"window":       at.window.String(),
 	}
 }
 

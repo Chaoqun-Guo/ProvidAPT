@@ -17,15 +17,15 @@ import (
 
 // provJSON mirrors the W3C PROV-JSON structure.
 type provJSON struct {
-	Prefix         map[string]string              `json:"prefix"`
-	Activity       map[string]provElement         `json:"activity,omitempty"`
-	Entity         map[string]provElement         `json:"entity,omitempty"`
-	Agent          map[string]provElement         `json:"agent,omitempty"`
+	Prefix   map[string]string      `json:"prefix"`
+	Activity map[string]provElement `json:"activity,omitempty"`
+	Entity   map[string]provElement `json:"entity,omitempty"`
+	Agent    map[string]provElement `json:"agent,omitempty"`
 
 	// Relations — field names match PROV-JSON section keys exactly.
-	Used           []provActivityEntity           `json:"used,omitempty"`
-	WasGeneratedBy []provActivityEntity           `json:"wasGeneratedBy,omitempty"`
-	WasInformedBy  []provInformedBy               `json:"wasInformedBy,omitempty"`
+	Used           []provActivityEntity `json:"used,omitempty"`
+	WasGeneratedBy []provActivityEntity `json:"wasGeneratedBy,omitempty"`
+	WasInformedBy  []provInformedBy     `json:"wasInformedBy,omitempty"`
 }
 
 type provElement struct {
@@ -128,8 +128,8 @@ func (g *Graph) SerializeJSON(w io.Writer) error {
 			})
 		case ProvWasInformedBy:
 			root.WasInformedBy = append(root.WasInformedBy, provInformedBy{
-				Informed:  e.Source,   // child activity
-				Informant: e.Target,   // parent activity
+				Informed:  e.Source, // child activity
+				Informant: e.Target, // parent activity
 				Time:      ts,
 				Count:     e.Count,
 			})
@@ -146,10 +146,10 @@ func (g *Graph) SerializeJSON(w io.Writer) error {
 // ═══════════════════════════════════════════════════════════════
 
 type graphmlRoot struct {
-	XMLName xml.Name      `xml:"graphml"`
-	Xmlns   string        `xml:"xmlns,attr"`
-	Keys    []graphmlKey  `xml:"key"`
-	Graph   graphmlGraph  `xml:"graph"`
+	XMLName xml.Name     `xml:"graphml"`
+	Xmlns   string       `xml:"xmlns,attr"`
+	Keys    []graphmlKey `xml:"key"`
+	Graph   graphmlGraph `xml:"graph"`
 }
 
 type graphmlKey struct {
@@ -160,10 +160,10 @@ type graphmlKey struct {
 }
 
 type graphmlGraph struct {
-	ID          string         `xml:"id,attr"`
-	EdgeDefault string         `xml:"edgedefault,attr"`
-	Nodes       []graphmlNode  `xml:"node"`
-	Edges       []graphmlEdge  `xml:"edge"`
+	ID          string        `xml:"id,attr"`
+	EdgeDefault string        `xml:"edgedefault,attr"`
+	Nodes       []graphmlNode `xml:"node"`
+	Edges       []graphmlEdge `xml:"edge"`
 }
 
 type graphmlNode struct {

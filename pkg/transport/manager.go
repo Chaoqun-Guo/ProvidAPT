@@ -18,9 +18,9 @@ type TransportConfig struct {
 	HashStaleAge           time.Duration // default 5min
 
 	// Priority pipeline
-	LowPriorityPath   string        // empty = in-memory only
+	LowPriorityPath    string        // empty = in-memory only
 	LowSummaryInterval time.Duration // default 1h
-	LowDrainMax       int           // default 10000
+	LowDrainMax        int           // default 10000
 
 	// Compression
 	CompressionLevel CompressionLevel

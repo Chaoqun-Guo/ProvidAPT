@@ -44,11 +44,11 @@ func (m PurgeMode) String() string {
 // PurgeConfig controls the purge operation.
 type PurgeConfig struct {
 	Mode      PurgeMode
-	StorePath string        // Path to PebbleDB directory
-	Cutoff    time.Time     // For PurgeByTime: delete data older than this
-	MaxBytes  int64         // For PurgeByCapacity: target remaining size
-	DryRun    bool          // If true, only report what would be deleted
-	EncKey    []byte        // Encryption key (nil = no encryption)
+	StorePath string    // Path to PebbleDB directory
+	Cutoff    time.Time // For PurgeByTime: delete data older than this
+	MaxBytes  int64     // For PurgeByCapacity: target remaining size
+	DryRun    bool      // If true, only report what would be deleted
+	EncKey    []byte    // Encryption key (nil = no encryption)
 }
 
 // PurgeReport contains the results of a purge operation.

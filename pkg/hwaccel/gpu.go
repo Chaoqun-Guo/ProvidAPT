@@ -24,11 +24,11 @@ import (
 
 // GPUInfo describes the detected GPU capabilities.
 type GPUInfo struct {
-	Present    bool   `json:"present"`
-	Driver     string `json:"driver"`
-	CUDAVersion string `json:"cuda_version,omitempty"`
-	GPUNames   []string `json:"gpu_names,omitempty"`
-	MemGB      float64 `json:"memory_gb"`
+	Present     bool     `json:"present"`
+	Driver      string   `json:"driver"`
+	CUDAVersion string   `json:"cuda_version,omitempty"`
+	GPUNames    []string `json:"gpu_names,omitempty"`
+	MemGB       float64  `json:"memory_gb"`
 }
 
 // DetectGPU probes for GPU availability.
@@ -97,18 +97,18 @@ func DefaultClusteringConfig() *GraphClusteringConfig {
 
 // GraphCluster represents a detected cluster of related nodes.
 type GraphCluster struct {
-	ID         int      `json:"id"`
-	Size       int      `json:"size"`
-	NodeIDs    []string `json:"node_ids"`
-	AvgScore   float64  `json:"avg_anomaly_score"`
-	TimeRange  string   `json:"time_range"`
-	Suspect    bool     `json:"suspect"`
+	ID        int      `json:"id"`
+	Size      int      `json:"size"`
+	NodeIDs   []string `json:"node_ids"`
+	AvgScore  float64  `json:"avg_anomaly_score"`
+	TimeRange string   `json:"time_range"`
+	Suspect   bool     `json:"suspect"`
 }
 
 // GraphClusteringEngine manages GPU-accelerated clustering.
 type GraphClusteringEngine struct {
-	cfg      *GraphClusteringConfig
-	gpuInfo  *GPUInfo
+	cfg     *GraphClusteringConfig
+	gpuInfo *GPUInfo
 }
 
 // NewClusteringEngine creates a graph clustering engine.

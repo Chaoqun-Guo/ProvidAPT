@@ -4,15 +4,17 @@
 // Package cli implements the ProvidAPT CLI query DSL.
 //
 // Syntax:
-//   find <type> [where <field>=<value>]
-//     [-> follow <direction>]
-//     [-> <relation>]
-//     [-> find <type> [where ...]]
+//
+//	find <type> [where <field>=<value>]
+//	  [-> follow <direction>]
+//	  [-> <relation>]
+//	  [-> find <type> [where ...]]
 //
 // Examples:
-//   find process where name="nginx" -> follow child -> find file where path="/etc/*"
-//   find process where pid=100 -> write -> find file
-//   find network where addr="5.6.7.8" -> follow parent -> find process
+//
+//	find process where name="nginx" -> follow child -> find file where path="/etc/*"
+//	find process where pid=100 -> write -> find file
+//	find network where addr="5.6.7.8" -> follow parent -> find process
 package dsl
 
 import (
@@ -32,7 +34,7 @@ const (
 	tokFind
 	tokFollow
 	tokWhere
-	tokArrow     // ->
+	tokArrow // ->
 	tokProcess
 	tokFile
 	tokNetwork
@@ -42,8 +44,8 @@ const (
 	tokWrite
 	tokConnect
 	tokFork
-	tokEq        // =
-	tokString    // "..." or unquoted
+	tokEq     // =
+	tokString // "..." or unquoted
 	tokNumber
 	tokIdent
 )

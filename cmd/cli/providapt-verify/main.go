@@ -86,11 +86,11 @@ func main() {
 			checks = append(checks, checkItem{Summary: line, Passed: passed})
 		}
 		clioutput.PrintJSON(struct {
-			Passed       bool        `json:"passed"`
-			FilesChecked int         `json:"files_checked"`
-			Tampered     int         `json:"tampered"`
-			AnchorsFailed int        `json:"anchors_failed"`
-			Checks       []checkItem `json:"checks,omitempty"`
+			Passed        bool        `json:"passed"`
+			FilesChecked  int         `json:"files_checked"`
+			Tampered      int         `json:"tampered"`
+			AnchorsFailed int         `json:"anchors_failed"`
+			Checks        []checkItem `json:"checks,omitempty"`
 		}{
 			Passed:        result.FilesTampered == 0 && result.AnchorsFailed == 0,
 			FilesChecked:  result.FilesChecked,

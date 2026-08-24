@@ -16,22 +16,22 @@ import (
 
 // JA3Cluster represents a group of processes sharing the same JA3.
 type JA3Cluster struct {
-	JA3       string   `json:"ja3"`
-	Count     int      `json:"count"`
-	Hosts     []string `json:"hosts"`
-	Processes []string `json:"processes"` // "host:pid:comm"
+	JA3       string    `json:"ja3"`
+	Count     int       `json:"count"`
+	Hosts     []string  `json:"hosts"`
+	Processes []string  `json:"processes"` // "host:pid:comm"
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
-	IsC2      bool     `json:"is_c2"`      // flagged as potential C2
-	RiskScore float64  `json:"risk_score"`
+	IsC2      bool      `json:"is_c2"` // flagged as potential C2
+	RiskScore float64   `json:"risk_score"`
 }
 
 // CentralCorrelator matches JA3 fingerprints across hosts
 // to detect coordinated C2 activity.
 type CentralCorrelator struct {
-	mu      sync.Mutex
-	byJA3   map[string]*JA3Cluster // ja3 → cluster
-	alerts  []C2Alert
+	mu     sync.Mutex
+	byJA3  map[string]*JA3Cluster // ja3 → cluster
+	alerts []C2Alert
 }
 
 // C2Alert is triggered when coordinated C2 is detected.

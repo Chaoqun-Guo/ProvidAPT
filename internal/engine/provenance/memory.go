@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // addMemoryEvent handles memory-related events (memfd_create,

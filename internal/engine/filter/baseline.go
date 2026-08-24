@@ -7,9 +7,9 @@
 //
 // Components:
 //
-//   Baseline — 24h training mode records hashes of normal operations
-//   Reputation — path-based scoring (/usr/bin=high, /tmp=low)
-//   Engine — combines baseline + reputation + runtime filtering
+//	Baseline — 24h training mode records hashes of normal operations
+//	Reputation — path-based scoring (/usr/bin=high, /tmp=low)
+//	Engine — combines baseline + reputation + runtime filtering
 package filter
 
 import (

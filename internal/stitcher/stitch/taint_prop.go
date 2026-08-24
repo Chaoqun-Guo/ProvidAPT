@@ -16,7 +16,7 @@ import (
 
 // TaintPropagator manages taint propagation across stitch points.
 type TaintPropagator struct {
-	mu        sync.Mutex
+	mu         sync.Mutex
 	hostTaints map[string]map[uint32]*TaintInfo // agentID → {PID → taint}
 	propagated int
 }

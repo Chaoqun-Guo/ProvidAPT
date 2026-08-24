@@ -7,14 +7,14 @@
 // It replaces batch-processing with a stream-processing architecture
 // inspired by Apache Flink, featuring:
 //
-//   1. Streaming graph construction — events are processed in micro-
-//      batches (5s windows) and immediately matched against APT patterns.
+//  1. Streaming graph construction — events are processed in micro-
+//     batches (5s windows) and immediately matched against APT patterns.
 //
-//   2. NFA-based pattern matching — real-time detection of TTP
-//      sequences using nondeterministic finite automata.
+//  2. NFA-based pattern matching — real-time detection of TTP
+//     sequences using nondeterministic finite automata.
 //
-//   3. Rolling memory snapshots — fast retrieval of recent (1 hour)
-//      associations without disk I/O.
+//  3. Rolling memory snapshots — fast retrieval of recent (1 hour)
+//     associations without disk I/O.
 package stream
 
 import (

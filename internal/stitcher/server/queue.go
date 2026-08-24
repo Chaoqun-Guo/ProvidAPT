@@ -67,9 +67,9 @@ func (pq *PriorityQueue) Pop() interface{} {
 
 // EventQueueManager manages the priority event queue.
 type EventQueueManager struct {
-	mu       sync.Mutex
-	queue    PriorityQueue
-	enqueued int64
+	mu        sync.Mutex
+	queue     PriorityQueue
+	enqueued  int64
 	processed int64
 }
 

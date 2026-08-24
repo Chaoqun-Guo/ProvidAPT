@@ -16,14 +16,15 @@ import (
 // cross-machine stitching at the management center.
 //
 // RocksDB Key Schema:
-//   fp:<flow_id>             → TCPFingerprint JSON
-//   idx:fp:src:<ip>:<ts>     → flow_id (reverse index by source IP)
-//   idx:fp:dst:<ip>:<ts>     → flow_id (reverse index by dest IP)
+//
+//	fp:<flow_id>             → TCPFingerprint JSON
+//	idx:fp:src:<ip>:<ts>     → flow_id (reverse index by source IP)
+//	idx:fp:dst:<ip>:<ts>     → flow_id (reverse index by dest IP)
 type FingerprintIndex struct {
-	mu         sync.Mutex
-	entries    map[string]*TCPFingerprint // flow_id → fingerprint
-	srcIndex   map[string][]string        // src_ip → flow_ids
-	dstIndex   map[string][]string        // dst_ip → flow_ids
+	mu       sync.Mutex
+	entries  map[string]*TCPFingerprint // flow_id → fingerprint
+	srcIndex map[string][]string        // src_ip → flow_ids
+	dstIndex map[string][]string        // dst_ip → flow_ids
 }
 
 // NewFingerprintIndex creates a distributed index.

@@ -238,6 +238,6 @@ func fakeForkEvent(parentPID, childPID uint32, comm string) *collector.Event {
 		ChildPID:    childPID,
 		Comm:        comm,
 		UID:         1000,
-		TimestampNS: uint64(parentPID) * 1000 + 500,
+		TimestampNS: uint64(parentPID)*1000 + 500,
 	}
 }

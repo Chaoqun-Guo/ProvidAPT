@@ -6,10 +6,10 @@
 //
 // Syntax (inspired by Neo4j Cypher):
 //
-//   MATCH (p:Process)-[:WROTE]->(f:File)
-//   WHERE f.path STARTSWITH '/etc'
-//   DURING [2025-01-01T00:00:00Z, 2025-01-02T00:00:00Z]
-//   RETURN p.pid, p.comm, f.path
+//	MATCH (p:Process)-[:WROTE]->(f:File)
+//	WHERE f.path STARTSWITH '/etc'
+//	DURING [2025-01-01T00:00:00Z, 2025-01-02T00:00:00Z]
+//	RETURN p.pid, p.comm, f.path
 //
 // The query is translated to DFS traversals on the in-memory graph
 // and/or RocksDB index scans with time-range filtering.
@@ -23,17 +23,17 @@ import "time"
 
 // Query is the root AST node.
 type Query struct {
-	Match    *PathPattern
-	Where    []Condition
-	During   *TimeWindow
-	Return   []Projection
+	Match  *PathPattern
+	Where  []Condition
+	During *TimeWindow
+	Return []Projection
 }
 
 // PathPattern describes a graph traversal path:
 // (node)-[edge]->(node)-[edge]->(node)
 type PathPattern struct {
-	Nodes []NodePattern  // sequence of node patterns
-	Edges []EdgePattern  // edges between nodes (len = len(Nodes)-1)
+	Nodes []NodePattern // sequence of node patterns
+	Edges []EdgePattern // edges between nodes (len = len(Nodes)-1)
 }
 
 // NodePattern matches a graph node.
@@ -49,22 +49,22 @@ type EdgePattern struct {
 
 // Condition is a WHERE clause predicate.
 type Condition struct {
-	Field    string   // e.g., "p.path", "f.path"
-	Op       Op       // EQ, STARTSWITH, CONTAINS, GT, LT
-	Value    string   // literal comparison value
+	Field string // e.g., "p.path", "f.path"
+	Op    Op     // EQ, STARTSWITH, CONTAINS, GT, LT
+	Value string // literal comparison value
 }
 
 // Op is a comparison operator.
 type Op int
 
 const (
-	OpEQ        Op = iota // =
-	OpSTARTSWITH          // STARTSWITH
-	OpCONTAINS            // CONTAINS
-	OpGT                  // >
-	OpLT                  // <
-	OpGTE                 // >=
-	OpLTE                 // <=
+	OpEQ         Op = iota // =
+	OpSTARTSWITH           // STARTSWITH
+	OpCONTAINS             // CONTAINS
+	OpGT                   // >
+	OpLT                   // <
+	OpGTE                  // >=
+	OpLTE                  // <=
 )
 
 func (o Op) String() string {
@@ -109,7 +109,7 @@ type ResultRow struct {
 
 // Result holds all matching rows.
 type Result struct {
-	Columns []string      // projected field names
+	Columns []string // projected field names
 	Rows    []*ResultRow
 	Elapsed time.Duration
 }
@@ -117,12 +117,12 @@ type Result struct {
 // ── Map PROV labels to internal types ─────────────────────
 
 var labelToSubtype = map[string]string{
-	"Process":     "process",
-	"File":        "file",
-	"Network":     "network",
-	"Pipe":        "pipe",
-	"Memory":      "memory",
-	"Credential":  "credential",
+	"Process":    "process",
+	"File":       "file",
+	"Network":    "network",
+	"Pipe":       "pipe",
+	"Memory":     "memory",
+	"Credential": "credential",
 }
 
 var labelToProvType = map[string]string{
@@ -146,9 +146,9 @@ var relationMapping = map[string]string{
 
 // ReverseRelation maps PROV relations to query names.
 var ReverseRelation = map[string]string{
-	"prov:used":              "READ",
-	"prov:wasGeneratedBy":    "WROTE",
-	"prov:wasInformedBy":     "FORKED",
-	"prov:wasDerivedFrom":   "DERIVED",
+	"prov:used":               "READ",
+	"prov:wasGeneratedBy":     "WROTE",
+	"prov:wasInformedBy":      "FORKED",
+	"prov:wasDerivedFrom":     "DERIVED",
 	"prov:hadSecurityContext": "CONTEXT",
 }

@@ -30,11 +30,11 @@ import (
 // SecurityContext captures the credential state of a process at a
 // point in time.
 type SecurityContext struct {
-	PID          uint32
-	UID          uint32
-	EUID         uint32
-	HasSetuid    bool
-	PrevUID      uint32
+	PID       uint32
+	UID       uint32
+	EUID      uint32
+	HasSetuid bool
+	PrevUID   uint32
 }
 
 // CredTracker maintains the current security context for each
@@ -92,4 +92,3 @@ func (ct *CredTracker) GetContext(pid uint32) *SecurityContext {
 	defer ct.mu.Unlock()
 	return ct.states[pid]
 }
-

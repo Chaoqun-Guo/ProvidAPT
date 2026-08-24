@@ -167,7 +167,6 @@ func TestCollectFilesFiltering(t *testing.T) {
 	}
 }
 
-
 func TestReplayFile_OpenError(t *testing.T) {
 	graph := provenance.NewGraph()
 	_, err := replayFile("/nonexistent/file.ndjson", graph, 0)

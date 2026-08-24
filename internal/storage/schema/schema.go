@@ -5,19 +5,19 @@
 //
 // Key space design (all keys are lexicographically sortable strings):
 //
-//   Node storage:
-//     n:<type>:<id>           → protobuf(Node)         // Primary node storage
+//	Node storage:
+//	  n:<type>:<id>           → protobuf(Node)         // Primary node storage
 //
-//   Edge storage (time-range ordered):
-//     e:<ts_hex>:<src>:<tgt>  → protobuf(Edge)         // Primary edge, ordered by time
-//     r:<tgt>:<ts_hex>:<src>  → protobuf(Edge)         // Reverse index for backward traversal
+//	Edge storage (time-range ordered):
+//	  e:<ts_hex>:<src>:<tgt>  → protobuf(Edge)         // Primary edge, ordered by time
+//	  r:<tgt>:<ts_hex>:<src>  → protobuf(Edge)         // Reverse index for backward traversal
 //
-//   Secondary indexes:
-//     idx:pid:<pid>:<node_id>  → ""                     // PID → Node lookup
-//     idx:inode:<inode>:<dev_major>:<dev_minor>:<node_id> → ""  // Inode → Node lookup
+//	Secondary indexes:
+//	  idx:pid:<pid>:<node_id>  → ""                     // PID → Node lookup
+//	  idx:inode:<inode>:<dev_major>:<dev_minor>:<node_id> → ""  // Inode → Node lookup
 //
-//   Metadata:
-//     meta:<key>              → string                 // System metadata (version, etc.)
+//	Metadata:
+//	  meta:<key>              → string                 // System metadata (version, etc.)
 //
 // The <ts_hex> field is a 16-character lowercase hex string
 // representing the upper 64 bits of the nanosecond timestamp,
@@ -31,12 +31,12 @@ import (
 
 // Constants
 const (
-	nodePrefix    = "n:"
-	edgePrefix    = "e:"
-	reversePrefix = "r:"
-	idxPIDPrefix  = "idx:pid:"
+	nodePrefix     = "n:"
+	edgePrefix     = "e:"
+	reversePrefix  = "r:"
+	idxPIDPrefix   = "idx:pid:"
 	idxInodePrefix = "idx:inode:"
-	metaPrefix    = "meta:"
+	metaPrefix     = "meta:"
 
 	tsHexDigits = 16 // 64-bit timestamp in hex
 )

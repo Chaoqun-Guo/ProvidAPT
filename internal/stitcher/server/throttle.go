@@ -17,33 +17,33 @@ import (
 type ServerLoad int
 
 const (
-	LoadLow    ServerLoad = 0 // normal operation
-	LoadMedium ServerLoad = 1 // elevated — monitor
-	LoadHigh   ServerLoad = 2 // high — request agent throttling
+	LoadLow      ServerLoad = 0 // normal operation
+	LoadMedium   ServerLoad = 1 // elevated — monitor
+	LoadHigh     ServerLoad = 2 // high — request agent throttling
 	LoadCritical ServerLoad = 3 // critical — force agent degradation
 )
 
 // LoadController monitors server load and notifies agents.
 type LoadController struct {
-	mu          sync.Mutex
-	load        ServerLoad
-	queue       *EventQueueManager
-	agents      map[string]*AgentStats
-	throttleLevel int             // 0-3, broadcast to agents
-	lastAdjust  time.Time
+	mu            sync.Mutex
+	load          ServerLoad
+	queue         *EventQueueManager
+	agents        map[string]*AgentStats
+	throttleLevel int // 0-3, broadcast to agents
+	lastAdjust    time.Time
 
 	// Thresholds
-	highThreshold  int // queue depth triggering high load
-	critThreshold  int // queue depth triggering critical load
-	checkInterval  time.Duration
+	highThreshold int // queue depth triggering high load
+	critThreshold int // queue depth triggering critical load
+	checkInterval time.Duration
 }
 
 // AgentStats tracks an agent's contribution to load.
 type AgentStats struct {
-	AgentID        string    `json:"agent_id"`
-	EventsSent     int64     `json:"events_sent"`
-	LastHeartbeat  time.Time `json:"last_heartbeat"`
-	ThrottleLevel  int       `json:"throttle_level"` // 0-3
+	AgentID       string    `json:"agent_id"`
+	EventsSent    int64     `json:"events_sent"`
+	LastHeartbeat time.Time `json:"last_heartbeat"`
+	ThrottleLevel int       `json:"throttle_level"` // 0-3
 }
 
 // NewLoadController creates a load controller.
@@ -116,7 +116,7 @@ func (lc *LoadController) RegisterAgent(agentID string) {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
 	lc.agents[agentID] = &AgentStats{
-		AgentID: agentID,
+		AgentID:       agentID,
 		LastHeartbeat: time.Now(),
 	}
 }
@@ -156,10 +156,10 @@ func (lc *LoadController) Stats() map[string]interface{} {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
 	return map[string]interface{}{
-		"load_level":      int(lc.load),
-		"throttle_level":  lc.throttleLevel,
-		"agents":          len(lc.agents),
-		"high_threshold":  lc.highThreshold,
-		"crit_threshold":  lc.critThreshold,
+		"load_level":     int(lc.load),
+		"throttle_level": lc.throttleLevel,
+		"agents":         len(lc.agents),
+		"high_threshold": lc.highThreshold,
+		"crit_threshold": lc.critThreshold,
 	}
 }

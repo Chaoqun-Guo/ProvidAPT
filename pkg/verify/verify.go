@@ -21,9 +21,9 @@ const (
 type CheckType int
 
 const (
-	CheckEdgeConsistency  CheckType = iota // every e: has matching r: and vice versa
-	CheckNodeReferences                    // every e:/r: source/target has a node
-	CheckDiskUsage                         // disk usage statistics
+	CheckEdgeConsistency CheckType = iota // every e: has matching r: and vice versa
+	CheckNodeReferences                   // every e:/r: source/target has a node
+	CheckDiskUsage                        // disk usage statistics
 )
 
 func (ct CheckType) String() string {
@@ -41,26 +41,26 @@ func (ct CheckType) String() string {
 
 // Issue represents a single consistency problem found.
 type Issue struct {
-	Type    CheckType `json:"type"`
-	Key     string    `json:"key"`
-	Message string    `json:"message"`
-	Fixable bool      `json:"fixable"`
-	ExpectedKey string `json:"expected_key,omitempty"`
+	Type        CheckType `json:"type"`
+	Key         string    `json:"key"`
+	Message     string    `json:"message"`
+	Fixable     bool      `json:"fixable"`
+	ExpectedKey string    `json:"expected_key,omitempty"`
 }
 
 // Report is the complete verification result.
 type Report struct {
-	Timestamp   time.Time `json:"timestamp"`
-	Issues      []Issue   `json:"issues"`
-	IssueCount  int       `json:"issue_count"`
-	Repairable  int       `json:"repairable"`
-	StorePath   string    `json:"store_path"`
-	Duration    time.Duration `json:"duration"`
-	DryRun      bool      `json:"dry_run"`
-	NodeCount   int       `json:"node_count"`
-	EdgeCount   int       `json:"edge_count"`
-	ReverseCount int      `json:"reverse_count"`
-	DiskBytes   int64     `json:"disk_bytes"`
+	Timestamp    time.Time     `json:"timestamp"`
+	Issues       []Issue       `json:"issues"`
+	IssueCount   int           `json:"issue_count"`
+	Repairable   int           `json:"repairable"`
+	StorePath    string        `json:"store_path"`
+	Duration     time.Duration `json:"duration"`
+	DryRun       bool          `json:"dry_run"`
+	NodeCount    int           `json:"node_count"`
+	EdgeCount    int           `json:"edge_count"`
+	ReverseCount int           `json:"reverse_count"`
+	DiskBytes    int64         `json:"disk_bytes"`
 }
 
 // RunChecks opens the store and runs all consistency checks.
@@ -117,10 +117,10 @@ func RunChecks(storePath string, dryRun bool) (*Report, error) {
 		expectedReverse := reverseEdgeKeyV1(ts, target, source)
 		if !reverseMap[expectedReverse] {
 			r.Issues = append(r.Issues, Issue{
-				Type:    CheckEdgeConsistency,
-				Key:     ek,
-				Message: fmt.Sprintf("missing reverse edge: expected %s", expectedReverse),
-				Fixable: true,
+				Type:        CheckEdgeConsistency,
+				Key:         ek,
+				Message:     fmt.Sprintf("missing reverse edge: expected %s", expectedReverse),
+				Fixable:     true,
 				ExpectedKey: expectedReverse,
 			})
 		}
@@ -141,10 +141,10 @@ func RunChecks(storePath string, dryRun bool) (*Report, error) {
 		expectedEdge := edgeKeyV1(ts, source, target)
 		if !edgeMap[expectedEdge] {
 			r.Issues = append(r.Issues, Issue{
-				Type:    CheckEdgeConsistency,
-				Key:     rk,
-				Message: fmt.Sprintf("missing forward edge: expected %s", expectedEdge),
-				Fixable: true,
+				Type:        CheckEdgeConsistency,
+				Key:         rk,
+				Message:     fmt.Sprintf("missing forward edge: expected %s", expectedEdge),
+				Fixable:     true,
 				ExpectedKey: expectedEdge,
 			})
 		}

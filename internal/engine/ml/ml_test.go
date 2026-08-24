@@ -8,9 +8,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ── Feature extraction tests ─────────────────────────────────
@@ -240,7 +240,7 @@ func TestSampleFromGraph(t *testing.T) {
 			Type: syscall.EventFileOpen, TimestampNS: uint64(i),
 			PID: 100, Comm: "bash",
 			Pathname: "/etc/hosts",
-			Inode: 1000, DevMajor: 8, DevMinor: 3,
+			Inode:    1000, DevMajor: 8, DevMinor: 3,
 		})
 	}
 	samples := SampleFromGraph(g, 10)

@@ -18,9 +18,9 @@ import (
 type CompressionLevel int
 
 const (
-	CompressSpeed  CompressionLevel = 0 // Zstd SpeedFastest
+	CompressSpeed   CompressionLevel = 0 // Zstd SpeedFastest
 	CompressBalance CompressionLevel = 1 // Zstd SpeedDefault
-	CompressSize   CompressionLevel = 2 // Zstd SpeedBestCompression
+	CompressSize    CompressionLevel = 2 // Zstd SpeedBestCompression
 )
 
 // mapLevel converts our CompressionLevel to zstd.EncoderLevel.
@@ -49,12 +49,12 @@ type Dictionary struct {
 // It caches encoder/decoder instances with optional dictionary
 // to avoid per-message allocation overhead.
 type Compressor struct {
-	mu             sync.Mutex
-	enc            *zstd.Encoder
-	dec            *zstd.Decoder
-	dictData       []byte   // raw Zstd dictionary data
-	level          CompressionLevel
-	originalBytes  int64
+	mu              sync.Mutex
+	enc             *zstd.Encoder
+	dec             *zstd.Decoder
+	dictData        []byte // raw Zstd dictionary data
+	level           CompressionLevel
+	originalBytes   int64
 	compressedBytes int64
 }
 
@@ -122,10 +122,10 @@ func (c *Compressor) TrainDictionary(samples [][]byte) *Dictionary {
 
 	// Train using Zstd's native dictionary trainer.
 	dictData, err := zstd.BuildDict(zstd.BuildDictOptions{
-			Contents: samples,
-			History:  make([]byte, 112640),
-			Level:    c.level.zstd(),
-		})
+		Contents: samples,
+		History:  make([]byte, 112640),
+		Level:    c.level.zstd(),
+	})
 	if err != nil {
 		log.Printf("[compress] dictionary training failed: %v", err)
 		return nil

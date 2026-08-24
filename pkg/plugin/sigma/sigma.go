@@ -21,7 +21,7 @@ type SigmaRule struct {
 	ID          string
 	Title       string
 	Description string
-	Severity    string   // LOW, MEDIUM, HIGH, CRITICAL
+	Severity    string // LOW, MEDIUM, HIGH, CRITICAL
 	Detection   Detection
 }
 
@@ -111,9 +111,9 @@ func (p *SigmaPlugin) evaluate(rule SigmaRule, snap *provenance.Graph) []*plugin
 			Score:      severityScore(rule.Severity),
 			NodeIDs:    []string{n.ID},
 			Evidence: map[string]interface{}{
-				"rule_id":   rule.ID,
-				"node_id":   n.ID,
-				"node_type": n.ProvType,
+				"rule_id":    rule.ID,
+				"node_id":    n.ID,
+				"node_type":  n.ProvType,
 				"node_label": n.Label,
 			},
 		})

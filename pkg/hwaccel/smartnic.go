@@ -5,9 +5,9 @@
 // ProvidAPT in large-scale data centre deployments.
 //
 // It supports:
-//   1. SmartNIC offloading — move socket-level provenance to the NIC
-//   2. GPU graph clustering — parallel analysis of large provenance graphs
-//   3. NVMe optimisation — RocksDB tuning for NVMe storage
+//  1. SmartNIC offloading — move socket-level provenance to the NIC
+//  2. GPU graph clustering — parallel analysis of large provenance graphs
+//  3. NVMe optimisation — RocksDB tuning for NVMe storage
 package hwaccel
 
 import (
@@ -24,11 +24,11 @@ import (
 
 // SmartNICInfo describes a detected SmartNIC.
 type SmartNICInfo struct {
-	Present     bool   `json:"present"`
-	Driver      string `json:"driver"`
-	Model       string `json:"model"`
-	BPFSupport  bool   `json:"bpf_support"`
-	Interfaces  []string `json:"interfaces"`
+	Present    bool     `json:"present"`
+	Driver     string   `json:"driver"`
+	Model      string   `json:"model"`
+	BPFSupport bool     `json:"bpf_support"`
+	Interfaces []string `json:"interfaces"`
 }
 
 // SmartNICConfig controls which events to offload.

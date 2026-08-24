@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/schema"
 	store "github.com/Chaoqun-Guo/ProvidAPT/internal/storage/pebblestore"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/storage/schema"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -28,8 +28,8 @@ func NewExecutor(st *store.Store) *Executor {
 // ChainNode is a single node in the aggregated result chain.
 type ChainNode struct {
 	ID       string `json:"id"`
-	Type     string `json:"type"`    // "process", "file", "network"
-	Label    string `json:"label"`   // comm, file path, IP
+	Type     string `json:"type"`  // "process", "file", "network"
+	Label    string `json:"label"` // comm, file path, IP
 	PID      uint32 `json:"pid,omitempty"`
 	Depth    int    `json:"depth"`
 	Relation string `json:"relation,omitempty"` // how we reached this node
@@ -37,9 +37,9 @@ type ChainNode struct {
 
 // ChainResult is the aggregated output.
 type ChainResult struct {
-	Chain  []ChainNode `json:"chain"`
-	Total  int         `json:"total"`
-	Query  string      `json:"query"`
+	Chain []ChainNode `json:"chain"`
+	Total int         `json:"total"`
+	Query string      `json:"query"`
 }
 
 // Execute runs a parsed chain query.

@@ -11,10 +11,10 @@ import (
 
 func TestNewPackageInfo(t *testing.T) {
 	pi := &PackageInfo{
-		Name:    "nginx",
-		Version: "1.24.0-1",
-		SourceRepo: "official",
-		PackageManager: "apt",
+		Name:            "nginx",
+		Version:         "1.24.0-1",
+		SourceRepo:      "official",
+		PackageManager:  "apt",
 		SigningVerified: true,
 	}
 	if pi.Name != "nginx" {
@@ -385,10 +385,10 @@ func TestBindByPrefix(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		path     string
-		wantPkg  string
-		wantVer  string
+		name    string
+		path    string
+		wantPkg string
+		wantVer string
 	}{
 		{
 			name:    "system binary exact match",
@@ -409,10 +409,10 @@ func TestBindByPrefix(t *testing.T) {
 			wantVer: "1.24.0-1",
 		},
 		{
-			name:     "unrelated file no match",
-			path:     "/usr/bin/python3",
-			wantPkg:  "",
-			wantVer:  "",
+			name:    "unrelated file no match",
+			path:    "/usr/bin/python3",
+			wantPkg: "",
+			wantVer: "",
 		},
 	}
 

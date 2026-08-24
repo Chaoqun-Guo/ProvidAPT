@@ -156,7 +156,7 @@ func TestBlastRadiusSummary(t *testing.T) {
 			{HostID: "host1", Processes: []string{"bash"}, RiskScore: 10},
 			{HostID: "host2", Processes: []string{"sshd"}, IsCritical: true, RiskScore: 60},
 		},
-		TotalHosts: 2,
+		TotalHosts:  2,
 		TotalAssets: 2,
 	}
 	s := result.Summary()

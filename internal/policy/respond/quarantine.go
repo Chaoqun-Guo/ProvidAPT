@@ -19,10 +19,10 @@ import (
 type QuarantineLevel int
 
 const (
-	QuarantineNone     QuarantineLevel = 0
-	QuarantineLock     QuarantineLevel = 1 // chmod 0000
-	QuarantineMove     QuarantineLevel = 2 // move to quarantine dir
-	QuarantineDelete   QuarantineLevel = 3 // delete (high confidence)
+	QuarantineNone   QuarantineLevel = 0
+	QuarantineLock   QuarantineLevel = 1 // chmod 0000
+	QuarantineMove   QuarantineLevel = 2 // move to quarantine dir
+	QuarantineDelete QuarantineLevel = 3 // delete (high confidence)
 )
 
 // QuarantinedFile tracks an isolated file.
@@ -31,16 +31,16 @@ type QuarantinedFile struct {
 	Size      int64           `json:"size"`
 	WrittenBy uint32          `json:"written_by"` // PID that wrote it
 	Level     QuarantineLevel `json:"level"`
-	Action    string          `json:"action"`     // "locked", "moved", "deleted"
+	Action    string          `json:"action"` // "locked", "moved", "deleted"
 	Time      time.Time       `json:"time"`
 }
 
 // FileQuarantineManager handles file isolation actions.
 type FileQuarantineManager struct {
-	mu          sync.Mutex
-	quarantined []*QuarantinedFile
+	mu            sync.Mutex
+	quarantined   []*QuarantinedFile
 	quarantineDir string
-	dryRun      bool
+	dryRun        bool
 }
 
 // NewFileQuarantineManager creates a file quarantine manager.

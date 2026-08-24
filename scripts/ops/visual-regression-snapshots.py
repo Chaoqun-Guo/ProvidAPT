@@ -412,6 +412,7 @@ def trace_viewer_dom_assertions(page: Any) -> dict[str, Any]:
     script = """
     () => {
       const text = document.body ? document.body.innerText : '';
+      const normalizedText = text.toLowerCase();
       const layoutModes = Array.from(document.querySelectorAll('[data-layout-mode]')).map(el => el.getAttribute('data-layout-mode'));
       const buttons = Array.from(document.querySelectorAll('button, a.tool-link')).map(el => (el.textContent || '').trim());
       const svg = document.querySelector('#canvas svg');
@@ -422,10 +423,10 @@ def trace_viewer_dom_assertions(page: Any) -> dict[str, Any]:
         layout_modes: layoutModes,
         has_png_export: buttons.includes('PNG'),
         has_svg_export: buttons.includes('SVG'),
-        has_raw_svg: buttons.includes('Raw SVG'),
+        has_raw_svg: buttons.includes('Raw SVG') || buttons.includes('Open Raw SVG'),
         has_report_export: buttons.includes('Report'),
-        has_summary: text.includes('Trace Summary'),
-        has_selected_panel: text.includes('Selected Element')
+        has_summary: normalizedText.includes('trace summary'),
+        has_selected_panel: normalizedText.includes('selected element')
       };
     }
     """

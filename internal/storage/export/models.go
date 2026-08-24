@@ -6,12 +6,12 @@
 //
 // Architecture:
 //
-//   Local Agent (export client)                 Central Server
-//   ┌──────────────────────────┐    gRPC    ┌──────────────────────┐
-//   │ ReportSocketEvent(stream)│──────────▶│ Server.Receive()      │
-//   │ ReportNode(stream)       │           │   → Stitch()          │
-//   │ ReportEdge(stream)       │           │   → Global Graph      │
-//   └──────────────────────────┘           └──────────────────────┘
+//	Local Agent (export client)                 Central Server
+//	┌──────────────────────────┐    gRPC    ┌──────────────────────┐
+//	│ ReportSocketEvent(stream)│──────────▶│ Server.Receive()      │
+//	│ ReportNode(stream)       │           │   → Stitch()          │
+//	│ ReportEdge(stream)       │           │   → Global Graph      │
+//	└──────────────────────────┘           └──────────────────────┘
 package export
 
 import (
@@ -24,9 +24,9 @@ import (
 
 // SocketEvent is the core telemetry unit for network connections.
 type SocketEvent struct {
-	AgentID    string `json:"agent_id"`
-	Hostname   string `json:"hostname"`
-	Timestamp  int64  `json:"timestamp_ns"` // UnixNano
+	AgentID   string `json:"agent_id"`
+	Hostname  string `json:"hostname"`
+	Timestamp int64  `json:"timestamp_ns"` // UnixNano
 
 	// Process identity
 	PID  uint32 `json:"pid"`
@@ -41,9 +41,9 @@ type SocketEvent struct {
 	Protocol uint32 `json:"protocol"` // 6=TCP, 17=UDP
 
 	// TCP fingerprint
-	SeqHash     uint32 `json:"seq_hash"`     // FNV-1a of snd_nxt
-	TCPOptions  uint32 `json:"tcp_options"`  // bitmap of options
-	WindowSize  uint32 `json:"window_size,omitempty"`
+	SeqHash    uint32 `json:"seq_hash"`    // FNV-1a of snd_nxt
+	TCPOptions uint32 `json:"tcp_options"` // bitmap of options
+	WindowSize uint32 `json:"window_size,omitempty"`
 
 	// Connection state
 	ConnStatus string `json:"conn_status"` // SYN_SENT, ESTABLISHED, CLOSE
@@ -94,16 +94,16 @@ type CrossHostEdge struct {
 	TargetNode  string `json:"target_node"`
 	TargetPID   uint32 `json:"target_pid"`
 
-	SocketKey   string `json:"socket_key"`
-	SeqHash     uint32 `json:"seq_hash"`
-	Timestamp   int64  `json:"timestamp_ns"`
+	SocketKey string `json:"socket_key"`
+	SeqHash   uint32 `json:"seq_hash"`
+	Timestamp int64  `json:"timestamp_ns"`
 
-	Confidence  float64 `json:"confidence"` // 0.0–1.0
+	Confidence float64 `json:"confidence"` // 0.0–1.0
 }
 
 // ─── Report / Ack ──────────────────────────────────────────
 
 type ReportAck struct {
-	Received   int    `json:"received"`
-	Status     string `json:"status"`
+	Received int    `json:"received"`
+	Status   string `json:"status"`
 }

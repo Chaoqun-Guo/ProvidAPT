@@ -118,11 +118,11 @@ func (cs *CentralServer) Stats() map[string]interface{} {
 	uptime := time.Since(cs.startedAt).String()
 
 	return map[string]interface{}{
-		"agents":         agentCount,
-		"uptime":         uptime,
-		"stitch_edges":   stitchStats["stitched_edges"],
-		"propagations":   propStats["propagations"],
-		"outbound":       stitchStats["outbound_records"],
-		"inbound":        stitchStats["inbound_records"],
+		"agents":       agentCount,
+		"uptime":       uptime,
+		"stitch_edges": stitchStats["stitched_edges"],
+		"propagations": propStats["propagations"],
+		"outbound":     stitchStats["outbound_records"],
+		"inbound":      stitchStats["inbound_records"],
 	}
 }

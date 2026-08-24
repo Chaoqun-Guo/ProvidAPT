@@ -8,16 +8,17 @@
 //
 // Architecture:
 //
-//   Raw Event → Anonymizer → Anonymized Event → Pipeline → RocksDB
-//                  │
-//                  ├── HMAC(path) → node_id (deterministic)
-//                  ├── HMAC(ip)   → network_id (deterministic)
-//                  └── AES-GCM encrypt(original) → de-anon store
+//	Raw Event → Anonymizer → Anonymized Event → Pipeline → RocksDB
+//	               │
+//	               ├── HMAC(path) → node_id (deterministic)
+//	               ├── HMAC(ip)   → network_id (deterministic)
+//	               └── AES-GCM encrypt(original) → de-anon store
 //
 // De-anonymization:
-//   Authorized auditor runs: providapt-deanon <hash> [keyfile]
-//   → Looks up hash in de-anon store → decrypts original path
-//   → Returns: /etc/shadow (forensically admissible)
+//
+//	Authorized auditor runs: providapt-deanon <hash> [keyfile]
+//	→ Looks up hash in de-anon store → decrypts original path
+//	→ Returns: /etc/shadow (forensically admissible)
 package anonymize
 
 import (
@@ -41,10 +42,10 @@ import (
 // It uses HMAC-SHA256 with a configurable secret key for hashing,
 // and AES-GCM for reversible encryption in the de-anon store.
 type Anonymizer struct {
-	hmacKey   []byte
-	encKey    []byte
-	deanon    *DeAnonStore
-	mu        sync.Mutex
+	hmacKey []byte
+	encKey  []byte
+	deanon  *DeAnonStore
+	mu      sync.Mutex
 }
 
 // Config for the anonymizer.
@@ -122,8 +123,9 @@ func (a *Anonymizer) HashString(s string, prefixLen int) string {
 // The same path always produces the same hash (deterministic).
 //
 // Example:
-//   "/etc/shadow" → "a3f8b2c1e4d5f6a7"
-//   (same input = same output → graph connectivity preserved)
+//
+//	"/etc/shadow" → "a3f8b2c1e4d5f6a7"
+//	(same input = same output → graph connectivity preserved)
 func (a *Anonymizer) HashPath(path string) string {
 	return a.HashString(path, 16)
 }
@@ -157,7 +159,7 @@ type AnonymizedEvent struct {
 	Pathname string
 
 	// Event type preserved (needed for semantics)
-	Type uint32
+	Type  uint32
 	Flags uint32
 
 	// Inode preserved (needed for file identity)
@@ -185,18 +187,18 @@ func (a *Anonymizer) AnonymizeEvent(
 
 	anon := &AnonymizedEvent{
 		TimestampNS: timestamp,
-		PID:  pid,
-		PPID: ppid,
-		UID:  uid,
-		Comm: a.HashComm(comm),
-		Type: evtType,
-		Flags: 0,
-		Inode:    inode,
-		DevMajor: devMajor,
-		DevMinor: devMinor,
-		Mode:     mode,
-		FFlags:   fflags,
-		ChildPID: childPID,
+		PID:         pid,
+		PPID:        ppid,
+		UID:         uid,
+		Comm:        a.HashComm(comm),
+		Type:        evtType,
+		Flags:       0,
+		Inode:       inode,
+		DevMajor:    devMajor,
+		DevMinor:    devMinor,
+		Mode:        mode,
+		FFlags:      fflags,
+		ChildPID:    childPID,
 	}
 
 	// Anonymize path

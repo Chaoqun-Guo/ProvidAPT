@@ -34,7 +34,7 @@ func cmdDashboard(cfgPath string) {
 		os.Exit(0)
 	}()
 
-	fmt.Print("\033[?25l")           // hide cursor
+	fmt.Print("\033[?25l")              // hide cursor
 	defer fmt.Print("\033[?25h\033[0m") // show cursor + reset
 
 	outDir := resolveOutputDir(cfgPath)

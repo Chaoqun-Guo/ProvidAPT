@@ -19,9 +19,9 @@ type pinnedMapInfo struct {
 }
 
 type bpfReport struct {
-	Probe      *probe.Result    `json:"probe"`
+	Probe      *probe.Result     `json:"probe"`
 	Programs   *profile.BPFStats `json:"programs,omitempty"`
-	PinnedMaps []pinnedMapInfo  `json:"pinned_maps,omitempty"`
+	PinnedMaps []pinnedMapInfo   `json:"pinned_maps,omitempty"`
 }
 
 func cmdBPF(jsonOut bool) {

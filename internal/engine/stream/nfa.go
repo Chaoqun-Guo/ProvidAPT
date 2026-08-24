@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
+	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -52,10 +52,10 @@ type NFAState struct {
 
 // NFATransition defines an event-based state transition.
 type NFATransition struct {
-	EventType  syscall.EventType // event that triggers this transition
-	CommMatch  string            // process comm pattern (empty = any)
-	PathMatch  string            // path pattern (empty = any)
-	NextState  int               // state index to transition to
+	EventType syscall.EventType // event that triggers this transition
+	CommMatch string            // process comm pattern (empty = any)
+	PathMatch string            // path pattern (empty = any)
+	NextState int               // state index to transition to
 }
 
 // NFARunner tracks a single NFA instance for one process chain.
@@ -68,7 +68,7 @@ type NFARunner struct {
 
 // NFAEngine manages all active NFA runners.
 type NFAEngine struct {
-	mu      sync.Mutex
+	mu       sync.Mutex
 	patterns []NFAPattern
 	runners  []*NFARunner // active runners
 	matches  []PatternMatch
@@ -85,10 +85,10 @@ func NewNFAEngine() *NFAEngine {
 func (ne *NFAEngine) registerDefaultPatterns() {
 	ne.patterns = []NFAPattern{
 		{
-			ID: "LOL-EXEC",
+			ID:          "LOL-EXEC",
 			Description: "Living-off-the-Land: network tool downloads and executes script",
-			Severity: "CRITICAL",
-			TTPRef: "T1218,T1204",
+			Severity:    "CRITICAL",
+			TTPRef:      "T1218,T1204",
 			States: []NFAState{
 				{ // state 0: initial
 					Transitions: []NFATransition{
@@ -115,10 +115,10 @@ func (ne *NFAEngine) registerDefaultPatterns() {
 			AcceptState: 3,
 		},
 		{
-			ID: "SENSITIVE-READ",
+			ID:          "SENSITIVE-READ",
 			Description: "Sensitive file read by non-standard process",
-			Severity: "HIGH",
-			TTPRef: "T1003",
+			Severity:    "HIGH",
+			TTPRef:      "T1003",
 			States: []NFAState{
 				{ // state 0
 					Transitions: []NFATransition{
@@ -132,10 +132,10 @@ func (ne *NFAEngine) registerDefaultPatterns() {
 			AcceptState: 1,
 		},
 		{
-			ID: "NET-EXFIL",
+			ID:          "NET-EXFIL",
 			Description: "Process reads sensitive file then connects to external IP",
-			Severity: "CRITICAL",
-			TTPRef: "T1048",
+			Severity:    "CRITICAL",
+			TTPRef:      "T1048",
 			States: []NFAState{
 				{ // state 0
 					Transitions: []NFATransition{
