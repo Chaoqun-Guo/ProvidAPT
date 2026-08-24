@@ -108,6 +108,8 @@ class TraceSVGStressTest(unittest.TestCase):
             subject.discover_alert_ids = original_discover
         self.assertEqual(report["status"], "blocked")
         self.assertIn("no alert IDs supplied or discovered", "\n".join(report["failures"]))
+        self.assertFalse(report["evidence_summary"]["complete_matrix"])
+        self.assertEqual(report["evidence_summary"]["expected_result_count"], 0)
 
     def test_synthetic_mode_generates_large_layout_matrix(self):
         report = subject.build_report(Namespace(

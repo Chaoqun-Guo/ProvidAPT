@@ -165,7 +165,7 @@ def evidence_summary(
     return {
         "expected_result_count": len(expected),
         "result_count": len(results),
-        "complete_matrix": expected == seen and all(item["status"] == "pass" for item in matrix),
+        "complete_matrix": bool(expected) and expected == seen and all(item["status"] == "pass" for item in matrix),
         "missing_pairs": [
             {"alert_id": alert_id, "layout": layout}
             for alert_id, layout in sorted(expected - seen)
