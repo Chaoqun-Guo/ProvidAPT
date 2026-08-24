@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -68,7 +69,7 @@ func loadPostgresControlPlaneState(dsn string) (persistedControlPlaneState, bool
 	if err != nil {
 		return persistedControlPlaneState{}, false, err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), postgresStateTimeout)
 	defer cancel()
 	if err := ensurePostgresStateTable(ctx, db); err != nil {
@@ -77,7 +78,7 @@ func loadPostgresControlPlaneState(dsn string) (persistedControlPlaneState, bool
 	var raw []byte
 	err = db.QueryRowContext(ctx, `SELECT state FROM providapt_mgmt_state WHERE state_id = 'default'`).Scan(&raw)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return persistedControlPlaneState{}, false, nil
 		}
 		return persistedControlPlaneState{}, false, fmt.Errorf("read postgres control-plane state: %w", err)
@@ -94,7 +95,7 @@ func savePostgresControlPlaneState(dsn string, state persistedControlPlaneState)
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), postgresStateTimeout)
 	defer cancel()
 	if err := ensurePostgresStateTable(ctx, db); err != nil {

@@ -8,6 +8,7 @@
 package pebblestore
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -92,7 +93,10 @@ func (s *Store) PutNode(node *pb.Node) error {
 	key := schema.NodeKey(node.Type, node.Id)
 
 	s.wbMu.Lock()
-	s.wb.Set([]byte(key), data, pebble.Sync)
+	if err := s.wb.Set([]byte(key), data, pebble.Sync); err != nil {
+		s.wbMu.Unlock()
+		return err
+	}
 
 	// Write secondary indexes within the same lock scope for atomicity
 	// — Flush() cannot replace s.wb while we hold the lock.
@@ -100,13 +104,19 @@ func (s *Store) PutNode(node *pb.Node) error {
 		pidKey := schema.PIDIndexKey(node.Pid, node.Id)
 		idx := &pb.PIDIndex{Pid: node.Pid, NodeId: node.Id, FirstSeenNs: node.FirstSeenNs}
 		idxData, _ := proto.Marshal(idx)
-		s.wb.Set([]byte(pidKey), idxData, pebble.Sync)
+		if err := s.wb.Set([]byte(pidKey), idxData, pebble.Sync); err != nil {
+			s.wbMu.Unlock()
+			return err
+		}
 	}
 	if node.Inode > 0 {
 		inodeKey := schema.InodeIndexKey(node.Inode, node.DevMajor, node.DevMinor, node.Id)
 		idx := &pb.InodeIndex{Inode: node.Inode, DevMajor: node.DevMajor, DevMinor: node.DevMinor, NodeId: node.Id}
 		idxData, _ := proto.Marshal(idx)
-		s.wb.Set([]byte(inodeKey), idxData, pebble.Sync)
+		if err := s.wb.Set([]byte(inodeKey), idxData, pebble.Sync); err != nil {
+			s.wbMu.Unlock()
+			return err
+		}
 	}
 
 	batchSize := s.wb.Count()
@@ -139,8 +149,14 @@ func (s *Store) PutEdge(edge *pb.Edge) error {
 	revKey := schema.ReverseEdgeKey(edge.TimestampNs, edge.Target, edge.Source)
 
 	s.wbMu.Lock()
-	s.wb.Set([]byte(key), data, pebble.Sync)
-	s.wb.Set([]byte(revKey), data, pebble.Sync)
+	if err := s.wb.Set([]byte(key), data, pebble.Sync); err != nil {
+		s.wbMu.Unlock()
+		return err
+	}
+	if err := s.wb.Set([]byte(revKey), data, pebble.Sync); err != nil {
+		s.wbMu.Unlock()
+		return err
+	}
 	batchSize := s.wb.Count()
 	s.wbMu.Unlock()
 
@@ -191,7 +207,9 @@ func (s *Store) flushLoop() {
 				log.Printf("[store] flush error: %v", err)
 			}
 		case <-s.stopCh:
-			s.Flush()
+			if err := s.Flush(); err != nil {
+				log.Printf("[store] stop flush error: %v", err)
+			}
 			return
 		}
 	}
@@ -203,13 +221,13 @@ func (s *Store) flushLoop() {
 func (s *Store) GetNode(nodeType, nodeID string) (*pb.Node, error) {
 	key := schema.NodeKey(nodeType, nodeID)
 	data, closer, err := s.db.Get([]byte(key))
-	if err == pebble.ErrNotFound {
+	if errors.Is(err, pebble.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer closer.Close()
+	defer func() { _ = closer.Close() }()
 
 	var node pb.Node
 	if err := proto.Unmarshal(data, &node); err != nil {
@@ -225,7 +243,7 @@ func (s *Store) GetNodeByPID(pid uint32) (*pb.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	if !iter.First() {
 		return nil, nil // not found
@@ -252,7 +270,7 @@ func (s *Store) GetNodeByInode(inode uint64) (*pb.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	if !iter.First() {
 		return nil, nil
@@ -278,7 +296,7 @@ func (s *Store) GetEdgesBySource(source string) ([]*pb.Edge, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var edges []*pb.Edge
 	for iter.First(); iter.Valid(); iter.Next() {
@@ -303,7 +321,7 @@ func (s *Store) GetEdgesByTarget(target string) ([]*pb.Edge, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var edges []*pb.Edge
 	for iter.First(); iter.Valid(); iter.Next() {
@@ -326,7 +344,7 @@ func (s *Store) GetEdgesByTimeRange(startNs, endNs uint64) ([]*pb.Edge, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var edges []*pb.Edge
 	for iter.First(); iter.Valid(); iter.Next() {
@@ -350,8 +368,12 @@ func (s *Store) GetDB() *pebble.DB {
 func (s *Store) Close() error {
 	close(s.stopCh)
 	s.wg.Wait()
-	s.Flush()
-	s.db.Close()
+	if err := s.Flush(); err != nil {
+		return err
+	}
+	if err := s.db.Close(); err != nil {
+		return err
+	}
 	if s.cache != nil {
 		s.cache.Unref()
 	}

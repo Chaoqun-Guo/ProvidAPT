@@ -96,17 +96,21 @@ func main() {
 
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("[harness] encode response: %v", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	if err := json.NewEncoder(w).Encode(map[string]string{"error": msg}); err != nil {
+		log.Printf("[harness] encode error response: %v", err)
+	}
 }
 
 func readJSON(r *http.Request, v interface{}) error {
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	return json.NewDecoder(r.Body).Decode(v)
 }
 

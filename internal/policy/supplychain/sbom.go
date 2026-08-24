@@ -51,7 +51,7 @@ func (s *SBOMStore) ImportSBOM(data []byte, source string) (*SBOMDocument, error
 		return doc, nil
 	}
 
-	return nil, fmt.Errorf("unrecognised SBOM format: SPDX err=%v; CycloneDX also failed", err)
+	return nil, fmt.Errorf("unrecognized SBOM format: SPDX err=%w; CycloneDX also failed", err)
 }
 
 // ImportSPDX imports an SPDX 2.3 JSON document.

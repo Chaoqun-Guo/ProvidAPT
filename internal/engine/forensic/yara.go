@@ -4,7 +4,9 @@
 package forensic
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -75,12 +77,13 @@ func (ys *YARAScanner) ScanFile(path string) *YARAResult {
 
 	// Build command: yara -w -m <rules> <file>
 	args := []string{"-w", "-m", "-j", ys.cfg.RulesPath, path}
-	cmd := exec.Command(ys.cfg.Binary, args...)
+	cmd := exec.CommandContext(context.Background(), ys.cfg.Binary, args...)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Exit code 1 means matches found (not a real error)
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() != 1 {
 				result.Error = fmt.Sprintf("yara error: %v", err)
 				return result

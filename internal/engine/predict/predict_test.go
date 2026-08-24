@@ -4,12 +4,12 @@
 package predict
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/collector"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/provenance"
 	"github.com/Chaoqun-Guo/ProvidAPT/internal/engine/syscall"
-	"strings"
 )
 
 // ── ATT&CK tests ───────────────────────────────────────────

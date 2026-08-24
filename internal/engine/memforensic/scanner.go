@@ -5,8 +5,10 @@ package memforensic
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"log"
 	"os/exec"
 	"strings"
@@ -133,13 +135,14 @@ func (ms *MemoryScanner) scanWithYARA(dump *MemDumpResult) []ScanMatch {
 	args := []string{"-w", "-m", "-j", "-s", ms.cfg.YARARulesPath}
 
 	// Write to stdin pipe.
-	cmd := exec.Command(ms.cfg.YARABinary, args...)
+	cmd := exec.CommandContext(context.Background(), ms.cfg.YARABinary, args...)
 	cmd.Stdin = bytes.NewReader(combined)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Exit code 1 = matches found (not an error).
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() != 1 {
 				log.Printf("[memforensic] YARA error: %v", err)
 				return nil

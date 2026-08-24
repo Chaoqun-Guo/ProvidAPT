@@ -29,7 +29,7 @@ func (es *EncryptedStore) Get(key []byte) ([]byte, io.Closer, error) {
 	}
 	plaintext, err := Decrypt(es.key, encValue)
 	if err != nil {
-		closer.Close()
+		_ = closer.Close()
 		return nil, nil, err
 	}
 	return plaintext, closer, nil

@@ -45,7 +45,10 @@ func (ie *IsolationEngine) ExecuteCommand(cmd *PolicyCommand) {
 	switch cmd.Type {
 	case CmdBlockUID:
 		var uid uint32
-		fmt.Sscanf(cmd.Target, "%d", &uid)
+		if _, err := fmt.Sscanf(cmd.Target, "%d", &uid); err != nil {
+			log.Printf("[isolate] invalid UID target %q: %v", cmd.Target, err)
+			return
+		}
 		ie.uidBlock[uid] = expiry
 		log.Printf("[isolate] UID BLOCK: %d (until %v)", uid, expiry)
 
@@ -66,7 +69,10 @@ func (ie *IsolationEngine) ExecuteCommand(cmd *PolicyCommand) {
 
 	case CmdBlockProcess:
 		var pid uint32
-		fmt.Sscanf(cmd.Target, "%d", &pid)
+		if _, err := fmt.Sscanf(cmd.Target, "%d", &pid); err != nil {
+			log.Printf("[isolate] invalid PID target %q: %v", cmd.Target, err)
+			return
+		}
 		ie.processBlock[pid] = expiry
 		log.Printf("[isolate] PROCESS BLOCK: PID %d", pid)
 	}

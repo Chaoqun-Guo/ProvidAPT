@@ -108,7 +108,10 @@ func blockWithNFTables(report *ImpactReport, result *FirewallResult) {
 				log.Printf("[heal] DRY-RUN: %s", ruleCmd)
 			} else {
 				parts := strings.Split(ruleCmd, " ")
-				exec.Command(parts[0], parts[1:]...).Run()
+				if err := exec.Command(parts[0], parts[1:]...).Run(); err != nil {
+					result.Errors = append(result.Errors,
+						fmt.Sprintf("nft add rule: %v", err))
+				}
 			}
 		}
 

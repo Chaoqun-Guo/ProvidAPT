@@ -94,13 +94,17 @@ func (bw *BatchWriter) flushLoop() {
 			needsFlush := bw.pending > 0
 			bw.wbMu.Unlock()
 			if needsFlush {
-				bw.commit("time")
+				if err := bw.commit("time"); err != nil {
+					log.Printf("[batch] time flush error: %v", err)
+				}
 			}
 
 		case <-bw.signalCh:
 			// Signal-based trigger: final flush on SIGINT/SIGTERM
 			log.Printf("[batch] signal received — final flush")
-			bw.Flush()
+			if err := bw.Flush(); err != nil {
+				log.Printf("[batch] signal flush error: %v", err)
+			}
 			bw.stats.FlushBySignal++
 			// Don't stop; let main handle shutdown
 
@@ -122,7 +126,10 @@ func (bw *BatchWriter) WriteNode(n *pb.Node) error {
 	key := "n:" + n.Type + ":" + n.Id
 
 	bw.wbMu.Lock()
-	bw.wb.Set([]byte(key), data, pebble.NoSync)
+	if err := bw.wb.Set([]byte(key), data, pebble.NoSync); err != nil {
+		bw.wbMu.Unlock()
+		return err
+	}
 	bw.pending++
 	reached := bw.pending >= bw.batchSize
 	bw.wbMu.Unlock()
@@ -149,8 +156,14 @@ func (bw *BatchWriter) WriteEdge(e *pb.Edge) error {
 	revKey := fmt.Sprintf("r:%s:%016x:%s", e.Target, e.TimestampNs, e.Source)
 
 	bw.wbMu.Lock()
-	bw.wb.Set([]byte(key), data, pebble.NoSync)
-	bw.wb.Set([]byte(revKey), data, pebble.NoSync)
+	if err := bw.wb.Set([]byte(key), data, pebble.NoSync); err != nil {
+		bw.wbMu.Unlock()
+		return err
+	}
+	if err := bw.wb.Set([]byte(revKey), data, pebble.NoSync); err != nil {
+		bw.wbMu.Unlock()
+		return err
+	}
 	bw.pending += 2
 	reached := bw.pending >= bw.batchSize
 	bw.wbMu.Unlock()
@@ -201,7 +214,9 @@ func (bw *BatchWriter) Flush() error {
 
 // Stop performs final flush and stops the background goroutine.
 func (bw *BatchWriter) Stop() {
-	bw.Flush()
+	if err := bw.Flush(); err != nil {
+		log.Printf("[batch] stop flush error: %v", err)
+	}
 	close(bw.stopCh)
 	bw.wg.Wait()
 	log.Printf("[batch] stopped: %s", bw.Summary())

@@ -48,7 +48,7 @@ func Acquire(pid int) (*MemDumpResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open /proc/%d/mem: %w", pid, err)
 	}
-	defer memFile.Close()
+	defer func() { _ = memFile.Close() }()
 
 	result := &MemDumpResult{
 		PID:       pid,

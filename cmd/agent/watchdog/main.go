@@ -19,9 +19,6 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 )
 
-// agentFlag matches the kernel defense.bpf.c constant.
-const agentFlag = 1 << 0
-
 const maxBackoff = 60 * time.Second
 const initialBackoff = 1 * time.Second
 
@@ -75,7 +72,9 @@ func main() {
 
 			if err := restartAgent(*agentPath, *configPath); err != nil {
 				logx.System().Error("agent restart failed", "error", err)
-				supportbundle.Capture(fmt.Sprintf("watchdog: restart failed after %v backoff", backoff))
+				if _, err := supportbundle.Capture(fmt.Sprintf("watchdog: restart failed after %v backoff", backoff)); err != nil {
+					logx.System().Warn("support bundle capture failed", "error", err)
+				}
 
 				// Exponential backoff with cap
 				time.Sleep(backoff)

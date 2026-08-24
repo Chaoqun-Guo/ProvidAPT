@@ -129,7 +129,7 @@ func SaveTrainingData(samples []FeatureVector, path string) error {
 	if err != nil {
 		return fmt.Errorf("create: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	writer := csv.NewWriter(f)
 	defer writer.Flush()
@@ -141,7 +141,9 @@ func SaveTrainingData(samples []FeatureVector, path string) error {
 	for i := 0; i < int(NumFeatures); i++ {
 		header[i+1] = names[i]
 	}
-	writer.Write(header)
+	if err := writer.Write(header); err != nil {
+		return fmt.Errorf("write header: %w", err)
+	}
 
 	// Data
 	for _, fv := range samples {
@@ -150,7 +152,9 @@ func SaveTrainingData(samples []FeatureVector, path string) error {
 		for i := 0; i < int(NumFeatures); i++ {
 			row[i+1] = strconv.FormatFloat(fv[i], 'g', 4, 64)
 		}
-		writer.Write(row)
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("write row: %w", err)
+		}
 	}
 
 	return nil

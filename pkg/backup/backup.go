@@ -10,6 +10,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -143,7 +144,7 @@ func Restore(backupPath, targetDir string) error {
 	var entryCount int
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -274,7 +275,7 @@ func RestoreCheckpoint(backupPath, targetDir string) error {
 	}
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

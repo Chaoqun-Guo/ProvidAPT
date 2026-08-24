@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -356,7 +357,7 @@ CREATE TABLE IF NOT EXISTS providapt_control_plane_ha (
 	state := persistedState{Version: 1, Nodes: map[string]persistedNode{}}
 	var raw []byte
 	err = tx.QueryRowContext(ctx, `SELECT state FROM providapt_control_plane_ha WHERE cluster_id = 'default'`).Scan(&raw)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return persistedState{}, Status{}, err
 	}
 	if len(raw) > 0 {

@@ -316,7 +316,7 @@ func writeEntriesNDJSON(path string, entries []Entry, perm os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("audit write %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	enc := json.NewEncoder(f)
 	for _, entry := range entries {
 		if err := enc.Encode(entry); err != nil {
@@ -332,7 +332,7 @@ func (s *Store) replay() error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	// Grow the buffer for potentially long lines.

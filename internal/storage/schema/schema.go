@@ -135,7 +135,9 @@ func ParseEdgeKey(key string) (source, target string, ts uint64, ok bool) {
 		return "", "", 0, false
 	}
 	tsHex := rest[:16]
-	fmt.Sscanf(tsHex, "%x", &ts)
+	if _, err := fmt.Sscanf(tsHex, "%x", &ts); err != nil {
+		return "", "", 0, false
+	}
 	remaining := rest[17:] // skip ts + delimiter
 	if remaining == "" {
 		return "", "", 0, false

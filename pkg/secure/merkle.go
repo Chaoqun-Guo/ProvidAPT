@@ -306,7 +306,7 @@ func LoadOrGenerateHMACKey(keyPath string, keySize int) ([]byte, error) {
 		return nil, fmt.Errorf("write key: %w", err)
 	}
 	if err := os.Rename(tmpPath, keyPath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return nil, fmt.Errorf("finalize key: %w", err)
 	}
 

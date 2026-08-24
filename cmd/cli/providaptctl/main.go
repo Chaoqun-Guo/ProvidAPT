@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -396,11 +397,16 @@ func cmdReload(cfgPath string) {
 	}
 
 	url := apiAddr + "/api/v1/admin/reload"
-	resp, err := http.Post(url, "application/json", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, nil)
+	if err != nil {
+		clioutput.Fatalf("Reload request create failed: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		clioutput.Fatalf("Reload request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotImplemented {
 		clioutput.Printf("%s\n", clioutput.Okf("Config reload triggered"))

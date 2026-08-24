@@ -5,6 +5,7 @@ package alert
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -76,7 +77,7 @@ func (ws *WebhookSender) Send(summary *AlertSummary) error {
 
 	var lastErr error
 	for i := 0; i < ws.cfg.Retries; i++ {
-		req, err := http.NewRequest("POST", ws.cfg.URL, bytes.NewReader(data))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, ws.cfg.URL, bytes.NewReader(data))
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}

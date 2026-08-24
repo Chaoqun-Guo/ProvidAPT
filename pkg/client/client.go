@@ -3,6 +3,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,7 +60,7 @@ func WithTimeout(d time.Duration) Option {
 // ── Internal request helpers ─────────────────────────────────
 
 func (c *Client) get(path string, dst interface{}) error {
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+path, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -73,7 +74,7 @@ func (c *Client) post(path string, body, dst interface{}) error {
 			return fmt.Errorf("encode body: %w", err)
 		}
 	}
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+path, &buf)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.baseURL+path, &buf)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -87,7 +88,7 @@ func (c *Client) do(req *http.Request, dst interface{}) error {
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)

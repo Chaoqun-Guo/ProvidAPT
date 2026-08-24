@@ -73,7 +73,7 @@ func Execute(cfg *PurgeConfig) (*PurgeReport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	// Get initial disk usage
 	before := st.DiskUsage()
@@ -132,7 +132,7 @@ func purgeByTime(db *pebble.DB, cfg *PurgeConfig, r *PurgeReport) error {
 	if err != nil {
 		return fmt.Errorf("create iterator: %w", err)
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	// Track orphaned node IDs
 	orphanNodes := make(map[string]bool)
@@ -218,7 +218,7 @@ func purgeByCapacity(db *pebble.DB, cfg *PurgeConfig, r *PurgeReport) error {
 	if err != nil {
 		return fmt.Errorf("create iterator: %w", err)
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	prefix := []byte("e:")
 	for iter.SeekGE(prefix); iter.Valid(); iter.Next() {
@@ -280,7 +280,7 @@ func purgeCompliance(db *pebble.DB, cfg *PurgeConfig, r *PurgeReport) error {
 	if err != nil {
 		return fmt.Errorf("create iterator: %w", err)
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	for _, prefix := range prefixes {
 		p := []byte(prefix)
@@ -310,7 +310,7 @@ func hasRemainingEdges(db *pebble.DB, nodeID string) bool {
 	if err != nil {
 		return true // assume referenced on error
 	}
-	defer srcIter.Close()
+	defer func() { _ = srcIter.Close() }()
 	for srcIter.SeekGE(srcPrefix); srcIter.Valid(); srcIter.Next() {
 		key := string(srcIter.Key())
 		if !strings.HasPrefix(key, "e:") {
@@ -327,6 +327,6 @@ func hasRemainingEdges(db *pebble.DB, nodeID string) bool {
 	if err != nil {
 		return true
 	}
-	defer revIter.Close()
+	defer func() { _ = revIter.Close() }()
 	return revIter.SeekGE(revPrefix) && revIter.Valid() && strings.HasPrefix(string(revIter.Key()), "r:"+nodeID)
 }

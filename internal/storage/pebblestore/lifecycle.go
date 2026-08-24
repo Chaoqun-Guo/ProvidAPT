@@ -159,7 +159,7 @@ func (lm *LifecycleManager) cleanupOrphans() {
 		log.Printf("[lifecycle] failed to create iterator: %v", err)
 		return
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	// Scan all nodes
 	prefix := []byte(schema.NodePrefix())
@@ -231,7 +231,9 @@ func (lm *LifecycleManager) cleanupOrphans() {
 		removed++
 		if !lm.cfg.DryRun {
 			key := schema.NodePrefix() + inferType(nodeID) + ":" + nodeID
-			lm.db.Delete([]byte(key), pebble.NoSync)
+			if err := lm.db.Delete([]byte(key), pebble.NoSync); err != nil {
+				log.Printf("[lifecycle] failed to delete orphan node %s: %v", key, err)
+			}
 		}
 	}
 
@@ -259,7 +261,7 @@ func (lm *LifecycleManager) checkIndexConsistency() {
 		log.Printf("[lifecycle] failed to create iterator: %v", err)
 		return
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	prefix := []byte(schema.NodePrefix())
 	for iter.SeekGE(prefix); iter.Valid(); iter.Next() {
@@ -300,7 +302,10 @@ func (lm *LifecycleManager) checkIndexConsistency() {
 
 	for _, edgeKey := range corrupted {
 		if !lm.cfg.DryRun {
-			lm.db.Delete([]byte(edgeKey), pebble.NoSync)
+			if err := lm.db.Delete([]byte(edgeKey), pebble.NoSync); err != nil {
+				log.Printf("[lifecycle] failed to delete corrupted edge %s: %v", edgeKey, err)
+				continue
+			}
 			// Also delete the reverse index entry
 			// (in production, parse and compute the reverse key)
 			lm.stats.InconsistenciesFixed++

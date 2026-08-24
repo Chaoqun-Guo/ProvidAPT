@@ -7,6 +7,7 @@ package grpcexport
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -162,12 +163,19 @@ func (e *GRPCExporter) sendBatch(batch []*ExportEvent) error {
 	if err != nil {
 		return fmt.Errorf("json marshal: %w", err)
 	}
-	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("http post: %w", err)
 	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+	defer func() { _ = resp.Body.Close() }()
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		return fmt.Errorf("drain response body: %w", err)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned %d", resp.StatusCode)
 	}

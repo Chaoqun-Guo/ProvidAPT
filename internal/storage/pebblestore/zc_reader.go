@@ -61,7 +61,7 @@ func NewZeroCopyReader(rb *ringbuf.Reader) *ZeroCopyReader {
 func (z *ZeroCopyReader) Read() (*pb.Event, error) {
 	record, err := z.rb.Read()
 	if err != nil {
-		if err == ringbuf.ErrClosed {
+		if errors.Is(err, ringbuf.ErrClosed) {
 			return nil, err
 		}
 		z.stats.EventsDropped++
