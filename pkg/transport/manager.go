@@ -356,11 +356,37 @@ func (tm *TransportManager) Stats() TransportStats {
 	ppStats := tm.pipeline.Stats()
 	cRatio := tm.compressor.Ratio()
 
-	tm.stats.ActiveHashes = hcStats["cached_hashes"].(int)
-	tm.stats.HighSent = ppStats["high_sent"].(int64)
-	tm.stats.LowStaged = ppStats["low_staged"].(int64)
-	tm.stats.Processed = ppStats["processed"].(int64)
+	tm.stats.ActiveHashes = intStat(hcStats, "cached_hashes")
+	tm.stats.HighSent = int64Stat(ppStats, "high_sent")
+	tm.stats.LowStaged = int64Stat(ppStats, "low_staged")
+	tm.stats.Processed = int64Stat(ppStats, "processed")
 	tm.stats.CompressionRatio = cRatio
 
 	return tm.stats
+}
+
+func intStat(stats map[string]interface{}, key string) int {
+	switch v := stats[key].(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	default:
+		return 0
+	}
+}
+
+func int64Stat(stats map[string]interface{}, key string) int64 {
+	switch v := stats[key].(type) {
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	case float64:
+		return int64(v)
+	default:
+		return 0
+	}
 }

@@ -136,10 +136,10 @@ func (bc *BlastCalculator) isCritical(n *provenance.Node) bool {
 			return true
 		}
 	}
-	if v, ok := n.Attributes["setuid"]; ok && v.(bool) {
+	if v, ok := n.Attributes["setuid"].(bool); ok && v {
 		return true
 	}
-	if v, ok := n.Attributes["fileless"]; ok && v.(bool) {
+	if v, ok := n.Attributes["fileless"].(bool); ok && v {
 		return true
 	}
 	return false

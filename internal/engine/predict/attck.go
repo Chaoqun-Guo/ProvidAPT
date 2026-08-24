@@ -176,10 +176,10 @@ func extractSignalsFromNode(n *provenance.Node) []string {
 		if strings.Contains(label, "nginx") || strings.Contains(label, "apache") || strings.Contains(label, "httpd") {
 			signals = append(signals, "nginx|apache|httpd")
 		}
-		if v, ok := n.Attributes["fileless"]; ok && v.(bool) {
+		if v, ok := n.Attributes["fileless"].(bool); ok && v {
 			signals = append(signals, "exec")
 		}
-		if v, ok := n.Attributes["setuid"]; ok && v.(bool) {
+		if v, ok := n.Attributes["setuid"].(bool); ok && v {
 			signals = append(signals, "sudo|setuid")
 		}
 

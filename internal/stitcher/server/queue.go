@@ -50,7 +50,10 @@ func (pq PriorityQueue) Swap(i, j int) {
 
 func (pq *PriorityQueue) Push(x interface{}) {
 	n := len(*pq)
-	item := x.(*QueueEvent)
+	item, ok := x.(*QueueEvent)
+	if !ok {
+		return
+	}
 	item.index = n
 	*pq = append(*pq, item)
 }
@@ -95,7 +98,10 @@ func (eq *EventQueueManager) Dequeue() *QueueEvent {
 	if eq.queue.Len() == 0 {
 		return nil
 	}
-	evt := heap.Pop(&eq.queue).(*QueueEvent)
+	evt, ok := heap.Pop(&eq.queue).(*QueueEvent)
+	if !ok {
+		return nil
+	}
 	eq.processed++
 	return evt
 }

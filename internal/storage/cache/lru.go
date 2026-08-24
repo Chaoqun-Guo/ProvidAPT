@@ -76,7 +76,9 @@ func (c *Cache) Get(id string) (bool, error) {
 
 	if el, ok := c.items[id]; ok {
 		c.order.MoveToFront(el)
-		el.Value.(*entry).lastTouch = time.Now()
+		if ent, ok := el.Value.(*entry); ok {
+			ent.lastTouch = time.Now()
+		}
 		c.hits++
 		return true, nil
 	}
@@ -94,7 +96,9 @@ func (c *Cache) Add(id string) error {
 	// Already present — move to front
 	if el, ok := c.items[id]; ok {
 		c.order.MoveToFront(el)
-		el.Value.(*entry).lastTouch = time.Now()
+		if ent, ok := el.Value.(*entry); ok {
+			ent.lastTouch = time.Now()
+		}
 		return nil
 	}
 
@@ -132,7 +136,11 @@ func (c *Cache) evictLocked() error {
 	if el == nil {
 		return nil
 	}
-	ent := el.Value.(*entry)
+	ent, ok := el.Value.(*entry)
+	if !ok {
+		c.order.Remove(el)
+		return nil
+	}
 
 	// Persist before removing
 	if err := c.evictFn(ent.nodeID); err != nil {

@@ -130,7 +130,11 @@ func (hc *HotPathCache) Set(source, target, relation, summary string) {
 		if back == nil {
 			break
 		}
-		evict := back.Value.(*PathEntry)
+		evict, ok := back.Value.(*PathEntry)
+		if !ok {
+			hc.lru.Remove(back)
+			continue
+		}
 		delete(hc.entries, evict.Key)
 		hc.lru.Remove(back)
 	}

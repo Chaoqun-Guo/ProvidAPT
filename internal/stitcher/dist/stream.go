@@ -151,7 +151,9 @@ func (sp *StreamPipeline) flush() {
 	batch := make([]*StreamEvent, 0, sp.buffer.Len())
 	for sp.buffer.Len() > 0 {
 		front := sp.buffer.Front()
-		batch = append(batch, front.Value.(*StreamEvent))
+		if evt, ok := front.Value.(*StreamEvent); ok {
+			batch = append(batch, evt)
+		}
 		sp.buffer.Remove(front)
 	}
 	sp.mu.Unlock()

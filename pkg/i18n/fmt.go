@@ -72,7 +72,11 @@ func fmtString(format string, args ...interface{}) string {
 			case uint64:
 				buf.WriteString(strconv.FormatUint(v, 10))
 			default:
-				buf.WriteString(strconv.Itoa(v.(int)))
+				if i, ok := v.(int); ok {
+					buf.WriteString(strconv.Itoa(i))
+				} else {
+					buf.WriteString("?")
+				}
 			}
 			argIdx++
 		case 's':
@@ -92,7 +96,11 @@ func fmtString(format string, args ...interface{}) string {
 			case float32:
 				buf.WriteString(strconv.FormatFloat(float64(v), 'f', prec, 32))
 			default:
-				buf.WriteString(strconv.FormatFloat(v.(float64), 'f', prec, 64))
+				if f, ok := v.(float64); ok {
+					buf.WriteString(strconv.FormatFloat(f, 'f', prec, 64))
+				} else {
+					buf.WriteString("?")
+				}
 			}
 			argIdx++
 		default:

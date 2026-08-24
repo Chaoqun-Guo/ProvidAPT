@@ -75,7 +75,11 @@ func loadOrCreateKey(path string) (ed25519.PrivateKey, ed25519.PublicKey, error)
 			if err != nil {
 				return nil, nil, err
 			}
-			return key, key.Public().(ed25519.PublicKey), nil
+			pub, ok := key.Public().(ed25519.PublicKey)
+			if !ok {
+				return nil, nil, fmt.Errorf("private key did not expose an Ed25519 public key")
+			}
+			return key, pub, nil
 		} else if !os.IsNotExist(err) {
 			return nil, nil, err
 		}
