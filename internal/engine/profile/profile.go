@@ -120,10 +120,10 @@ func collectProgRunTime(prog BPFProgInfo) BPFProgInfo {
 	line := string(output)
 	// Parse: "run_time_ns X run_cnt Y"
 	if r := extractAfter(line, "run_time_ns"); r > 0 {
-		prog.RunTimeNS = int64(r)
+		prog.RunTimeNS = r
 	}
 	if c := extractAfter(line, "run_cnt"); c > 0 {
-		prog.RunCount = int64(c)
+		prog.RunCount = c
 	}
 	if prog.RunCount > 0 {
 		prog.AvgRunNS = float64(prog.RunTimeNS) / float64(prog.RunCount)
@@ -190,7 +190,9 @@ func (ss *StorageStats) RecordWrite(latency time.Duration, nodeCount, edgeCount 
 // NodesPerSecond returns the current node write rate.
 func (ss *StorageStats) NodesPerSecond() float64 {
 	nodes := atomic.LoadInt64(&ss.nodesWritten)
+	ss.mu.Lock()
 	elapsed := time.Since(ss.lastReset).Seconds()
+	ss.mu.Unlock()
 	if elapsed <= 0 {
 		return 0
 	}
@@ -225,7 +227,9 @@ func (ss *StorageStats) WindowLatencyP99() time.Duration {
 func (ss *StorageStats) ResetWindow() {
 	atomic.StoreInt64(&ss.windowCount, 0)
 	atomic.StoreInt64(&ss.windowLatency, 0)
+	ss.mu.Lock()
 	ss.windowStart = time.Now()
+	ss.mu.Unlock()
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -349,40 +353,40 @@ func (pr *ProfileReport) String() string {
 	var b strings.Builder
 	b.WriteString("ProvidAPT Performance Profile\n")
 	b.WriteString("============================\n\n")
-	b.WriteString(fmt.Sprintf("Timestamp: %s\n", pr.Timestamp))
+	fmt.Fprintf(&b, "Timestamp: %s\n", pr.Timestamp)
 
 	if pr.System != nil {
 		b.WriteString("\n─── System Resources ───\n")
-		b.WriteString(fmt.Sprintf("  CPU:        %.1f%%\n", pr.System.CPUPercent))
-		b.WriteString(fmt.Sprintf("  Memory RSS: %.0f MB\n", pr.System.MemoryRSSMB))
-		b.WriteString(fmt.Sprintf("  Memory VM:  %.0f MB\n", pr.System.MemoryVMMB))
-		b.WriteString(fmt.Sprintf("  Goroutines: %d\n", pr.System.Goroutines))
-		b.WriteString(fmt.Sprintf("  Go version: %s\n", pr.System.GoVersion))
-		b.WriteString(fmt.Sprintf("  Open FDs:   %d\n", pr.System.FDCount))
+		fmt.Fprintf(&b, "  CPU:        %.1f%%\n", pr.System.CPUPercent)
+		fmt.Fprintf(&b, "  Memory RSS: %.0f MB\n", pr.System.MemoryRSSMB)
+		fmt.Fprintf(&b, "  Memory VM:  %.0f MB\n", pr.System.MemoryVMMB)
+		fmt.Fprintf(&b, "  Goroutines: %d\n", pr.System.Goroutines)
+		fmt.Fprintf(&b, "  Go version: %s\n", pr.System.GoVersion)
+		fmt.Fprintf(&b, "  Open FDs:   %d\n", pr.System.FDCount)
 	}
 
 	if pr.BPF != nil {
 		b.WriteString("\n─── eBPF Programs ───\n")
-		b.WriteString(fmt.Sprintf("  Total programs: %d\n", len(pr.BPF.Programs)))
-		b.WriteString(fmt.Sprintf("  Total runs:     %d\n", pr.BPF.TotalRuns))
+		fmt.Fprintf(&b, "  Total programs: %d\n", len(pr.BPF.Programs))
+		fmt.Fprintf(&b, "  Total runs:     %d\n", pr.BPF.TotalRuns)
 		totalMS := float64(pr.BPF.TotalTime) / 1e6
-		b.WriteString(fmt.Sprintf("  Total runtime:  %.2f ms\n", totalMS))
+		fmt.Fprintf(&b, "  Total runtime:  %.2f ms\n", totalMS)
 		b.WriteString("\n  Per-program:\n")
 		for _, p := range pr.BPF.Programs {
 			avg := float64(p.AvgRunNS) / 1000
-			b.WriteString(fmt.Sprintf("    [%d] %-25s runs=%d avg=%.2fµs\n",
-				p.ID, p.Name, p.RunCount, avg))
+			fmt.Fprintf(&b, "    [%d] %-25s runs=%d avg=%.2fµs\n",
+				p.ID, p.Name, p.RunCount, avg)
 		}
 	}
 
 	if len(pr.Storage) > 0 {
 		b.WriteString("\n─── Storage ───\n")
-		b.WriteString(fmt.Sprintf("  Write rate:  %.0f nodes/sec\n", pr.Storage["nodes_per_sec"]))
-		b.WriteString(fmt.Sprintf("  Avg latency: %s\n", pr.Storage["avg_write_latency"]))
-		b.WriteString(fmt.Sprintf("  P99 latency: %s\n", pr.Storage["p99_latency"]))
+		fmt.Fprintf(&b, "  Write rate:  %.0f nodes/sec\n", pr.Storage["nodes_per_sec"])
+		fmt.Fprintf(&b, "  Avg latency: %s\n", pr.Storage["avg_write_latency"])
+		fmt.Fprintf(&b, "  P99 latency: %s\n", pr.Storage["p99_latency"])
 	}
 
-	b.WriteString(fmt.Sprintf("\nProfile collected in %s\n", pr.Duration))
+	fmt.Fprintf(&b, "\nProfile collected in %s\n", pr.Duration)
 	return b.String()
 }
 

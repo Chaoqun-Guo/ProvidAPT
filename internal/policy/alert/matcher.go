@@ -86,10 +86,9 @@ type MatchResult struct {
 // MatchAll checks all patterns against the graph.
 func (pm *PatternMatcher) MatchAll(graph *provenance.Graph) []*MatchResult {
 	var results []*MatchResult
-	edges := graph.Edges()
 
 	for _, pattern := range pm.patterns {
-		if match := pm.matchPattern(graph, edges, pattern); match != nil {
+		if match := pm.matchPattern(graph, pattern); match != nil {
 			results = append(results, match)
 		}
 	}
@@ -97,8 +96,7 @@ func (pm *PatternMatcher) MatchAll(graph *provenance.Graph) []*MatchResult {
 }
 
 // matchPattern checks if a specific pattern exists in the graph.
-func (pm *PatternMatcher) matchPattern(graph *provenance.Graph,
-	edges []*provenance.Edge, pattern AttackPattern) *MatchResult {
+func (pm *PatternMatcher) matchPattern(graph *provenance.Graph, pattern AttackPattern) *MatchResult {
 
 	if len(pattern.Steps) == 0 {
 		return nil

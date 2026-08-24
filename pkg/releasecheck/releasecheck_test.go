@@ -183,12 +183,6 @@ storage:
 	waivers := []byte(`{
   "waivers": [
     {
-      "check": "api_auth",
-      "reason": "isolated customer acceptance environment",
-      "approved_by": "release-manager",
-      "expires": "2099-12-31"
-    },
-    {
       "check": "cors_origins",
       "reason": "isolated browserless acceptance environment",
       "approved_by": "release-manager"
@@ -207,11 +201,8 @@ storage:
 		BuildDate:  "2026-07-08T00:00:00Z",
 	})
 
-	if report.Waived != 2 {
-		t.Fatalf("waived = %d, want 2: %+v", report.Waived, report.Checks)
-	}
-	if findCheck(t, report, "api_auth").Status != StatusWaived {
-		t.Fatalf("expected api_auth to be waived: %+v", report.Checks)
+	if report.Waived != 1 {
+		t.Fatalf("waived = %d, want 1: %+v", report.Waived, report.Checks)
 	}
 	if findCheck(t, report, "cors_origins").Status != StatusWaived {
 		t.Fatalf("expected cors_origins to be waived: %+v", report.Checks)

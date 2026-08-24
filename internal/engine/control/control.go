@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	"github.com/Chaoqun-Guo/ProvidAPT/pkg/config"
 	"github.com/cilium/ebpf"
@@ -70,7 +69,6 @@ func TaintString(flags uint32) string {
 //	dedup_map       — kernel-side frequency limiting (read-only)
 //	hot_paths       — high-interest path prefixes (writable)
 type Controller struct {
-	mu             sync.Mutex
 	pidWhitelist   *ebpf.Map
 	taintMap       *ebpf.Map
 	sampleCounters *ebpf.Map

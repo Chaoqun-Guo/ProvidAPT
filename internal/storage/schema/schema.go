@@ -37,8 +37,6 @@ const (
 	idxPIDPrefix   = "idx:pid:"
 	idxInodePrefix = "idx:inode:"
 	metaPrefix     = "meta:"
-
-	tsHexDigits = 16 // 64-bit timestamp in hex
 )
 
 // ─── Key builders ──────────────────────────────────────────

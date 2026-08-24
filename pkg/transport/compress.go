@@ -163,7 +163,7 @@ func (c *Compressor) SetDict(dictData []byte) error {
 	return nil
 }
 
-// DictBytes returns the serialised dictionary data, or nil if not trained.
+// DictBytes returns the serialized dictionary data, or nil if not trained.
 func (c *Compressor) DictBytes() []byte {
 	c.mu.Lock()
 	defer c.mu.Unlock()

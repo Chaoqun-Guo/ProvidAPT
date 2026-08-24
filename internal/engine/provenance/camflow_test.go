@@ -352,9 +352,6 @@ func TestPruneMultipleCalls(t *testing.T) {
 	n2 := g.Prune(nil, DefaultInterestingChecker())
 
 	t.Logf("first prune: %d, second prune: %d", n1, n2)
-	if n2 > 0 && n1 == 0 {
-		// second pass might find more — not an error, but interesting
-	}
 }
 
 func TestCredentialNodeIsInteresting(t *testing.T) {

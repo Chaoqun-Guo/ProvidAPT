@@ -198,7 +198,7 @@ func TestMLDetectorTrainAndDetect(t *testing.T) {
 		t.Error("should be trained")
 	}
 
-	// Analyse a normal process subgraph
+	// Analyze a normal process subgraph
 	result := md.AnalyseProcessSubgraph("p:100", g)
 	if result == nil {
 		t.Fatal("AnalyseProcessSubgraph returned nil")

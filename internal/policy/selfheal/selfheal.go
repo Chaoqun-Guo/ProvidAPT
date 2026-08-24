@@ -673,11 +673,11 @@ func (h *Healer) AuditSummary() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Self-Heal Status: %s\n", status))
-	b.WriteString(fmt.Sprintf("  Checks:     %d\n", h.checkCnt))
-	b.WriteString(fmt.Sprintf("  Failures:   %d\n", h.failCnt))
-	b.WriteString(fmt.Sprintf("  Reloads:    %d\n", h.reloadCnt))
-	b.WriteString(fmt.Sprintf("  Audit log:  %d events\n", len(h.auditLog)))
+	fmt.Fprintf(&b, "Self-Heal Status: %s\n", status)
+	fmt.Fprintf(&b, "  Checks:     %d\n", h.checkCnt)
+	fmt.Fprintf(&b, "  Failures:   %d\n", h.failCnt)
+	fmt.Fprintf(&b, "  Reloads:    %d\n", h.reloadCnt)
+	fmt.Fprintf(&b, "  Audit log:  %d events\n", len(h.auditLog))
 
 	if len(h.auditLog) > 0 {
 		b.WriteString("  Recent events:\n")
@@ -686,7 +686,7 @@ func (h *Healer) AuditSummary() string {
 			start = 0
 		}
 		for _, e := range h.auditLog[start:] {
-			b.WriteString(fmt.Sprintf("    [%s] %s: %s\n", e.Severity, e.Type, e.Message))
+			fmt.Fprintf(&b, "    [%s] %s: %s\n", e.Severity, e.Type, e.Message)
 		}
 	}
 	return b.String()

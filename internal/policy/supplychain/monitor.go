@@ -197,6 +197,16 @@ func (pmm *PackageManagerMonitor) extractPackageInfo(filePath string, session *P
 func inferPackageName(filePath string, installed []string) string {
 	base := filepath.Base(filePath)
 	name := strings.TrimSuffix(base, filepath.Ext(base))
+	normalizedPath := strings.ToLower(filepath.ToSlash(filePath))
+	for _, pkg := range installed {
+		pkg = strings.TrimSpace(pkg)
+		if pkg == "" {
+			continue
+		}
+		if strings.Contains(normalizedPath, strings.ToLower(pkg)) {
+			return pkg
+		}
+	}
 
 	// Heuristic: if the directory matches a known pattern, use basename sans ext.
 	// e.g. /usr/bin/nginx -> "nginx", /usr/lib/python3/dist-packages/requests/ -> "python3-requests"

@@ -94,12 +94,12 @@ func (req *TraceRequest) MatchContainer(containerID, containerName, image, orche
 func (tr *TraceResult) FormatText() string {
 	var b strings.Builder
 	if tr.Request.Container != "" {
-		b.WriteString(fmt.Sprintf("Container filter: %s\n", tr.Request.Container))
+		fmt.Fprintf(&b, "Container filter: %s\n", tr.Request.Container)
 	}
 	if tr.Request.Image != "" {
-		b.WriteString(fmt.Sprintf("Image filter: %s\n", tr.Request.Image))
+		fmt.Fprintf(&b, "Image filter: %s\n", tr.Request.Image)
 	}
-	b.WriteString(fmt.Sprintf("Trace chain (%d nodes):\n", tr.Total))
+	fmt.Fprintf(&b, "Trace chain (%d nodes):\n", tr.Total)
 
 	for i, node := range tr.Chain {
 		prefix := "  "

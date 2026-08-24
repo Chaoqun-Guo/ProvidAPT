@@ -208,7 +208,7 @@ func computePathStats(nodes []*provenance.Node, edges []*provenance.Edge) (avg, 
 	if count > 0 {
 		avg = totalLen / count
 	}
-	return
+	return max, avg
 }
 
 // Entropy.

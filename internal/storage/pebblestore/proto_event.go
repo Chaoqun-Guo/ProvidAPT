@@ -45,8 +45,8 @@ func RawEventToProto(raw []byte) *pb.Event {
 	}
 
 	evt := &pb.Event{
-		Type:        uint32(readLE32(raw, 0)),
-		Flags:       uint32(readLE32(raw, 4)),
+		Type:        readLE32(raw, 0),
+		Flags:       readLE32(raw, 4),
 		TimestampNs: readLE64(raw, 8),
 		Pid:         readLE32(raw, 16),
 		Tid:         readLE32(raw, 20),

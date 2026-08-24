@@ -66,13 +66,17 @@ func (de *DefenseEngine) containmentRecs(nodeID, comm string, pid uint32) []*Def
 	var recs []*DefenseRecommendation
 
 	lower := strings.ToLower(comm)
+	target := fmt.Sprintf("PID %d", pid)
+	if nodeID != "" {
+		target = fmt.Sprintf("%s (%s)", target, nodeID)
+	}
 
 	// Network tool — block immediately
 	if strings.Contains(lower, "curl") || strings.Contains(lower, "wget") ||
 		strings.Contains(lower, "nc") || strings.Contains(lower, "ncat") {
 		recs = append(recs, &DefenseRecommendation{
 			Priority: "IMMEDIATE", Action: "contain",
-			Target:     fmt.Sprintf("PID %d", pid),
+			Target:     target,
 			Suggestion: fmt.Sprintf("Immediately terminate PID %d (%s) and block its outbound connections", pid, comm),
 			Rationale:  "Network-capable process in suspicious context — likely C2 or exfiltration",
 		})
@@ -82,7 +86,7 @@ func (de *DefenseEngine) containmentRecs(nodeID, comm string, pid uint32) []*Def
 	if strings.Contains(lower, "bash") || strings.Contains(lower, "sh") {
 		recs = append(recs, &DefenseRecommendation{
 			Priority: "HIGH", Action: "contain",
-			Target:     fmt.Sprintf("PID %d", pid),
+			Target:     target,
 			Suggestion: fmt.Sprintf("Investigate shell process PID %d — determine if it was legitimately invoked", pid),
 			Rationale:  "Interactive shell in automated/service context may indicate backdoor access",
 		})
@@ -173,11 +177,11 @@ func FormatRecommendations(recs []*DefenseRecommendation) string {
 		return "No specific recommendations at this time."
 	}
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Defense Recommendations (%d actions):\n", len(recs)))
+	fmt.Fprintf(&b, "Defense Recommendations (%d actions):\n", len(recs))
 	for _, r := range recs {
-		b.WriteString(fmt.Sprintf("  [%s] [%s] %s\n", r.Priority, r.Action, r.Suggestion))
-		b.WriteString(fmt.Sprintf("         Target: %s\n", r.Target))
-		b.WriteString(fmt.Sprintf("         Why: %s\n\n", r.Rationale))
+		fmt.Fprintf(&b, "  [%s] [%s] %s\n", r.Priority, r.Action, r.Suggestion)
+		fmt.Fprintf(&b, "         Target: %s\n", r.Target)
+		fmt.Fprintf(&b, "         Why: %s\n\n", r.Rationale)
 	}
 	return b.String()
 }

@@ -96,7 +96,7 @@ func main() {
 	if *output != "" {
 		data, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error marshalling report: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error marshaling report: %v\n", err)
 			return
 		}
 		if err := os.WriteFile(*output, data, 0644); err != nil {

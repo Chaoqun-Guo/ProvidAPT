@@ -42,9 +42,7 @@ func TestCompressorProtobufShortInput(t *testing.T) {
 	// Less than 4 bytes — should fall back to plain decompress
 	data := []byte{0x28, 0xb5, 0x2f}
 	_, err := c.DecompressProtobuf(data)
-	if err == nil {
-		// Accept either success or failure — just should not panic
-	}
+	t.Logf("short zstd frame handled with err=%v", err)
 }
 
 func TestCompressorWithLevels(t *testing.T) {

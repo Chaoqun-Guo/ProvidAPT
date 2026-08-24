@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package filter implements a benign behaviour filtering engine for
+// Package filter implements a benign behavior filtering engine for
 // ProvidAPT.  It learns normal system activity patterns and suppresses
 // repetitive low-value events to reduce storage and analysis overhead.
 //
@@ -25,12 +25,12 @@ import (
 )
 
 // ═══════════════════════════════════════════════════════════════
-// Behavioural hash
+// Behavioral hash
 // ═══════════════════════════════════════════════════════════════
 
-// Hash computes a behavioural signature for an event.
+// Hash computes a behavioral signature for an event.
 // Signature = SHA256(comm + operation + target_path).
-// Two events with the same hash are behaviourally identical.
+// Two events with the same hash are behaviorally identical.
 func Hash(evt *collector.Event) string {
 	op := evt.Type.String()
 	comm := strings.TrimSpace(evt.Comm)
@@ -40,10 +40,10 @@ func Hash(evt *collector.Event) string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Baseline — trained behavioural whitelist
+// Baseline — trained behavioral whitelist
 // ═══════════════════════════════════════════════════════════════
 
-// Baseline stores a set of "normal" behavioural hashes learned during
+// Baseline stores a set of "normal" behavioral hashes learned during
 // the training period.  The set is persisted to disk as a JSON blob
 // under a well-known RocksDB key.
 type Baseline struct {

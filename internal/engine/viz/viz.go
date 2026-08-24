@@ -4,7 +4,7 @@
 // Package viz provides a lightweight visualization backend for ProvidAPT.
 //
 // Features:
-//  1. Subgraph slice — extract 3-hop neighbourhood by alert ID
+//  1. Subgraph slice — extract 3-hop neighborhood by alert ID
 //  2. Cytoscape.js/D3.js JSON output
 //  3. Timeline replay — timestamp-filtered attack path reconstruction
 package viz
@@ -59,7 +59,7 @@ type CytoElemData struct {
 
 // ─── VizEngine ────────────────────────────────────────────────────
 
-// VizEngine builds visualisation data from the provenance graph.
+// VizEngine builds visualization data from the provenance graph.
 // It can be populated manually via AddNode/AddEdge, or synced from a
 // provenance.Graph via SyncFromGraph for real-time data access.
 type VizEngine struct {
@@ -147,7 +147,7 @@ func (ve *VizEngine) SyncFromGraph(g *provenance.Graph) error {
 
 // ─── Pagination options for subgraph extraction ───────────────
 
-// SubgraphOpts controls optional behaviour of ExtractSubgraphWithOpts.
+// SubgraphOpts controls optional behavior of ExtractSubgraphWithOpts.
 type SubgraphOpts struct {
 	// Ctx carries a deadline or cancellation for long-running extractions
 	// on large provenance graphs. When nil, context.Background() is used.
@@ -244,19 +244,19 @@ func (ve *VizEngine) ExtractSubgraphWithOpts(seedIDs []string, maxHops int, time
 				continue
 			}
 
-			var neighbour string
+			var neighbor string
 			if edge.Source == current {
-				neighbour = edge.Target
+				neighbor = edge.Target
 			} else if edge.Target == current {
-				neighbour = edge.Source
+				neighbor = edge.Source
 			} else {
 				continue
 			}
 
-			if _, seen := visited[neighbour]; !seen {
-				if _, exists := ve.nodes[neighbour]; exists {
-					visited[neighbour] = depth + 1
-					queue = append(queue, neighbour)
+			if _, seen := visited[neighbor]; !seen {
+				if _, exists := ve.nodes[neighbor]; exists {
+					visited[neighbor] = depth + 1
+					queue = append(queue, neighbor)
 				}
 			}
 		}
@@ -378,20 +378,6 @@ func buildCytoGraph(nodes map[string]*NodeInfo, edgeList []*EdgeInfo, visited ma
 	return graph
 }
 
-// countEdgesFromVisited counts edges whose source and target are both
-// in the visited node set. Used for early cancellation reporting.
-func countEdgesFromVisited(edgeList []*EdgeInfo, visited map[string]int) int {
-	count := 0
-	for _, edge := range edgeList {
-		if _, ok := visited[edge.Source]; ok {
-			if _, ok := visited[edge.Target]; ok {
-				count++
-			}
-		}
-	}
-	return count
-}
-
 // ─── Incremental / depth-range extraction ──────────────────────
 
 // PartialResult holds a partial extraction result with a flag that tells
@@ -452,18 +438,18 @@ func (ve *VizEngine) ExtractPartial(seedIDs []string, maxHops, startDepth, depth
 		}
 
 		for _, edge := range ve.edges {
-			var neighbour string
+			var neighbor string
 			if edge.Source == current {
-				neighbour = edge.Target
+				neighbor = edge.Target
 			} else if edge.Target == current {
-				neighbour = edge.Source
+				neighbor = edge.Source
 			} else {
 				continue
 			}
-			if _, seen := visited[neighbour]; !seen {
-				if _, exists := ve.nodes[neighbour]; exists {
-					visited[neighbour] = depth + 1
-					queue = append(queue, neighbour)
+			if _, seen := visited[neighbor]; !seen {
+				if _, exists := ve.nodes[neighbor]; exists {
+					visited[neighbor] = depth + 1
+					queue = append(queue, neighbor)
 				}
 			}
 		}
@@ -675,7 +661,7 @@ func CytoToDOT(g *CytoGraph) string {
 		}
 		ntype := elem.Data.NodeType
 		color := nodeColor(ntype)
-		b.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q, style=filled];\n", id, label, color))
+		fmt.Fprintf(&b, "  %q [label=%q, fillcolor=%q, style=filled];\n", id, label, color)
 	}
 
 	b.WriteString("\n")
@@ -708,8 +694,8 @@ func CytoToDOT(g *CytoGraph) string {
 		if count > 1 {
 			label = fmt.Sprintf("%s (x%d)", rel, count)
 		}
-		b.WriteString(fmt.Sprintf("  %q -> %q [label=%q];\n",
-			elem.Data.Source, elem.Data.Target, label))
+		fmt.Fprintf(&b, "  %q -> %q [label=%q];\n",
+			elem.Data.Source, elem.Data.Target, label)
 	}
 
 	b.WriteString("}\n")

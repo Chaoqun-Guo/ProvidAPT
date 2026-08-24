@@ -15,7 +15,7 @@ import (
 // Anchoring — write root hash to protected storage
 // ═══════════════════════════════════════════════════════════════
 
-// AnchorConfig controls anchoring behaviour.
+// AnchorConfig controls anchoring behavior.
 type AnchorConfig struct {
 	// EnableKmsg — write root hash to /dev/kmsg (kernel log).
 	EnableKmsg bool

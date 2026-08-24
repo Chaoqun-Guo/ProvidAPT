@@ -43,10 +43,7 @@ type mitreEntry struct {
 func cmdReport(outDir, outputPath string) {
 	clioutput.Printf("Generating MITRE ATT&CK heatmap report...\n")
 
-	alerts, err := loadAllAlerts(outDir)
-	if err != nil {
-		clioutput.Fatalf("Failed to load alerts: %v", err)
-	}
+	alerts := loadAllAlerts(outDir)
 
 	if len(alerts) == 0 {
 		clioutput.Printf("%s\n", clioutput.Warnf("No alerts found in %s", outDir))
@@ -132,7 +129,7 @@ func (s severityInt) String() string {
 	}
 }
 
-func loadAllAlerts(dir string) ([]alertRecord, error) {
+func loadAllAlerts(dir string) []alertRecord {
 	// Try alerts.ndjson first, then alerts.json
 	paths := []string{
 		filepath.Join(dir, "alerts.ndjson"),
@@ -142,10 +139,10 @@ func loadAllAlerts(dir string) ([]alertRecord, error) {
 	for _, path := range paths {
 		records, err := readAlertFile(path)
 		if err == nil && len(records) > 0 {
-			return records, nil
+			return records
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 func readAlertFile(path string) ([]alertRecord, error) {
@@ -253,7 +250,7 @@ func generateHeatmapHTML(entries []*mitreEntry, totalAlerts int) string {
 		high := e.Severities["HIGH"]
 		medium := e.Severities["MEDIUM"]
 
-		b.WriteString(fmt.Sprintf(`<tr>
+		fmt.Fprintf(&b, `<tr>
   <td class="tactic">%s</td>
   <td class="technique">%s</td>
   <td class="tid">%s</td>
@@ -276,7 +273,7 @@ func generateHeatmapHTML(entries []*mitreEntry, totalAlerts int) string {
 			"#d29922", float64(high)+1,
 			"#58a6ff", float64(medium)+1,
 			color, textColor(pct), pct,
-		))
+		)
 	}
 
 	b.WriteString(`</table>

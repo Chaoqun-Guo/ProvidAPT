@@ -24,7 +24,7 @@ import (
 
 // Snapshot manager
 
-// SnapshotConfig controls the snapshot behaviour.
+// SnapshotConfig controls the snapshot behavior.
 type SnapshotConfig struct {
 	// SnapDir -directory for checkpoint snapshots.
 	SnapDir string

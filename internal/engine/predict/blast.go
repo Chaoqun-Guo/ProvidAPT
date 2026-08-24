@@ -87,7 +87,7 @@ func (bc *BlastCalculator) Calculate(graph *provenance.Graph, startNodeID string
 			}
 		}
 
-		// Enqueue neighbours
+		// Enqueue neighbors
 		if item.distance < 10 { // max depth
 			for _, e := range graph.Edges() {
 				var nextID string

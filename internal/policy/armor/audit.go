@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Chaoqun-Guo
 // SPDX-License-Identifier: Apache-2.0
 
-// Package armor provides anti-rootkit defence mechanisms for
+// Package armor provides anti-rootkit defense mechanisms for
 // ProvidAPT's eBPF monitoring infrastructure.
 //
 // It protects against attacks that try to disable or bypass
 // eBPF monitoring, including:
 //
-//  1. Map integrity audit — detect unauthorised modifications
+//  1. Map integrity audit — detect unauthorized modifications
 //     to BPF maps via iter programs.
 //
 //  2. Kernel symbol monitoring — detect unknown modules or
@@ -47,7 +47,6 @@ type AuditRecord struct {
 // MapAuditor periodically checks BPF map integrity.
 type MapAuditor struct {
 	mu         sync.Mutex
-	records    []AuditRecord
 	anomalies  []AuditRecord
 	checkPIDs  map[uint32]bool // known-good PID set
 	auditStore *audit.Store

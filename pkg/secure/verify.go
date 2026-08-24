@@ -21,7 +21,7 @@ import (
 // or insertion) and reports the time range and location.
 // ═══════════════════════════════════════════════════════════════
 
-// VerificationResult summarises the integrity check.
+// VerificationResult summarizes the integrity check.
 type VerificationResult struct {
 	TotalFiles    int           `json:"total_files"`
 	FilesChecked  int           `json:"files_checked"`
@@ -170,20 +170,20 @@ func (v *Verifier) verifyFile(path string) (bool, error) {
 // TamperReport returns a human-readable summary of detected tampering.
 func (vr *VerificationResult) TamperReport() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Verification Report — %s\n", vr.DataDir))
+	fmt.Fprintf(&b, "Verification Report — %s\n", vr.DataDir)
 	b.WriteString(strings.Repeat("=", 60) + "\n")
-	b.WriteString(fmt.Sprintf("  Files checked:  %d\n", vr.FilesChecked))
-	b.WriteString(fmt.Sprintf("  Files intact:   %d\n", vr.FilesIntact))
-	b.WriteString(fmt.Sprintf("  Files tampered: %d\n", vr.FilesTampered))
-	b.WriteString(fmt.Sprintf("  Anchors found:  %d (valid: %d, failed: %d)\n",
-		vr.AnchorsFound, vr.AnchorsValid, vr.AnchorsFailed))
-	b.WriteString(fmt.Sprintf("  Duration:       %v\n", vr.Duration))
+	fmt.Fprintf(&b, "  Files checked:  %d\n", vr.FilesChecked)
+	fmt.Fprintf(&b, "  Files intact:   %d\n", vr.FilesIntact)
+	fmt.Fprintf(&b, "  Files tampered: %d\n", vr.FilesTampered)
+	fmt.Fprintf(&b, "  Anchors found:  %d (valid: %d, failed: %d)\n",
+		vr.AnchorsFound, vr.AnchorsValid, vr.AnchorsFailed)
+	fmt.Fprintf(&b, "  Duration:       %v\n", vr.Duration)
 
 	if vr.FilesTampered > 0 || vr.AnchorsFailed > 0 {
 		b.WriteString("\n  TAMPERING DETECTED:\n")
 		for _, e := range vr.Errors {
 			if strings.Contains(e, "TAMPERED") || strings.Contains(e, "MISSING") {
-				b.WriteString(fmt.Sprintf("    ⚠ %s\n", e))
+				fmt.Fprintf(&b, "    ⚠ %s\n", e)
 			}
 		}
 	} else {

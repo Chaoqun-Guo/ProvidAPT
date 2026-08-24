@@ -228,7 +228,7 @@ func NewAlertPipeline(graph *provenance.Graph, webhookURL string) *AlertPipeline
 	}
 }
 
-// Tick runs one full alert cycle: match -> aggregate -> rate-limit -> summarise -> notify.
+// Tick runs one full alert cycle: match -> aggregate -> rate-limit -> summarize -> notify.
 func (ap *AlertPipeline) Tick(graph *provenance.Graph) {
 	// 1. Resolve old incidents
 	ap.Incidents.ResolveOld()

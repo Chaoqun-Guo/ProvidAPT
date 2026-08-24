@@ -45,7 +45,7 @@ type SBOMDocument struct {
 type SBOMEntry struct {
 	Name       string            `json:"name"`
 	Version    string            `json:"version"`
-	Supplier   string            `json:"supplier"` // vendor / organisation
+	Supplier   string            `json:"supplier"` // vendor / organization
 	License    string            `json:"license"`
 	Checksums  map[string]string `json:"checksums"` // algorithm -> hex hash
 	Purl       string            `json:"purl"`      // Package URL

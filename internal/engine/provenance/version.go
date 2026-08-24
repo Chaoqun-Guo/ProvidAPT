@@ -41,12 +41,6 @@ func NewVersionTracker() *VersionTracker {
 	}
 }
 
-// baseKey computes the version-tracking key from a file base ID.
-// Strips any existing version suffix.
-func baseKey(fileID string) string {
-	return fileID
-}
-
 // InitVersion ensures a file has version 1.  Called the first time
 // a file is seen (read or write).
 func (vt *VersionTracker) InitVersion(baseID string) string {

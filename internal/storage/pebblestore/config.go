@@ -5,7 +5,7 @@
 //
 // Optimisations for high-throughput provenance data:
 //  1. Bloom filters — accelerate point lookups on SSTables
-//  2. Leveled compaction — optimised for time-decaying access
+//  2. Leveled compaction — optimized for time-decaying access
 //  3. Block cache — LRU cache for edge index queries
 package pebblestore
 
@@ -205,7 +205,7 @@ func detectMemoryMB() int64 {
 
 // ─── Pre-built configurations ──────────────────────────────
 
-// HighThroughputConfig returns options optimised for write-heavy
+// HighThroughputConfig returns options optimized for write-heavy
 // workloads with Bloom filters, Zstd compression, and LRU cache.
 func HighThroughputConfig(dbPath string) (*pebble.Options, *pebble.Cache) {
 	cache := NewCache(CacheSize())
@@ -221,7 +221,7 @@ func HighThroughputConfig(dbPath string) (*pebble.Options, *pebble.Cache) {
 	return opts, cache
 }
 
-// LowLatencyConfig returns options optimised for read-heavy
+// LowLatencyConfig returns options optimized for read-heavy
 // workloads (more Bloom filter bits, larger cache).
 func LowLatencyConfig(dbPath string) (*pebble.Options, *pebble.Cache) {
 	cache := NewCache(CacheSize() * 2) // double cache

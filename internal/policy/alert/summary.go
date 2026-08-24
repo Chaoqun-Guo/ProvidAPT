@@ -90,13 +90,13 @@ func (sg *SummaryGenerator) GenerateFromMatch(match *MatchResult) *AlertSummary 
 // Text returns a plain text version of the summary.
 func (as *AlertSummary) Text() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("🚨 %s\n", as.Title))
-	b.WriteString(fmt.Sprintf("Severity: %s\n", as.Severity))
-	b.WriteString(fmt.Sprintf("Time:     %s\n", as.Timestamp))
-	b.WriteString(fmt.Sprintf("Path:     %s\n", as.AttackPath))
-	b.WriteString(fmt.Sprintf("Entities: %d\n", as.NodeCount))
+	fmt.Fprintf(&b, "🚨 %s\n", as.Title)
+	fmt.Fprintf(&b, "Severity: %s\n", as.Severity)
+	fmt.Fprintf(&b, "Time:     %s\n", as.Timestamp)
+	fmt.Fprintf(&b, "Path:     %s\n", as.AttackPath)
+	fmt.Fprintf(&b, "Entities: %d\n", as.NodeCount)
 	for _, e := range as.KeyEntities {
-		b.WriteString(fmt.Sprintf("  • %s\n", e))
+		fmt.Fprintf(&b, "  • %s\n", e)
 	}
 	return b.String()
 }
@@ -104,13 +104,13 @@ func (as *AlertSummary) Text() string {
 // Markdown returns a markdown-formatted summary (for Slack, Teams, etc.).
 func (as *AlertSummary) Markdown() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("## 🚨 ProvidAPT Alert: %s\n\n", as.Title))
-	b.WriteString(fmt.Sprintf("**Severity:** `%s`  \n", as.Severity))
-	b.WriteString(fmt.Sprintf("**Time:** %s  \n", as.Timestamp))
-	b.WriteString(fmt.Sprintf("**Attack Path:** `%s`  \n\n", as.AttackPath))
+	fmt.Fprintf(&b, "## 🚨 ProvidAPT Alert: %s\n\n", as.Title)
+	fmt.Fprintf(&b, "**Severity:** `%s`  \n", as.Severity)
+	fmt.Fprintf(&b, "**Time:** %s  \n", as.Timestamp)
+	fmt.Fprintf(&b, "**Attack Path:** `%s`  \n\n", as.AttackPath)
 	b.WriteString("### Key Entities  \n")
 	for _, e := range as.KeyEntities {
-		b.WriteString(fmt.Sprintf("- %s  \n", e))
+		fmt.Fprintf(&b, "- %s  \n", e)
 	}
 	return b.String()
 }

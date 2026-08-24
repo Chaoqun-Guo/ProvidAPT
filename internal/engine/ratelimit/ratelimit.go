@@ -106,7 +106,6 @@ type DropStats struct {
 	byPriority   map[int]int64    // priority → count dropped
 	byEventType  map[uint32]int64 // event type → count dropped
 	totalDropped int64
-	lastLogTime  time.Time
 }
 
 // ─── RateLimiter ────────────────────────────────────────────
@@ -322,11 +321,11 @@ func (rl *RateLimiter) logDropSummary() {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("[ratelimit] drop summary: %d events dropped\n", total))
+	fmt.Fprintf(&b, "[ratelimit] drop summary: %d events dropped\n", total)
 	// Show top dropped event types
 	for et, count := range byType {
 		if count > 0 {
-			b.WriteString(fmt.Sprintf("  type %d (%s): %d\n", et, eventName(et), count))
+			fmt.Fprintf(&b, "  type %d (%s): %d\n", et, eventName(et), count)
 		}
 	}
 	log.Printf("%s", b.String())

@@ -84,19 +84,19 @@ func (cs *ChainStore) Verify() *VerifyReport {
 // Summary returns a human-readable verification summary.
 func (vr *VerifyReport) Summary() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Chain Integrity Verification\n"))
+	b.WriteString("Chain Integrity Verification\n")
 	b.WriteString(strings.Repeat("=", 40) + "\n")
-	b.WriteString(fmt.Sprintf("Records:     %d\n", vr.TotalRecords))
-	b.WriteString(fmt.Sprintf("Chain:       %s\n", statusStr(vr.ChainIntact)))
-	b.WriteString(fmt.Sprintf("HMAC:        %s\n", statusStr(vr.HMACValid)))
-	b.WriteString(fmt.Sprintf("Gaps:        %d\n", vr.Gaps))
-	b.WriteString(fmt.Sprintf("First hash:  %s\n", truncate(vr.FirstRecord, 16)))
-	b.WriteString(fmt.Sprintf("Latest hash: %s\n", truncate(vr.LatestRecord, 16)))
+	fmt.Fprintf(&b, "Records:     %d\n", vr.TotalRecords)
+	fmt.Fprintf(&b, "Chain:       %s\n", statusStr(vr.ChainIntact))
+	fmt.Fprintf(&b, "HMAC:        %s\n", statusStr(vr.HMACValid))
+	fmt.Fprintf(&b, "Gaps:        %d\n", vr.Gaps)
+	fmt.Fprintf(&b, "First hash:  %s\n", truncate(vr.FirstRecord, 16))
+	fmt.Fprintf(&b, "Latest hash: %s\n", truncate(vr.LatestRecord, 16))
 
 	if len(vr.Issues) > 0 {
 		b.WriteString("\nIssues:\n")
 		for _, issue := range vr.Issues {
-			b.WriteString(fmt.Sprintf("  ⚠ %s\n", issue))
+			fmt.Fprintf(&b, "  ⚠ %s\n", issue)
 		}
 	}
 

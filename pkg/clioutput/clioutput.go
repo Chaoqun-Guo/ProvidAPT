@@ -16,10 +16,10 @@ var (
 	colorsOn = true
 )
 
-// Init initialises the output package. Call once at program start.
+// Init initializes the output package. Call once at program start.
 func Init(json bool) {
 	jsonMode = json
-	// Disable colours when stdout is not a terminal (pipe/redirect)
+	// Disable colors when stdout is not a terminal (pipe/redirect)
 	if stat, err := os.Stdout.Stat(); err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
 		colorsOn = false
 	}
@@ -40,7 +40,7 @@ func PrintBanner(version string) {
 	fmt.Fprintf(os.Stderr, banner+"\n", version)
 }
 
-// ── Colour helpers ──
+// ── Color helpers ──
 
 func colorize(code, s string) string {
 	if !colorsOn || jsonMode {
@@ -49,22 +49,22 @@ func colorize(code, s string) string {
 	return "\033[" + code + "m" + s + "\033[0m"
 }
 
-// Infof returns a cyan-coloured string (informational).
+// Infof returns a cyan-colored string (informational).
 func Infof(format string, args ...interface{}) string {
 	return colorize("36", fmt.Sprintf(format, args...))
 }
 
-// Warnf returns a yellow-coloured string (warning).
+// Warnf returns a yellow-colored string (warning).
 func Warnf(format string, args ...interface{}) string {
 	return colorize("33", fmt.Sprintf(format, args...))
 }
 
-// Errf returns a red-coloured string (error).
+// Errf returns a red-colored string (error).
 func Errf(format string, args ...interface{}) string {
 	return colorize("31", fmt.Sprintf(format, args...))
 }
 
-// Okf returns a green-coloured string (success).
+// Okf returns a green-colored string (success).
 func Okf(format string, args ...interface{}) string {
 	return colorize("32", fmt.Sprintf(format, args...))
 }
@@ -89,7 +89,7 @@ func Fatalf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
-// Printf writes directly to stdout (pass-through for non-coloured output).
+// Printf writes directly to stdout (pass-through for non-colored output).
 func Printf(format string, args ...interface{}) {
 	_, _ = fmt.Fprintf(os.Stdout, format, args...)
 }

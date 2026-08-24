@@ -45,9 +45,8 @@ type procState struct {
 type AdaptiveController struct {
 	bpfMap BPFMapWriter
 
-	mu      sync.RWMutex
-	procs   map[int]*procState
-	history []*procState // completed states (for stats)
+	mu    sync.RWMutex
+	procs map[int]*procState
 
 	// Configuration
 	downgradeAfter  time.Duration // overrides level-based downgrade when set (>0)

@@ -333,12 +333,24 @@ func matchField(field, value, key string, cn *ChainNode) bool {
 	// Simple field matching: check if the value appears in the key
 	switch field {
 	case "name", "comm", "label":
+		if cn != nil {
+			return strings.Contains(cn.Label, value)
+		}
 		return strings.Contains(key, value)
 	case "pid":
+		if cn != nil {
+			return fmt.Sprint(cn.PID) == value
+		}
 		return strings.Contains(key, ":"+value)
 	case "path":
+		if cn != nil {
+			return strings.Contains(cn.Label, value)
+		}
 		return strings.Contains(key, value)
 	case "addr", "ip":
+		if cn != nil {
+			return strings.Contains(cn.ID, value) || strings.Contains(cn.Label, value)
+		}
 		return strings.Contains(key, value)
 	default:
 		return true

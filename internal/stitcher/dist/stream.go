@@ -65,7 +65,7 @@ type StreamEvent struct {
 }
 
 // StreamPipeline manages gRPC streaming with buffer, reconnection,
-// and an optional TransportManager for compression / dedup / prioritisation.
+// and an optional TransportManager for compression / dedup / prioritization.
 type StreamPipeline struct {
 	cfg          *StreamConfig
 	mu           sync.Mutex
@@ -158,25 +158,7 @@ func (sp *StreamPipeline) flush() {
 	}
 	sp.mu.Unlock()
 
-	if err := sp.sendBatch(batch); err != nil {
-		log.Printf("[stream] send failed: %v — requeuing %d events", err, len(batch))
-		if sp.transportMgr != nil && sp.cfg.EnableLocalBackup {
-			// Route failed events through the TransportManager's
-			// low-priority queue for later replay.
-			for _, evt := range batch {
-				data := []byte(fmt.Sprintf("%s|%s", evt.FullID, evt.Payload))
-				sp.transportMgr.Ingest(data, transport.PriorityLow, evt.Tainted, false)
-			}
-		} else {
-			sp.mu.Lock()
-			for _, evt := range batch {
-				sp.buffer.PushBack(evt)
-			}
-			sp.mu.Unlock()
-		}
-		sp.handleDisconnect()
-		return
-	}
+	sp.sendBatch(batch)
 
 	sp.mu.Lock()
 	sp.sent += int64(len(batch))
@@ -187,9 +169,9 @@ func (sp *StreamPipeline) flush() {
 // sendBatch sends events over gRPC.
 // If a TransportManager is attached, events are routed through its
 // HashCache (dedup), Compressor (Zstd), and PriorityPipeline.
-func (sp *StreamPipeline) sendBatch(batch []*StreamEvent) error {
+func (sp *StreamPipeline) sendBatch(batch []*StreamEvent) {
 	if len(batch) == 0 {
-		return nil
+		return
 	}
 
 	if sp.transportMgr != nil {
@@ -204,7 +186,7 @@ func (sp *StreamPipeline) sendBatch(batch []*StreamEvent) error {
 
 			sp.transportMgr.Ingest(data, priority, evt.Tainted, false)
 		}
-		return nil
+		return
 	}
 
 	// In production: gRPC stream send
@@ -213,34 +195,6 @@ func (sp *StreamPipeline) sendBatch(batch []*StreamEvent) error {
 	// _, err := stream.CloseAndRecv()
 
 	log.Printf("[stream] sent %d events to %s", len(batch), sp.cfg.ServerAddr)
-	return nil
-}
-
-// handleDisconnect manages reconnection logic.
-func (sp *StreamPipeline) handleDisconnect() {
-	sp.mu.Lock()
-	sp.status = StatusDisconnected
-	sp.reconnects++
-	reconnects := sp.reconnects
-	sp.mu.Unlock()
-
-	log.Printf("[stream] disconnected — reconnecting (attempt %d/%d)",
-		reconnects, sp.cfg.MaxRetries)
-
-	if reconnects > sp.cfg.MaxRetries {
-		log.Printf("[stream] max retries exceeded")
-		return
-	}
-
-	delay := sp.cfg.ReconnectInterval * time.Duration(reconnects)
-	if delay > 30*time.Second {
-		delay = 30 * time.Second
-	}
-
-	time.Sleep(delay)
-	sp.mu.Lock()
-	sp.status = StatusConnecting
-	sp.mu.Unlock()
 }
 
 // Stats returns pipeline statistics.

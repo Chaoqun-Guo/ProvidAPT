@@ -125,15 +125,6 @@ var labelToSubtype = map[string]string{
 	"Credential": "credential",
 }
 
-var labelToProvType = map[string]string{
-	"Process":    "prov:Activity",
-	"File":       "prov:Entity",
-	"Network":    "prov:Entity",
-	"Pipe":       "prov:Entity",
-	"Memory":     "prov:Entity",
-	"Credential": "prov:Entity",
-}
-
 // relationMapping maps query relation names to PROV relations.
 var relationMapping = map[string]string{
 	"WROTE":     "prov:wasGeneratedBy",

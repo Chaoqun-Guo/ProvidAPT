@@ -185,10 +185,10 @@ func (t *Trigger) ProcessAlertSummary() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Honey Pot: %d alerts\n", len(alerts)))
+	fmt.Fprintf(&b, "Honey Pot: %d alerts\n", len(alerts))
 	for _, a := range alerts {
-		b.WriteString(fmt.Sprintf("  %s (PID %d) → %s [%s] %s\n",
-			a.Comm, a.PID, a.Path, a.Category, a.Action))
+		fmt.Fprintf(&b, "  %s (PID %d) → %s [%s] %s\n",
+			a.Comm, a.PID, a.Path, a.Category, a.Action)
 	}
 	return b.String()
 }

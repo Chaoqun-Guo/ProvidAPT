@@ -155,7 +155,7 @@ func parseDNSName(packet []byte, pos int) (string, int) {
 			if pos+1 >= len(packet) {
 				break
 			}
-			ptr := int(length&0x3F)<<8 | int(packet[pos+1])
+			ptr := int(uint16(length&0x3F)<<8 | uint16(packet[pos+1]))
 			rest, _ := parseDNSName(packet, ptr)
 			parts = append(parts, rest)
 			pos += 2

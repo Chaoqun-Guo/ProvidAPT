@@ -17,7 +17,7 @@ import (
 // Dynamic threshold — adjusts aggregation window based on CPU load
 // ═══════════════════════════════════════════════════════════════
 
-// ThrottleConfig controls the adaptive throttle behaviour.
+// ThrottleConfig controls the adaptive throttle behavior.
 type ThrottleConfig struct {
 	// CPULow — below this CPU% uses minimum window (default 20.0).
 	CPULow float64

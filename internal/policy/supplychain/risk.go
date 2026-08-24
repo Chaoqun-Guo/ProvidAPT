@@ -158,14 +158,14 @@ func SummariseRisks(risks map[string]*SupplyChainRisk) map[string]int {
 // Shared libraries and binaries in standard paths are scanned first.
 func PathPriority(filePath string) int {
 	dir := filepath.Dir(filePath)
-	switch {
-	case dir == "/usr/bin" || dir == "/usr/sbin":
+	switch dir {
+	case "/usr/bin", "/usr/sbin":
 		return 10
-	case dir == "/usr/local/bin":
+	case "/usr/local/bin":
 		return 8
-	case dir == "/opt":
+	case "/opt":
 		return 6
-	case dir == "/usr/lib" || dir == "/usr/lib64":
+	case "/usr/lib", "/usr/lib64":
 		return 7
 	default:
 		return 1

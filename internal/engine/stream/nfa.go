@@ -71,7 +71,6 @@ type NFAEngine struct {
 	mu       sync.Mutex
 	patterns []NFAPattern
 	runners  []*NFARunner // active runners
-	matches  []PatternMatch
 }
 
 // NewNFAEngine creates an NFA engine with default patterns.
@@ -213,10 +212,6 @@ func (ne *NFAEngine) tryTransition(runner *NFARunner, pattern *NFAPattern, evt *
 	for _, t := range state.Transitions {
 		if !ne.matchesEvent(t, evt) {
 			continue
-		}
-		if runner.PID != evt.PID && runner.PID != 0 {
-			// PID mismatch — but allow if it's a child process
-			// (fork events create new runners with the child PID)
 		}
 		runner.State = t.NextState
 		runner.EventIDs = append(runner.EventIDs,

@@ -203,8 +203,8 @@ func TestTruncateLabel(t *testing.T) {
 	if truncateLabel("prov:wasGeneratedBy") != "created" {
 		t.Errorf("created -> %s", truncateLabel("prov:wasGeneratedBy"))
 	}
-	if truncateLabel("custom_long_relation_name") != "custom_long_rela..." {
-		t.Errorf("truncated -> %s", truncateLabel("custom_long_relation_name"))
+	if truncateLabel("custom_long_activity_name") != "custom_long_acti..." {
+		t.Errorf("truncated -> %s", truncateLabel("custom_long_activity_name"))
 	}
 }
 
@@ -243,6 +243,9 @@ func TestVizIntegration(t *testing.T) {
 		if el.Group == "nodes" {
 			nodeIDs = append(nodeIDs, el.Data.ID)
 		}
+	}
+	if len(nodeIDs) == 0 {
+		t.Fatal("expected subgraph node IDs")
 	}
 
 	// 3. Targeted subgraph from high-risk nodes
@@ -439,7 +442,7 @@ func TestExtractSubgraphWithOptsCancellation(t *testing.T) {
 
 	graph := ve.ExtractSubgraphWithOpts(seedIDs, 0, 0, 0, SubgraphOpts{Ctx: ctx})
 	// Must not panic; returns whatever it has.
-	t.Logf("Cancelled: %d nodes", graph.Data.NodeCount)
+	t.Logf("Canceled: %d nodes", graph.Data.NodeCount)
 }
 
 func TestExtractSubgraphWithOptsTimeout(t *testing.T) {

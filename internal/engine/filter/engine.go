@@ -20,7 +20,7 @@ import (
 type Decision int
 
 const (
-	DecisionProcess  Decision = iota // persist + analyse (default)
+	DecisionProcess  Decision = iota // persist + analyze (default)
 	DecisionLowLevel                 // memory-only counter, no persist
 	DecisionDrop                     // completely discard
 )
@@ -86,7 +86,7 @@ func (e *Engine) Decide(evt *collector.Event) Decision {
 		return DecisionProcess
 	}
 
-	// 3. Compute behavioural hash
+	// 3. Compute behavioral hash
 	hash := Hash(evt)
 
 	// 4. Check baseline whitelist

@@ -18,7 +18,7 @@ const firewallCommandTimeout = 10 * time.Second
 // Firewall integration
 // ═══════════════════════════════════════════════════════════════
 
-// FirewallResult summarises the firewall actions taken.
+// FirewallResult summarizes the firewall actions taken.
 type FirewallResult struct {
 	RulesAdded int      `json:"rules_added"`
 	IPsBlocked []string `json:"ips_blocked"`
@@ -99,7 +99,7 @@ func blockWithNFTables(report *ImpactReport, result *FirewallResult) {
 		if checkCmd.Run() != nil {
 			checkCancel()
 			// Create the set
-			createCmd := fmt.Sprintf("nft add set ip filter providapt_c2 { type ipv4_addr; }")
+			createCmd := "nft add set ip filter providapt_c2 { type ipv4_addr; }"
 			if result.DryRun {
 				log.Printf("[heal] DRY-RUN: %s", createCmd)
 			} else {
@@ -113,7 +113,7 @@ func blockWithNFTables(report *ImpactReport, result *FirewallResult) {
 			}
 
 			// Add rule referencing the set
-			ruleCmd := fmt.Sprintf("nft add rule ip filter OUTPUT drop ip daddr @providapt_c2")
+			ruleCmd := "nft add rule ip filter OUTPUT drop ip daddr @providapt_c2"
 			if result.DryRun {
 				log.Printf("[heal] DRY-RUN: %s", ruleCmd)
 			} else {

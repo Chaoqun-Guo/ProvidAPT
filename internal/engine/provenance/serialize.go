@@ -34,7 +34,7 @@ type provElement struct {
 	Extra     map[string]interface{} `json:"-"`
 }
 
-// MarshalJSON implements custom marshalling so that extra attributes
+// MarshalJSON implements custom marshaling so that extra attributes
 // are folded into the same object as the standard PROV fields.
 func (e provElement) MarshalJSON() ([]byte, error) {
 	base := map[string]interface{}{

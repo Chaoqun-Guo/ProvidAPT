@@ -26,7 +26,7 @@ const (
 
 // TransportEvent wraps an event with its transmission priority.
 type TransportEvent struct {
-	Data      []byte    `json:"-"`    // serialised payload
+	Data      []byte    `json:"-"`    // serialized payload
 	Hash      string    `json:"hash"` // content hash
 	Priority  Priority  `json:"priority"`
 	Tainted   bool      `json:"tainted"`
@@ -92,18 +92,6 @@ func (pp *PriorityPipeline) loadSeq() {
 	defer func() { _ = closer.Close() }()
 	if len(data) == 8 {
 		pp.lowSeq = binary.BigEndian.Uint64(data)
-	}
-}
-
-// saveSeq persists the sequence counter.
-func (pp *PriorityPipeline) saveSeq() {
-	if pp.lowDB == nil {
-		return
-	}
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, pp.lowSeq)
-	if err := pp.lowDB.Set(lowSeqKey(), buf, pebble.Sync); err != nil {
-		log.Printf("[priority] save sequence: %v", err)
 	}
 }
 

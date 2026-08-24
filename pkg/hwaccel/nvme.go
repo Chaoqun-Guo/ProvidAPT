@@ -65,7 +65,7 @@ func DetectNVMe() *NVMeInfo {
 	return info
 }
 
-// RocksDBConfig returns NVMe-optimised RocksDB configuration.
+// RocksDBConfig returns NVMe-optimized RocksDB configuration.
 func RocksDBConfig(nvme *NVMeInfo) map[string]interface{} {
 	cfg := map[string]interface{}{
 		// Default SATA SSD values
@@ -81,7 +81,7 @@ func RocksDBConfig(nvme *NVMeInfo) map[string]interface{} {
 	}
 
 	if nvme != nil && nvme.Present {
-		// NVMe-optimised values: higher parallelism, larger blocks
+		// NVMe-optimized values: higher parallelism, larger blocks
 		cfg["block_size"] = 64 * 1024                // 64KB
 		cfg["write_buffer_size"] = 128 * 1024 * 1024 // 128MB
 		cfg["max_write_buffer_number"] = 6

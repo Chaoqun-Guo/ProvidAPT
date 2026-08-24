@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package hwaccel provides hardware acceleration interfaces for
-// ProvidAPT in large-scale data centre deployments.
+// ProvidAPT in large-scale data center deployments.
 //
 // It supports:
 //  1. SmartNIC offloading — move socket-level provenance to the NIC

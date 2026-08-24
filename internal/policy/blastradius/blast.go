@@ -187,16 +187,16 @@ func unique(s []string) []string {
 // Summary returns a human-readable blast radius summary.
 func (br *BlastRadiusResult) Summary() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Blast Radius from %s (%s):\n", br.RootNode, br.RootHost))
-	b.WriteString(fmt.Sprintf("  Affected hosts: %d\n", br.TotalHosts))
-	b.WriteString(fmt.Sprintf("  Total assets:   %d\n", br.TotalAssets))
+	fmt.Fprintf(&b, "Blast Radius from %s (%s):\n", br.RootNode, br.RootHost)
+	fmt.Fprintf(&b, "  Affected hosts: %d\n", br.TotalHosts)
+	fmt.Fprintf(&b, "  Total assets:   %d\n", br.TotalAssets)
 	for _, h := range br.AffectedHosts {
 		critical := ""
 		if h.IsCritical {
 			critical = " [CRITICAL]"
 		}
-		b.WriteString(fmt.Sprintf("  %s: %d procs, %d files%s\n",
-			h.HostID, len(h.Processes), len(h.Files), critical))
+		fmt.Fprintf(&b, "  %s: %d procs, %d files%s\n",
+			h.HostID, len(h.Processes), len(h.Files), critical)
 	}
 	return b.String()
 }

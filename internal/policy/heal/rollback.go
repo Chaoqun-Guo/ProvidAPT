@@ -27,7 +27,7 @@ type RollbackResult struct {
 	DryRun             bool     `json:"dry_run"`
 }
 
-// RollbackConfig controls rollback behaviour.
+// RollbackConfig controls rollback behavior.
 type RollbackConfig struct {
 	DryRun          bool   // if true, only log actions (no execution)
 	KillProcesses   bool   // kill malicious child processes

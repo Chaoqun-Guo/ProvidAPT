@@ -5,7 +5,7 @@
 // through eBPF-backed mechanisms:
 //
 //  1. Log protection — registers RocksDB storage inodes with the
-//     kernel eBPF program to prevent unauthorised writes.
+//     kernel eBPF program to prevent unauthorized writes.
 //
 //  2. Death monitoring — registers the agent PID so the kernel
 //     can emit EV_AGENT_KILLED events if the process is killed.
@@ -126,11 +126,11 @@ func (m *Manager) DeathEvents() <-chan *collector.Event {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Auto-defence integration for main.go
+// Auto-defense integration for main.go
 // ═══════════════════════════════════════════════════════════════
 
-// Setup configures all defence mechanisms at startup.
-// It should be called after the eBPF loader initialises.
+// Setup configures all defense mechanisms at startup.
+// It should be called after the eBPF loader initializes.
 func Setup(mgr *Manager, storePath string) error {
 	if mgr == nil {
 		return fmt.Errorf("defense manager is nil")

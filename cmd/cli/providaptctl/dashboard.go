@@ -245,7 +245,7 @@ func shorten(s string, n int) string {
 
 func renderFooter(start time.Time, pid int) {
 	fmt.Printf("\033[1m──────────────────────────────────────────────────────────\033[0m\n")
-	uptime := "?"
+	uptime := fmtDuration(time.Since(start))
 	if pid > 0 {
 		if data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
 			fields := strings.Fields(string(data))

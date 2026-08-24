@@ -47,7 +47,7 @@ func TestDefaultRules(t *testing.T) {
 
 func TestMatchShadowAccess(t *testing.T) {
 	g := buildGraph([]*collector.Event{
-		makeEvent(syscall.EventFileOpen, 100, 0, "cat", "/etc/shadow"),
+		makeEvent(syscall.EventFileOpen, "cat", "/etc/shadow"),
 	})
 
 	plugin := NewDefaultPlugin()
@@ -79,7 +79,7 @@ level: high
 
 	// Build graph with matching event
 	g := buildGraph([]*collector.Event{
-		makeEvent(syscall.EventFileOpen, 100, 0, "cat", "/etc/shadow"),
+		makeEvent(syscall.EventFileOpen, "cat", "/etc/shadow"),
 	})
 
 	matches := EvaluateRule(rule, g.Nodes(), g.Edges())
@@ -108,7 +108,7 @@ level: low
 	}
 
 	g := buildGraph([]*collector.Event{
-		makeEvent(syscall.EventFileOpen, 100, 0, "cat", "/etc/hostname"),
+		makeEvent(syscall.EventFileOpen, "cat", "/etc/hostname"),
 	})
 
 	matches := EvaluateRule(rule, g.Nodes(), g.Edges())
@@ -134,7 +134,7 @@ level: high
 
 	// Network connection creates a process → network edge
 	g := buildGraph([]*collector.Event{
-		makeEvent(syscall.EventNetConnect, 100, 0, "curl", "10.0.0.1:443"),
+		makeEvent(syscall.EventNetConnect, "curl", "10.0.0.1:443"),
 	})
 
 	matches := EvaluateRule(rule, g.Nodes(), g.Edges())
@@ -142,7 +142,9 @@ level: high
 	// Note: match may require specific node/edge structure from network events
 }
 
-func makeEvent(typ syscall.EventType, pid, uid uint32, comm, path string) *collector.Event {
+func makeEvent(typ syscall.EventType, comm, path string) *collector.Event {
+	const pid uint32 = 100
+	const uid uint32 = 0
 	return &collector.Event{
 		Type: typ, TimestampNS: 1000, PID: pid, PPID: 1, UID: uid,
 		Comm: comm, Pathname: path, Inode: uint64(pid * 1000),

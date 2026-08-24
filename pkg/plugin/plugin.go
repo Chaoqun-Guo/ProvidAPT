@@ -20,7 +20,7 @@ import (
 // support dynamic plugin loading (plugin package requires Unix).
 var ErrUnsupported = errors.New("plugin discovery not supported on this platform")
 
-// DiscoveryResult summarises the outcome of a Discover call.
+// DiscoveryResult summarizes the outcome of a Discover call.
 type DiscoveryResult struct {
 	// Loaded contains the names of plugins successfully loaded.
 	Loaded []string

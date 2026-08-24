@@ -18,7 +18,7 @@ import (
 // ═══════════════════════════════════════════════════════════════
 // Training data generation
 //
-// Samples normal behaviour from the provenance graph during a
+// Samples normal behavior from the provenance graph during a
 // training period.  Produces feature vectors that represent the
 // "normal" structural patterns of the system.
 // ═══════════════════════════════════════════════════════════════
@@ -98,7 +98,7 @@ type subgraph struct {
 }
 
 // buildSubgraph creates a subgraph containing the seed node and
-// all its 1-hop neighbours.
+// all its 1-hop neighbors.
 func buildSubgraph(seedID string, adj map[string][]*provenance.Edge) *subgraph {
 	seen := map[string]bool{seedID: true}
 	var edges []*provenance.Edge
@@ -265,7 +265,7 @@ func TrainModelFromGraph(graph *provenance.Graph, cfg *TrainingConfig, detector 
 	return report, nil
 }
 
-// TrainingReport summarises the training results.
+// TrainingReport summarizes the training results.
 type TrainingReport struct {
 	NumSamples   int
 	FeatureNames [NumFeatures]string

@@ -3,7 +3,7 @@
 
 // Package threatintel provides threat intelligence alignment for
 // provenance data.  It maintains a local cache of known-bad IPs,
-// domains, and file hashes, and can synchronise with MISP or other
+// domains, and file hashes, and can synchronize with MISP or other
 // threat intel platforms.
 package threatintel
 

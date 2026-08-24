@@ -300,6 +300,3 @@ func uniqueDims(dims []Dimension) []Dimension {
 	}
 	return out
 }
-
-// Ensure the variable `se` is accessible (package-level conflict fix)
-var se = New()

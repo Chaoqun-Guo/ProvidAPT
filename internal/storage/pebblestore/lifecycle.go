@@ -27,7 +27,7 @@ import (
 // Lifecycle config
 // ═══════════════════════════════════════════════════════════════
 
-// LifecycleConfig controls storage maintenance behaviour.
+// LifecycleConfig controls storage maintenance behavior.
 type LifecycleConfig struct {
 	// OrphanAge — remove orphan nodes older than this (default 7 days).
 	OrphanAge time.Duration

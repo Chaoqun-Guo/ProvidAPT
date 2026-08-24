@@ -30,7 +30,7 @@ type Node struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
-// newNode creates a Node and initialises its attribute map.
+// newNode creates a Node and initializes its attribute map.
 func newNode(id, provType, subtype, label string, ts time.Time) *Node {
 	return &Node{
 		ID:         id,

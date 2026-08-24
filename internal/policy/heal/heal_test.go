@@ -14,7 +14,7 @@ import (
 
 // ── Test helpers ────────────────────────────────────────────
 
-func testGraph(t *testing.T) *provenance.Graph {
+func testGraph() *provenance.Graph {
 	g := provenance.NewGraph()
 	// Malicious process: bash (PID 100)
 	// bash forks curl (PID 200)
@@ -56,7 +56,7 @@ func testGraph(t *testing.T) *provenance.Graph {
 // ── Impact assessment tests ─────────────────────────────────
 
 func TestAssessImpact(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	report := AssessImpact(g, "p:100", 5)
 
 	if report == nil {
@@ -71,7 +71,7 @@ func TestAssessImpact(t *testing.T) {
 }
 
 func TestAssessImpactChildProcesses(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	report := AssessImpact(g, "p:100", 5)
 
 	if len(report.ChildProcesses) == 0 {
@@ -89,7 +89,7 @@ func TestAssessImpactChildProcesses(t *testing.T) {
 }
 
 func TestAssessImpactFilesWritten(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	report := AssessImpact(g, "p:100", 5)
 
 	if len(report.FilesWritten) == 0 {
@@ -114,14 +114,14 @@ func TestAssessImpactFilesWritten(t *testing.T) {
 }
 
 func TestAssessImpactC2Addresses(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	report := AssessImpact(g, "p:100", 5)
 	// C2 detection depends on how network nodes are stored
 	t.Logf("C2 addresses: %d", len(report.C2Addresses))
 }
 
 func TestAssessImpactDepthLimit(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	report := AssessImpact(g, "p:100", 1)
 	if !report.Truncated {
 		t.Log("depth=1 may not trigger truncation for small graph")
@@ -258,7 +258,7 @@ func TestExtractIP(t *testing.T) {
 // ── Integration test ────────────────────────────────────────
 
 func TestHealIntegration(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 
 	// Assess
 	report := AssessImpact(g, "p:100", 5)
@@ -282,7 +282,7 @@ func TestHealIntegration(t *testing.T) {
 }
 
 func TestMaliciousComm(t *testing.T) {
-	g := testGraph(t)
+	g := testGraph()
 	report := AssessImpact(g, "p:100", 5)
 	if report.MaliciousComm == "" {
 		t.Error("malicious comm should not be empty")

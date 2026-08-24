@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -72,7 +73,7 @@ func (ss *SSTSigner) SignFile(path string) (*SSTSignature, error) {
 	mac := hmac.New(sha256.New, ss.hmacKey)
 	mac.Write([]byte(sig.FilePath))
 	mac.Write(hash[:])
-	mac.Write([]byte(fmt.Sprintf("%d", sig.FileSize)))
+	mac.Write([]byte(strconv.FormatInt(sig.FileSize, 10)))
 	sig.Signature = hex.EncodeToString(mac.Sum(nil))
 
 	ss.sigs = append(ss.sigs, *sig)
@@ -147,7 +148,7 @@ func (ss *SSTSigner) computeHMAC(path string, fileHash []byte, size int64) strin
 	mac := hmac.New(sha256.New, ss.hmacKey)
 	mac.Write([]byte(path))
 	mac.Write(fileHash)
-	mac.Write([]byte(fmt.Sprintf("%d", size)))
+	mac.Write([]byte(strconv.FormatInt(size, 10)))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 

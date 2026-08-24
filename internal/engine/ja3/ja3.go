@@ -76,11 +76,11 @@ func ParseClientHello(data []byte, srcHost string, pid uint32, comm string, dest
 	// Cipher suites
 	cipherLen := int(binary.BigEndian.Uint16(data[pos:]))
 	pos += 2
-	if pos+int(cipherLen) > len(data) {
+	if pos+cipherLen > len(data) {
 		return nil
 	}
-	cipherSuites := data[pos : pos+int(cipherLen)]
-	pos += int(cipherLen)
+	cipherSuites := data[pos : pos+cipherLen]
+	pos += cipherLen
 	if pos+1 > len(data) {
 		return nil
 	}

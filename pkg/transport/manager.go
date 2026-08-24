@@ -86,7 +86,7 @@ type TransportManager struct {
 	stats   TransportStats
 }
 
-// NewTransportManager creates a TransportManager and initialises all
+// NewTransportManager creates a TransportManager and initializes all
 // subsystems according to the config.
 func NewTransportManager(cfg *TransportConfig) (*TransportManager, error) {
 	if cfg == nil {
@@ -131,7 +131,7 @@ func NewTransportManager(cfg *TransportConfig) (*TransportManager, error) {
 		log.Printf("[manager] dictionary path configured: %s", cfg.DictionaryPath)
 	}
 
-	log.Printf("[manager] transport manager initialised (hashcache=%v, lowpri=%v, level=%d)",
+	log.Printf("[manager] transport manager initialized (hashcache=%v, lowpri=%v, level=%d)",
 		cfg.HashCachePath != "", cfg.LowPriorityPath != "", cfg.CompressionLevel)
 	return tm, nil
 }
@@ -258,8 +258,8 @@ func (tm *TransportManager) lowSummaryLoop() {
 				continue
 			}
 
-			// Serialise and compress the summary for transmission.
-			// In production, this would use protobuf serialisation.
+			// Serialize and compress the summary for transmission.
+			// In production, this would use protobuf serialization.
 			log.Printf("[manager] low summary: %d events, %d unique hashes",
 				summary.Count, len(summary.HashCount))
 

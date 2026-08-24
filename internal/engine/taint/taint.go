@@ -270,7 +270,7 @@ func (te *TaintEngine) propagate(targetID, targetType string,
 		ID:        targetID,
 		Type:      targetType,
 		Level:     source.Level,
-		Source:    reason,
+		Source:    fmt.Sprintf("%s:%s %s", sourceType, sourceID, reason),
 		SourceIP:  source.SourceIP,
 		UpdatedAt: time.Now(),
 	}

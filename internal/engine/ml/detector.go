@@ -38,7 +38,7 @@ func DefaultDetectorConfig() *DetectorConfig {
 	}
 }
 
-// DetectorResult is returned by the detector for each analysed subgraph.
+// DetectorResult is returned by the detector for each analyzed subgraph.
 type DetectorResult struct {
 	SubgraphRoot string        `json:"subgraph_root"`
 	Features     FeatureVector `json:"features"`
@@ -107,7 +107,7 @@ func (md *MLDetector) AnalyseSubgraph(nodes []*provenance.Node, edges []*provena
 	}
 }
 
-// AnalyseProcessSubgraph analyses the 1-hop neighbourhood of a process.
+// AnalyseProcessSubgraph analyses the 1-hop neighborhood of a process.
 func (md *MLDetector) AnalyseProcessSubgraph(procID string, graph *provenance.Graph) *DetectorResult {
 	edges := graph.Edges()
 	var relevant []*provenance.Edge
