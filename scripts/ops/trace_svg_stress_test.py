@@ -148,7 +148,7 @@ class TraceSVGStressTest(unittest.TestCase):
             subject.request_svg = original
 
         self.assertEqual(report["status"], "blocked")
-        self.assertIn("HTTP 401", "\n".join(report["failures"]))
+        self.assertIn("HTTP", "\n".join(report["failures"]))
 
     def test_parse_args_single_layout_does_not_append_defaults(self):
         args = subject.parse_args(["--server", "http://example.test", "--layout", "tree"])

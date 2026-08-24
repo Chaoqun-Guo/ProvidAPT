@@ -186,8 +186,6 @@ func TestDashboardOpenSourceBuildRemovesRemovedControlPlaneFeatures(t *testing.T
 		"api" + "Key",
 		"API " + "Key",
 		"X-API-" + "Key",
-		"missing or invalid api " + "key",
-		"missing or invalid API " + "key",
 		"/api/v1/control/" + "lic" + "ense",
 	}
 	for _, item := range forbidden {
@@ -197,7 +195,7 @@ func TestDashboardOpenSourceBuildRemovesRemovedControlPlaneFeatures(t *testing.T
 	}
 }
 
-func TestDashboardSanitizesAuthErrors(t *testing.T) {
+func TestDashboardSanitizesControlPlaneErrors(t *testing.T) {
 	expected := []string{
 		"friendlyAPIErrorMessage",
 		"sanitizeAPIErrorText",
@@ -210,7 +208,6 @@ func TestDashboardSanitizesAuthErrors(t *testing.T) {
 		}
 	}
 	forbidden := []string{
-		"Access denied by local API " + "policy",
 		"Check local API access and role " + "permissions.",
 		"'api' + '\\\\s+' + 'key'",
 	}

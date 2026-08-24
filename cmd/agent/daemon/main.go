@@ -1320,7 +1320,7 @@ func main() {
 			MLThreshold:              cfg.Analyzer.MLThreshold,
 			ControlPlaneMode:         cfg.ControlPlane.Mode,
 			ControlPlaneRole:         cfg.ControlPlane.Role,
-			ControlPlaneStateBackend: haStateBackend,
+			ControlPlaneStateBackend: redactStateBackend(haStateBackend),
 			StorageEncrypted:         cfg.Storage.Encrypt,
 			StorageKeyConfigured:     strings.TrimSpace(cfg.Storage.KeyFile) != "",
 			OutputDir:                cfg.Output.Dir,
@@ -1366,7 +1366,7 @@ func main() {
 			Healthy:       haStatus.Healthy,
 			PeerCount:     haStatus.PeerCount,
 			Peers:         haStatus.Peers,
-			StateBackend:  haStatus.StateBackend,
+			StateBackend:  redactStateBackend(haStatus.StateBackend),
 			FailoverReady: haStatus.FailoverReady,
 			Message:       haStatus.Message,
 		}
@@ -3265,6 +3265,36 @@ func pathWithin(root, candidate string) bool {
 func isPostgresDSN(value string) bool {
 	trimmed := strings.ToLower(strings.TrimSpace(value))
 	return strings.HasPrefix(trimmed, "postgres://") || strings.HasPrefix(trimmed, "postgresql://")
+}
+
+func redactStateBackend(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || !strings.Contains(trimmed, "://") {
+		return trimmed
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "<redacted-backend-url>"
+	}
+	if parsed.User != nil {
+		if username := parsed.User.Username(); username != "" {
+			parsed.User = url.UserPassword(username, "<redacted>")
+		} else {
+			parsed.User = url.User("<redacted>")
+		}
+	}
+	parsed.RawQuery = redactURLQuery(parsed.Query()).Encode()
+	return parsed.String()
+}
+
+func redactURLQuery(values url.Values) url.Values {
+	for key := range values {
+		lower := strings.ToLower(key)
+		if strings.Contains(lower, "password") || strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "key") {
+			values.Set(key, "<redacted>")
+		}
+	}
+	return values
 }
 
 func startBackupScheduler(cfg *config.Config, run func(api.BackupActionRequest) (api.BackupActionResult, error)) func() {

@@ -162,7 +162,6 @@ function friendlyAPIErrorMessage(err) {
 
 function sanitizeAPIErrorText(message) {
   return String(message || 'request failed')
-    .replace(/unauthorized:\s*missing or invalid credential/ig, 'request blocked by the running daemon')
     .replace(/credential/ig, 'access setting');
 }
 
@@ -366,7 +365,7 @@ async function openProtectedEndpoint(url, defaultName) {
     if (!response.ok) {
       const err = await responseError(response, url);
       reportAPIError('GET', url, err);
-      updateAPIStatus(err.status === 401 || err.status === 403 ? 'Access denied for ' + url : 'Open failed: ' + err.message);
+      updateAPIStatus('Open failed: ' + friendlyAPIErrorMessage(err));
       return;
     }
     clearAPIStatus();
