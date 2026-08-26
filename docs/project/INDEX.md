@@ -14,6 +14,7 @@ This section collects engineering documentation for repository governance, layou
 | [release-evidence-v1.2.2.md](release-evidence-v1.2.2.md) | Release evidence template for `v1.2.2` |
 | [release-evidence-v1.2.3-rc.1.md](release-evidence-v1.2.3-rc.1.md) | Release candidate evidence for `v1.2.3-rc.1` |
 | [vm-release-evidence-2026-08-24.md](vm-release-evidence-2026-08-24.md) | Three-VM open-source cleanup, Trace SVG, visual, and capture evidence |
+| [vm-release-evidence-2026-08-26.md](vm-release-evidence-2026-08-26.md) | Three-VM evidence after Dashboard panel-template split |
 | [open-source-release-checklist.md](open-source-release-checklist.md) | Open-source release delivery checklist |
 | [release-artifact-matrix.md](release-artifact-matrix.md) | Required open-source release artifacts and verification rules |
 | [release-security-scan-summary-v1.2.2.md](release-security-scan-summary-v1.2.2.md) | Security scan evidence for v1.2.2 |
