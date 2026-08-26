@@ -12,7 +12,9 @@ func dashboardHTMLDocument() string {
 }
 
 func dashboardTestSurface() string {
-	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" + dashboardAPIJS + "\n" + dashboardJS
+	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" +
+		dashboardAPIJS + "\n" + dashboardStateJS + "\n" + dashboardUIJS + "\n" +
+		dashboardLayoutJS + "\n" + dashboardJS
 }
 
 func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
@@ -21,6 +23,9 @@ func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
 		"id=\"metrics\"",
 		"class=\"content\"",
 		"id=\"detailDrawer\"",
+		"/assets/dashboard-state.js",
+		"/assets/dashboard-ui.js",
+		"/assets/dashboard-layout.js",
 		"/assets/dashboard.js",
 	}
 	for _, item := range expectedPartials {
@@ -838,7 +843,7 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 }
 
 func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
-	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard.js"`} {
+	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard-state.js"`, `src="/assets/dashboard-ui.js"`, `src="/assets/dashboard-layout.js"`, `src="/assets/dashboard.js"`} {
 		if !strings.Contains(dashboardHTMLDocument(), asset) {
 			t.Fatalf("dashboard should link asset %s", asset)
 		}
@@ -872,6 +877,9 @@ func TestDashboardResponsiveCSSAsset(t *testing.T) {
 		{"/assets/dashboard.css", "text/css", "--ids-bg-0"},
 		{"/assets/dashboard-responsive.css", "text/css", "repeat(3, minmax(480px, 1fr))"},
 		{"/assets/dashboard-api.js", "application/javascript", "async function fetchJSON"},
+		{"/assets/dashboard-state.js", "application/javascript", "DASHBOARD_LAYOUT_VERSION"},
+		{"/assets/dashboard-ui.js", "application/javascript", "function renderJSONBlock"},
+		{"/assets/dashboard-layout.js", "application/javascript", "function initializePanelLayout"},
 		{"/assets/dashboard.js", "application/javascript", "function refresh()"},
 	}
 	for _, tc := range cases {

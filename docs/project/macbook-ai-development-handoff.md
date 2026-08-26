@@ -54,7 +54,11 @@ Claude, or another coding agent.
 - Dashboard panel modules: `pkg/api/templates/panels/*.html`
 - Dashboard primary CSS: `pkg/api/static/dashboard.css`
 - Dashboard responsive CSS: `pkg/api/static/dashboard-responsive.css`
-- Dashboard JS: `pkg/api/static/dashboard.js`
+- Dashboard API helper JS: `pkg/api/static/dashboard-api.js`
+- Dashboard state JS: `pkg/api/static/dashboard-state.js`
+- Dashboard UI/render helper JS: `pkg/api/static/dashboard-ui.js`
+- Dashboard layout JS: `pkg/api/static/dashboard-layout.js`
+- Dashboard loader/action JS: `pkg/api/static/dashboard.js`
 - Trace Viewer CSS: `pkg/api/static/trace-viewer.css`
 - Trace Viewer JS: `pkg/api/static/trace-viewer.js`
 - Recent fixes:
@@ -97,7 +101,9 @@ Claude, or another coding agent.
     viewport set.
   - Dashboard HTML, primary CSS, responsive CSS, and JS are split into embedded
     static assets served from `/dashboard`, `/assets/dashboard.css`,
-    `/assets/dashboard-responsive.css`, and `/assets/dashboard.js`.
+    `/assets/dashboard-responsive.css`, `/assets/dashboard-api.js`,
+    `/assets/dashboard-state.js`, `/assets/dashboard-ui.js`,
+    `/assets/dashboard-layout.js`, and `/assets/dashboard.js`.
   - Trace Viewer CSS and JS are split into embedded static assets served from
     `/assets/trace-viewer.css` and `/assets/trace-viewer.js`.
 

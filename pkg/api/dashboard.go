@@ -32,6 +32,15 @@ var dashboardResponsiveCSS string
 //go:embed static/dashboard-api.js
 var dashboardAPIJS string
 
+//go:embed static/dashboard-state.js
+var dashboardStateJS string
+
+//go:embed static/dashboard-ui.js
+var dashboardUIJS string
+
+//go:embed static/dashboard-layout.js
+var dashboardLayoutJS string
+
 //go:embed static/dashboard.js
 var dashboardJS string
 
@@ -102,6 +111,24 @@ func (s *Server) handleDashboardAPIJS(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write([]byte(dashboardAPIJS))
+}
+
+func (s *Server) handleDashboardStateJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardStateJS))
+}
+
+func (s *Server) handleDashboardUIJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardUIJS))
+}
+
+func (s *Server) handleDashboardLayoutJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardLayoutJS))
 }
 
 func (s *Server) handleDashboardJS(w http.ResponseWriter, _ *http.Request) {

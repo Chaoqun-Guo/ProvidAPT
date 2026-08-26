@@ -1,0 +1,20 @@
+// Dashboard shared state and persisted view constants.
+let lastStatus = 'unknown';
+let currentRole = 'admin';
+let latestStatus = {};
+let latestFleet = { agents: [], history: [] };
+let latestOverview = { agents: [] };
+let latestSupport = {};
+let latestBackup = {};
+let latestUpgrade = {};
+let latestPolicies = {};
+let latestWorkflow = { alerts: [], history: [] };
+let latestDeliveries = { recent: [], dead_letters: [], history: [] };
+let latestCompliance = {};
+let latestGroundTruth = { records: [], phases: {}, files: [] };
+let latestGroundTruthCorrelation = { records: [] };
+let groundTruthFilter = 'all';
+let detailDrawerHideTimer = null;
+let alertWorkflowFilters = { status: '', severity: '', host: '', rule: '', time: '' };
+let selectedWorkflowAlertKey = '';
+const DASHBOARD_LAYOUT_VERSION = 'stable-workbench-20260731-v6';

@@ -439,9 +439,10 @@ block unless `WARN_ON_VISUAL_CHANGED=1` is set for a controlled review. The gate
 also writes `visual_evidence_summary` with coverage, required-matrix gaps,
 baseline comparison counts, screenshot status, and DOM assertion totals.
 Dashboard responsive rules live in the embedded static assets
-`pkg/api/static/dashboard.css`, `pkg/api/static/dashboard-responsive.css`, and
-`pkg/api/static/dashboard.js`, served at `/assets/dashboard.css`,
-`/assets/dashboard-responsive.css`, and `/assets/dashboard.js`. Trace Viewer
+`pkg/api/static/dashboard.css`, `pkg/api/static/dashboard-responsive.css`,
+`pkg/api/static/dashboard-api.js`, `pkg/api/static/dashboard-state.js`,
+`pkg/api/static/dashboard-ui.js`, `pkg/api/static/dashboard-layout.js`, and
+`pkg/api/static/dashboard.js`, served from the matching `/assets/` paths. Trace Viewer
 styles and behavior live in `pkg/api/static/trace-viewer.css` and
 `pkg/api/static/trace-viewer.js`, served at `/assets/trace-viewer.css` and
 `/assets/trace-viewer.js`.
