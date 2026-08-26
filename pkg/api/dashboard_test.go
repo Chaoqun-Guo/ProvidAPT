@@ -15,6 +15,30 @@ func dashboardTestSurface() string {
 	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" + dashboardAPIJS + "\n" + dashboardJS
 }
 
+func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
+	expectedPartials := []string{
+		"ProvidAPT Dashboard",
+		"id=\"metrics\"",
+		"class=\"content\"",
+		"id=\"detailDrawer\"",
+		"/assets/dashboard.js",
+	}
+	for _, item := range expectedPartials {
+		if !strings.Contains(dashboardHTMLDocument(), item) {
+			t.Fatalf("rendered dashboard missing partial content %q", item)
+		}
+	}
+	forbidden := []string{
+		"{{DASHBOARD_METRICS}}",
+		"{{DASHBOARD_PANELS}}",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(dashboardHTMLDocument(), item) {
+			t.Fatalf("rendered dashboard leaked template placeholder %q", item)
+		}
+	}
+}
+
 func TestDashboardAlertWorkflowSeparators(t *testing.T) {
 	if strings.Contains(dashboardTestSurface(), " \u8def ") {
 		t.Fatal("alert workflow dashboard should not render mojibake separators")

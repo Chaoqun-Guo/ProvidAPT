@@ -65,7 +65,12 @@ class PluginCatalogGateTest(unittest.TestCase):
         self.assertEqual(report["plugin_count"], 2)
         self.assertEqual(report["plugins"][0]["compatibility_pass_count"], 1)
         self.assertEqual(report["plugins"][0]["rollback_drill_status"], "pass")
-        self.assertIn("Plugin Catalog Gate", subject.render_markdown(report))
+        self.assertEqual(report["distribution_catalog"][0]["channel"], "signed-bundle")
+        self.assertTrue(report["distribution_catalog"][0]["signed"])
+        self.assertIn("alerts:write", report["distribution_catalog"][0]["permissions"])
+        rendered = subject.render_markdown(report)
+        self.assertIn("Plugin Catalog Gate", rendered)
+        self.assertIn("Distribution Catalog", rendered)
 
     def test_blocks_duplicate_plugin_identity(self):
         report = subject.build_report(self.args(plugin_gate=[

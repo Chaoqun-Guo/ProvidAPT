@@ -21,8 +21,8 @@ func TestNewProbeManager(t *testing.T) {
 }
 
 func TestDetectRunningApps(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("DetectRunningApps reads /proc — not available on Windows")
+	if runtime.GOOS != "linux" {
+		t.Skip("DetectRunningApps reads /proc on Linux")
 	}
 	pm := NewProbeManager()
 	apps, err := pm.DetectRunningApps()

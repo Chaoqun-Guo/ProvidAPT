@@ -1,0 +1,8 @@
+<div class="metrics" id="metrics">
+  <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Graph Nodes</div><div class="sub">Click to inspect node types</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('edges')" onkeydown="handleCardKey(event, () => showGraphSummary('edges'))"><div class="value" id="mEdges">--</div><div class="label">Graph Edges</div><div class="sub">Click to inspect edge types</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showRecentEvents()" onkeydown="handleCardKey(event, showRecentEvents)"><div class="value" id="mEvents">--</div><div class="label">Events Ingested</div><div class="sub">Click to view recent events</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showDroppedEvents()" onkeydown="handleCardKey(event, showDroppedEvents)"><div class="value" id="mDropped">--</div><div class="label">Events Dropped</div><div class="sub">Click to search drop signals</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showRuntimeDetails('memory')" onkeydown="handleCardKey(event, () => showRuntimeDetails('memory'))"><div class="value" id="mMemory">--</div><div class="label">Memory</div><div class="sub">Click for runtime details</div></div>
+  <div class="card clickable" tabindex="0" role="button" onclick="showRuntimeDetails('uptime')" onkeydown="handleCardKey(event, () => showRuntimeDetails('uptime'))"><div class="value" id="mUptime">--</div><div class="label">Uptime</div><div class="sub">Click for health details</div></div>
+</div>

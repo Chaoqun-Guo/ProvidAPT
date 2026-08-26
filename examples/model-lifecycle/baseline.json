@@ -1,0 +1,23 @@
+{
+  "schema": "providapt.model_baseline_report.v1",
+  "status": "stable",
+  "observation_days": 21,
+  "max_observed_drift_percent": 4.2,
+  "windows": [
+    {
+      "name": "week-1",
+      "drift_percent": 3.1,
+      "feedback_records": 16
+    },
+    {
+      "name": "week-2",
+      "drift_percent": 4.2,
+      "feedback_records": 18
+    },
+    {
+      "name": "week-3",
+      "drift_percent": 2.4,
+      "feedback_records": 14
+    }
+  ]
+}

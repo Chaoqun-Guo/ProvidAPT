@@ -6,10 +6,19 @@ package api
 import (
 	_ "embed"
 	"net/http"
+	"strings"
 )
 
-//go:embed dashboard.html
-var dashboardHTML string
+//go:embed templates/dashboard_shell.html
+var dashboardShellHTML string
+
+//go:embed templates/dashboard_metrics.html
+var dashboardMetricsHTML string
+
+//go:embed templates/dashboard_panels.html
+var dashboardPanelsHTML string
+
+var dashboardHTML = renderDashboardHTML()
 
 //go:embed static/dashboard.css
 var dashboardCSS string
@@ -28,6 +37,12 @@ var traceViewerCSS string
 
 //go:embed static/trace-viewer.js
 var traceViewerJS string
+
+func renderDashboardHTML() string {
+	html := strings.Replace(dashboardShellHTML, "{{DASHBOARD_METRICS}}", dashboardMetricsHTML, 1)
+	html = strings.Replace(html, "{{DASHBOARD_PANELS}}", dashboardPanelsHTML, 1)
+	return html
+}
 
 func (s *Server) handleDashboard(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

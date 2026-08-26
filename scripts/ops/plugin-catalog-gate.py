@@ -96,6 +96,25 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     if not plugins and args.require_plugins:
         failures.append("plugin catalog is empty")
     status = "blocked" if failures else "warn" if warnings else "pass"
+    distribution_catalog = [
+        {
+            "name": item["name"],
+            "version": item["version"],
+            "type": item["type"],
+            "channel": item["channel"],
+            "artifact": item["artifact"],
+            "signed": item["signature_present"],
+            "artifact_sha256_present": item["artifact_sha256_present"],
+            "artifact_hash_matches": item["artifact_hash_matches"],
+            "permissions": item["permissions"],
+            "providapt_min_version": item["providapt_min_version"],
+            "providapt_max_version": item["providapt_max_version"],
+            "compatibility_pass_count": item["compatibility_pass_count"],
+            "rollback_steps": item["rollback_steps"],
+            "rollback_drill_status": item["rollback_drill_status"],
+        }
+        for item in plugins
+    ]
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -105,6 +124,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "require_signatures": args.require_signatures,
         "require_permissions": args.require_permissions,
         "plugins": plugins,
+        "distribution_catalog": distribution_catalog,
         "failures": failures,
         "warnings": warnings,
     }
@@ -141,6 +161,30 @@ def render_markdown(report: dict[str, Any]) -> str:
     if report["warnings"]:
         lines.extend(["", "## Warnings", ""])
         lines.extend(f"- {item}" for item in report["warnings"])
+    if report.get("distribution_catalog"):
+        lines.extend([
+            "",
+            "## Distribution Catalog",
+            "",
+            "| Plugin | Channel | Artifact | Signed | Permissions | Compatibility | Rollback Drill |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+        ])
+        for item in report["distribution_catalog"]:
+            compatibility = item["providapt_min_version"]
+            if item["providapt_max_version"]:
+                compatibility += "..." + item["providapt_max_version"]
+            lines.append(
+                "| {name}:{version} | {channel} | {artifact} | {signed} | {permissions} | {compatibility} | {rollback} |".format(
+                    name=escape_cell(item["name"]),
+                    version=escape_cell(item["version"]),
+                    channel=escape_cell(item["channel"]),
+                    artifact=escape_cell(item["artifact"]),
+                    signed=str(item["signed"]).lower(),
+                    permissions=escape_cell(", ".join(item["permissions"])),
+                    compatibility=escape_cell(compatibility or "unbounded"),
+                    rollback=escape_cell(item["rollback_drill_status"] or "missing"),
+                )
+            )
     lines.append("")
     return "\n".join(lines)
 

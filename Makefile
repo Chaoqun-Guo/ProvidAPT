@@ -4,7 +4,7 @@
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate model-lifecycle-example-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-manifest release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
 .PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
@@ -262,6 +262,9 @@ security-scan-manifest:
 artifact-signing-gate:
 	python3 scripts/release/artifact-signing-gate.py --dist-dir "$(or $(DIST_DIR),dist)" --checksums "$(or $(CHECKSUMS),$(or $(DIST_DIR),dist)/checksums.txt)" --signature "$(or $(SIGNATURE),$(or $(DIST_DIR),dist)/checksums.txt.sig)" $(foreach artifact,$(REQUIRED_ARTIFACTS),--required-artifact "$(artifact)") --out-json "$(or $(OUT_DIR),build/artifact-signing)/artifact-signing-gate.json" --out-md "$(or $(OUT_DIR),build/artifact-signing)/artifact-signing-gate.md"
 
+release-evidence-manifest:
+	python3 scripts/release/release-evidence-manifest.py --root . $(foreach evidence,$(or $(EVIDENCE_PATHS),docs/project build),--evidence "$(evidence)") $(foreach exclude,$(EVIDENCE_EXCLUDES),--exclude "$(exclude)") $(if $(REQUIRE_EVIDENCE),--require-evidence) --out-json "$(or $(OUT_DIR),build/release-evidence)/evidence-manifest.json" --out-md "$(or $(OUT_DIR),build/release-evidence)/evidence-manifest.md"
+
 release-evidence-consistency-gate:
 	python3 scripts/release/release-evidence-consistency-gate.py --dist-dir "$(or $(DIST_DIR),dist)" --release-readiness "$(or $(RELEASE_READINESS),$(or $(DIST_DIR),dist)/release-readiness.md)" --scan-manifest "$(or $(SCAN_MANIFEST),build/security/scan-manifest.json)" --artifact-signing-gate "$(or $(ARTIFACT_SIGNING_GATE),build/artifact-signing/artifact-signing-gate.json)" $(if $(VERSION),--version "$(VERSION)") $(if $(COMMIT),--commit "$(COMMIT)") $(if $(FULL_COMMIT),--full-commit "$(FULL_COMMIT)") --out-json "$(or $(OUT_DIR),build/release-evidence)/release-evidence-consistency-gate.json" --out-md "$(or $(OUT_DIR),build/release-evidence)/release-evidence-consistency-gate.md"
 
@@ -384,7 +387,7 @@ soak-sample:
 
 soak-readiness:
 	@if [ -z "$(SOAK_SAMPLES)" ]; then echo 'usage: make soak-readiness SOAK_SAMPLES=build/performance/soak-samples.json [OUT_DIR=build/performance]'; exit 2; fi
-	python3 scripts/ops/soak-readiness-report.py --samples "$(SOAK_SAMPLES)" --min-hours "$(or $(SOAK_MIN_HOURS),24)" --max-cpu-percent "$(or $(SOAK_MAX_CPU_PERCENT),25)" --max-memory-mb "$(or $(SOAK_MAX_MEMORY_MB),512)" --max-disk-mb "$(or $(SOAK_MAX_DISK_MB),4096)" --max-dropped-events "$(or $(SOAK_MAX_DROPPED_EVENTS),0)" --out-json "$(or $(OUT_DIR),build/performance)/soak-readiness.json" --out-md "$(or $(OUT_DIR),build/performance)/soak-readiness.md"
+	python3 scripts/ops/soak-readiness-report.py --samples "$(SOAK_SAMPLES)" --min-samples "$(or $(SOAK_MIN_SAMPLES),1)" --min-hosts "$(or $(SOAK_MIN_HOSTS),1)" --min-hours "$(or $(SOAK_MIN_HOURS),24)" --max-cpu-percent "$(or $(SOAK_MAX_CPU_PERCENT),25)" --max-memory-mb "$(or $(SOAK_MAX_MEMORY_MB),512)" --max-disk-mb "$(or $(SOAK_MAX_DISK_MB),4096)" --max-dropped-events "$(or $(SOAK_MAX_DROPPED_EVENTS),0)" --out-json "$(or $(OUT_DIR),build/performance)/soak-readiness.json" --out-md "$(or $(OUT_DIR),build/performance)/soak-readiness.md"
 
 upgrade-rollout-plan:
 	@if [ -z "$(FLEET_JSON)" ] || [ -z "$(TARGET_VERSION)" ]; then echo 'usage: make upgrade-rollout-plan FLEET_JSON=build/fleet/fleet.json TARGET_VERSION=v1.2.3 [OUT_DIR=build/upgrade] [BATCH_BY_GROUP=1]'; exit 2; fi
@@ -558,7 +561,7 @@ model-lifecycle-gate:
 	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop "$(MODEL_CLOSED_LOOP_JSON)" --deploy-gate "$(MODEL_DEPLOY_GATE_JSON)" $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(MODEL_APPROVAL),--approval "$(MODEL_APPROVAL)") --min-feedback-records "$(or $(MIN_FEEDBACK_RECORDS),25)" --min-reviewed-labels "$(or $(MIN_REVIEWED_LABELS),10)" $(foreach label,$(REQUIRED_FEEDBACK_LABELS),--required-feedback-label "$(label)") --min-feedback-per-label "$(or $(MIN_FEEDBACK_PER_LABEL),1)" --min-baseline-days "$(or $(MIN_BASELINE_DAYS),7)" $(if $(REQUIRE_MODEL_APPROVAL),--require-approval) --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
 
 model-lifecycle-example-gate:
-	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop examples/model-lifecycle/closed-loop.json --deploy-gate examples/model-lifecycle/deploy-gate.json --drift-report examples/model-lifecycle/drift.json --approval examples/model-lifecycle/approval.json --require-approval --required-feedback-label true_positive --required-feedback-label false_positive --required-feedback-label benign --required-feedback-label duplicate --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
+	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop examples/model-lifecycle/closed-loop.json --deploy-gate examples/model-lifecycle/deploy-gate.json --drift-report examples/model-lifecycle/drift.json --baseline-report examples/model-lifecycle/baseline.json --approval examples/model-lifecycle/approval.json --require-approval --require-baseline-report --min-baseline-windows 3 --required-feedback-label true_positive --required-feedback-label false_positive --required-feedback-label benign --required-feedback-label duplicate --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
 
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
@@ -651,6 +654,7 @@ help:
 	@echo '  make release-security-local-gate Run local govulncheck/Grype/Trivy evidence capture'
 	@echo '  make security-scan-manifest Generate current-commit security scan manifest from local scanner outputs'
 	@echo '  make artifact-signing-gate Validate checksums, artifact hashes, and signature evidence'
+	@echo '  make release-evidence-manifest Generate a hash-indexed release evidence manifest'
 	@echo '  make release-evidence-consistency-gate Validate release commit/version evidence consistency'
 	@echo '  make operator-release-gate Aggregate open-source release evidence and blockers'
 	@echo '  make release-blocker-backlog Convert release blockers to action items'

@@ -43,7 +43,10 @@ def build_report(rows: list[dict[str, Any]], args: argparse.Namespace) -> dict[s
     max_memory = max_number(rows, "memory_mb", "rss_mb", "max_memory_mb")
     max_disk = max_number(rows, "disk_mb", "log_disk_mb", "max_disk_mb")
     drops = max_number(rows, "events_dropped", "dropped_events")
+    hosts = sorted({str(row.get("host") or "").strip() for row in rows if str(row.get("host") or "").strip()})
     checks = {
+        "samples": {"status": "pass" if len(rows) >= args.min_samples else "blocked", "observed": len(rows), "budget": args.min_samples},
+        "hosts": {"status": "pass" if len(hosts) >= args.min_hosts else "blocked", "observed": len(hosts), "budget": args.min_hosts},
         "duration": {"status": "pass" if duration_hours >= args.min_hours else "blocked", "observed": duration_hours, "budget": args.min_hours},
         "cpu": {"status": "pass" if max_cpu <= args.max_cpu_percent else "blocked", "observed": max_cpu, "budget": args.max_cpu_percent},
         "memory": {"status": "pass" if max_memory <= args.max_memory_mb else "blocked", "observed": max_memory, "budget": args.max_memory_mb},
@@ -56,6 +59,7 @@ def build_report(rows: list[dict[str, Any]], args: argparse.Namespace) -> dict[s
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "status": status,
         "sample_count": len(rows),
+        "hosts": hosts,
         "checks": checks,
     }
 
@@ -66,6 +70,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Status: `{report['status']}`",
         f"- Samples: `{report['sample_count']}`",
+        f"- Hosts: `{', '.join(report.get('hosts', [])) or 'none'}`",
         "",
         "| Check | Status | Observed | Budget |",
         "| --- | --- | ---: | ---: |",
@@ -79,6 +84,8 @@ def render_markdown(report: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate long-duration soak evidence against performance budgets.")
     parser.add_argument("--samples", required=True)
+    parser.add_argument("--min-samples", type=int, default=1)
+    parser.add_argument("--min-hosts", type=int, default=1)
     parser.add_argument("--min-hours", type=float, default=24.0)
     parser.add_argument("--max-cpu-percent", type=float, default=25.0)
     parser.add_argument("--max-memory-mb", type=float, default=512.0)

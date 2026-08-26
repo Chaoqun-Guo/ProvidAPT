@@ -34,13 +34,16 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "closed_loop": "",
             "deploy_gate": "",
             "drift_report": "",
+            "baseline_report": "",
             "approval": "",
             "require_approval": True,
+            "require_baseline_report": False,
             "min_feedback_records": 25,
             "min_reviewed_labels": 10,
             "required_feedback_label": ["true_positive", "false_positive"],
             "min_feedback_per_label": 1,
             "min_baseline_days": 7,
+            "min_baseline_windows": 1,
         }
         values.update(overrides)
         return Namespace(**values)
@@ -72,6 +75,54 @@ class ModelLifecycleGateTest(unittest.TestCase):
         self.assertIn("closed_loop", summary["evidence"]["present"])
         self.assertIn("drift_report", summary["evidence"]["missing"])
         self.assertEqual(summary["approvals"]["model_owner"]["owner"], "Alice Model")
+
+    def test_blocks_missing_required_long_term_baseline(self):
+        closed = self.write_json("closed.json", {
+            "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "dataset": {"baseline_days": 14},
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"true_positive": 12, "false_positive": 7}},
+            "drift": {"status": "stable"},
+        })
+        deploy = self.write_json("deploy.json", {"status": "pass", "model_name": "graph-detector", "model_version": "1.0.0"})
+        report = subject.build_report(self.args(
+            closed_loop=str(closed),
+            deploy_gate=str(deploy),
+            require_approval=False,
+            require_baseline_report=True,
+            min_baseline_windows=3,
+        ))
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn("long-term baseline report is missing", report["failures"])
+        self.assertIn("baseline_report", report["promotion_packet"]["readiness_summary"]["evidence"]["missing"])
+
+    def test_passes_long_term_baseline_report(self):
+        closed = self.write_json("closed.json", {
+            "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "dataset": {"baseline_days": 21},
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"true_positive": 12, "false_positive": 7}},
+            "drift": {"status": "stable"},
+        })
+        deploy = self.write_json("deploy.json", {"status": "pass", "model_name": "graph-detector", "model_version": "1.0.0"})
+        baseline = self.write_json("baseline.json", {
+            "status": "stable",
+            "observation_days": 21,
+            "windows": [{"drift_percent": 1.2}, {"drift_percent": 2.5}, {"drift_percent": 1.7}],
+        })
+        report = subject.build_report(self.args(
+            closed_loop=str(closed),
+            deploy_gate=str(deploy),
+            baseline_report=str(baseline),
+            require_approval=False,
+            require_baseline_report=True,
+            min_baseline_windows=3,
+        ))
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["baseline_report"]["windows"], 3)
+        self.assertIn("baseline_report", report["promotion_packet"]["readiness_summary"]["evidence"]["present"])
 
     def test_blocks_low_feedback_and_delegate_approval(self):
         closed = self.write_json("closed.json", {

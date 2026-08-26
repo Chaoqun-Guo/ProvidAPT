@@ -50,8 +50,8 @@ func TestParseVersionInvalid(t *testing.T) {
 // ── Mode selection tests ───────────────────────────────────
 
 func TestModeDetectionFentry(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Probe reads /proc — not available on Windows")
+	if runtime.GOOS != "linux" {
+		t.Skip("Probe reads Linux kernel/procfs state")
 	}
 	// With kernel ≥5.11 and BTF, ModeFentry should be selected
 	r := Probe()
@@ -93,8 +93,8 @@ func TestModeStrings(t *testing.T) {
 }
 
 func TestStructopt(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Probe reads /proc — not available on Windows")
+	if runtime.GOOS != "linux" {
+		t.Skip("Probe reads Linux kernel/procfs state")
 	}
 	r := Probe()
 	opts := r.Structopt()
@@ -184,8 +184,8 @@ func TestKallsymsAttachmentPoints(t *testing.T) {
 // ── Release string test ────────────────────────────────────
 
 func TestReleaseString(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("ReleaseString reads /proc — not available on Windows")
+	if runtime.GOOS != "linux" {
+		t.Skip("ReleaseString reads Linux procfs state")
 	}
 	s := ReleaseString()
 	if s == "" || s == "unknown" {

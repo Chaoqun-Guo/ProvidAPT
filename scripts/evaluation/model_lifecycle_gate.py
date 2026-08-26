@@ -108,6 +108,34 @@ def baseline_days(closed_loop: dict[str, Any]) -> float:
     return 0.0
 
 
+def baseline_report_summary(report: dict[str, Any]) -> dict[str, Any]:
+    if not report:
+        return {
+            "status": "not_supplied",
+            "windows": 0,
+            "observation_days": 0.0,
+            "max_drift_percent": 0.0,
+        }
+    windows = report.get("windows") if isinstance(report.get("windows"), list) else []
+    observation_days = report.get("observation_days")
+    if not isinstance(observation_days, (int, float)):
+        observation_days = report.get("baseline_days") if isinstance(report.get("baseline_days"), (int, float)) else 0.0
+    max_drift = report.get("max_observed_drift_percent")
+    if not isinstance(max_drift, (int, float)):
+        observed = [
+            float(item.get("drift_percent") or item.get("max_observed_drift_percent") or 0)
+            for item in windows
+            if isinstance(item, dict)
+        ]
+        max_drift = max(observed) if observed else 0.0
+    return {
+        "status": str(report.get("status") or "unknown").lower(),
+        "windows": len(windows),
+        "observation_days": float(observation_days),
+        "max_drift_percent": float(max_drift),
+    }
+
+
 def approval_failures(approval: dict[str, Any], require_approval: bool) -> list[str]:
     if not approval:
         return ["model promotion approval is missing"] if require_approval else []
@@ -178,7 +206,7 @@ def next_actions(failures: list[str], warnings: list[str]) -> list[str]:
         actions.append("rerun model registration, feature-schema check, and make model-deploy-gate for the same model identity")
     if "drift" in text:
         actions.append("review dataset drift, update baseline evidence, or retrain before promotion")
-    if "baseline days" in text:
+    if "baseline days" in text or "long-term baseline" in text:
         actions.append("extend the baseline observation window before promotion")
     if "approval" in text or "named owner" in text:
         actions.append("attach named model_owner, security, and soc_lead approval evidence")
@@ -234,6 +262,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     closed_loop = load_json(args.closed_loop)
     deploy_gate = load_json(args.deploy_gate)
     drift = load_json(args.drift_report)
+    baseline_report = load_json(args.baseline_report)
     approval = load_json(args.approval)
     failures: list[str] = []
     warnings: list[str] = []
@@ -263,6 +292,16 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     days = baseline_days(closed_loop)
     if days < args.min_baseline_days:
         failures.append(f"baseline days {days} below {args.min_baseline_days}")
+    baseline_summary = baseline_report_summary(baseline_report)
+    if args.require_baseline_report and not baseline_report:
+        failures.append("long-term baseline report is missing")
+    if baseline_report:
+        if baseline_summary["status"] not in {"pass", "ready", "stable"}:
+            failures.append(f"long-term baseline report status is {baseline_summary['status']}")
+        if baseline_summary["windows"] < args.min_baseline_windows:
+            failures.append(f"long-term baseline windows {baseline_summary['windows']} below {args.min_baseline_windows}")
+        if baseline_summary["observation_days"] < args.min_baseline_days:
+            failures.append(f"long-term baseline observation days {baseline_summary['observation_days']} below {args.min_baseline_days}")
     failures.extend(approval_failures(approval, args.require_approval))
     closed_identity = model_identity(closed_loop)
     deploy_identity = model_identity(deploy_gate)
@@ -275,6 +314,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         evidence_ref(args.closed_loop, "closed_loop"),
         evidence_ref(args.deploy_gate, "deploy_gate"),
         evidence_ref(args.drift_report, "drift_report"),
+        evidence_ref(args.baseline_report, "baseline_report"),
         evidence_ref(args.approval, "approval"),
     ]
     status = "blocked" if failures else "pass"
@@ -317,6 +357,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "reviewed_labels": reviewed_labels,
         "feedback_labels": labels,
         "baseline_days": days,
+        "baseline_report": baseline_summary,
         "approval_roles": list(APPROVAL_ROLES),
         "approval_summary": approvals,
         "evidence": evidence,
@@ -351,6 +392,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Reviewed labels: `{report['reviewed_labels']}`",
         f"- Required feedback labels: `{', '.join(report['thresholds']['required_feedback_labels']) or 'none'}`",
         f"- Baseline days: `{report['baseline_days']}`",
+        f"- Long-term baseline: `{json.dumps(report['baseline_report'], sort_keys=True)}`",
         f"- Promotion decision: `{report['promotion_decision']}`",
         f"- Evidence files: `{report['promotion_packet']['evidence_count']}`",
         "",
@@ -405,13 +447,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--closed-loop", required=True)
     parser.add_argument("--deploy-gate", required=True)
     parser.add_argument("--drift-report", default="")
+    parser.add_argument("--baseline-report", default="")
     parser.add_argument("--approval", default="")
     parser.add_argument("--require-approval", action="store_true")
+    parser.add_argument("--require-baseline-report", action="store_true")
     parser.add_argument("--min-feedback-records", type=int, default=25)
     parser.add_argument("--min-reviewed-labels", type=int, default=10)
     parser.add_argument("--required-feedback-label", action="append", default=[])
     parser.add_argument("--min-feedback-per-label", type=int, default=1)
     parser.add_argument("--min-baseline-days", type=float, default=7.0)
+    parser.add_argument("--min-baseline-windows", type=int, default=1)
     parser.add_argument("--out-json", default="build/evaluation/model-lifecycle-gate.json")
     parser.add_argument("--out-md", default="build/evaluation/model-lifecycle-gate.md")
     args = parser.parse_args(argv)
