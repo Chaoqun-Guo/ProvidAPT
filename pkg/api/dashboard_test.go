@@ -867,6 +867,33 @@ func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
 	}
 }
 
+func TestDashboardViewMenuLayeringGuards(t *testing.T) {
+	expected := []string{
+		".workspace-nav { display:flex",
+		"z-index:70",
+		"overflow:visible",
+		".workspace-view-menu[open] { z-index:140; }",
+		"top:calc(100% + 8px)",
+		"z-index:150",
+		"box-shadow:0 18px 40px rgba(1,4,9,0.45)",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardCSS, item) {
+			t.Fatalf("dashboard CSS missing view menu layering guard %q", item)
+		}
+	}
+	responsiveExpected := []string{
+		".workspace-view-menu {\n  min-width: 0;\n  z-index: 80;",
+		"position: static;",
+		"margin-top: 8px;",
+	}
+	for _, item := range responsiveExpected {
+		if !strings.Contains(dashboardResponsiveCSS, item) {
+			t.Fatalf("dashboard responsive CSS missing view menu mobile guard %q", item)
+		}
+	}
+}
+
 func TestDashboardResponsiveCSSAsset(t *testing.T) {
 	ts := testServer(t)
 	cases := []struct {

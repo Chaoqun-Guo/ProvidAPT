@@ -305,7 +305,8 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
                                 f"dashboard {viewport_name}: DOM overflow assertions failed "
                                 f"(horizontal={shot['dom_assertions'].get('horizontal_overflow_px')}, "
                                 f"element={shot['dom_assertions'].get('max_element_overflow_px')}, "
-                                f"text={shot['dom_assertions'].get('max_text_overflow_px')})"
+                                f"text={shot['dom_assertions'].get('max_text_overflow_px')}, "
+                                f"view_menu={shot['dom_assertions'].get('view_menu_failures')})"
                             )
                     if shot["page"] == "trace-viewer":
                         shot["dom_assertions"] = trace_viewer_dom_assertions(page)
@@ -409,6 +410,15 @@ def dashboard_dom_assertions(page: Any) -> dict[str, Any]:
       const horizontalOverflowPx = Math.max(0, scrollWidth - viewportWidth);
       const elementOverflows = [];
       const textOverflows = [];
+      const viewMenuFailures = [];
+      const selectorFor = (el) => {
+        if (!el) return 'unknown';
+        if (el.id) return '#' + el.id;
+        if (el.className) {
+          return String(el.tagName).toLowerCase() + '.' + String(el.className).trim().split(/\\s+/).slice(0, 3).join('.');
+        }
+        return String(el.tagName).toLowerCase();
+      };
       const ignored = new Set(['SCRIPT', 'STYLE', 'META', 'LINK', 'TITLE']);
       document.querySelectorAll('body *').forEach((el) => {
         if (!el || ignored.has(el.tagName) || el.hidden) return;
@@ -442,12 +452,42 @@ def dashboard_dom_assertions(page: Any) -> dict[str, Any]:
           }
         }
       });
+      const viewMenu = document.querySelector('.workspace-view-menu');
+      const tools = document.querySelector('.workspace-tools');
+      const nav = document.querySelector('.workspace-nav');
+      if (!viewMenu || !tools || !nav) {
+        viewMenuFailures.push('view menu controls missing');
+      } else {
+        const wasOpen = viewMenu.open;
+        viewMenu.open = true;
+        const navStyle = window.getComputedStyle(nav);
+        const toolsStyle = window.getComputedStyle(tools);
+        const toolsRect = tools.getBoundingClientRect();
+        if (navStyle.overflow !== 'visible') {
+          viewMenuFailures.push('workspace nav does not allow visible overflow');
+        }
+        if (toolsRect.width <= 0 || toolsRect.height <= 0) {
+          viewMenuFailures.push('view menu panel is not visible');
+        }
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+        const probeX = Math.max(1, Math.min(viewportWidth - 1, toolsRect.left + Math.min(48, Math.max(8, toolsRect.width / 2))));
+        const probeY = Math.max(1, Math.min(viewportHeight - 1, toolsRect.top + Math.min(24, Math.max(8, toolsRect.height / 2))));
+        const topElement = document.elementFromPoint(probeX, probeY);
+        if (topElement && topElement !== tools && !tools.contains(topElement)) {
+          viewMenuFailures.push('view menu is covered by ' + selectorFor(topElement));
+        }
+        if (toolsStyle.position === 'absolute' && Number(toolsStyle.zIndex || 0) < 100) {
+          viewMenuFailures.push('view menu z-index is too low');
+        }
+        viewMenu.open = wasOpen;
+      }
       return {
         viewport_width: viewportWidth,
         scroll_width: scrollWidth,
         horizontal_overflow_px: Math.round(horizontalOverflowPx),
         element_overflows: elementOverflows.slice(0, 20),
-        text_overflows: textOverflows.slice(0, 20)
+        text_overflows: textOverflows.slice(0, 20),
+        view_menu_failures: viewMenuFailures
       };
     }
     """
@@ -461,6 +501,7 @@ def dashboard_dom_assertions(page: Any) -> dict[str, Any]:
         horizontal <= thresholds["max_horizontal_overflow_px"]
         and element_max <= thresholds["max_element_overflow_px"]
         and text_max <= thresholds["max_text_overflow_px"]
+        and not result.get("view_menu_failures")
     )
     result.update(
         {

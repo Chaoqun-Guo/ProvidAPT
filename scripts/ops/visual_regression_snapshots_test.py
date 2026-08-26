@@ -47,6 +47,23 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
         self.assertEqual(result["max_element_overflow_px"], 9)
         self.assertEqual(result["max_text_overflow_px"], 7)
 
+    def test_dashboard_dom_assertions_mark_view_menu_failures(self):
+        mod = load_module()
+
+        class FakePage:
+            def evaluate(self, _script):
+                return {
+                    "horizontal_overflow_px": 0,
+                    "element_overflows": [],
+                    "text_overflows": [],
+                    "view_menu_failures": ["view menu is covered by div.dashboard-shell"],
+                }
+
+        result = mod.dashboard_dom_assertions(FakePage())
+
+        self.assertEqual(result["status"], "fail")
+        self.assertEqual(result["view_menu_failures"], ["view menu is covered by div.dashboard-shell"])
+
     def test_trace_viewer_dom_assertions_require_svg_and_exports(self):
         mod = load_module()
 
