@@ -2,10 +2,12 @@
 
 The dashboard is backed by REST endpoints under `/api/v1/`.
 
-The UI shell is embedded from `pkg/api/dashboard.html`. Primary styles,
-responsive viewport rules, and JavaScript are embedded separately from
-`pkg/api/static/dashboard.css`, `pkg/api/static/dashboard-responsive.css`, and
-`pkg/api/static/dashboard.js`.
+The UI shell is embedded from `pkg/api/templates/dashboard_shell.html`, metrics
+from `pkg/api/templates/dashboard_metrics.html`, panel ordering from
+`pkg/api/templates/dashboard_panels.html`, and individual panels from
+`pkg/api/templates/panels/`. Primary styles, responsive viewport rules, and
+JavaScript are embedded separately from `pkg/api/static/dashboard.css`,
+`pkg/api/static/dashboard-responsive.css`, and `pkg/api/static/dashboard.js`.
 
 The Trace Viewer shell is rendered by `pkg/api/svg.go`; its styles and
 JavaScript are embedded separately from `pkg/api/static/trace-viewer.css` and

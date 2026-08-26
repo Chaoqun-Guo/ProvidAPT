@@ -4,7 +4,7 @@
 package api
 
 import (
-	_ "embed"
+	"embed"
 	"net/http"
 	"strings"
 )
@@ -17,6 +17,9 @@ var dashboardMetricsHTML string
 
 //go:embed templates/dashboard_panels.html
 var dashboardPanelsHTML string
+
+//go:embed templates/panels/*.html
+var dashboardPanelTemplates embed.FS
 
 var dashboardHTML = renderDashboardHTML()
 
@@ -40,8 +43,41 @@ var traceViewerJS string
 
 func renderDashboardHTML() string {
 	html := strings.Replace(dashboardShellHTML, "{{DASHBOARD_METRICS}}", dashboardMetricsHTML, 1)
-	html = strings.Replace(html, "{{DASHBOARD_PANELS}}", dashboardPanelsHTML, 1)
+	html = strings.Replace(html, "{{DASHBOARD_PANELS}}", renderDashboardPanelsHTML(), 1)
 	return html
+}
+
+func renderDashboardPanelsHTML() string {
+	html := dashboardPanelsHTML
+	for _, fileName := range dashboardPanelTemplateOrder {
+		placeholder := "{{PANEL:" + fileName + "}}"
+		panel := readDashboardPanelTemplate(fileName)
+		html = strings.Replace(html, placeholder, strings.TrimRight(panel, "\n"), 1)
+	}
+	return html
+}
+
+func readDashboardPanelTemplate(fileName string) string {
+	data, err := dashboardPanelTemplates.ReadFile("templates/panels/" + fileName)
+	if err != nil {
+		panic("dashboard panel template missing: " + fileName)
+	}
+	return string(data)
+}
+
+var dashboardPanelTemplateOrder = []string{
+	"01_control_plane_summary.html",
+	"02_deployment_diagnostics.html",
+	"03_agent_overview.html",
+	"04_support_bundle.html",
+	"05_backup_restore.html",
+	"06_policy_center.html",
+	"07_alert_workflow.html",
+	"08_evaluation_ground_truth.html",
+	"09_delivery_health.html",
+	"10_compliance_siem.html",
+	"11_investigation_console.html",
+	"12_operations_summary.html",
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, _ *http.Request) {

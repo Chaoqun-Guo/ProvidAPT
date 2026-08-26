@@ -1,0 +1,20 @@
+  <div class="panel span-2 agent-overview-panel">
+    <h2>Agent Overview</h2>
+    <div class="panel-body">
+      <div class="fleet-toolbar">
+        <input id="fleetGroup" placeholder="Filter by group" />
+        <input id="fleetTag" placeholder="Filter by tag" />
+        <button onclick="loadControlOverview()">Apply</button>
+        <button class="secondary" onclick="showEnvironmentOverview()">Environment View</button>
+        <button onclick="bulkFleetEnrollment('approved')">Approve Filter</button>
+        <button onclick="bulkFleetEnrollment('quarantined')">Quarantine Filter</button>
+      </div>
+      <div class="agents-list" id="agentsList">
+        <div class="loading">Loading agents...</div>
+      </div>
+      <div class="loading" style="margin-top:12px;">Recent Fleet Actions</div>
+      <div class="alerts-list" id="fleetHistoryList">
+        <div class="loading">Loading fleet actions...</div>
+      </div>
+    </div>
+  </div>

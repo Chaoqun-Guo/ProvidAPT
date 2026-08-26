@@ -1,0 +1,21 @@
+  <div class="panel">
+    <h2>Backup & Restore</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showBackupDetails('status')"><div class="value" id="bkStatus">--</div><div class="label">Last Status</div></div>
+        <div class="policy-item clickable" onclick="showBackupDetails('backup')"><div class="value" id="bkTime">--</div><div class="label">Last Backup</div></div>
+        <div class="policy-item clickable" onclick="showBackupDetails('restore')"><div class="value" id="bkRestore">--</div><div class="label">Restore Staging</div></div>
+        <div class="policy-item clickable" onclick="showBackupDetails('history')"><div class="value" id="bkHistoryCount">--</div><div class="label">History</div></div>
+      </div>
+      <div class="action-row">
+        <button id="createBackupBtn" data-module="backup" data-module-action="create" onclick="runBackupAction('create')">Create Backup</button>
+        <button id="restoreBackupBtn" data-module="backup" data-module-action="restore-staging" class="secondary" onclick="runBackupAction('restore_staging')">Restore to Staging</button>
+        <button id="prepareCutoverBtn" data-module="backup" data-module-action="prepare-cutover" class="secondary" onclick="runBackupAction('prepare_cutover')">Prepare Cutover</button>
+        <button id="downloadBackupBtn" data-module="backup" data-module-action="download" class="secondary" onclick="downloadBackupArchive()">Download Backup</button>
+      </div>
+      <div class="loading" id="backupStatus"></div>
+      <div class="alerts-list" id="backupDetails">
+        <div class="loading">Loading backup state...</div>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,29 @@
+  <div class="panel">
+    <h2>Delivery Health</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('delivered')"><div class="value" id="dDelivered">--</div><div class="label">Delivered</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('retrying')"><div class="value" id="dRetrying">--</div><div class="label">Retrying</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="dDeadLettersDetail">--</div><div class="label">Dead Letters</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('recent')"><div class="value" id="dRecentCount">--</div><div class="label">Recent Attempts</div></div>
+      </div>
+      <div class="delivery-summary">
+        <div class="mini-card clickable" onclick="showDeliveryRisk('channels')"><div class="value" id="dChannels">--</div><div class="label">Channels</div></div>
+        <div class="mini-card clickable" onclick="showDeliveryRisk('tickets')"><div class="value" id="dTickets">--</div><div class="label">Tickets</div></div>
+        <div class="mini-card clickable" onclick="showDeliveryRisk('errors')"><div class="value" id="dErrors">--</div><div class="label">Error Types</div></div>
+      </div>
+      <div class="action-row">
+        <button id="replayAllBtn" data-module="delivery-health" data-module-action="replay-all" onclick="prepareDeliveryAction('replay_all')">Replay All Dead Letters</button>
+        <button id="createAllTicketsBtn" data-module="delivery-health" data-module-action="create-ticket-all" onclick="prepareDeliveryAction('create_ticket_all')">Create Tickets for All</button>
+        <button id="refreshDeliveryBtn" data-module="delivery-health" data-module-action="refresh" class="secondary" onclick="loadDeliveries()">Refresh Delivery View</button>
+      </div>
+      <div class="loading" id="deliveryActionStatus"></div>
+      <div class="alerts-list" id="deliveryList">
+        <div class="loading">Loading deliveries...</div>
+      </div>
+      <div class="loading" style="margin-top:12px;">Recent Delivery Actions</div>
+      <div class="alerts-list" id="deliveryHistoryList">
+        <div class="loading">Loading delivery actions...</div>
+      </div>
+    </div>
+  </div>

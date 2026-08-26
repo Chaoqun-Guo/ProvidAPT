@@ -1,0 +1,11 @@
+  <div class="panel">
+    <h2>Control Plane Summary</h2>
+    <div class="panel-body">
+      <div class="mini-metrics">
+        <div class="mini-card clickable" onclick="showFleetStatus('all')"><div class="value" id="mAgents">--</div><div class="label">Agents</div></div>
+        <div class="mini-card clickable" onclick="showFleetStatus('degraded')"><div class="value" id="mDegradedAgents">--</div><div class="label">Degraded</div></div>
+        <div class="mini-card clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="awOpen">--</div><div class="label">Open Alerts</div></div>
+        <div class="mini-card clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="dDeadLetters">--</div><div class="label">Dead Letters</div></div>
+      </div>
+    </div>
+  </div>

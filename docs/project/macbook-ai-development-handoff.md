@@ -48,7 +48,10 @@ Claude, or another coding agent.
 ### Control Plane Dashboard
 
 - Main dashboard route: `/dashboard`
-- Dashboard shell: `pkg/api/dashboard.html`
+- Dashboard shell template: `pkg/api/templates/dashboard_shell.html`
+- Dashboard metrics template: `pkg/api/templates/dashboard_metrics.html`
+- Dashboard panel template wrapper: `pkg/api/templates/dashboard_panels.html`
+- Dashboard panel modules: `pkg/api/templates/panels/*.html`
 - Dashboard primary CSS: `pkg/api/static/dashboard.css`
 - Dashboard responsive CSS: `pkg/api/static/dashboard-responsive.css`
 - Dashboard JS: `pkg/api/static/dashboard.js`

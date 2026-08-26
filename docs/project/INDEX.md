@@ -38,3 +38,5 @@ This section collects engineering documentation for repository governance, layou
 2. Use `../INDEX.md` and `documentation-audit.md` to find the right documentation entry point.
 3. Run the checks in `release-docs-consistency-check.md` before release.
 4. Complete the release evidence, artifact matrix, handoff checklist, SLA, and approval record before open-source delivery.
+5. Run `make release-evidence-manifest REQUIRE_EVIDENCE=1` to generate a
+   hash-indexed manifest for release evidence files before final handoff.

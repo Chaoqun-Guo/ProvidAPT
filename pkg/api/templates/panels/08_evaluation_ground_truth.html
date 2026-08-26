@@ -1,0 +1,32 @@
+  <div class="panel">
+    <h2>Evaluation Ground Truth</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="filterGroundTruth('all')"><div class="value" id="gtTotal">--</div><div class="label">Records</div></div>
+        <div class="policy-item clickable" onclick="filterGroundTruth('malicious')"><div class="value" id="gtMalicious">--</div><div class="label">Malicious</div></div>
+        <div class="policy-item clickable" onclick="filterGroundTruth('benign')"><div class="value" id="gtBenign">--</div><div class="label">Benign</div></div>
+        <div class="policy-item clickable" onclick="showGroundTruthCorrelation()"><div class="value" id="gtRunID">--</div><div class="label">Run ID</div></div>
+      </div>
+      <div class="ground-truth-toolbar">
+        <div class="file-picker">
+          <label class="file-picker-label" for="groundTruthFile">Choose JSONL</label>
+          <span class="file-picker-name" id="groundTruthFileName">No local file selected</span>
+          <input id="groundTruthFile" type="file" accept=".jsonl,.json,application/json" onchange="updateGroundTruthFileName()">
+        </div>
+        <button class="secondary" onclick="loadGroundTruthFromFile()">Load Local JSONL</button>
+        <button class="secondary" onclick="loadGroundTruth()">Load Server</button>
+        <button class="secondary" onclick="showGroundTruthCorrelation()">Correlate</button>
+        <button class="secondary" onclick="showGroundTruthCoverage()">Coverage</button>
+        <button class="secondary" onclick="showMitreAttackMatrix()">MITRE Matrix</button>
+        <button class="secondary" onclick="showDetectionQualityDashboard()">Detection Quality</button>
+        <button class="secondary" onclick="downloadGroundTruthDataset('labels')">Export Labels</button>
+        <button class="secondary" onclick="downloadGroundTruthDataset('coverage')">Export Coverage</button>
+        <button class="secondary" onclick="downloadGroundTruthDataset('manifest')">Export Manifest</button>
+      </div>
+      <div class="truth-phase-grid" id="groundTruthPhaseGrid"></div>
+      <div class="loading" id="groundTruthStatus">Load a ground truth JSONL file or server records.</div>
+      <div class="alerts-list" id="groundTruthList">
+        <div class="loading">No ground truth loaded yet.</div>
+      </div>
+    </div>
+  </div>

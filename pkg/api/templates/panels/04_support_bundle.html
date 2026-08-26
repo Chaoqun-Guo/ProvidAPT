@@ -1,0 +1,31 @@
+  <div class="panel">
+    <h2>Support Bundle</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showSupportDetails('status')"><div class="value" id="sbStatus">--</div><div class="label">Last Status</div></div>
+        <div class="policy-item clickable" onclick="showSupportDetails('export')"><div class="value" id="sbTime">--</div><div class="label">Last Export</div></div>
+        <div class="policy-item clickable" onclick="showSupportDetails('actor')"><div class="value" id="sbActor">--</div><div class="label">Last Actor</div></div>
+        <div class="policy-item clickable" onclick="showSupportDetails('history')"><div class="value" id="sbHistoryCount">--</div><div class="label">History</div></div>
+      </div>
+      <div class="action-row">
+        <button id="exportSupportBundleBtn" data-module="support" data-module-action="export" onclick="prepareSupportBundleAction()">Export Support Bundle</button>
+        <button id="downloadSupportBundleBtn" data-module="support" data-module-action="download" class="secondary" onclick="downloadSupportBundle()">Download Latest Archive</button>
+        <button data-module="support" data-module-action="audit-export" class="secondary" onclick="downloadAuditCSV('supportbundle')">Export Audit CSV</button>
+      </div>
+      <div class="policy-editor compact">
+        <div class="compact-input-grid">
+          <input id="supportBundleRange" placeholder="Time range, e.g. last 24h">
+          <input id="supportBundleIncludes" placeholder="Include items, e.g. config,logs,audit">
+          <input id="supportBundleRedaction" placeholder="Redaction level, e.g. standard">
+        </div>
+      </div>
+      <div class="loading" id="supportBundleStatus"></div>
+      <div class="alerts-list" id="supportBundleDetails">
+        <div class="loading">Loading support bundle state...</div>
+      </div>
+      <div class="loading" style="margin-top:12px;">Recent Persisted Audit</div>
+      <div class="alerts-list" id="supportBundleAuditList">
+        <div class="loading">Loading persisted support bundle audit...</div>
+      </div>
+    </div>
+  </div>

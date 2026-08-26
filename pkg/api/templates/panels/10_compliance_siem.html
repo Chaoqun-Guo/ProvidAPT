@@ -1,0 +1,27 @@
+  <div class="panel">
+    <h2>Compliance & SIEM</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showComplianceDetails('audit')"><div class="value" id="cAuditEntries">--</div><div class="label">Audit Entries</div></div>
+        <div class="policy-item clickable" onclick="showComplianceDetails('retention')"><div class="value" id="cRetention">--</div><div class="label">Retention</div></div>
+        <div class="policy-item clickable" onclick="showComplianceDetails('siem')"><div class="value" id="cSIEM">--</div><div class="label">SIEM</div></div>
+        <div class="policy-item clickable" onclick="showComplianceDetails('approvals')"><div class="value" id="cApprovals">--</div><div class="label">Approvals</div></div>
+      </div>
+      <div class="action-row">
+        <button id="exportAuditBtn" data-module="compliance-siem" data-module-action="export-audit" onclick="runComplianceAction('export_audit')">Export Audit</button>
+        <button id="applyRetentionBtn" data-module="compliance-siem" data-module-action="apply-retention" class="secondary" onclick="runComplianceAction('apply_retention')">Apply Retention</button>
+        <button id="generateComplianceReportBtn" data-module="compliance-siem" data-module-action="generate-report" class="secondary" onclick="runComplianceAction('generate_report')">Generate Report</button>
+        <button data-module="compliance-siem" data-module-action="generate-html" class="secondary" onclick="runComplianceAction('generate_report', 'html')">Generate HTML</button>
+        <button data-module="compliance-siem" data-module-action="generate-bundle" class="secondary" onclick="runComplianceAction('generate_report', 'bundle')">Generate Bundle</button>
+        <button id="testSIEMBtn" data-module="compliance-siem" data-module-action="test-siem" class="secondary" onclick="runComplianceAction('test_siem')">Test SIEM</button>
+        <button data-module="compliance-siem" data-module-action="release-readiness" class="secondary" onclick="showReleaseReadiness()">Release Readiness</button>
+        <button data-module="compliance-siem" data-module-action="executive-report" class="secondary" onclick="downloadExecutiveReport()">Executive Report</button>
+        <button data-module="compliance-siem" data-module-action="audit-search" class="secondary" onclick="showAuditSearch()">Audit Search</button>
+        <button data-module="compliance-siem" data-module-action="refresh" class="secondary" onclick="loadCompliance()">Refresh Compliance</button>
+      </div>
+      <div class="loading" id="complianceActionStatus"></div>
+      <div class="alerts-list" id="complianceDetails">
+        <div class="loading">Loading compliance state...</div>
+      </div>
+    </div>
+  </div>

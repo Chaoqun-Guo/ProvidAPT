@@ -1,0 +1,14 @@
+  <div class="panel span-2">
+    <h2>Operations Summary</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showFleetStatus('all')"><div class="value" id="opFleet">--</div><div class="label">Fleet Posture</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="opWorkflow">--</div><div class="label">Workflow Queue</div></div>
+        <div class="policy-item clickable" onclick="showDeliveriesByStatus('dead_letter')"><div class="value" id="opDelivery">--</div><div class="label">Delivery Risk</div></div>
+        <div class="policy-item clickable" onclick="showRecentEvents()"><div class="value" id="opEvidence">--</div><div class="label">Evidence State</div></div>
+      </div>
+      <div class="alerts-list" id="operationsSummaryList">
+        <div class="loading">Loading operational summary...</div>
+      </div>
+    </div>
+  </div>

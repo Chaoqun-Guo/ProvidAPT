@@ -1,0 +1,14 @@
+  <div class="panel">
+    <h2>Deployment Diagnostics</h2>
+    <div class="panel-body">
+      <div class="policy-grid">
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('attachment')"><div class="value" id="diagAttachment">--</div><div class="label">Kernel Mode</div></div>
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('api')"><div class="value" id="diagAPI">--</div><div class="label">API Security</div></div>
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('policy')"><div class="value" id="diagPolicy">--</div><div class="label">Policy Sync</div></div>
+        <div class="policy-item clickable" onclick="showDeploymentDiagnostics('storage')"><div class="value" id="diagStorage">--</div><div class="label">Storage</div></div>
+      </div>
+      <div class="alerts-list" id="deploymentDiagnosticsList">
+        <div class="loading">Loading deployment diagnostics...</div>
+      </div>
+    </div>
+  </div>

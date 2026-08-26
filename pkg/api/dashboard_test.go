@@ -39,6 +39,40 @@ func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
 	}
 }
 
+func TestDashboardPanelsAreRenderedFromModulePartials(t *testing.T) {
+	if len(dashboardPanelTemplateOrder) != 12 {
+		t.Fatalf("dashboard panel template count = %d, want 12", len(dashboardPanelTemplateOrder))
+	}
+	expected := []string{
+		"Control Plane Summary",
+		"Deployment Diagnostics",
+		"Agent Overview",
+		"Support Bundle",
+		"Backup & Restore",
+		"Policy Center",
+		"Alert Workflow",
+		"Evaluation Ground Truth",
+		"Delivery Health",
+		"Compliance & SIEM",
+		"Investigation Console",
+		"Operations Summary",
+	}
+	last := -1
+	for _, title := range expected {
+		index := strings.Index(dashboardHTMLDocument(), "<h2>"+title+"</h2>")
+		if index < 0 {
+			t.Fatalf("rendered dashboard missing panel %q", title)
+		}
+		if index <= last {
+			t.Fatalf("panel %q rendered out of order", title)
+		}
+		last = index
+	}
+	if strings.Contains(dashboardHTMLDocument(), "{{PANEL:") {
+		t.Fatal("rendered dashboard leaked a panel template placeholder")
+	}
+}
+
 func TestDashboardAlertWorkflowSeparators(t *testing.T) {
 	if strings.Contains(dashboardTestSurface(), " \u8def ") {
 		t.Fatal("alert workflow dashboard should not render mojibake separators")

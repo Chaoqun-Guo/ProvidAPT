@@ -1,0 +1,58 @@
+  <div class="panel">
+    <h2>Alert Workflow</h2>
+    <div class="panel-body">
+      <div class="workflow-summary-grid">
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('open')"><div class="value" id="awOpenDetail">--</div><div class="label">Open</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('assigned')"><div class="value" id="awAssigned">--</div><div class="label">Assigned</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('suppressed')"><div class="value" id="awSuppressed">--</div><div class="label">Suppressed</div></div>
+        <div class="policy-item clickable" onclick="loadAlertWorkflowFiltered('closed')"><div class="value" id="awClosed">--</div><div class="label">Closed</div></div>
+        <div class="policy-item clickable" onclick="showAlertQuality()"><div class="value" id="awReviewed">--</div><div class="label">Reviewed</div></div>
+        <div class="policy-item clickable" onclick="showAlertQuality()"><div class="value" id="awPrecision">--</div><div class="label">Precision</div></div>
+        <div class="policy-item clickable" onclick="filterAlertQuality('duplicate')"><div class="value" id="awDuplicates">--</div><div class="label">Duplicates</div></div>
+        <div class="policy-item clickable" onclick="filterAlertQuality('needs_review')"><div class="value" id="awNeedsReview">--</div><div class="label">Needs Review</div></div>
+      </div>
+      <div class="workflow-filter-bar" aria-label="Alert workflow filters">
+        <select id="workflowFilterStatus" onchange="applyAlertWorkflowFilters()">
+          <option value="">Any Status</option>
+          <option value="open">Open</option>
+          <option value="assigned">Assigned</option>
+          <option value="suppressed">Suppressed</option>
+          <option value="closed">Closed</option>
+        </select>
+        <select id="workflowFilterSeverity" onchange="applyAlertWorkflowFilters()">
+          <option value="">Any Severity</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+          <option value="info">Info</option>
+        </select>
+        <input id="workflowFilterHost" placeholder="Host / agent" oninput="applyAlertWorkflowFilters()">
+        <input id="workflowFilterRule" placeholder="Rule / pattern" oninput="applyAlertWorkflowFilters()">
+        <input id="workflowFilterTime" placeholder="Time contains, e.g. 10:3" oninput="applyAlertWorkflowFilters()">
+        <button onclick="resetAlertWorkflowFilters()">Reset</button>
+      </div>
+      <div class="workflow-filter-summary" id="workflowFilterSummary">Showing latest workflow alerts.</div>
+      <div class="workflow-layout">
+        <div class="workflow-column">
+          <div class="workflow-section-title">Active Queue</div>
+          <div class="alerts-list" id="workflowAlertsList">
+            <div class="loading">Loading workflow alerts...</div>
+          </div>
+          <div class="action-row">
+            <button data-module="alert-workflow" data-module-action="bulk-close" class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Filtered Batch</button>
+            <button data-module="alert-workflow" data-module-action="bulk-silence" class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Filtered Batch</button>
+            <button class="secondary" onclick="showAlertQuality()">Quality</button>
+            <button class="secondary" onclick="downloadAlertQuality()">Export Quality Summary</button>
+            <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback Ledger</button>
+          </div>
+        </div>
+        <div class="workflow-column">
+          <div class="workflow-section-title">Recent Actions</div>
+          <div class="alerts-list workflow-history-list" id="workflowHistoryList">
+            <div class="loading">Loading workflow actions...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
