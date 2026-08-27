@@ -15,8 +15,9 @@ func dashboardTestSurface() string {
 	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" +
 		dashboardAPIJS + "\n" + dashboardStateJS + "\n" + dashboardUIJS + "\n" +
 		dashboardLayoutJS + "\n" + dashboardLoadersJS + "\n" + dashboardFleetJS + "\n" +
-		dashboardPolicyJS + "\n" + dashboardWorkflowJS + "\n" + dashboardGroundTruthJS + "\n" +
-		dashboardEvidenceJS + "\n" + dashboardJS
+		dashboardSupportJS + "\n" + dashboardBackupJS + "\n" + dashboardPolicyJS + "\n" +
+		dashboardUpgradeJS + "\n" + dashboardWorkflowJS + "\n" + dashboardGroundTruthJS + "\n" +
+		dashboardEvidenceJS + "\n" + dashboardGraphJS + "\n" + dashboardRuntimeJS + "\n" + dashboardJS
 }
 
 func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
@@ -30,10 +31,15 @@ func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
 		"/assets/dashboard-layout.js",
 		"/assets/dashboard-loaders.js",
 		"/assets/dashboard-fleet.js",
+		"/assets/dashboard-support.js",
+		"/assets/dashboard-backup.js",
 		"/assets/dashboard-policy.js",
+		"/assets/dashboard-upgrade.js",
 		"/assets/dashboard-workflow.js",
 		"/assets/dashboard-ground-truth.js",
 		"/assets/dashboard-evidence.js",
+		"/assets/dashboard-graph.js",
+		"/assets/dashboard-runtime.js",
 		"/assets/dashboard.js",
 	}
 	for _, item := range expectedPartials {
@@ -690,14 +696,56 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"Overview: live health",
 		"src=\"/assets/dashboard-loaders.js\"",
 		"src=\"/assets/dashboard-fleet.js\"",
+		"src=\"/assets/dashboard-support.js\"",
+		"src=\"/assets/dashboard-backup.js\"",
 		"src=\"/assets/dashboard-policy.js\"",
+		"src=\"/assets/dashboard-upgrade.js\"",
 		"src=\"/assets/dashboard-workflow.js\"",
 		"src=\"/assets/dashboard-ground-truth.js\"",
 		"src=\"/assets/dashboard-evidence.js\"",
+		"src=\"/assets/dashboard-graph.js\"",
+		"src=\"/assets/dashboard-runtime.js\"",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
 			t.Fatalf("dashboard missing workspace navigation refactor content %q", item)
+		}
+	}
+}
+
+func TestDashboardOverviewFocusesDailyOperations(t *testing.T) {
+	overviewStart := strings.Index(dashboardLayoutJS, "function dashboardOverviewPanelIDs()")
+	if overviewStart < 0 {
+		t.Fatal("dashboardOverviewPanelIDs missing")
+	}
+	overviewEnd := strings.Index(dashboardLayoutJS[overviewStart:], "function dashboardPanelTier")
+	if overviewEnd < 0 {
+		t.Fatal("dashboardPanelTier missing after dashboardOverviewPanelIDs")
+	}
+	overviewBlock := dashboardLayoutJS[overviewStart : overviewStart+overviewEnd]
+	expected := []string{
+		"'operations-summary'",
+		"'alert-workflow'",
+		"'investigation-console'",
+		"'agent-overview'",
+	}
+	for _, item := range expected {
+		if !strings.Contains(overviewBlock, item) {
+			t.Fatalf("dashboard overview should include high-frequency panel %q", item)
+		}
+	}
+	forbidden := []string{
+		"'deployment-diagnostics'",
+		"'support-bundle'",
+		"'backup-restore'",
+		"'delivery-health'",
+		"'compliance-siem'",
+		"'evaluation-ground-truth'",
+		"'version-update'",
+	}
+	for _, item := range forbidden {
+		if strings.Contains(overviewBlock, item) {
+			t.Fatalf("dashboard overview should keep low-frequency panel %q in secondary workspaces", item)
 		}
 	}
 }
@@ -857,7 +905,7 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 }
 
 func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
-	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard-state.js"`, `src="/assets/dashboard-ui.js"`, `src="/assets/dashboard-layout.js"`, `src="/assets/dashboard-loaders.js"`, `src="/assets/dashboard-fleet.js"`, `src="/assets/dashboard-policy.js"`, `src="/assets/dashboard-workflow.js"`, `src="/assets/dashboard-ground-truth.js"`, `src="/assets/dashboard-evidence.js"`, `src="/assets/dashboard.js"`} {
+	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard-state.js"`, `src="/assets/dashboard-ui.js"`, `src="/assets/dashboard-layout.js"`, `src="/assets/dashboard-loaders.js"`, `src="/assets/dashboard-fleet.js"`, `src="/assets/dashboard-support.js"`, `src="/assets/dashboard-backup.js"`, `src="/assets/dashboard-policy.js"`, `src="/assets/dashboard-upgrade.js"`, `src="/assets/dashboard-workflow.js"`, `src="/assets/dashboard-ground-truth.js"`, `src="/assets/dashboard-evidence.js"`, `src="/assets/dashboard-graph.js"`, `src="/assets/dashboard-runtime.js"`, `src="/assets/dashboard.js"`} {
 		if !strings.Contains(dashboardHTMLDocument(), asset) {
 			t.Fatalf("dashboard should link asset %s", asset)
 		}
@@ -923,10 +971,15 @@ func TestDashboardResponsiveCSSAsset(t *testing.T) {
 		{"/assets/dashboard-layout.js", "application/javascript", "function initializePanelLayout"},
 		{"/assets/dashboard-loaders.js", "application/javascript", "async function loadStatus"},
 		{"/assets/dashboard-fleet.js", "application/javascript", "async function loadControlOverview"},
+		{"/assets/dashboard-support.js", "application/javascript", "async function loadSupportBundles"},
+		{"/assets/dashboard-backup.js", "application/javascript", "async function loadBackups"},
 		{"/assets/dashboard-policy.js", "application/javascript", "async function loadPolicies"},
+		{"/assets/dashboard-upgrade.js", "application/javascript", "async function loadUpgradeStatus"},
 		{"/assets/dashboard-workflow.js", "application/javascript", "async function loadAlertWorkflow"},
 		{"/assets/dashboard-ground-truth.js", "application/javascript", "async function loadGroundTruth"},
 		{"/assets/dashboard-evidence.js", "application/javascript", "async function loadCompliance"},
+		{"/assets/dashboard-graph.js", "application/javascript", "function showGraphSummary"},
+		{"/assets/dashboard-runtime.js", "application/javascript", "async function showRuntimeDetails"},
 		{"/assets/dashboard.js", "application/javascript", "function refresh()"},
 	}
 	for _, tc := range cases {

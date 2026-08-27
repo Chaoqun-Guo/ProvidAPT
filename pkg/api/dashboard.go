@@ -47,8 +47,17 @@ var dashboardLoadersJS string
 //go:embed static/dashboard-fleet.js
 var dashboardFleetJS string
 
+//go:embed static/dashboard-support.js
+var dashboardSupportJS string
+
+//go:embed static/dashboard-backup.js
+var dashboardBackupJS string
+
 //go:embed static/dashboard-policy.js
 var dashboardPolicyJS string
+
+//go:embed static/dashboard-upgrade.js
+var dashboardUpgradeJS string
 
 //go:embed static/dashboard-workflow.js
 var dashboardWorkflowJS string
@@ -58,6 +67,12 @@ var dashboardGroundTruthJS string
 
 //go:embed static/dashboard-evidence.js
 var dashboardEvidenceJS string
+
+//go:embed static/dashboard-graph.js
+var dashboardGraphJS string
+
+//go:embed static/dashboard-runtime.js
+var dashboardRuntimeJS string
 
 //go:embed static/dashboard.js
 var dashboardJS string
@@ -161,10 +176,28 @@ func (s *Server) handleDashboardFleetJS(w http.ResponseWriter, _ *http.Request) 
 	_, _ = w.Write([]byte(dashboardFleetJS))
 }
 
+func (s *Server) handleDashboardSupportJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardSupportJS))
+}
+
+func (s *Server) handleDashboardBackupJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardBackupJS))
+}
+
 func (s *Server) handleDashboardPolicyJS(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write([]byte(dashboardPolicyJS))
+}
+
+func (s *Server) handleDashboardUpgradeJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardUpgradeJS))
 }
 
 func (s *Server) handleDashboardWorkflowJS(w http.ResponseWriter, _ *http.Request) {
@@ -183,6 +216,18 @@ func (s *Server) handleDashboardEvidenceJS(w http.ResponseWriter, _ *http.Reques
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write([]byte(dashboardEvidenceJS))
+}
+
+func (s *Server) handleDashboardGraphJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardGraphJS))
+}
+
+func (s *Server) handleDashboardRuntimeJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardRuntimeJS))
 }
 
 func (s *Server) handleDashboardJS(w http.ResponseWriter, _ *http.Request) {

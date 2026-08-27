@@ -305,3 +305,17 @@ function policySuccessMessage(action, result) {
   }
   return 'Policy action completed' + version + state + deployment;
 }
+
+async function downloadPolicyBundle() {
+  if (currentRole === 'analyst') {
+    return;
+  }
+  const current = latestPolicies && latestPolicies.current ? latestPolicies.current : {};
+  const version = Number(current.version || 0);
+  try {
+    await downloadWithAuth('/api/v1/control/policies/bundle' + (version > 0 ? ('?version=' + encodeURIComponent(version)) : ''), 'providapt-policy.json');
+  } catch (e) {
+    const status = document.getElementById('policyActionStatus');
+    if (status) status.textContent = 'Policy bundle download failed: ' + e.message;
+  }
+}

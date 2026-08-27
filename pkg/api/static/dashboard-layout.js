@@ -387,11 +387,9 @@ function switchDashboardSection(section) {
 function dashboardOverviewPanelIDs() {
   return [
     'operations-summary',
-    'control-plane-summary',
     'alert-workflow',
     'investigation-console',
     'agent-overview',
-    'deployment-diagnostics',
   ];
 }
 
@@ -485,18 +483,19 @@ function resetDashboardLayout() {
 
 function defaultDashboardPanelOrder() {
   return [
-    'control-plane-summary',
     'operations-summary',
     'alert-workflow',
-    'policy-center',
     'investigation-console',
+    'agent-overview',
+    'policy-center',
+    'control-plane-summary',
+    'deployment-diagnostics',
     'evaluation-ground-truth',
     'delivery-health',
     'support-bundle',
     'backup-restore',
-    'agent-overview',
-    'deployment-diagnostics',
     'compliance-siem',
+    'version-update',
   ];
 }
 

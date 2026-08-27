@@ -1,3 +1,17 @@
+async function downloadAuditCSV(source) {
+  if (currentRole === 'analyst') {
+    return;
+  }
+  const params = new URLSearchParams({ category: 'admin', limit: '200', format: 'csv' });
+  if (source) params.set('source', source);
+  try {
+    await downloadWithAuth('/api/v1/control/audit?' + params.toString(), 'providapt-audit.csv');
+  } catch (e) {
+    const status = document.getElementById('supportBundleStatus');
+    if (status) status.textContent = 'Audit export failed: ' + e.message;
+  }
+}
+
 async function loadCompliance() {
   try {
     const data = await fetchJSON('/api/v1/control/compliance');
