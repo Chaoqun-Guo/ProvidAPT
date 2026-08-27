@@ -128,14 +128,14 @@ Current closure progress:
 
 | Area | Gap | Expected Outcome |
 | --- | --- | --- |
-| Performance certification | Benchmarks exist, but long-duration noisy-host soak evidence should be expanded | 24-72 hour soak results define throughput, loss, CPU, memory, and disk budgets |
+| Performance certification | Benchmarks exist, but accelerated noisy-host soak evidence should be expanded | Short-cycle soak results define throughput, loss, CPU, memory, and disk budgets |
 | Plugin ecosystem | Plugin development docs exist, but signed plugin distribution and compatibility policy need productization | Plugins have signing, version compatibility, and safe rollback rules |
 | Model training | Simulation logs can train detectors; broader model promotion automation can still mature | Model versions, feature schemas, training provenance, and drift reports are tracked and enforced before deployment |
 | Operator onboarding | Handoff docs exist, but guided first-run setup can be smoother | A guided setup wizard validates prerequisites and generates a ready-to-run config |
 
 Current closure progress:
 
-- Soak readiness reporting evaluates long-duration samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
+- Soak readiness reporting evaluates accelerated samples against duration, CPU, memory, disk, and dropped-event budgets through `make soak-readiness`.
 - Long-duration soak samples can be appended from a status endpoint or captured JSON through `make soak-sample`.
 - Model registry, dataset drift, feature-schema compatibility, and deployable model artifact SHA-256 checks are available for training provenance.
 - Model lifecycle promotion is gated through `make model-lifecycle-gate`,

@@ -158,7 +158,7 @@ func TestOpenSourceControlPlaneAllowsRequestsWithoutCredentials(t *testing.T) {
 func TestOpenSourceControlPlaneAllowsDashboardAndAPIWithoutKey(t *testing.T) {
 	ts := testServer(t)
 
-	for _, path := range []string{"/dashboard", "/", "/assets/dashboard.css", "/assets/dashboard-responsive.css", "/assets/dashboard-api.js", "/assets/dashboard-state.js", "/assets/dashboard-ui.js", "/assets/dashboard-layout.js", "/assets/dashboard-loaders.js", "/assets/dashboard-fleet.js", "/assets/dashboard-policy.js", "/assets/dashboard.js", "/assets/trace-viewer.css", "/assets/trace-viewer.js", "/api/v1/alerts/p%3A100/svg/view"} {
+	for _, path := range []string{"/dashboard", "/", "/assets/dashboard.css", "/assets/dashboard-responsive.css", "/assets/dashboard-api.js", "/assets/dashboard-state.js", "/assets/dashboard-ui.js", "/assets/dashboard-layout.js", "/assets/dashboard-loaders.js", "/assets/dashboard-fleet.js", "/assets/dashboard-policy.js", "/assets/dashboard-workflow.js", "/assets/dashboard.js", "/assets/trace-viewer.css", "/assets/trace-viewer.js", "/api/v1/alerts/p%3A100/svg/view"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		w := apiServe(ts, req)
 		if w.Code != http.StatusOK {

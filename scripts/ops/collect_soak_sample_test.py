@@ -62,6 +62,27 @@ class CollectSoakSampleTest(unittest.TestCase):
         self.assertEqual(len(report["samples"]), 2)
         self.assertEqual(report["schema"], collector.SCHEMA)
 
+    def test_collect_samples_supports_accelerated_batching(self):
+        out = self.tmp / "samples.json"
+        status = self.tmp / "status.json"
+        status.write_text(json.dumps({
+            "hostname": "vm-control",
+            "uptime_seconds": 300,
+            "memory_bytes": 1048576,
+            "events_ingested": 10,
+        }), encoding="utf-8")
+        report = collector.collect_samples(
+            status_url="",
+            status_json=str(status),
+            host="",
+            started_at_epoch=0,
+            out=out,
+            count=3,
+            interval_seconds=0,
+        )
+        self.assertEqual(len(report["samples"]), 3)
+        self.assertEqual({sample["host"] for sample in report["samples"]}, {"vm-control"})
+
 
 if __name__ == "__main__":
     unittest.main()

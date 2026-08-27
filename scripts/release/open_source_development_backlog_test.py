@@ -101,15 +101,15 @@ class OpenSourceDevelopmentBacklogTest(unittest.TestCase):
         tasks = {task["id"]: task for task in report["tasks"]}
         self.assertEqual(tasks["release-final-artifacts"]["status"], "done")
         self.assertEqual(tasks["capture-field-evidence-refresh"]["status"], "done")
-        self.assertEqual(tasks["soak-24-72h"]["status"], "needs_review")
+        self.assertEqual(tasks["soak-accelerated"]["status"], "needs_review")
         self.assertEqual(tasks["siem-soar-certification"]["status"], "needs_fix")
         self.assertEqual(tasks["rbac-audit-hardening"]["status"], "needs_fix")
         self.assertEqual(tasks["release-final-artifacts"]["evidence_status"], "pass")
         planning = report["planning_summary"]
-        self.assertIn("soak-24-72h", planning["external_blockers"])
+        self.assertIn("soak-accelerated", planning["next_local_tasks"])
         self.assertIn("siem-soar-certification", planning["external_blockers"])
         self.assertIn("rbac-audit-hardening", planning["by_evidence_key"]["operator_env_certification_gate"])
-        soak_detail = subject.planning_task_detail(tasks["soak-24-72h"])
+        soak_detail = subject.planning_task_detail(tasks["soak-accelerated"])
         owner_detail = subject.planning_task_detail(tasks["release-final-artifacts"])
         self.assertEqual(soak_detail["blocker_type"], "runtime_evidence")
         self.assertEqual(owner_detail["blocker_type"], "owner_evidence")

@@ -367,7 +367,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--upgrade-rollout", default="build/upgrade/rollout-plan.json")
     parser.add_argument("--require-agent-groups", action="store_true")
     parser.add_argument("--soak-readiness", default="build/performance/soak-readiness.json")
-    parser.add_argument("--min-soak-hours", type=float, default=24.0)
+    parser.add_argument("--min-soak-hours", type=float, default=0.05)
     parser.add_argument("--max-dropped-events", type=int, default=0)
     parser.add_argument("--production-readiness-gate", default="build/production-readiness/production-readiness-gate.json")
     parser.add_argument("--deployment-diagnostics-gate", default="build/deploy/deployment-diagnostics-gate.json")

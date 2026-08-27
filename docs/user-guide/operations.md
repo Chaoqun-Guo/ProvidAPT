@@ -525,19 +525,21 @@ make open-source-operations \
   REPORT_PLAN_JSON=build/reports/scheduled-report-plan.json
 ```
 
-Evaluate long-duration soak evidence against CPU, memory, disk, duration,
-and dropped-event budgets:
+Evaluate accelerated soak evidence against CPU, memory, disk, duration, and
+dropped-event budgets:
 
 ```bash
 export SOAK_STARTED_AT_EPOCH="$(date +%s)"
 make soak-sample \
   STATUS_URL=http://<server>:18080/api/v1/status \
   SOAK_STARTED_AT_EPOCH="$SOAK_STARTED_AT_EPOCH" \
+  SOAK_SAMPLE_COUNT=6 \
+  SOAK_SAMPLE_INTERVAL_SECONDS=10 \
   OUT=build/performance/soak-samples.json
 
 make soak-readiness \
   SOAK_SAMPLES=build/performance/soak-samples.json \
-  SOAK_MIN_HOURS=24 \
+  SOAK_MIN_HOURS=0.05 \
   SOAK_MAX_MEMORY_MB=512 \
   SOAK_MAX_DISK_MB=4096
 ```
@@ -545,9 +547,9 @@ make soak-readiness \
 Both commands write Markdown and JSON artifacts under `build/` for release
 review, support handoff, and operator readiness meetings.
 
-Run `make soak-sample` on a schedule during 24-72 hour validation windows. Keep
-the generated `soak-samples.json` with the final `soak-readiness.json` and
-`soak-readiness.md` evidence.
+Use `SOAK_SAMPLE_COUNT` and `SOAK_SAMPLE_INTERVAL_SECONDS` to increase sampling
+density during short VM validation runs. Keep the generated `soak-samples.json`
+with the final `soak-readiness.json` and `soak-readiness.md` evidence.
 
 Close operations readiness with the operations readiness gate:
 

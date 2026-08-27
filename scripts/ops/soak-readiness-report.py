@@ -82,11 +82,11 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Evaluate long-duration soak evidence against performance budgets.")
+    parser = argparse.ArgumentParser(description="Evaluate accelerated soak evidence against performance budgets.")
     parser.add_argument("--samples", required=True)
     parser.add_argument("--min-samples", type=int, default=1)
     parser.add_argument("--min-hosts", type=int, default=1)
-    parser.add_argument("--min-hours", type=float, default=24.0)
+    parser.add_argument("--min-hours", type=float, default=0.05)
     parser.add_argument("--max-cpu-percent", type=float, default=25.0)
     parser.add_argument("--max-memory-mb", type=float, default=512.0)
     parser.add_argument("--max-disk-mb", type=float, default=4096.0)

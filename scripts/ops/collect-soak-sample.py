@@ -90,21 +90,52 @@ def append_sample(path: Path, sample: dict[str, Any]) -> dict[str, Any]:
     return report
 
 
+def collect_samples(
+    *,
+    status_url: str,
+    status_json: str,
+    host: str,
+    started_at_epoch: float,
+    out: Path,
+    count: int,
+    interval_seconds: float,
+) -> dict[str, Any]:
+    if count < 1:
+        raise SystemExit("--count must be >= 1")
+    if interval_seconds < 0:
+        raise SystemExit("--interval-seconds must be >= 0")
+    report: dict[str, Any] = {}
+    for index in range(count):
+        status = load_status_from_url(status_url) if status_url else json.loads(Path(status_json).read_text(encoding="utf-8-sig"))
+        if not isinstance(status, dict):
+            raise SystemExit("status input must be a JSON object")
+        report = append_sample(out, build_sample(status, started_at_epoch, host))
+        if index < count - 1 and interval_seconds > 0:
+            time.sleep(interval_seconds)
+    return report
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Append one ProvidAPT runtime sample for long-duration soak readiness.")
+    parser = argparse.ArgumentParser(description="Append ProvidAPT runtime samples for accelerated soak readiness.")
     parser.add_argument("--status-url", help="Status or metrics JSON endpoint, for example http://localhost:18080/api/v1/status")
     parser.add_argument("--status-json", help="Read a captured status JSON file instead of fetching an endpoint")
     parser.add_argument("--host", default="")
     parser.add_argument("--started-at-epoch", type=float, default=0)
+    parser.add_argument("--count", type=int, default=1, help="Number of samples to append during this run")
+    parser.add_argument("--interval-seconds", type=float, default=0, help="Delay between samples when --count is greater than 1")
     parser.add_argument("--out", default="build/performance/soak-samples.json")
     args = parser.parse_args()
     if not args.status_url and not args.status_json:
         raise SystemExit("set --status-url or --status-json")
-    status = load_status_from_url(args.status_url) if args.status_url else json.loads(Path(args.status_json).read_text(encoding="utf-8-sig"))
-    if not isinstance(status, dict):
-        raise SystemExit("status input must be a JSON object")
-    started_at = args.started_at_epoch
-    report = append_sample(Path(args.out), build_sample(status, started_at, args.host))
+    report = collect_samples(
+        status_url=args.status_url,
+        status_json=args.status_json,
+        host=args.host,
+        started_at_epoch=args.started_at_epoch,
+        out=Path(args.out),
+        count=args.count,
+        interval_seconds=args.interval_seconds,
+    )
     print(f"samples={len(report['samples'])} out={args.out}")
     return 0
 
