@@ -44,6 +44,17 @@ class CollectSoakSampleTest(unittest.TestCase):
         self.assertEqual(sample["disk_mb"], 512)
         self.assertGreaterEqual(sample["duration_hours"], 1.9)
 
+    def test_build_sample_uses_status_uptime_when_start_epoch_missing(self):
+        sample = collector.build_sample({
+            "hostname": "control",
+            "uptime_seconds": 25 * 3600,
+            "memory_bytes": 104857600,
+            "events_dropped": 0,
+        }, 0)
+        self.assertEqual(sample["host"], "control")
+        self.assertEqual(sample["duration_hours"], 25)
+        self.assertEqual(sample["memory_mb"], 100)
+
     def test_append_sample_preserves_existing_rows(self):
         out = self.tmp / "samples.json"
         out.write_text(json.dumps({"samples": [{"host": "old"}]}), encoding="utf-8")

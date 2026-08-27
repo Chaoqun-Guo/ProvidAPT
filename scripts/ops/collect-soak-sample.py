@@ -63,10 +63,12 @@ def number(data: dict[str, Any], *names: str) -> float:
 def build_sample(status: dict[str, Any], started_at: float, host: str = "") -> dict[str, Any]:
     metrics = status.get("metrics") if isinstance(status.get("metrics"), dict) else status
     runtime = status.get("runtime") if isinstance(status.get("runtime"), dict) else status
+    uptime_seconds = number(status, "uptime_seconds", "runtime.uptime_seconds", "metrics.uptime_seconds")
+    duration_hours = max(time.time() - started_at, 0) / 3600 if started_at else uptime_seconds / 3600
     sample = {
         "timestamp": utc_now(),
         "host": host or str(status.get("hostname") or status.get("agent_id") or ""),
-        "duration_hours": round(max(time.time() - started_at, 0) / 3600, 4),
+        "duration_hours": round(duration_hours, 4),
         "cpu_percent": number(metrics, "cpu_percent", "providapt_cpu_percent"),
         "memory_mb": round(number(metrics, "memory_bytes", "memory_rss_bytes", "providapt_memory_rss_bytes") / (1024 * 1024), 3),
         "disk_mb": round(number(metrics, "disk_bytes", "log_disk_bytes", "providapt_log_disk_bytes") / (1024 * 1024), 3),
@@ -101,7 +103,7 @@ def main() -> int:
     status = load_status_from_url(args.status_url) if args.status_url else json.loads(Path(args.status_json).read_text(encoding="utf-8-sig"))
     if not isinstance(status, dict):
         raise SystemExit("status input must be a JSON object")
-    started_at = args.started_at_epoch or time.time()
+    started_at = args.started_at_epoch
     report = append_sample(Path(args.out), build_sample(status, started_at, args.host))
     print(f"samples={len(report['samples'])} out={args.out}")
     return 0
