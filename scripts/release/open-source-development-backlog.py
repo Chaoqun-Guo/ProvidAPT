@@ -345,15 +345,27 @@ def planning_task_detail(task: dict[str, Any]) -> dict[str, Any]:
         reason = f"{status}/{evidence_status}"
     if missing_keys:
         reason += " via " + ",".join(missing_keys)
+    blocker_type = "local"
+    if not task.get("local"):
+        blocker_type = "external"
+    if str(task.get("status") or "") == "blocked_external":
+        blocker_type = "external"
+    elif "approval" in str(task.get("external_dependency") or "").lower() or "signing key" in str(task.get("external_dependency") or "").lower():
+        blocker_type = "owner_evidence"
+    elif "vm" in str(task.get("external_dependency") or "").lower() or "long-running" in str(task.get("external_dependency") or "").lower():
+        blocker_type = "runtime_evidence"
     return {
         "id": task["id"],
         "phase": task.get("phase", ""),
         "priority": task.get("priority", 99),
         "status": status,
         "evidence_status": evidence_status,
+        "blocker_type": blocker_type,
         "rank": rank,
         "reason": reason,
         "command": task.get("command", ""),
+        "acceptance": task.get("acceptance", ""),
+        "external_dependency": task.get("external_dependency", ""),
     }
 
 
@@ -415,16 +427,17 @@ def render_markdown(report: dict[str, Any]) -> str:
     if planning.get("next_local_details"):
         lines.extend([
             "",
-            "| Next Local Task | Phase | Status | Evidence | Rank | Reason | Command |",
-            "| --- | --- | --- | --- | ---: | --- | --- |",
+            "| Next Local Task | Phase | Status | Evidence | Blocker | Rank | Reason | Command |",
+            "| --- | --- | --- | --- | --- | ---: | --- | --- |",
         ])
         for item in planning["next_local_details"]:
             lines.append(
-                "| {id} | {phase} | {status} | {evidence_status} | {rank} | {reason} | `{command}` |".format(
+                "| {id} | {phase} | {status} | {evidence_status} | {blocker} | {rank} | {reason} | `{command}` |".format(
                     id=escape_cell(item.get("id", "")),
                     phase=escape_cell(item.get("phase", "")),
                     status=escape_cell(item.get("status", "")),
                     evidence_status=escape_cell(item.get("evidence_status", "")),
+                    blocker=escape_cell(item.get("blocker_type", "")),
                     rank=item.get("rank", 0),
                     reason=escape_cell(item.get("reason", "")),
                     command=escape_cell(item.get("command", "")),

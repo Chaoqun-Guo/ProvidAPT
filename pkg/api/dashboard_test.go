@@ -14,7 +14,7 @@ func dashboardHTMLDocument() string {
 func dashboardTestSurface() string {
 	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" +
 		dashboardAPIJS + "\n" + dashboardStateJS + "\n" + dashboardUIJS + "\n" +
-		dashboardLayoutJS + "\n" + dashboardJS
+		dashboardLayoutJS + "\n" + dashboardLoadersJS + "\n" + dashboardJS
 }
 
 func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
@@ -26,6 +26,7 @@ func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
 		"/assets/dashboard-state.js",
 		"/assets/dashboard-ui.js",
 		"/assets/dashboard-layout.js",
+		"/assets/dashboard-loaders.js",
 		"/assets/dashboard.js",
 	}
 	for _, item := range expectedPartials {
@@ -679,7 +680,8 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"'alert-workflow'",
 		"'deployment-diagnostics'",
 		"Deployment Diagnostics",
-		"Overview shows live health",
+		"Overview: live health",
+		"src=\"/assets/dashboard-loaders.js\"",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
@@ -693,15 +695,15 @@ func TestDashboardStructuredIDSConsoleLayout(t *testing.T) {
 		"dashboard-shell",
 		"dashboard-sidebar",
 		"Security operations navigation",
-		"Operations",
-		"Daily Workflow",
-		"Evidence Workspace",
+		"Workflow",
+		"Daily Queue",
+		"Evidence",
 		"Overview",
 		"Alerts",
 		"Investigate",
 		"Respond",
-		"Platform",
-		"Release",
+		"Fleet",
+		"Response",
 		"Live Status",
 		"sidebarAgents",
 		"sidebarOpenAlerts",
@@ -843,7 +845,7 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 }
 
 func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
-	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard-state.js"`, `src="/assets/dashboard-ui.js"`, `src="/assets/dashboard-layout.js"`, `src="/assets/dashboard.js"`} {
+	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard-state.js"`, `src="/assets/dashboard-ui.js"`, `src="/assets/dashboard-layout.js"`, `src="/assets/dashboard-loaders.js"`, `src="/assets/dashboard.js"`} {
 		if !strings.Contains(dashboardHTMLDocument(), asset) {
 			t.Fatalf("dashboard should link asset %s", asset)
 		}
@@ -907,6 +909,7 @@ func TestDashboardResponsiveCSSAsset(t *testing.T) {
 		{"/assets/dashboard-state.js", "application/javascript", "DASHBOARD_LAYOUT_VERSION"},
 		{"/assets/dashboard-ui.js", "application/javascript", "function renderJSONBlock"},
 		{"/assets/dashboard-layout.js", "application/javascript", "function initializePanelLayout"},
+		{"/assets/dashboard-loaders.js", "application/javascript", "async function loadStatus"},
 		{"/assets/dashboard.js", "application/javascript", "function refresh()"},
 	}
 	for _, tc := range cases {

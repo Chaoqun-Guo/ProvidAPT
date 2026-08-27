@@ -268,6 +268,22 @@ function renderMetricCards(cards) {
   ).join('') + '</div>';
 }
 
+function renderKVItem(label, value, timeLabel) {
+  return '<div class="alert-item">' +
+    '<span class="alert-sev sev-low">' + escapeHTML(label) + '</span>' +
+    '<span class="alert-msg">' + escapeHTML(value == null || value === '' ? '--' : value) + '</span>' +
+    '<span class="alert-time">' + escapeHTML(timeLabel || '') + '</span>' +
+    '</div>';
+}
+
+function renderMiniMetric(label, value, detail) {
+  return '<div class="mini-card">' +
+    '<div class="value">' + escapeHTML(value == null || value === '' ? '--' : value) + '</div>' +
+    '<div class="label">' + escapeHTML(label || '') + '</div>' +
+    '<div class="sub">' + escapeHTML(detail || '') + '</div>' +
+    '</div>';
+}
+
 function renderEmptyDiagnostic(title, checks) {
   const rows = (checks || []).map(item => '<div>• ' + escapeHTML(item) + '</div>').join('');
   return '<div class="empty-diagnostic"><strong>' + escapeHTML(title || 'No data available') + '</strong>' + (rows ? '<div style="margin-top:6px;">' + rows + '</div>' : '') + '</div>';

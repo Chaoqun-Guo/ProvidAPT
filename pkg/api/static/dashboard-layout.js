@@ -307,8 +307,8 @@ function dashboardPanelSectionShortLabel(section) {
     detect: 'ALERTS',
     investigate: 'TRACE',
     respond: 'RESPOND',
-    platform: 'PLATFORM',
-    govern: 'RELEASE',
+    platform: 'FLEET',
+    govern: 'EVIDENCE',
   }[section] || 'MODULE';
 }
 
@@ -347,15 +347,15 @@ function normalizeDashboardPanels() {
 
 function dashboardSectionLabel(section) {
   return {
-    all: 'Overview: live health, alerts, response status, and platform readiness.',
-    detect: 'Alerts: rule lifecycle, triage queue, analyst labels, and detection quality.',
+    all: 'Overview: live health, open alerts, fleet posture, and next actions.',
+    detect: 'Alerts: policy rules, triage queue, analyst labels, and detection quality.',
     investigate: 'Investigate: provenance graph, event timeline, node drilldown, and reports.',
-    respond: 'Respond: case actions, notification delivery, support bundle, and recovery.',
-    platform: 'Platform: fleet health, kernel attachment, API security, storage, and runtime.',
-    govern: 'Release: compliance, SIEM, upgrade, and release evidence.',
-    operations: 'Platform: fleet health, deployment diagnostics, and posture summary.',
-    detection: 'Detect: policies, alert workflow, ground truth, and investigation.',
-    evidence: 'Respond: support bundles, backup/restore, and delivery health.',
+    respond: 'Respond: case actions, delivery health, support bundle, and recovery.',
+    platform: 'Fleet: agent health, kernel attachment, API mode, storage, and runtime.',
+    govern: 'Evidence: compliance, SIEM, upgrade, and release records.',
+    operations: 'Fleet: agent health, deployment diagnostics, and posture summary.',
+    detection: 'Alerts: policies, triage, ground truth, and investigation.',
+    evidence: 'Evidence: support bundles, backup/restore, delivery health, and release records.',
   }[section] || 'Dashboard view updated.';
 }
 
