@@ -11,7 +11,9 @@ JavaScript are embedded separately from `pkg/api/static/dashboard.css`,
 `pkg/api/static/dashboard-state.js`, `pkg/api/static/dashboard-ui.js`,
 `pkg/api/static/dashboard-layout.js`, `pkg/api/static/dashboard-loaders.js`,
 `pkg/api/static/dashboard-fleet.js`, `pkg/api/static/dashboard-policy.js`,
-`pkg/api/static/dashboard-workflow.js`, and `pkg/api/static/dashboard.js`.
+`pkg/api/static/dashboard-workflow.js`,
+`pkg/api/static/dashboard-ground-truth.js`,
+`pkg/api/static/dashboard-evidence.js`, and `pkg/api/static/dashboard.js`.
 
 The Trace Viewer shell is rendered by `pkg/api/svg.go`; its styles and
 JavaScript are embedded separately from `pkg/api/static/trace-viewer.css` and

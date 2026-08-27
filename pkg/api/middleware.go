@@ -262,6 +262,8 @@ func isPublicDashboardPath(method, path string) bool {
 		path == "/assets/dashboard-fleet.js" ||
 		path == "/assets/dashboard-policy.js" ||
 		path == "/assets/dashboard-workflow.js" ||
+		path == "/assets/dashboard-ground-truth.js" ||
+		path == "/assets/dashboard-evidence.js" ||
 		path == "/assets/dashboard.js" ||
 		path == "/assets/trace-viewer.css" || path == "/assets/trace-viewer.js"
 }

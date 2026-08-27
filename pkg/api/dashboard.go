@@ -53,6 +53,12 @@ var dashboardPolicyJS string
 //go:embed static/dashboard-workflow.js
 var dashboardWorkflowJS string
 
+//go:embed static/dashboard-ground-truth.js
+var dashboardGroundTruthJS string
+
+//go:embed static/dashboard-evidence.js
+var dashboardEvidenceJS string
+
 //go:embed static/dashboard.js
 var dashboardJS string
 
@@ -165,6 +171,18 @@ func (s *Server) handleDashboardWorkflowJS(w http.ResponseWriter, _ *http.Reques
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write([]byte(dashboardWorkflowJS))
+}
+
+func (s *Server) handleDashboardGroundTruthJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardGroundTruthJS))
+}
+
+func (s *Server) handleDashboardEvidenceJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardEvidenceJS))
 }
 
 func (s *Server) handleDashboardJS(w http.ResponseWriter, _ *http.Request) {
