@@ -1319,6 +1319,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/assets/dashboard-layout.js", s.handleDashboardLayoutJS)
 	mux.HandleFunc("/assets/dashboard-loaders.js", s.handleDashboardLoadersJS)
 	mux.HandleFunc("/assets/dashboard-fleet.js", s.handleDashboardFleetJS)
+	mux.HandleFunc("/assets/dashboard-policy.js", s.handleDashboardPolicyJS)
 	mux.HandleFunc("/assets/dashboard.js", s.handleDashboardJS)
 	mux.HandleFunc("/assets/trace-viewer.css", s.handleTraceViewerCSS)
 	mux.HandleFunc("/assets/trace-viewer.js", s.handleTraceViewerJS)

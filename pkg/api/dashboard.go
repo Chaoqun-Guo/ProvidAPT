@@ -47,6 +47,9 @@ var dashboardLoadersJS string
 //go:embed static/dashboard-fleet.js
 var dashboardFleetJS string
 
+//go:embed static/dashboard-policy.js
+var dashboardPolicyJS string
+
 //go:embed static/dashboard.js
 var dashboardJS string
 
@@ -147,6 +150,12 @@ func (s *Server) handleDashboardFleetJS(w http.ResponseWriter, _ *http.Request) 
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write([]byte(dashboardFleetJS))
+}
+
+func (s *Server) handleDashboardPolicyJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardPolicyJS))
 }
 
 func (s *Server) handleDashboardJS(w http.ResponseWriter, _ *http.Request) {

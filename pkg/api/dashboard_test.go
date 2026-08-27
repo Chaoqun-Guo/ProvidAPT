@@ -15,7 +15,7 @@ func dashboardTestSurface() string {
 	return dashboardHTML + "\n" + dashboardCSS + "\n" + dashboardResponsiveCSS + "\n" +
 		dashboardAPIJS + "\n" + dashboardStateJS + "\n" + dashboardUIJS + "\n" +
 		dashboardLayoutJS + "\n" + dashboardLoadersJS + "\n" + dashboardFleetJS + "\n" +
-		dashboardJS
+		dashboardPolicyJS + "\n" + dashboardJS
 }
 
 func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
@@ -29,6 +29,7 @@ func TestDashboardHTMLIsRenderedFromPartials(t *testing.T) {
 		"/assets/dashboard-layout.js",
 		"/assets/dashboard-loaders.js",
 		"/assets/dashboard-fleet.js",
+		"/assets/dashboard-policy.js",
 		"/assets/dashboard.js",
 	}
 	for _, item := range expectedPartials {
@@ -685,6 +686,7 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"Overview: live health",
 		"src=\"/assets/dashboard-loaders.js\"",
 		"src=\"/assets/dashboard-fleet.js\"",
+		"src=\"/assets/dashboard-policy.js\"",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
@@ -848,7 +850,7 @@ func TestDashboardAdaptivePanelDoubleClickResize(t *testing.T) {
 }
 
 func TestDashboardViewportOptimizationBreakpoints(t *testing.T) {
-	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard-state.js"`, `src="/assets/dashboard-ui.js"`, `src="/assets/dashboard-layout.js"`, `src="/assets/dashboard-loaders.js"`, `src="/assets/dashboard-fleet.js"`, `src="/assets/dashboard.js"`} {
+	for _, asset := range []string{`href="/assets/dashboard.css"`, `href="/assets/dashboard-responsive.css"`, `src="/assets/dashboard-api.js"`, `src="/assets/dashboard-state.js"`, `src="/assets/dashboard-ui.js"`, `src="/assets/dashboard-layout.js"`, `src="/assets/dashboard-loaders.js"`, `src="/assets/dashboard-fleet.js"`, `src="/assets/dashboard-policy.js"`, `src="/assets/dashboard.js"`} {
 		if !strings.Contains(dashboardHTMLDocument(), asset) {
 			t.Fatalf("dashboard should link asset %s", asset)
 		}
@@ -914,6 +916,7 @@ func TestDashboardResponsiveCSSAsset(t *testing.T) {
 		{"/assets/dashboard-layout.js", "application/javascript", "function initializePanelLayout"},
 		{"/assets/dashboard-loaders.js", "application/javascript", "async function loadStatus"},
 		{"/assets/dashboard-fleet.js", "application/javascript", "async function loadControlOverview"},
+		{"/assets/dashboard-policy.js", "application/javascript", "async function loadPolicies"},
 		{"/assets/dashboard.js", "application/javascript", "function refresh()"},
 	}
 	for _, tc := range cases {
