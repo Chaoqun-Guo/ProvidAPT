@@ -5,6 +5,7 @@ import argparse
 import json
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,8 +17,9 @@ SCHEMA = "providapt.soak_samples.v1"
 
 def load_status_from_url(url: str, timeout: float = 5.0) -> dict[str, Any]:
     request = urllib.request.Request(url)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         raise SystemExit(f"failed to fetch {url}: {exc}") from exc
@@ -81,6 +83,13 @@ def build_sample(status: dict[str, Any], started_at: float, host: str = "") -> d
     return sample
 
 
+def host_from_status_url(url: str) -> str:
+    try:
+        return urllib.parse.urlparse(url).hostname or ""
+    except ValueError:
+        return ""
+
+
 def append_sample(path: Path, sample: dict[str, Any]) -> dict[str, Any]:
     report = load_existing(path)
     report["samples"].append(sample)
@@ -109,7 +118,8 @@ def collect_samples(
         status = load_status_from_url(status_url) if status_url else json.loads(Path(status_json).read_text(encoding="utf-8-sig"))
         if not isinstance(status, dict):
             raise SystemExit("status input must be a JSON object")
-        report = append_sample(out, build_sample(status, started_at_epoch, host))
+        sample_host = host or host_from_status_url(status_url)
+        report = append_sample(out, build_sample(status, started_at_epoch, sample_host))
         if index < count - 1 and interval_seconds > 0:
             time.sleep(interval_seconds)
     return report

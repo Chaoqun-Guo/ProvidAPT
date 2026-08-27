@@ -83,6 +83,10 @@ class CollectSoakSampleTest(unittest.TestCase):
         self.assertEqual(len(report["samples"]), 3)
         self.assertEqual({sample["host"] for sample in report["samples"]}, {"vm-control"})
 
+    def test_host_from_status_url_supports_short_vm_names(self):
+        self.assertEqual(collector.host_from_status_url("http://vm-ubuntu-master:18080/api/v1/status"), "vm-ubuntu-master")
+        self.assertEqual(collector.host_from_status_url("not a url"), "")
+
 
 if __name__ == "__main__":
     unittest.main()
