@@ -6,6 +6,12 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 VERSION="${VERSION:-$(cd "$PROJECT_DIR" && git describe --tags --always 2>/dev/null || echo "dev")}"
 FORMAT="${1:-auto}"
 GO_TAGS="${GO_TAGS-bpf}"
+PACKAGE_ARCH="${PACKAGE_ARCH:-${GOARCH:-}}"
+
+package_args=("$VERSION")
+if [ -n "$PACKAGE_ARCH" ]; then
+	package_args+=("$PACKAGE_ARCH")
+fi
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -29,33 +35,33 @@ mkdir -p "$PROJECT_DIR/build/dist"
 case "$FORMAT" in
 	deb)
 		echo "[2/2] Building .deb package..."
-		bash "$SCRIPT_DIR/build_deb.sh" "$VERSION"
+		bash "$SCRIPT_DIR/build_deb.sh" "${package_args[@]}"
 		;;
 	rpm)
 		echo "[2/2] Building .rpm package..."
-		bash "$SCRIPT_DIR/build_rpm.sh" "$VERSION"
+		bash "$SCRIPT_DIR/build_rpm.sh" "${package_args[@]}"
 		;;
 	tar|tarball)
 		echo "[2/2] Building tarball..."
-		bash "$SCRIPT_DIR/build_tar.sh" "$VERSION"
+		bash "$SCRIPT_DIR/build_tar.sh" "${package_args[@]}"
 		;;
 	all)
 		echo "[2/2] Building all package formats..."
-		bash "$SCRIPT_DIR/build_deb.sh" "$VERSION" 2>&1 | sed 's/^/  [deb] /' || echo -e "  ${YELLOW}deb skipped${NC}"
-		bash "$SCRIPT_DIR/build_rpm.sh" "$VERSION" 2>&1 | sed 's/^/  [rpm] /' || echo -e "  ${YELLOW}rpm skipped${NC}"
-		bash "$SCRIPT_DIR/build_tar.sh" "$VERSION" 2>&1 | sed 's/^/  [tar] /'
+		bash "$SCRIPT_DIR/build_deb.sh" "${package_args[@]}" 2>&1 | sed 's/^/  [deb] /' || echo -e "  ${YELLOW}deb skipped${NC}"
+		bash "$SCRIPT_DIR/build_rpm.sh" "${package_args[@]}" 2>&1 | sed 's/^/  [rpm] /' || echo -e "  ${YELLOW}rpm skipped${NC}"
+		bash "$SCRIPT_DIR/build_tar.sh" "${package_args[@]}" 2>&1 | sed 's/^/  [tar] /'
 		;;
 	auto)
 		echo "[2/2] Detecting platform..."
 		if command -v dpkg-deb >/dev/null 2>&1; then
 			echo "  Platform: Debian/Ubuntu; building .deb"
-			bash "$SCRIPT_DIR/build_deb.sh" "$VERSION"
+			bash "$SCRIPT_DIR/build_deb.sh" "${package_args[@]}"
 		elif command -v rpmbuild >/dev/null 2>&1; then
 			echo "  Platform: RHEL/CentOS; building .rpm"
-			bash "$SCRIPT_DIR/build_rpm.sh" "$VERSION"
+			bash "$SCRIPT_DIR/build_rpm.sh" "${package_args[@]}"
 		else
 			echo "  Platform: unknown; building tarball"
-			bash "$SCRIPT_DIR/build_tar.sh" "$VERSION"
+			bash "$SCRIPT_DIR/build_tar.sh" "${package_args[@]}"
 		fi
 		;;
 	*)
