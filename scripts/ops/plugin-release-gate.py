@@ -106,6 +106,11 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
         failures.append("distribution.artifact_sha256 is required")
     elif artifact_sha256 and not SHA256_RE.match(artifact_sha256):
         failures.append("distribution.artifact_sha256 must be a SHA-256 hex digest")
+    signature_sha256 = str(distribution.get("signature_sha256") or "").strip() if distribution else ""
+    if distribution and not signature_sha256:
+        failures.append("distribution.signature_sha256 is required")
+    elif signature_sha256 and not SHA256_RE.match(signature_sha256):
+        failures.append("distribution.signature_sha256 must be a SHA-256 hex digest")
     artifact_value = str(distribution.get("artifact") or "").strip() if distribution else ""
     artifact_path = (manifest_path.parent / artifact_value).resolve() if artifact_value and not Path(artifact_value).is_absolute() else Path(artifact_value)
     artifact_present = bool(artifact_value and artifact_path.exists() and artifact_path.is_file())
@@ -170,6 +175,11 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
     signature_present = bool(signature_path and signature_path.exists() and signature_path.stat().st_size > 0)
     if not signature_present and not allow_unsigned:
         failures.append("plugin signature evidence is required")
+    signature_hash_matches = False
+    if signature_present and signature_sha256:
+        signature_hash_matches = sha256_file(signature_path).lower() == signature_sha256.lower()
+        if not signature_hash_matches:
+            failures.append("distribution.signature_sha256 does not match signature file")
     status = "pass" if not failures else "blocked"
     return {
         "schema": SCHEMA,
@@ -179,6 +189,8 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
         "manifest_sha256": sha256_file(manifest_path),
         "signature_path": str(signature_path) if signature_path else "",
         "signature_present": signature_present,
+        "signature_sha256": signature_sha256,
+        "signature_hash_matches": signature_hash_matches,
         "plugin": {
             "name": manifest.get("name", ""),
             "version": manifest.get("version", ""),
@@ -216,6 +228,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- ProvidAPT max version: `{report['plugin']['compatibility']['providapt_max_version'] or 'unbounded'}`",
         f"- Manifest SHA-256: `{report['manifest_sha256']}`",
         f"- Signature present: `{report['signature_present']}`",
+        f"- Signature SHA-256: `{report.get('signature_sha256') or 'missing'}`",
+        f"- Signature hash matches: `{report.get('signature_hash_matches', False)}`",
         f"- Permissions: `{json.dumps(report['plugin'].get('permissions', []), sort_keys=True)}`",
         f"- Distribution: `{json.dumps(report['plugin'].get('distribution', {}), sort_keys=True)}`",
         f"- Artifact present: `{report['plugin']['artifact']['present']}`",

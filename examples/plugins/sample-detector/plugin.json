@@ -13,7 +13,8 @@
     "channel": "signed-bundle",
     "artifact": "sample-detector-1.0.0.bundle",
     "signature_algorithm": "ed25519",
-    "artifact_sha256": "4619ebc8ad046f998e3c3399a15483d0897ee9c71c17bb5534dae203c2705b6c"
+    "artifact_sha256": "4619ebc8ad046f998e3c3399a15483d0897ee9c71c17bb5534dae203c2705b6c",
+    "signature_sha256": "88d36365608c809597ca05358f525a2180dfa20c8de6d73983407b7aa8f55868"
   },
   "compatibility_tests": [
     {

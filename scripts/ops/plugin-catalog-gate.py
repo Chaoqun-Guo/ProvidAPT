@@ -39,6 +39,8 @@ def plugin_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         "version": str(plugin.get("version") or ""),
         "type": str(plugin.get("type") or ""),
         "signature_present": bool(report.get("signature_present")),
+        "signature_sha256_present": bool(str(report.get("signature_sha256") or "").strip()),
+        "signature_hash_matches": bool(report.get("signature_hash_matches")),
         "permissions": permissions,
         "permission_count": len(permissions),
         "channel": str(distribution.get("channel") or ""),
@@ -78,6 +80,10 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             failures.append(f"{item['name'] or path}: plugin release gate is {item['status']}")
         if args.require_signatures and not item["signature_present"]:
             failures.append(f"{item['name'] or path}: signature is missing")
+        if args.require_signatures and not item["signature_sha256_present"]:
+            failures.append(f"{item['name'] or path}: signature SHA-256 evidence is missing")
+        if args.require_signatures and not item["signature_hash_matches"]:
+            failures.append(f"{item['name'] or path}: signature SHA-256 does not match")
         if args.require_permissions and item["permission_count"] <= 0:
             failures.append(f"{item['name'] or path}: permissions are missing")
         if not item["channel"] or not item["artifact"]:
@@ -104,6 +110,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "channel": item["channel"],
             "artifact": item["artifact"],
             "signed": item["signature_present"],
+            "signature_sha256_present": item["signature_sha256_present"],
+            "signature_hash_matches": item["signature_hash_matches"],
             "artifact_sha256_present": item["artifact_sha256_present"],
             "artifact_hash_matches": item["artifact_hash_matches"],
             "permissions": item["permissions"],
@@ -137,17 +145,18 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Status: `{report['status']}`",
         f"- Plugins: `{report['plugin_count']}`",
         "",
-        "| Plugin | Version | Type | Status | Signed | Permissions | Compatibility Passes | Channel | Artifact Hash | Rollback Drill |",
-        "| --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- |",
+        "| Plugin | Version | Type | Status | Signed | Signature Hash | Permissions | Compatibility Passes | Channel | Artifact Hash | Rollback Drill |",
+        "| --- | --- | --- | --- | --- | --- | ---: | ---: | --- | --- | --- |",
     ]
     for item in report["plugins"]:
         lines.append(
-            "| {name} | {version} | {type} | {status} | {signed} | {permission_count} | {compatibility_pass_count} | {channel} | {artifact_hash} | {rollback_drill} |".format(
+            "| {name} | {version} | {type} | {status} | {signed} | {signature_hash} | {permission_count} | {compatibility_pass_count} | {channel} | {artifact_hash} | {rollback_drill} |".format(
                 name=escape_cell(item["name"]),
                 version=escape_cell(item["version"]),
                 type=escape_cell(item["type"]),
                 status=escape_cell(item["status"]),
                 signed=str(item["signature_present"]).lower(),
+                signature_hash="match" if item["signature_hash_matches"] else "missing",
                 permission_count=item["permission_count"],
                 compatibility_pass_count=item["compatibility_pass_count"],
                 channel=escape_cell(item["channel"]),
@@ -166,20 +175,21 @@ def render_markdown(report: dict[str, Any]) -> str:
             "",
             "## Distribution Catalog",
             "",
-            "| Plugin | Channel | Artifact | Signed | Permissions | Compatibility | Rollback Drill |",
-            "| --- | --- | --- | --- | --- | --- | --- |",
+            "| Plugin | Channel | Artifact | Signed | Signature Hash | Permissions | Compatibility | Rollback Drill |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ])
         for item in report["distribution_catalog"]:
             compatibility = item["providapt_min_version"]
             if item["providapt_max_version"]:
                 compatibility += "..." + item["providapt_max_version"]
             lines.append(
-                "| {name}:{version} | {channel} | {artifact} | {signed} | {permissions} | {compatibility} | {rollback} |".format(
+                "| {name}:{version} | {channel} | {artifact} | {signed} | {signature_hash} | {permissions} | {compatibility} | {rollback} |".format(
                     name=escape_cell(item["name"]),
                     version=escape_cell(item["version"]),
                     channel=escape_cell(item["channel"]),
                     artifact=escape_cell(item["artifact"]),
                     signed=str(item["signed"]).lower(),
+                    signature_hash="match" if item["signature_hash_matches"] else "missing",
                     permissions=escape_cell(", ".join(item["permissions"])),
                     compatibility=escape_cell(compatibility or "unbounded"),
                     rollback=escape_cell(item["rollback_drill_status"] or "missing"),

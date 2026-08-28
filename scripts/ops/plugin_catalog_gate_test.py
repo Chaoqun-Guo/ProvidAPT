@@ -29,6 +29,8 @@ class PluginCatalogGateTest(unittest.TestCase):
         path.write_text(json.dumps({
             "status": status,
             "signature_present": True,
+            "signature_sha256": "1" * 64,
+            "signature_hash_matches": True,
             "plugin": {
                 "name": plugin_name,
                 "version": version,
@@ -67,6 +69,7 @@ class PluginCatalogGateTest(unittest.TestCase):
         self.assertEqual(report["plugins"][0]["rollback_drill_status"], "pass")
         self.assertEqual(report["distribution_catalog"][0]["channel"], "signed-bundle")
         self.assertTrue(report["distribution_catalog"][0]["signed"])
+        self.assertTrue(report["distribution_catalog"][0]["signature_hash_matches"])
         self.assertIn("alerts:write", report["distribution_catalog"][0]["permissions"])
         rendered = subject.render_markdown(report)
         self.assertIn("Plugin Catalog Gate", rendered)
@@ -90,6 +93,8 @@ class PluginCatalogGateTest(unittest.TestCase):
         path.write_text(json.dumps({
             "status": "pass",
             "signature_present": True,
+            "signature_sha256": "",
+            "signature_hash_matches": False,
             "plugin": {
                 "name": "weak",
                 "version": "1.0.0",
@@ -108,6 +113,8 @@ class PluginCatalogGateTest(unittest.TestCase):
         failures = "\n".join(report["failures"])
         self.assertEqual(report["status"], "blocked")
         self.assertIn("artifact SHA-256 evidence is missing", failures)
+        self.assertIn("signature SHA-256 evidence is missing", failures)
+        self.assertIn("signature SHA-256 does not match", failures)
         self.assertIn("compatibility pass evidence is missing", failures)
         self.assertIn("rollback drill did not pass", failures)
         self.assertIn("rollback drill does not cover all steps", failures)
