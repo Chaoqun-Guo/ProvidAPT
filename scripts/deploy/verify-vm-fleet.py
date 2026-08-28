@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -44,6 +45,30 @@ def load_json_url(base_url: str, path: str) -> dict[str, Any]:
     return data
 
 
+def dashboard_script_paths(html: str) -> list[str]:
+    paths: list[str] = []
+    for match in re.finditer(r"""<script[^>]+src=["']([^"']+)["']""", html, re.IGNORECASE):
+        path = match.group(1)
+        if path.startswith("/assets/dashboard") and path.endswith(".js") and path not in paths:
+            paths.append(path)
+    return paths
+
+
+def load_dashboard_assets(base_url: str, html_body: bytes, failures: list[str]) -> str:
+    html = html_body.decode("utf-8", errors="replace")
+    assets = [html]
+    script_paths = dashboard_script_paths(html)
+    if not script_paths:
+        failures.append("dashboard did not declare dashboard JavaScript assets")
+    for path in script_paths:
+        status, body, _ = fetch(base_url.rstrip("/") + path)
+        if status != 200:
+            failures.append(f"{path} returned HTTP {status}")
+            continue
+        assets.append(body.decode("utf-8", errors="replace"))
+    return "\n".join(assets)
+
+
 def report_age(agent: dict[str, Any], default: int = 999999) -> int:
     value = agent.get("last_report_age_seconds")
     if value is None or value == "":
@@ -82,12 +107,7 @@ def verify(base_url: str, args: argparse.Namespace) -> dict[str, Any]:
     html_status, html_body, _ = fetch(base_url.rstrip("/") + "/dashboard")
     if html_status != 200:
         failures.append(f"dashboard returned HTTP {html_status}")
-    dashboard_assets = html_body.decode("utf-8", errors="replace")
-    js_status, js_body, _ = fetch(base_url.rstrip("/") + "/assets/dashboard.js")
-    if js_status != 200:
-        failures.append(f"dashboard.js returned HTTP {js_status}")
-    else:
-        dashboard_assets += "\n" + js_body.decode("utf-8", errors="replace")
+    dashboard_assets = load_dashboard_assets(base_url, html_body, failures)
     missing_markers = [marker for marker in args.dashboard_markers if marker not in dashboard_assets]
     if missing_markers:
         failures.append("dashboard missing markers: " + ", ".join(missing_markers))

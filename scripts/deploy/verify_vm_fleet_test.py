@@ -35,8 +35,10 @@ class VerifyVMFleetTest(unittest.TestCase):
 
         def fake_fetch(url, timeout=10.0):
             if url.endswith("/dashboard"):
-                return 200, b"<html><script src=\"/assets/dashboard.js\"></script></html>", "text/html"
+                return 200, b"<html><script src=\"/assets/dashboard.js\"></script><script src=\"/assets/dashboard-graph.js\"></script></html>", "text/html"
             if url.endswith("/assets/dashboard.js"):
+                return 200, b"refresh", "application/javascript"
+            if url.endswith("/assets/dashboard-graph.js"):
                 return 200, b"graphSubsetForCluster exportClusterSubset openGraphTrace graph-cluster-actions", "application/javascript"
             raise AssertionError(url)
 
@@ -83,6 +85,10 @@ class VerifyVMFleetTest(unittest.TestCase):
     def test_report_age_preserves_zero(self):
         self.assertEqual(verify_vm.report_age({"last_report_age_seconds": 0}), 0)
         self.assertEqual(verify_vm.report_age({"last_report_age_seconds": ""}, default=7), 7)
+
+    def test_dashboard_script_paths_finds_split_assets(self):
+        html = '<script src="/assets/dashboard-api.js"></script><script src="/assets/dashboard-graph.js"></script><script src="/assets/trace-viewer.js"></script>'
+        self.assertEqual(verify_vm.dashboard_script_paths(html), ["/assets/dashboard-api.js", "/assets/dashboard-graph.js"])
 
     def test_fetch_disables_proxy_handlers_for_tailnet_hosts(self):
         class FakeResponse:
