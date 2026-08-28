@@ -84,6 +84,7 @@ watchdog
 /build/customer-certification/
 /build/deploy/
 /build/evaluation/
+/build/handoff/
 /build/host-bin/
 /build/onboarding/
 /build/open-source-readiness/
