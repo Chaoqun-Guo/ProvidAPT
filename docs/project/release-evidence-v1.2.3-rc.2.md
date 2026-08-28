@@ -11,9 +11,10 @@ release candidate.
 | --- | --- |
 | Release tag | `v1.2.3-rc.2` |
 | Commit SHA | `666fee21f1cf4bc665f8e8dbc539fb8e903cf20f` |
-| Build date | `2026-08-28T03:31:02Z` |
+| Build date | `2026-08-28T08:28:43Z` |
 | Build type | Open-source control plane |
 | Authentication mode | No API key, license key, or activation workflow |
+| eBPF build source | Ubuntu Linux VM builder with kernel BTF/vmlinux.h |
 
 ## Validation Evidence
 
@@ -28,6 +29,7 @@ release candidate.
 | SBOM generation | `pass` | SPDX and CycloneDX SBOMs generated |
 | Release readiness | `pass` | 16 checks passed, 0 warnings, 0 failures |
 | Handoff bundle | `pass` | Candidate handoff zip references current release and commit |
+| eBPF artifact coverage | `pass` | Archive, Debian, and RPM packages include 6 `.bpf.o` objects |
 
 ## Artifact Matrix
 
@@ -48,13 +50,24 @@ release candidate.
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `providapt_v1.2.3-rc.2_amd64.deb` | `8b74a10fdde1b510720438da556ff4f2bc87cfa020c2fd88ee2f777bfa6a1f06` |
-| `providapt-1.2.3-rc.2.x86_64.rpm` | `30e1290fb049ee3652842048c9e0384fbd79631f75688e3aa0696206d5313505` |
-| `providapt-helm-v1.2.3-rc.2.tgz` | `b87b23cff84eecacd9ff69f0ea2a5a3ef66509b5b81cda5ee5acb0885d4c7734` |
-| `providapt-monitoring-v1.2.3-rc.2.tgz` | `448629bffef22c7e751dee004ab3a6d047362573ed6c3d396c009ba90ee6b424` |
-| `providapt-v1.2.3-rc.2-linux-amd64.tar.gz` | `831ba62756b24b97d57d0e1db1fbe00ce2f1cfc613d91b6307dbbfd22482c8e7` |
-| `sbom.cdx.json` | `c470605e38ab112b76f5879bddcc4f0f7d2f4942cb414613882cc59d33a505ae` |
-| `sbom.spdx.json` | `31eb1678a53e3d5991b2f5d95630c81d3f4f0e43577556070212d2f9ac683d28` |
+| `providapt_v1.2.3-rc.2_amd64.deb` | `5e49a6b6db0efe91e535cf0e4fae7e33ca5a312b56dc1a35cd1fb122c6e50936` |
+| `providapt-1.2.3-rc.2.x86_64.rpm` | `818e7e171a8bb95dbf7e619433b736454345fdfa2d5a81006370bbffe703dc02` |
+| `providapt-helm-v1.2.3-rc.2.tgz` | `7741c4eb44dd0fadcf1a3528559ba5adb32326d029f2363f78c87db787363ed4` |
+| `providapt-monitoring-v1.2.3-rc.2.tgz` | `2a3dbde304a6a067d83fb453447e114131354da18769a2aa8eaa3d96f9b0ae6c` |
+| `providapt-v1.2.3-rc.2-linux-amd64.tar.gz` | `f84cb132c3df8fd5e210d226d0ca8e149b7852d2bf964e1cc1e98e9a50371385` |
+| `sbom.cdx.json` | `e390ba98458d8014e7a052fc9a748cc40eeb61dc249f3e5c38d29e45a54bd0b2` |
+| `sbom.spdx.json` | `f4387ccd07fea4576f562cbac68f5cd9343af425d4ecc38da422df95cba6a9e5` |
+
+## eBPF Object Hashes
+
+| Object | SHA-256 |
+| --- | --- |
+| `deception.bpf.o` | `97cec35deaa3bd69c04b071a2b12b47ecab8c5536add0b805367337519b41fc0` |
+| `defense.bpf.o` | `e017be89e32a812ba4e95f58cd4580264ee2c6914a76e8fa2edf2e74b0231015` |
+| `kprobe_fallback.bpf.o` | `333e2c2e999a25ce7edff9b5f69b43699ddcc46f6b3bb4dff0280719e4f93e83` |
+| `lsm_hooks.bpf.o` | `f7ffa0f4dc27c8d97bfe0a8590f1835148af70f626a22f010f4779bb40b8d6ba` |
+| `memory.bpf.o` | `59263a3bb35d3420cabf580f7b81eb283d923495198b5d77724d961159b98b46` |
+| `network.bpf.o` | `d367ffe097765d3be58f3ed737f0661fa3bbcfcdb6801652e75b30f9020c8920` |
 
 ## Release Notes
 
@@ -68,10 +81,6 @@ release candidate.
 
 ## Remaining Candidate Limitations
 
-- Local candidate artifacts were generated without rebuilding eBPF objects
-  because the macOS release host lacks a Linux BTF/vmlinux.h build environment.
-  The final immutable release should rebuild eBPF objects on a Linux builder or
-  CI runner before publication.
 - Product, Security, Legal, Support, and Maintainer approvals still need named
   reviewer signoff before final `v1.2.3`.
 - Model lifecycle evidence still requires real long-window baseline, drift
