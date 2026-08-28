@@ -155,7 +155,7 @@ function openGraphFullscreen() {
   openProtectedEndpoint('/api/v1/graph/export', 'providapt-graph.json');
   openDetailDrawer('Graph Fullscreen', 'Opened graph JSON in a new tab', [
     renderKVItem('primary view', '/api/v1/graph/export', 'new tab'),
-    renderKVItem('next step', 'Use Graph Nodes or Attack Route Map to reduce clutter before opening node traces.', 'workflow'),
+    renderKVItem('next step', 'Use Nodes or Route Map to reduce clutter before opening node traces.', 'workflow'),
   ].join(''));
 }
 
@@ -182,7 +182,7 @@ async function showAttackRouteMap() {
     });
     clusters.forEach(cluster => items.push('<div class="alert-item"><span class="alert-sev sev-medium">cluster</span><span class="alert-msg">' + escapeHTML(cluster.key) + ' · ' + cluster.nodes + ' nodes · ' + cluster.edges + ' edges<span class="graph-cluster-actions"><button onclick="collapseGraphCluster(\'' + jsString(cluster.key) + '\')">Inspect</button></span></span><span class="alert-time">group</span></div>'));
     setInvestigationItems(items, 'No attack route topology available');
-    openDetailDrawer('Attack Route Map', 'Topology summary with directed cause/impact actions', items.join(''));
+    openDetailDrawer('Route Map', 'Topology summary with directed cause/impact actions', items.join(''));
   } catch (e) {
     setInvestigationLoading('Attack route map unavailable: ' + e.message);
   }

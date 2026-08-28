@@ -4,7 +4,7 @@ async function loadStatus() {
     const data = await fetchJSON('/api/v1/status');
     latestStatus = data || {};
     currentRole = (data.role || 'admin').toLowerCase();
-    document.getElementById('roleInfo').textContent = 'Role: ' + currentRole;
+    document.getElementById('roleInfo').textContent = 'Mode: ' + currentRole;
     const deliveryAdmin = currentRole === 'admin';
     const replayAllBtn = document.getElementById('replayAllBtn');
     const createAllTicketsBtn = document.getElementById('createAllTicketsBtn');

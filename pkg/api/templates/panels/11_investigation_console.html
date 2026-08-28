@@ -2,19 +2,19 @@
     <h2>Investigation Console</h2>
     <div class="panel-body">
       <div class="console-toolbar">
-        <button onclick="showGraphSummary('nodes')">Graph Nodes</button>
-        <button onclick="showGraphSummary('edges')">Graph Edges</button>
-        <button onclick="showRecentEvents()">Recent Events</button>
-        <button onclick="showDroppedEvents()">Dropped Events</button>
+        <button onclick="showGraphSummary('nodes')">Nodes</button>
+        <button onclick="showGraphSummary('edges')">Edges</button>
+        <button onclick="showRecentEvents()">Events</button>
+        <button onclick="showDroppedEvents()">Dropped</button>
         <button onclick="showRuntimeDetails('runtime')">Runtime</button>
-        <button onclick="openProtectedEndpoint('/api/v1/graph/export', 'providapt-graph.json')">Export Graph JSON</button>
-        <button class="secondary" onclick="openGraphFullscreen()">Open Graph Fullscreen</button>
-        <button class="secondary" onclick="showAttackRouteMap()">Attack Route Map</button>
+        <button onclick="showAttackRouteMap()">Route Map</button>
+        <button class="secondary" onclick="openProtectedEndpoint('/api/v1/graph/export', 'providapt-graph.json')">Export</button>
+        <button class="secondary" onclick="openGraphFullscreen()">Raw Graph</button>
       </div>
       <div class="policy-editor wide" style="margin-bottom:8px;">
         <input id="investigationNodeInput" placeholder="PID or node ID for investigation report">
-        <button class="secondary" onclick="showInvestigationReport()">Preview Report</button>
-        <button class="secondary" onclick="downloadInvestigationReport()">Download Markdown</button>
+        <button class="secondary" onclick="showInvestigationReport()">Preview</button>
+        <button class="secondary" onclick="downloadInvestigationReport()">Download</button>
       </div>
       <div class="alerts-list" id="investigationList">
         <div class="loading">Click a metric or action to inspect filtered data.</div>

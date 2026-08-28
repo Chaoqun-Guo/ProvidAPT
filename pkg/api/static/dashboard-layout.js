@@ -347,10 +347,10 @@ function normalizeDashboardPanels() {
 
 function dashboardSectionLabel(section) {
   return {
-    all: 'Overview: live health, open alerts, fleet posture, and next actions.',
-    detect: 'Alerts: policy rules, triage queue, analyst labels, and detection quality.',
-    investigate: 'Investigate: provenance graph, event timeline, node drilldown, and reports.',
-    respond: 'Respond: case actions, delivery health, support bundle, and recovery.',
+    all: 'Today: open alerts, trace shortcuts, fleet health, and next actions.',
+    detect: 'Triage: rules, alert queue, analyst labels, and detection quality.',
+    investigate: 'Trace: provenance graph, event timeline, node drilldown, and reports.',
+    respond: 'Act: case actions, delivery health, support bundle, and recovery.',
     platform: 'Fleet: agent health, kernel attachment, API mode, storage, and runtime.',
     govern: 'Evidence: compliance, SIEM, upgrade, and release records.',
     operations: 'Fleet: agent health, deployment diagnostics, and posture summary.',

@@ -142,7 +142,7 @@ async function showRuntimeDetails(scope) {
     const status = await fetchJSON('/api/v1/status');
     const health = await fetchJSONAnyStatus('/health');
     const items = [
-      '<div class="alert-item"><span class="alert-sev sev-medium">status</span><span class="alert-msg">State: ' + escapeHTML(lastStatus) + ' · Role: ' + escapeHTML(currentRole) + '</span><span class="alert-time">' + escapeHTML(scope) + '</span></div>',
+      '<div class="alert-item"><span class="alert-sev sev-medium">status</span><span class="alert-msg">State: ' + escapeHTML(lastStatus) + ' · Mode: ' + escapeHTML(currentRole) + '</span><span class="alert-time">' + escapeHTML(scope) + '</span></div>',
       '<div class="alert-item"><span class="alert-sev sev-low">api</span><span class="alert-msg">Version: ' + escapeHTML(status.version || '--') + ' · Build: ' + escapeHTML(status.build || '--') + '</span><span class="alert-time">status</span></div>',
       '<div class="alert-item"><span class="alert-sev sev-low">health</span><span class="alert-msg">' + escapeHTML(JSON.stringify(health).slice(0, 220)) + '</span><span class="alert-time">health</span></div>',
     ];

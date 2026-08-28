@@ -35,20 +35,20 @@
       <div class="workflow-filter-summary" id="workflowFilterSummary">Showing latest workflow alerts.</div>
       <div class="workflow-layout">
         <div class="workflow-column">
-          <div class="workflow-section-title">Active Queue</div>
+          <div class="workflow-section-title">Queue</div>
           <div class="alerts-list" id="workflowAlertsList">
             <div class="loading">Loading workflow alerts...</div>
           </div>
           <div class="action-row">
-            <button data-module="alert-workflow" data-module-action="bulk-close" class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Filtered Batch</button>
-            <button data-module="alert-workflow" data-module-action="bulk-silence" class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Filtered Batch</button>
+            <button data-module="alert-workflow" data-module-action="bulk-close" class="secondary" onclick="runAlertWorkflowBulkAction('close')">Close Batch</button>
+            <button data-module="alert-workflow" data-module-action="bulk-silence" class="secondary" onclick="runAlertWorkflowBulkAction('silence')">Silence Batch</button>
             <button class="secondary" onclick="showAlertQuality()">Quality</button>
-            <button class="secondary" onclick="downloadAlertQuality()">Export Quality Summary</button>
-            <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback Ledger</button>
+            <button class="secondary" onclick="downloadAlertQuality()">Export</button>
+            <button class="secondary" onclick="openAlertFeedbackLedger()">Feedback</button>
           </div>
         </div>
         <div class="workflow-column">
-          <div class="workflow-section-title">Recent Actions</div>
+          <div class="workflow-section-title">History</div>
           <div class="alerts-list workflow-history-list" id="workflowHistoryList">
             <div class="loading">Loading workflow actions...</div>
           </div>

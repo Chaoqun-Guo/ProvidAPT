@@ -13,10 +13,10 @@
   <div class="platform-brand">
     <div class="platform-title-row">
       <h1>ProvidAPT</h1>
-      <div class="role-info" id="roleInfo">Role: --</div>
+      <div class="role-info" id="roleInfo">Mode: --</div>
     </div>
     <div class="platform-meta">
-      <div class="subtitle">Monitor · Investigate · Respond</div>
+      <div class="subtitle">Triage · Trace · Act</div>
       <span class="platform-action-status" id="actionStatus">Open-source build ready</span>
     </div>
   </div>
@@ -38,14 +38,14 @@
 
 <nav class="workspace-nav" aria-label="Dashboard workspace navigation">
   <div class="workspace-tabs" role="tablist" aria-label="Dashboard sections">
-    <button data-dashboard-section="all" onclick="switchDashboardSection('all')">Overview</button>
-    <button data-dashboard-section="detect" onclick="switchDashboardSection('detect')">Alerts</button>
-    <button data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')">Investigate</button>
-    <button data-dashboard-section="respond" onclick="switchDashboardSection('respond')">Respond</button>
+    <button data-dashboard-section="all" onclick="switchDashboardSection('all')">Today</button>
+    <button data-dashboard-section="detect" onclick="switchDashboardSection('detect')">Triage</button>
+    <button data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')">Trace</button>
+    <button data-dashboard-section="respond" onclick="switchDashboardSection('respond')">Act</button>
     <button data-dashboard-section="platform" onclick="switchDashboardSection('platform')">Fleet</button>
     <button data-dashboard-section="govern" onclick="switchDashboardSection('govern')">Evidence</button>
   </div>
-  <div class="workspace-hint" id="workspaceHint">Overview: live health, open alerts, fleet posture, and next actions.</div>
+  <div class="workspace-hint" id="workspaceHint">Today: open alerts, trace shortcuts, fleet health, and next actions.</div>
   <details class="workspace-view-menu">
     <summary>View</summary>
     <div class="workspace-tools" aria-label="Dashboard view controls">
@@ -66,18 +66,18 @@
 
 <div class="dashboard-shell">
 <aside class="dashboard-sidebar" aria-label="Security operations navigation">
-  <div class="sidebar-title">Workflow</div>
-  <div class="sidebar-subtitle">Start with alerts, then investigate, respond, and archive evidence.</div>
-  <div class="sidebar-section">Daily Queue</div>
+  <div class="sidebar-title">Duty Flow</div>
+  <div class="sidebar-subtitle">Start with the queue, trace impact, then act or archive.</div>
+  <div class="sidebar-section">Daily Work</div>
   <div class="sidebar-nav primary-workflow" role="tablist" aria-label="Primary dashboard sections">
-    <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Overview</span><span>All</span></button>
-    <button class="sidebar-button" data-dashboard-section="detect" onclick="switchDashboardSection('detect')"><span>Alerts</span><span>Triage</span></button>
-    <button class="sidebar-button" data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')"><span>Investigate</span><span>Trace</span></button>
+    <button class="sidebar-button" data-dashboard-section="all" onclick="switchDashboardSection('all')"><span>Today</span><span>Queue</span></button>
+    <button class="sidebar-button" data-dashboard-section="detect" onclick="switchDashboardSection('detect')"><span>Triage</span><span>Alerts</span></button>
+    <button class="sidebar-button" data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')"><span>Trace</span><span>Impact</span></button>
     <button class="sidebar-button" data-dashboard-section="platform" onclick="switchDashboardSection('platform')"><span>Fleet</span><span>Health</span></button>
   </div>
   <div class="sidebar-section">Evidence</div>
   <div class="sidebar-nav secondary-workflow" role="tablist" aria-label="Secondary evidence and operations sections">
-    <button class="sidebar-button" data-dashboard-section="respond" onclick="switchDashboardSection('respond')"><span>Response</span><span>Bundles</span></button>
+    <button class="sidebar-button" data-dashboard-section="respond" onclick="switchDashboardSection('respond')"><span>Act</span><span>Recover</span></button>
     <button class="sidebar-button" data-dashboard-section="govern" onclick="switchDashboardSection('govern')"><span>Evidence</span><span>Release</span></button>
   </div>
   <div class="sidebar-section">Live Status</div>
