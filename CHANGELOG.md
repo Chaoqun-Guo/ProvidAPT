@@ -60,8 +60,8 @@ All notable changes to ProvidAPT are documented here.
 
 ### Added
 
-- Commercial control-plane workflows for fleet management, RBAC, policy operations, alert workflow, support bundle export, license validation, and upgrade preflight
-- Persistent audit coverage for support, policy, alert, fleet, license, and upgrade actions
+- Open-source control-plane workflows for fleet management, RBAC, policy operations, alert workflow, support bundle export, and upgrade preflight
+- Persistent audit coverage for support, policy, alert, fleet, and upgrade actions
 - Release-scoped project documentation, including project layout and release consistency evidence
 
 ### Changed

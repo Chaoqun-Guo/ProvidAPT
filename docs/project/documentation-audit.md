@@ -13,11 +13,13 @@ This file groups the current documentation by audience and purpose.
 ## Legal and Governance
 
 - `LICENSE`
-- `DPA.md`
 - `SECURITY.md`
 - `CLA.md`
 - `CODE_OF_CONDUCT.md`
 - `CONTRIBUTING.md`
+- `DPA.md` is retained as optional privacy review material for deployments
+  that need a processor-style data protection attachment; it is not required
+  to use or publish the open-source project.
 
 ## User Documentation
 
@@ -95,12 +97,12 @@ This file groups the current documentation by audience and purpose.
 4. `docs/architecture/INDEX.md`
 5. `docs/project/INDEX.md`
 
-### Procurement / Legal Review
+### Open-Source Legal Review
 
 1. `LICENSE`
-2. `DPA.md`
-3. `PRIVACY.md`
-4. `SECURITY.md`
+2. `PRIVACY.md`
+3. `SECURITY.md`
+4. `docs/project/third-party-notices.md`
 5. `docs/project/release-approval-record.md`
 
 ## Maintenance Notes

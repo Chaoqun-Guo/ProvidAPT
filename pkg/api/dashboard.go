@@ -74,6 +74,9 @@ var dashboardGraphJS string
 //go:embed static/dashboard-runtime.js
 var dashboardRuntimeJS string
 
+//go:embed static/dashboard-operations.js
+var dashboardOperationsJS string
+
 //go:embed static/dashboard.js
 var dashboardJS string
 
@@ -228,6 +231,12 @@ func (s *Server) handleDashboardRuntimeJS(w http.ResponseWriter, _ *http.Request
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write([]byte(dashboardRuntimeJS))
+}
+
+func (s *Server) handleDashboardOperationsJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write([]byte(dashboardOperationsJS))
 }
 
 func (s *Server) handleDashboardJS(w http.ResponseWriter, _ *http.Request) {

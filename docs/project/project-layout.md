@@ -52,8 +52,8 @@ Use `.tmp-*` for short-lived test scratch directories.
 Keep only the following document classes at repository root:
 
 - product entry points such as `README.md` and `CHANGELOG.md`
-- legal and governance documents such as `LICENSE`, `DPA.md`,
-  `PRIVACY.md`, `SECURITY.md`, `CLA.md`, `CODE_OF_CONDUCT.md`, and
+- legal and governance documents such as `LICENSE`, `PRIVACY.md`,
+  `SECURITY.md`, `CLA.md`, `CODE_OF_CONDUCT.md`, and
   `CONTRIBUTING.md`
 
 All new long-form documentation, progress records, release evidence, and

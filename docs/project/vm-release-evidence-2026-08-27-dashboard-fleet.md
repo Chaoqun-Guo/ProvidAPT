@@ -57,4 +57,4 @@ evidence note. All four layouts passed for each alert; latency p95 was
   `dashboard-fleet.js`.
 - The main Dashboard script is reduced to 2302 lines after the fleet split.
 - VM validation confirms the new asset route is public in the open-source
-  control plane and does not reintroduce API key prompts.
+  control plane and does not reintroduce legacy closed-source access prompts.

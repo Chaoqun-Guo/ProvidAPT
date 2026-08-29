@@ -41,13 +41,11 @@
     <button data-dashboard-section="all" onclick="switchDashboardSection('all')">Today</button>
     <button data-dashboard-section="detect" onclick="switchDashboardSection('detect')">Triage</button>
     <button data-dashboard-section="investigate" onclick="switchDashboardSection('investigate')">Trace</button>
-    <button data-dashboard-section="respond" onclick="switchDashboardSection('respond')">Act</button>
     <button data-dashboard-section="platform" onclick="switchDashboardSection('platform')">Fleet</button>
-    <button data-dashboard-section="govern" onclick="switchDashboardSection('govern')">Evidence</button>
   </div>
   <div class="workspace-hint" id="workspaceHint">Today: open alerts, trace shortcuts, fleet health, and next actions.</div>
   <details class="workspace-view-menu">
-    <summary>View</summary>
+    <summary>Tools</summary>
     <div class="workspace-tools" aria-label="Dashboard view controls">
       <span>Density</span>
       <button onclick="setDashboardDensity('compact')">Compact</button>
@@ -124,6 +122,7 @@
 <script src="/assets/dashboard-evidence.js" defer></script>
 <script src="/assets/dashboard-graph.js" defer></script>
 <script src="/assets/dashboard-runtime.js" defer></script>
+<script src="/assets/dashboard-operations.js" defer></script>
 <script src="/assets/dashboard.js" defer></script>
 </body>
 </html>

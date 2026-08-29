@@ -394,6 +394,7 @@ header .subtitle, .role-info, .refresh-info, .workspace-hint {
 }
 
 .agent-actions button, .fleet-toolbar button, .action-row button, .delivery-inline-actions button, .workflow-filter-bar button,
+.ground-truth-toolbar button, .workspace-view-menu summary {
   border-radius: 999px;
   border: 1px solid rgba(88, 166, 255, 0.28);
   background: linear-gradient(180deg, rgba(17, 34, 58, 0.92), rgba(8, 18, 33, 0.92));
@@ -409,8 +410,10 @@ header .subtitle, .role-info, .refresh-info, .workspace-hint {
 .delivery-inline-actions button.secondary, .action-row button.secondary {
   background: linear-gradient(180deg, rgba(31, 45, 68, 0.95), rgba(13, 24, 42, 0.94));
 }
+.workspace-tools {
   background: rgba(7, 16, 30, 0.72);
 }
+.status-badge.healthy .status-dot {
   color: var(--ids-green);
 }
 
@@ -462,6 +465,9 @@ header .subtitle, .role-info, .refresh-info, .workspace-hint {
   color: var(--ids-text);
 }
 
+input,
+select,
+textarea {
   background: rgba(3, 8, 18, 0.72) !important;
   color: var(--ids-text) !important;
   border-color: rgba(88, 166, 255, 0.24) !important;
@@ -580,6 +586,7 @@ header.platform-header {
 .workflow-filter-bar button,
 .ground-truth-toolbar button,
 .detail-drawer button,
+.workspace-view-menu summary {
   min-height: var(--control-height);
   height: var(--control-height);
   min-width: 88px;
@@ -881,6 +888,7 @@ textarea {
 .compact-input-grid input,
 .policy-editor input,
 .policy-editor textarea,
+.policy-editor select {
   min-height: var(--control-height);
   font-size: 12px;
 }
@@ -983,7 +991,7 @@ body.panel-resize-active {
   .workspace-tabs button,
   .workspace-tools button,
   .platform-button,
-    .console-toolbar button,
+  .console-toolbar button,
   .fleet-toolbar button,
   .action-row button,
   .workflow-filter-bar button,
@@ -991,9 +999,20 @@ body.panel-resize-active {
     flex: 1 1 120px;
     min-width: 0;
   }
-      width: 100%;
+  .workspace-view-menu {
+    width: 100%;
   }
-      flex: 1 1 120px;
+  .workspace-view-menu summary {
+    width: 100%;
+  }
+  .workspace-tools {
+    left: 0;
+    right: auto;
+    width: min(100%, calc(100vw - 24px));
+    grid-template-columns: 1fr;
+  }
+  .workspace-tools button {
+    flex: 1 1 120px;
     width: auto;
     max-width: none;
   }
@@ -2208,9 +2227,14 @@ body::after {
 
 .workspace-tools {
   opacity: 0.82;
+  position: fixed;
+  top: 104px;
+  right: 18px;
   width: min(430px, calc(100vw - 36px));
+  max-height: min(460px, calc(100vh - 122px));
+  overflow: auto;
   grid-template-columns: 72px repeat(3, minmax(94px, 1fr));
-  z-index: 150;
+  z-index: 220;
 }
 
 .workspace-tools button {
@@ -2624,7 +2648,10 @@ button[data-action-kind="warning"],
   }
 
   .workspace-tools {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    top: 112px;
+    right: 12px;
+    width: calc(100vw - 24px);
+    grid-template-columns: 1fr;
   }
 
   .sidebar-nav,

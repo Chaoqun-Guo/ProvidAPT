@@ -13,7 +13,8 @@ release candidate.
 | Commit SHA | `666fee21f1cf4bc665f8e8dbc539fb8e903cf20f` |
 | Build date | `2026-08-28T08:28:43Z` |
 | Build type | Open-source control plane |
-| Authentication mode | No API key, license key, or activation workflow |
+| GitHub release | <https://github.com/Chaoqun-Guo/ProvidAPT/releases/tag/v1.2.3-rc.2> |
+| Control-plane mode | Open-source build with legacy closed-source access gates removed |
 | eBPF build source | Ubuntu Linux VM builder with kernel BTF/vmlinux.h |
 
 ## Validation Evidence
@@ -22,7 +23,7 @@ release candidate.
 | --- | --- | --- |
 | Dashboard duty flow | `pass` | `docs/project/vm-release-evidence-2026-08-28-dashboard-duty-flow.md` |
 | VM fleet health | `pass` | 3 healthy agents, expected commit verified |
-| Open-source residue | `pass` | No API key/auth/activation residue found on VM fleet |
+| Open-source residue | `pass` | No legacy closed-source access-gate residue found on VM fleet |
 | Browser visual baseline | `pass` | Dashboard and Trace Viewer, 8/8 screenshot matrix |
 | Release security scans | `pass` | `docs/project/release-security-scan-summary-v1.2.3-rc.2.md` |
 | Artifact signing | `pass` | `checksums.txt` signed with ProvidAPT Ed25519 signature format |
@@ -74,8 +75,8 @@ release candidate.
 - Dashboard operator path was simplified to `Today -> Triage -> Trace -> Act`.
 - Low-frequency release, backup, upgrade, and compliance evidence remains in
   secondary workspaces.
-- The open-source control plane has no Dashboard API key prompt, activation
-  server flow, license key flow, or local API policy denial banner.
+- The open-source control plane has no legacy closed-source access gate, product
+  gating flow, or removed access-denial banner.
 - The VM browser baseline passed at mobile, 1366x768, 1920x1080, and ultrawide
   viewport sizes.
 

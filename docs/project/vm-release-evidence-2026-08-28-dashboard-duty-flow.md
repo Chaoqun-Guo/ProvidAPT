@@ -8,7 +8,7 @@ browser screenshot baseline for the open-source build.
 - Commit: `30cddab5d48ae79c5d080ef734f49fe98810d79e`
 - Version string: `v1.2.2-305-g30cddab`
 - Environment: three-node VM fleet over private overlay networking
-- Build type: open-source control plane, no API key or activation workflow
+- Build type: open-source control plane, legacy closed-source access gates removed
 - Evidence captured at: `2026-08-28T02:20:34Z`
 
 ## VM Deployment Checks

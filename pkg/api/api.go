@@ -1328,6 +1328,7 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("/assets/dashboard-evidence.js", s.handleDashboardEvidenceJS)
 	mux.HandleFunc("/assets/dashboard-graph.js", s.handleDashboardGraphJS)
 	mux.HandleFunc("/assets/dashboard-runtime.js", s.handleDashboardRuntimeJS)
+	mux.HandleFunc("/assets/dashboard-operations.js", s.handleDashboardOperationsJS)
 	mux.HandleFunc("/assets/dashboard.js", s.handleDashboardJS)
 	mux.HandleFunc("/assets/trace-viewer.css", s.handleTraceViewerCSS)
 	mux.HandleFunc("/assets/trace-viewer.js", s.handleTraceViewerJS)

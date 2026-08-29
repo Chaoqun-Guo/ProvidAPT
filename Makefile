@@ -1,10 +1,10 @@
-.PHONY: all build build-core build-ebpf build-userspace generate-ebpf install install-local
+.PHONY: all build build-core build-ebpf build-userspace generate-ebpf remote-ebpf-build install install-local
 .PHONY: clean test test-core test-race fmt fmt-check vet lint staticcheck
 .PHONY: verify-env install-deps deps run stop restart deploy-prod deploy-vms verify-vm-fleet verify-vm-open-source-residue verify-vm-config probe cgroup
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate model-lifecycle-example-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-manifest release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-release github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-manifest release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
 .PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate collect-vm-capture-evidence security-hardening-gate scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
@@ -74,6 +74,9 @@ build-ebpf:
 generate-ebpf: build-ebpf
 	$(GO) generate ./internal/engine/loader/
 	@echo "Generated bpf2go bindings"
+
+remote-ebpf-build:
+	bash scripts/build/remote-ebpf-build.sh "$(SSH_HOST)"
 
 build-userspace:
 	@mkdir -p $(BIN_OUT)
@@ -246,6 +249,9 @@ dist: dist-all
 
 release-open-source:
 	bash scripts/release/open-source-release.sh
+
+github-release:
+	bash scripts/release/github-release.sh
 
 github-actions-evidence:
 	python3 scripts/release/github-actions-evidence.py --repo . --limit "$(or $(CI_RUN_LIMIT),20)" --out-json "$(or $(OUT_DIR),build/ci)/github-actions-evidence.json" --out-md "$(or $(OUT_DIR),build/ci)/github-actions-evidence.md" $(if $(RELEASE_EVIDENCE),--release-evidence "$(RELEASE_EVIDENCE)")
@@ -585,6 +591,7 @@ help:
 	@echo 'Build:'
 	@echo '  make build-core       Build the full product (eBPF + userspace)'
 	@echo '  make build-ebpf       Compile eBPF bytecode only'
+	@echo '  make remote-ebpf-build SSH_HOST=ubuntu@vm-ubuntu-master Compile eBPF bytecode on a Linux VM'
 	@echo '  make generate-ebpf    Compile eBPF and generate bpf2go bindings'
 	@echo '  make build-userspace  Compile Go binaries only'
 	@echo '  make install-local    Build and install to the local system'
@@ -649,6 +656,7 @@ help:
 	@echo '  make dist-rpm         Build the .rpm package'
 	@echo '  make dist-tar         Build the portable tarball'
 	@echo '  make release-open-source Build open-source release artifacts, SBOMs, checksums, scans, and readiness report'
+	@echo '  make github-release RELEASE_TAG=v1.2.3-rc.2 Publish checked dist artifacts to GitHub Releases'
 	@echo '  make github-actions-evidence Collect structured GitHub Actions evidence'
 	@echo '  make release-gates     Collect CI, scanner, approval, and artifact gate status'
 	@echo '  make release-security-local-gate Run local govulncheck/Grype/Trivy evidence capture'
