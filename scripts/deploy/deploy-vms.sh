@@ -11,6 +11,7 @@ set -euo pipefail
 #   PROVIDAPT_WAIT_SECONDS=30
 #   PROVIDAPT_ALLOW_BPF_STUB=0
 #   PROVIDAPT_ENABLE_SERVICE=1
+#   PROVIDAPT_DELETE_LOGS=0
 
 BIN="${PROVIDAPT_BIN:-build/bin/providaptd}"
 SERVICE="${PROVIDAPT_SERVICE:-providapt.service}"
@@ -19,6 +20,7 @@ REMOTE_TMP="/tmp/providaptd.$$"
 WAIT_SECONDS="${PROVIDAPT_WAIT_SECONDS:-30}"
 ALLOW_BPF_STUB="${PROVIDAPT_ALLOW_BPF_STUB:-0}"
 ENABLE_SERVICE="${PROVIDAPT_ENABLE_SERVICE:-1}"
+DELETE_LOGS="${PROVIDAPT_DELETE_LOGS:-0}"
 
 if [ ! -x "$BIN" ]; then
   echo "binary not found or not executable: $BIN" >&2
@@ -37,7 +39,7 @@ if [ -z "${PROVIDAPT_VM_HOSTS:-}" ]; then
   echo "set PROVIDAPT_VM_HOSTS before running" >&2
   exit 1
 fi
-echo "deploying binary=$BIN sha256=$SHA256 wait=${WAIT_SECONDS}s"
+echo "deploying binary=$BIN sha256=$SHA256 wait=${WAIT_SECONDS}s delete_logs=${DELETE_LOGS}"
 
 for host in ${PROVIDAPT_VM_HOSTS}; do
   echo "==> deploying $host"
@@ -48,7 +50,9 @@ for host in ${PROVIDAPT_VM_HOSTS}; do
     rm -f '$REMOTE_TMP'
     actual_sha=\$(sha256sum '$REMOTE_BIN' | awk '{print \$1}')
     if [ \"\$actual_sha\" != '$SHA256' ]; then echo \"sha mismatch: \$actual_sha != $SHA256\" >&2; exit 1; fi
-    sudo find /var/log/providapt -maxdepth 1 -type f \\( -name 'providapt-*.ndjson' -o -name 'alerts*.ndjson' \\) -delete 2>/dev/null || true
+    if [ '$DELETE_LOGS' = '1' ] || [ '$DELETE_LOGS' = 'true' ]; then
+      sudo find /var/log/providapt -maxdepth 1 -type f \\( -name 'providapt-*.ndjson' -o -name 'alerts*.ndjson' \\) -delete 2>/dev/null || true
+    fi
     sudo systemctl reset-failed '$SERVICE' || true
     sudo systemctl daemon-reload
     if [ '$ENABLE_SERVICE' = '1' ]; then sudo systemctl enable '$SERVICE' >/dev/null; fi

@@ -218,6 +218,13 @@ func focusedGraph(startID string, graph *provenance.Graph, maxDepth, maxNodes, m
 
 	nodeMap := map[string]*provenance.Node{}
 	edgeMap := map[string]*provenance.Edge{}
+	incident := make(map[string][]*provenance.Edge, len(allNodes))
+	for _, edge := range allEdges {
+		incident[edge.Source] = append(incident[edge.Source], edge)
+		if edge.Target != edge.Source {
+			incident[edge.Target] = append(incident[edge.Target], edge)
+		}
+	}
 	queue := []string{startID}
 	depth := map[string]int{startID: 0}
 	truncated := false
@@ -231,10 +238,7 @@ func focusedGraph(startID string, graph *provenance.Graph, maxDepth, maxNodes, m
 		if depth[id] >= maxDepth {
 			continue
 		}
-		for _, e := range allEdges {
-			if e.Source != id && e.Target != id {
-				continue
-			}
+		for _, e := range incident[id] {
 			if len(edgeMap) >= maxEdges {
 				truncated = true
 				continue
