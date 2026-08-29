@@ -821,6 +821,13 @@ type InvestigationReport struct {
 	Edges           []InvestigationEdge `json:"edges"`
 }
 
+type cachedAlertSVG struct {
+	body       []byte
+	expiresAt  time.Time
+	graphNodes int
+	graphEdges int
+}
+
 // Server
 
 type Server struct {
@@ -867,15 +874,18 @@ type Server struct {
 	runtimeDiagnostics       RuntimeDiagnostics
 	alertLogPath             string
 	alertFeedbackPath        string
+	alertSVGCacheMu          sync.RWMutex
+	alertSVGCache            map[string]cachedAlertSVG
 }
 
 func NewServer(addr string, graph *provenance.Graph, st *store.Store) *Server {
 	s := &Server{
-		addr:       addr,
-		graph:      graph,
-		store:      st,
-		backtracer: backtrace.New(graph, st),
-		startTime:  time.Now(),
+		addr:          addr,
+		graph:         graph,
+		store:         st,
+		backtracer:    backtrace.New(graph, st),
+		startTime:     time.Now(),
+		alertSVGCache: make(map[string]cachedAlertSVG),
 	}
 	s.SetDefaultControlHandlers()
 	s.mux = s.buildMux()
@@ -2640,12 +2650,49 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, r *http.Request, path str
 		return err
 	}
 
-	svg := generateAlertSVGWithLayout(alertID, s.graph, r.URL.Query().Get("layout"))
+	layout := r.URL.Query().Get("layout")
+	svg := s.cachedAlertSVG(alertID, layout)
 	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 	w.Header().Set("Content-Disposition", "inline")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "private, max-age=5")
 	_, err := w.Write(svg)
 	return err
+}
+
+func (s *Server) cachedAlertSVG(alertID, layout string) []byte {
+	const ttl = 5 * time.Second
+	mode := normalizeSVGLayoutMode(layout)
+	stats := provenance.Stats{}
+	if s.graph != nil {
+		stats = s.graph.Stats()
+	}
+	key := alertID + "\x00" + mode
+	now := time.Now()
+	s.alertSVGCacheMu.RLock()
+	if cached, ok := s.alertSVGCache[key]; ok &&
+		now.Before(cached.expiresAt) &&
+		cached.graphNodes == stats.Nodes &&
+		cached.graphEdges == stats.Edges {
+		body := append([]byte(nil), cached.body...)
+		s.alertSVGCacheMu.RUnlock()
+		return body
+	}
+	s.alertSVGCacheMu.RUnlock()
+
+	body := generateAlertSVGWithLayout(alertID, s.graph, mode)
+	s.alertSVGCacheMu.Lock()
+	if len(s.alertSVGCache) > 128 {
+		s.alertSVGCache = make(map[string]cachedAlertSVG)
+	}
+	s.alertSVGCache[key] = cachedAlertSVG{
+		body:       append([]byte(nil), body...),
+		expiresAt:  now.Add(ttl),
+		graphNodes: stats.Nodes,
+		graphEdges: stats.Edges,
+	}
+	s.alertSVGCacheMu.Unlock()
+	return body
 }
 
 //  Admin: /api/v1/admin/reload
