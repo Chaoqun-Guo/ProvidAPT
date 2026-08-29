@@ -18,6 +18,7 @@ This section collects engineering documentation for repository governance, layou
 | [vm-release-evidence-2026-08-26.md](vm-release-evidence-2026-08-26.md) | Three-VM evidence after Dashboard panel-template split |
 | [vm-release-evidence-2026-08-26-dashboard-js.md](vm-release-evidence-2026-08-26-dashboard-js.md) | Three-VM evidence after Dashboard JavaScript asset split |
 | [vm-release-evidence-2026-08-28-dashboard-duty-flow.md](vm-release-evidence-2026-08-28-dashboard-duty-flow.md) | VM browser baseline for the simplified Dashboard duty-flow interface |
+| [vm-release-evidence-2026-08-29-open-source-release.md](vm-release-evidence-2026-08-29-open-source-release.md) | GitHub prerelease publication and latest VM validation evidence |
 | [open-source-release-checklist.md](open-source-release-checklist.md) | Open-source release delivery checklist |
 | [release-artifact-matrix.md](release-artifact-matrix.md) | Required open-source release artifacts and verification rules |
 | [release-security-scan-summary-v1.2.2.md](release-security-scan-summary-v1.2.2.md) | Security scan evidence for v1.2.2 |

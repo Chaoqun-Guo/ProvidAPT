@@ -329,15 +329,19 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
 
 def wait_for_trace_viewer_ready(page: Any, timeout_ms: int) -> None:
     wait_ms = max(1000, min(timeout_ms, 30000))
-    try:
-        page.wait_for_function(
-            "() => Boolean(document.querySelector('#canvas svg'))",
-            timeout=wait_ms,
-        )
-        page.wait_for_timeout(250)
-    except Exception:
-        # Keep the later DOM assertion failure, which gives a clearer report.
-        return
+    condition = "() => Boolean(document.querySelector('#canvas svg'))"
+    for attempt in range(2):
+        try:
+            page.wait_for_function(condition, timeout=wait_ms)
+            page.wait_for_timeout(250)
+            return
+        except Exception:
+            if attempt == 0:
+                try:
+                    page.reload(wait_until="networkidle", timeout=timeout_ms)
+                except Exception:
+                    pass
+    # Keep the later DOM assertion failure, which gives a clearer report.
 
 
 def normalize_visual_state(page: Any, page_name: str) -> None:
