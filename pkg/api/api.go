@@ -2649,16 +2649,17 @@ func (s *Server) handleAlertSVG(w http.ResponseWriter, r *http.Request, path str
 	}
 
 	layout := r.URL.Query().Get("layout")
-	svg := s.cachedAlertSVG(alertID, layout)
+	svg, cacheStatus := s.cachedAlertSVG(alertID, layout)
 	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 	w.Header().Set("Content-Disposition", "inline")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-ProvidAPT-SVG-Cache", cacheStatus)
 	w.Header().Set("Cache-Control", "private, max-age=60")
 	_, err := w.Write(svg)
 	return err
 }
 
-func (s *Server) cachedAlertSVG(alertID, layout string) []byte {
+func (s *Server) cachedAlertSVG(alertID, layout string) ([]byte, string) {
 	const ttl = time.Minute
 	mode := normalizeSVGLayoutMode(layout)
 	key := alertID + "\x00" + mode
@@ -2667,7 +2668,7 @@ func (s *Server) cachedAlertSVG(alertID, layout string) []byte {
 	if cached, ok := s.alertSVGCache[key]; ok && now.Before(cached.expiresAt) {
 		body := append([]byte(nil), cached.body...)
 		s.alertSVGCacheMu.RUnlock()
-		return body
+		return body, "hit"
 	}
 	s.alertSVGCacheMu.RUnlock()
 
@@ -2681,7 +2682,7 @@ func (s *Server) cachedAlertSVG(alertID, layout string) []byte {
 		expiresAt: now.Add(ttl),
 	}
 	s.alertSVGCacheMu.Unlock()
-	return body
+	return body, "miss"
 }
 
 //  Admin: /api/v1/admin/reload
