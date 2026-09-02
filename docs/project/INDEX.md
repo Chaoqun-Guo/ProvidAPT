@@ -14,6 +14,7 @@ This section collects engineering documentation for repository governance, layou
 | [release-evidence-v1.2.2.md](release-evidence-v1.2.2.md) | Release evidence template for `v1.2.2` |
 | [release-evidence-v1.2.3-rc.1.md](release-evidence-v1.2.3-rc.1.md) | Release candidate evidence for `v1.2.3-rc.1` |
 | [release-evidence-v1.2.3-rc.2.md](release-evidence-v1.2.3-rc.2.md) | Release candidate evidence for the open-source `v1.2.3-rc.2` tag |
+| [release-evidence-v1.2.3.md](release-evidence-v1.2.3.md) | Final open-source release evidence for the `v1.2.3` tag |
 | [vm-release-evidence-2026-08-24.md](vm-release-evidence-2026-08-24.md) | Three-VM open-source cleanup, Trace SVG, visual, and capture evidence |
 | [vm-release-evidence-2026-08-26.md](vm-release-evidence-2026-08-26.md) | Three-VM evidence after Dashboard panel-template split |
 | [vm-release-evidence-2026-08-26-dashboard-js.md](vm-release-evidence-2026-08-26-dashboard-js.md) | Three-VM evidence after Dashboard JavaScript asset split |
@@ -24,6 +25,7 @@ This section collects engineering documentation for repository governance, layou
 | [release-security-scan-summary-v1.2.2.md](release-security-scan-summary-v1.2.2.md) | Security scan evidence for v1.2.2 |
 | [release-security-scan-summary-v1.2.3-rc.1.md](release-security-scan-summary-v1.2.3-rc.1.md) | Security scan evidence for the v1.2.3 release candidate |
 | [release-security-scan-summary-v1.2.3-rc.2.md](release-security-scan-summary-v1.2.3-rc.2.md) | Security scan evidence for the open-source v1.2.3-rc.2 release candidate |
+| [release-security-scan-summary-v1.2.3.md](release-security-scan-summary-v1.2.3.md) | Security scan evidence for the final open-source v1.2.3 release |
 | [security-scan-waiver-summary.md](security-scan-waiver-summary.md) | Summary of accepted scan waivers and closure expectations |
 | [external-approval-request-v1.2.3-rc.1.md](external-approval-request-v1.2.3-rc.1.md) | External approval request packet for the v1.2.3 release candidate |
 | [security-waiver.md](security-waiver.md) | Security waiver template for incomplete release security controls |
