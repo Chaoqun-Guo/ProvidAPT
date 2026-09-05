@@ -132,19 +132,28 @@ def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
     vm_targets = vm_hosts(args)
     ssh_command = " && ".join(f"ssh -o BatchMode=yes {shlex.quote(target)} true" for target in vm_targets) if vm_targets else "ssh -o BatchMode=yes <user>@<vm-host> true"
     base_url = server_url(args)
+    disk_command = remote_or_local_command(vm_targets, f"df -h {shlex.quote(str(getattr(args, 'log_dir', '/var/log/providapt')))}")
+    permission_command = remote_or_local_command(vm_targets, "namei -l /etc/providapt /var/log/providapt")
     checks = [
         check("tailscale", "tailscale status", "verify tailnet connectivity", "Fix Tailscale login, DNS, or ACLs before VM checks."),
         check("ssh", ssh_command, "verify passwordless VM access", "Install or repair SSH keys for every target VM."),
         check("api", f"curl -fsS {base_url}/api/v1/status", "verify REST API health", "Start providaptd and confirm local firewall rules."),
         check("dashboard", f"curl -fsS {base_url}/dashboard", "verify dashboard shell is reachable", "Check REST bind address, auth settings, and reverse proxy routing."),
         check("tls", "make ops-tls-check CERTS=\"build/tls/server.crt build/tls/agent.crt\"", "verify certificate validity", "Run make ops-tls-bootstrap for lab certificates or install production certificates."),
-        check("disk", f"df -h {shlex.quote(str(getattr(args, 'log_dir', '/var/log/providapt')))}", "verify disk and log budget", "Free disk space or reduce retention before enabling high-rate capture."),
-        check("permissions", "namei -l /etc/providapt /var/log/providapt", "verify config and log directory permissions", "Restrict config ownership and keep log directories writable by the service user only."),
+        check("disk", disk_command, "verify disk and log budget", "Free disk space or reduce retention before enabling high-rate capture."),
+        check("permissions", permission_command, "verify config and log directory permissions", "Restrict config ownership and keep log directories writable by the service user only."),
         check("secrets", "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env", "verify required secret references", "Generate a template with make ops-secret-template and replace placeholders."),
     ]
     if args.postgres_dsn:
         checks.append(check("postgres", "make ops-postgres-drill", "verify backup and restore path", "Set PROVIDAPT_DATABASE_DSN and optional PROVIDAPT_RESTORE_DSN before the drill."))
     return checks
+
+
+def remote_or_local_command(vm_targets: list[str], command: str) -> str:
+    if not vm_targets:
+        return command
+    quoted_command = shlex.quote(command)
+    return " && ".join(f"ssh -o BatchMode=yes {shlex.quote(target)} {quoted_command}" for target in vm_targets)
 
 
 def vm_hosts(args: argparse.Namespace) -> list[str]:

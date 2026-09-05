@@ -94,6 +94,20 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertEqual(template["schema"], "providapt.onboarding_check_results.v1")
         self.assertIn("command", template["checks"][0])
 
+    def test_vm_disk_and_permission_checks_run_on_remote_hosts(self):
+        checks = onboarding.environment_checks(Namespace(
+            rest_port=18080,
+            grpc_port=50051,
+            log_dir="/var/log/providapt",
+            postgres_dsn="",
+            server_url="http://vm-ubuntu-master:18080",
+            policy_endpoint="",
+            vm_hosts="ubuntu@vm-ubuntu-master centos@vm-centos-slave",
+        ))
+        by_name = {item["name"]: item for item in checks}
+        self.assertIn("ssh -o BatchMode=yes ubuntu@vm-ubuntu-master 'df -h /var/log/providapt'", by_name["disk"]["command"])
+        self.assertIn("ssh -o BatchMode=yes centos@vm-centos-slave 'namei -l /etc/providapt /var/log/providapt'", by_name["permissions"]["command"])
+
     def test_merges_check_results_into_onboarding_report(self):
         results = self.tmp / "results.json"
         results.write_text(json.dumps({

@@ -329,7 +329,7 @@ def capture(report: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
 
 def wait_for_trace_viewer_ready(page: Any, timeout_ms: int) -> None:
     wait_ms = max(1000, min(timeout_ms, 30000))
-    condition = "() => Boolean(document.querySelector('#canvas svg'))"
+    condition = "() => Boolean(document.querySelector('#canvas svg') || document.querySelector('#canvas iframe.fallback-frame'))"
     for attempt in range(2):
         try:
             page.wait_for_function(condition, timeout=wait_ms)
@@ -526,10 +526,19 @@ def trace_viewer_dom_assertions(page: Any) -> dict[str, Any]:
       const layoutModes = Array.from(document.querySelectorAll('[data-layout-mode]')).map(el => el.getAttribute('data-layout-mode'));
       const buttons = Array.from(document.querySelectorAll('button, a.tool-link')).map(el => (el.textContent || '').trim());
       const svg = document.querySelector('#canvas svg');
+      const fallbackFrame = document.querySelector('#canvas iframe.fallback-frame');
+      const renderElement = svg || fallbackFrame;
+      const renderRect = renderElement ? renderElement.getBoundingClientRect() : null;
+      const svgWidth = svg ? Number(svg.getAttribute('width') || svg.getBoundingClientRect().width || 0) : 0;
+      const svgHeight = svg ? Number(svg.getAttribute('height') || svg.getBoundingClientRect().height || 0) : 0;
       return {
         has_svg: Boolean(svg),
-        svg_width: svg ? Number(svg.getAttribute('width') || 0) : 0,
-        svg_height: svg ? Number(svg.getAttribute('height') || 0) : 0,
+        has_fallback_frame: Boolean(fallbackFrame),
+        render_mode: svg ? 'inline-svg' : (fallbackFrame ? 'fallback-iframe' : 'missing'),
+        svg_width: svgWidth,
+        svg_height: svgHeight,
+        render_width: renderRect ? Math.round(renderRect.width) : 0,
+        render_height: renderRect ? Math.round(renderRect.height) : 0,
         layout_modes: layoutModes,
         has_png_export: buttons.includes('PNG'),
         has_svg_export: buttons.includes('SVG'),
@@ -543,10 +552,13 @@ def trace_viewer_dom_assertions(page: Any) -> dict[str, Any]:
     result = page.evaluate(script)
     result = result if isinstance(result, dict) else {}
     failures: list[str] = []
-    if not result.get("has_svg"):
-        failures.append("svg missing")
-    if int(result.get("svg_width") or 0) <= 0 or int(result.get("svg_height") or 0) <= 0:
-        failures.append("svg dimensions missing")
+    has_rendered_trace = bool(result.get("has_svg") or result.get("has_fallback_frame"))
+    render_width = int(result.get("render_width") or result.get("svg_width") or 0)
+    render_height = int(result.get("render_height") or result.get("svg_height") or 0)
+    if not has_rendered_trace:
+        failures.append("trace rendering missing")
+    if render_width <= 0 or render_height <= 0:
+        failures.append("trace render dimensions missing")
     modes = set(result.get("layout_modes") or [])
     missing_modes = sorted({"tree", "compact", "timeline", "grouped"} - modes)
     if missing_modes:

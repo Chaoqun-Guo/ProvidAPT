@@ -85,8 +85,37 @@ class VisualRegressionSnapshotsTest(unittest.TestCase):
         result = mod.trace_viewer_dom_assertions(FakePage())
 
         self.assertEqual(result["status"], "fail")
-        self.assertIn("svg missing", result["failures"])
+        self.assertIn("trace rendering missing", result["failures"])
+        self.assertIn("trace render dimensions missing", result["failures"])
         self.assertIn("layout modes missing: compact,grouped,timeline", result["failures"])
+
+    def test_trace_viewer_dom_assertions_accept_raw_svg_fallback_iframe(self):
+        mod = load_module()
+
+        class FakePage:
+            def evaluate(self, _script):
+                return {
+                    "has_svg": False,
+                    "has_fallback_frame": True,
+                    "render_mode": "fallback-iframe",
+                    "render_width": 1180,
+                    "render_height": 680,
+                    "svg_width": 0,
+                    "svg_height": 0,
+                    "layout_modes": ["tree", "compact", "timeline", "grouped"],
+                    "has_png_export": True,
+                    "has_svg_export": True,
+                    "has_raw_svg": True,
+                    "has_report_export": True,
+                    "has_summary": True,
+                    "has_selected_panel": True,
+                }
+
+        result = mod.trace_viewer_dom_assertions(FakePage())
+
+        self.assertEqual(result["status"], "pass")
+        self.assertEqual(result["render_mode"], "fallback-iframe")
+        self.assertEqual(result["failures"], [])
 
     def test_dry_run_writes_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
