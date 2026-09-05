@@ -44,6 +44,10 @@ class RolloutPlanTest(unittest.TestCase):
         self.assertEqual(plan["batches"][0]["name"], "canary")
         self.assertEqual(len(plan["batches"]), 3)
         self.assertEqual(plan["rollback"]["batches"][0]["name"], "wave-2")
+        self.assertEqual(plan["orchestration"]["mode"], "canary_then_waves")
+        self.assertEqual(plan["orchestration"]["state_transitions"][0], "planned")
+        self.assertTrue(plan["orchestration"]["failure_policy"]["auto_rollback"])
+        self.assertEqual(plan["batches"][0]["state"], "pending")
         self.assertIn("Upgrade Rollout Plan", rollout.render_markdown(plan))
 
     def test_builds_group_aware_waves(self):

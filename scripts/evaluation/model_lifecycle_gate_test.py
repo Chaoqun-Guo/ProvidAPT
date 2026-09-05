@@ -38,6 +38,8 @@ class ModelLifecycleGateTest(unittest.TestCase):
             "approval": "",
             "require_approval": True,
             "require_baseline_report": False,
+            "require_governance_bindings": False,
+            "rollback_record": "",
             "min_feedback_records": 25,
             "min_reviewed_labels": 10,
             "required_feedback_label": ["true_positive", "false_positive"],
@@ -223,6 +225,78 @@ class ModelLifecycleGateTest(unittest.TestCase):
         self.assertIn("feedback label false_positive", text)
         self.assertIn("feedback label benign", text)
         self.assertIn("feedback label duplicate", text)
+
+    def test_blocks_missing_model_governance_bindings_when_required(self):
+        closed = self.write_json("closed.json", {
+            "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "dataset": {"baseline_days": 14},
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"true_positive": 10, "false_positive": 8}},
+            "drift": {"status": "stable"},
+        })
+        deploy = self.write_json("deploy.json", {
+            "status": "pass",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+        })
+        report = subject.build_report(self.args(
+            closed_loop=str(closed),
+            deploy_gate=str(deploy),
+            require_approval=False,
+            require_governance_bindings=True,
+        ))
+        self.assertEqual(report["status"], "blocked")
+        failures = "\n".join(report["failures"])
+        self.assertIn("training dataset hash is missing", failures)
+        self.assertIn("feature schema hash is missing", failures)
+        self.assertIn("model artifact hash is missing", failures)
+        self.assertIn("rollback record is missing", failures)
+        self.assertFalse(report["promotion_packet"]["governance_bindings"]["complete"])
+
+    def test_passes_with_model_governance_bindings_and_rollback_record(self):
+        dataset_sha = "1" * 64
+        schema_sha = "2" * 64
+        artifact_sha = "3" * 64
+        closed = self.write_json("closed.json", {
+            "status": "ready",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "feature_schema_sha256": schema_sha,
+            "dataset": {
+                "baseline_days": 14,
+                "manifest": {"sha256": dataset_sha},
+            },
+            "feedback": {"records": 40, "reviewed": 22, "labels": {"true_positive": 10, "false_positive": 8}},
+            "drift": {"status": "stable"},
+        })
+        deploy = self.write_json("deploy.json", {
+            "status": "pass",
+            "model_name": "graph-detector",
+            "model_version": "1.0.0",
+            "feature_schema_sha256": schema_sha,
+            "artifact": {"sha256": artifact_sha},
+        })
+        rollback = self.write_json("rollback.json", {
+            "status": "ready",
+            "target_model_version": "0.9.0",
+            "artifact_sha256": "4" * 64,
+            "validated_by": "Release Operator",
+        })
+        report = subject.build_report(self.args(
+            closed_loop=str(closed),
+            deploy_gate=str(deploy),
+            require_approval=False,
+            require_governance_bindings=True,
+            rollback_record=str(rollback),
+        ))
+        self.assertEqual(report["status"], "pass")
+        bindings = report["promotion_packet"]["governance_bindings"]
+        self.assertTrue(bindings["complete"])
+        self.assertEqual(bindings["training_dataset_sha256"], dataset_sha)
+        self.assertEqual(bindings["feature_schema_sha256"], schema_sha)
+        self.assertEqual(bindings["model_artifact_sha256"], artifact_sha)
+        self.assertEqual(bindings["rollback"]["target_model_version"], "0.9.0")
 
 
 if __name__ == "__main__":

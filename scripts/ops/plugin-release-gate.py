@@ -88,6 +88,40 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
                 failures.append(f"unsafe plugin permission: {text}")
             elif not text:
                 failures.append("plugin permission entries must not be empty")
+    permissions_model = manifest.get("permissions_model")
+    if not isinstance(permissions_model, dict):
+        failures.append("permissions_model is required for plugin distribution")
+        permissions_model_summary: dict[str, Any] = {}
+    else:
+        mode = str(permissions_model.get("mode") or "").strip().lower()
+        reviewed_by = str(permissions_model.get("reviewed_by") or "").strip()
+        rationale = str(permissions_model.get("rationale") or "").strip()
+        permissions_model_summary = {
+            "mode": mode,
+            "reviewed_by": reviewed_by,
+            "rationale": rationale,
+        }
+        if mode != "least-privilege":
+            failures.append("permissions_model.mode must be least-privilege")
+        if not reviewed_by:
+            failures.append("permissions_model.reviewed_by is required")
+        if not rationale:
+            failures.append("permissions_model.rationale is required")
+    developer_guide = manifest.get("developer_guide")
+    if not isinstance(developer_guide, dict):
+        failures.append("developer_guide is required for plugin distribution")
+        developer_guide_summary: dict[str, Any] = {"path": "", "present": False}
+    else:
+        guide_value = str(developer_guide.get("path") or "").strip()
+        guide_path = (manifest_path.parent / guide_value).resolve() if guide_value and not Path(guide_value).is_absolute() else Path(guide_value)
+        developer_guide_summary = {
+            "path": str(guide_path) if guide_value else "",
+            "present": bool(guide_value and guide_path.exists() and guide_path.is_file() and guide_path.stat().st_size > 0),
+        }
+        if not guide_value:
+            failures.append("developer_guide.path is required")
+        elif not developer_guide_summary["present"]:
+            failures.append("developer guide file is missing")
     distribution = manifest.get("distribution")
     if not isinstance(distribution, dict):
         failures.append("distribution policy is required")
@@ -96,6 +130,8 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
         failures.append("distribution.channel is required when distribution policy is declared")
     if distribution and not str(distribution.get("artifact") or "").strip():
         failures.append("distribution.artifact is required when distribution policy is declared")
+    if distribution and "catalog_ready" in distribution and not bool(distribution.get("catalog_ready")):
+        failures.append("distribution.catalog_ready must be true for official examples")
     signature_algorithm = str(distribution.get("signature_algorithm") or "").strip().lower() if distribution else ""
     if distribution and not signature_algorithm:
         failures.append("distribution.signature_algorithm is required")
@@ -201,6 +237,8 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path, signature_p
             },
             "entrypoint": entrypoint,
             "permissions": permissions,
+            "permissions_model": permissions_model_summary,
+            "developer_guide": developer_guide_summary,
             "distribution": distribution,
             "artifact": {
                 "path": str(artifact_path) if artifact_value else "",

@@ -13,6 +13,7 @@ from typing import Any
 SCHEMA = "providapt.model_lifecycle_gate.v1"
 APPROVAL_ROLES = ("model_owner", "security", "soc_lead")
 REVIEWED_FEEDBACK_LABELS = ("true_positive", "false_positive", "benign", "duplicate")
+SHA256_HEX_LENGTH = 64
 
 
 def load_json(path: str | None) -> dict[str, Any]:
@@ -48,6 +49,26 @@ def evidence_ref(path: str | None, kind: str) -> dict[str, Any]:
         "present": bool(target and target.exists() and target.is_file() and target.stat().st_size > 0),
         "sha256": sha256_file(path),
     }
+
+
+def sha256_value(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    if len(text) == SHA256_HEX_LENGTH and all(ch in "0123456789abcdef" for ch in text):
+        return text
+    return ""
+
+
+def first_sha256(*values: Any) -> str:
+    for value in values:
+        digest = sha256_value(value)
+        if digest:
+            return digest
+    return ""
+
+
+def nested_dict(value: Any, key: str) -> dict[str, Any]:
+    current = value.get(key) if isinstance(value, dict) else {}
+    return current if isinstance(current, dict) else {}
 
 
 def utc_now() -> str:
@@ -181,6 +202,85 @@ def model_identity(report: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def rollback_summary(rollback: dict[str, Any]) -> dict[str, Any]:
+    if not rollback:
+        return {
+            "present": False,
+            "status": "not_supplied",
+            "target_model_version": "",
+            "artifact_sha256": "",
+            "validated_by": "",
+        }
+    return {
+        "present": True,
+        "status": str(rollback.get("status") or "unknown").lower(),
+        "target_model_version": str(rollback.get("target_model_version") or rollback.get("rollback_to_version") or "").strip(),
+        "artifact_sha256": sha256_value(rollback.get("artifact_sha256") or nested_dict(rollback, "artifact").get("sha256")),
+        "validated_by": str(rollback.get("validated_by") or rollback.get("approved_by") or rollback.get("owner") or "").strip(),
+    }
+
+
+def governance_bindings(closed_loop: dict[str, Any], deploy_gate: dict[str, Any], rollback: dict[str, Any]) -> dict[str, Any]:
+    dataset = nested_dict(closed_loop, "dataset")
+    dataset_manifest = nested_dict(closed_loop, "dataset_manifest")
+    deploy_artifact = nested_dict(deploy_gate, "artifact")
+    closed_artifact = nested_dict(closed_loop, "artifact")
+    feature_schema = first_sha256(
+        model_identity(closed_loop).get("feature_schema_sha256"),
+        model_identity(deploy_gate).get("feature_schema_sha256"),
+        nested_dict(closed_loop, "feature_schema").get("sha256"),
+        nested_dict(deploy_gate, "feature_schema").get("sha256"),
+    )
+    training_dataset = first_sha256(
+        dataset.get("sha256"),
+        nested_dict(dataset, "manifest").get("sha256"),
+        dataset_manifest.get("sha256"),
+        closed_loop.get("dataset_manifest_sha256"),
+        closed_loop.get("training_dataset_sha256"),
+    )
+    model_artifact = first_sha256(
+        deploy_artifact.get("sha256"),
+        closed_artifact.get("sha256"),
+        deploy_gate.get("artifact_sha256"),
+        closed_loop.get("artifact_sha256"),
+        deploy_gate.get("model_artifact_sha256"),
+    )
+    rollback = rollback_summary(rollback)
+    complete = bool(training_dataset and feature_schema and model_artifact and rollback["present"] and rollback["status"] in {"ready", "pass", "approved"} and rollback["target_model_version"] and rollback["artifact_sha256"])
+    return {
+        "complete": complete,
+        "training_dataset_sha256": training_dataset,
+        "feature_schema_sha256": feature_schema,
+        "model_artifact_sha256": model_artifact,
+        "rollback": rollback,
+    }
+
+
+def governance_failures(bindings: dict[str, Any], required: bool) -> list[str]:
+    if not required:
+        return []
+    failures: list[str] = []
+    if not bindings["training_dataset_sha256"]:
+        failures.append("training dataset hash is missing")
+    if not bindings["feature_schema_sha256"]:
+        failures.append("feature schema hash is missing")
+    if not bindings["model_artifact_sha256"]:
+        failures.append("model artifact hash is missing")
+    rollback = bindings["rollback"]
+    if not rollback["present"]:
+        failures.append("rollback record is missing")
+    else:
+        if rollback["status"] not in {"ready", "pass", "approved"}:
+            failures.append("rollback record is not ready")
+        if not rollback["target_model_version"]:
+            failures.append("rollback target model version is missing")
+        if not rollback["artifact_sha256"]:
+            failures.append("rollback artifact hash is missing")
+        if not rollback["validated_by"]:
+            failures.append("rollback record requires a named validator")
+    return failures
+
+
 def identity_failures(closed_loop: dict[str, Any], deploy_gate: dict[str, Any]) -> list[str]:
     closed = model_identity(closed_loop)
     deploy = model_identity(deploy_gate)
@@ -264,6 +364,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     drift = load_json(args.drift_report)
     baseline_report = load_json(args.baseline_report)
     approval = load_json(args.approval)
+    rollback = load_json(getattr(args, "rollback_record", ""))
     failures: list[str] = []
     warnings: list[str] = []
     if closed_loop.get("status") != "ready":
@@ -302,6 +403,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             failures.append(f"long-term baseline windows {baseline_summary['windows']} below {args.min_baseline_windows}")
         if baseline_summary["observation_days"] < args.min_baseline_days:
             failures.append(f"long-term baseline observation days {baseline_summary['observation_days']} below {args.min_baseline_days}")
+    bindings = governance_bindings(closed_loop, deploy_gate, rollback)
+    failures.extend(governance_failures(bindings, bool(getattr(args, "require_governance_bindings", False))))
     failures.extend(approval_failures(approval, args.require_approval))
     closed_identity = model_identity(closed_loop)
     deploy_identity = model_identity(deploy_gate)
@@ -316,6 +419,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         evidence_ref(args.drift_report, "drift_report"),
         evidence_ref(args.baseline_report, "baseline_report"),
         evidence_ref(args.approval, "approval"),
+        evidence_ref(getattr(args, "rollback_record", ""), "rollback_record"),
     ]
     status = "blocked" if failures else "pass"
     approvals = approval_summary(approval)
@@ -371,6 +475,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                 for item in evidence
                 if item["present"] and item["sha256"]
             },
+            "governance_bindings": bindings,
             "next_actions": next_actions(failures, warnings),
         },
         "failures": failures,
@@ -395,6 +500,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Long-term baseline: `{json.dumps(report['baseline_report'], sort_keys=True)}`",
         f"- Promotion decision: `{report['promotion_decision']}`",
         f"- Evidence files: `{report['promotion_packet']['evidence_count']}`",
+        f"- Governance bindings: `{report['promotion_packet']['governance_bindings']['complete']}`",
         "",
     ]
     if report["failures"]:
@@ -438,6 +544,16 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- `{item['kind']}`: `{item['path'] or 'not supplied'}` sha256=`{item['sha256'] or 'n/a'}`"
         for item in report["evidence"]
     )
+    bindings = report["promotion_packet"]["governance_bindings"]
+    lines.extend([
+        "",
+        "## Governance Bindings",
+        "",
+        f"- Training dataset SHA-256: `{bindings['training_dataset_sha256'] or 'missing'}`",
+        f"- Feature schema SHA-256: `{bindings['feature_schema_sha256'] or 'missing'}`",
+        f"- Model artifact SHA-256: `{bindings['model_artifact_sha256'] or 'missing'}`",
+        f"- Rollback target: `{bindings['rollback']['target_model_version'] or 'missing'}`",
+    ])
     lines.append("")
     return "\n".join(lines)
 
@@ -449,8 +565,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--drift-report", default="")
     parser.add_argument("--baseline-report", default="")
     parser.add_argument("--approval", default="")
+    parser.add_argument("--rollback-record", default="")
     parser.add_argument("--require-approval", action="store_true")
     parser.add_argument("--require-baseline-report", action="store_true")
+    parser.add_argument("--require-governance-bindings", action="store_true")
     parser.add_argument("--min-feedback-records", type=int, default=25)
     parser.add_argument("--min-reviewed-labels", type=int, default=10)
     parser.add_argument("--required-feedback-label", action="append", default=[])

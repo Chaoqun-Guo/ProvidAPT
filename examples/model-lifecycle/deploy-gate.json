@@ -3,6 +3,9 @@
   "model_name": "graph-detector",
   "model_version": "1.0.0",
   "feature_schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "artifact": {
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
   "precision": 91.4,
   "recall": 88.2
 }

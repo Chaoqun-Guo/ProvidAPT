@@ -565,6 +565,24 @@ func TestDashboardGroundTruthPanel(t *testing.T) {
 	}
 }
 
+func TestDashboardModelHealthView(t *testing.T) {
+	expected := []string{
+		"Model Health",
+		"showModelHealthDashboard",
+		"model-governance-grid",
+		"governance_bindings",
+		"Training data",
+		"Feature schema",
+		"Model artifact",
+		"Rollback",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardTestSurface(), item) {
+			t.Fatalf("dashboard missing model health content %q", item)
+		}
+	}
+}
+
 func TestDashboardAlertAnnotationButtons(t *testing.T) {
 	expected := []string{
 		"runAlertWorkflowAction('annotate_tp'",

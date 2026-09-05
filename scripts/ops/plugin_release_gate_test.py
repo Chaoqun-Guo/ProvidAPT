@@ -32,6 +32,7 @@ class PluginReleaseGateTest(unittest.TestCase):
         artifact_sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
         signature.write_text("sig\n", encoding="utf-8")
         signature_sha256 = hashlib.sha256(signature.read_bytes()).hexdigest()
+        (self.tmp / "README.md").write_text("# Sigma Extra\n", encoding="utf-8")
         manifest.write_text(json.dumps({
             "name": "sigma-extra",
             "version": "1.0.0",
@@ -40,6 +41,12 @@ class PluginReleaseGateTest(unittest.TestCase):
             "providapt_max_version": "1.3.0",
             "entrypoint": "pkg/plugin/sigma",
             "permissions": ["rules:read", "alerts:write"],
+            "permissions_model": {
+                "mode": "least-privilege",
+                "reviewed_by": "plugin-reviewer",
+                "rationale": "reads rules and writes detector alerts only",
+            },
+            "developer_guide": {"path": "README.md"},
             "distribution": {
                 "channel": "signed-bundle",
                 "artifact": "sigma-extra-1.0.0.tar.gz",
@@ -195,6 +202,17 @@ class PluginReleaseGateTest(unittest.TestCase):
         report = plugin_gate.validate_manifest(plugin_gate.load_json(manifest), manifest, signature, False)
         self.assertEqual(report["status"], "blocked")
         self.assertIn("distribution.signature_sha256 does not match signature file", report["failures"])
+
+    def test_official_sample_detector_manifest_passes_distribution_gate(self):
+        root = Path.cwd()
+        manifest = root / "examples/plugins/official-sample-detector/plugin.json"
+        signature = root / "examples/plugins/official-sample-detector/official-sample-detector-1.0.0.bundle.sig"
+        report = plugin_gate.validate_manifest(plugin_gate.load_json(manifest), manifest, signature, False)
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["plugin"]["name"], "official-sample-detector")
+        self.assertEqual(report["plugin"]["permissions_model"]["mode"], "least-privilege")
+        self.assertTrue(report["plugin"]["developer_guide"]["present"])
+        self.assertTrue(report["plugin"]["distribution"]["catalog_ready"])
 
 
 if __name__ == "__main__":

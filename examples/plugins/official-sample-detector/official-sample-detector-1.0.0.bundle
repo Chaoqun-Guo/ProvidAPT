@@ -1,0 +1,3 @@
+official sample detector bundle
+entrypoint: examples/plugins/official-sample-detector
+permissions: events:read,alerts:write

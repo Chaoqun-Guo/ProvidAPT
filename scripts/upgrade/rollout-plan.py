@@ -49,8 +49,10 @@ def batch_record(name: str, agents: list[dict[str, Any]], pause_after: bool, suc
         "action": "upgrade.apply",
         "agents": [agent_id(agent) for agent in agents],
         "groups": groups,
+        "state": "pending",
         "pause_after": pause_after,
         "success_gate": success_gate,
+        "failure_action": "pause_and_rollback",
     }
 
 
@@ -119,6 +121,19 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
         "agent_groups": groups,
         "agent_group_count": len(groups),
         "status": "planned" if batches else "blocked",
+        "orchestration": {
+            "mode": "canary_then_waves",
+            "state_transitions": ["planned", "preflight", "canary", "paused", "wave", "verified", "completed"],
+            "pause_resume": {
+                "pause_state": "paused",
+                "resume_from": "next_pending_batch",
+            },
+            "failure_policy": {
+                "auto_rollback": True,
+                "rollback_trigger": "health regression, failed preflight, stale telemetry, or critical alert after a batch",
+                "rollback_order": "reverse_batch_order",
+            },
+        },
         "preflight": [
             "verify package checksum and signature",
             "verify backup and rollback plan",
@@ -155,6 +170,14 @@ def render_markdown(plan: dict[str, Any]) -> str:
     lines.extend(["", "## Rollback Order", "", "| Batch | Groups | Agents |", "| --- | --- | ---: |"])
     for batch in plan["rollback"]["batches"]:
         lines.append(f"| {batch['name']} | {', '.join(batch.get('groups', []))} | {len(batch['agents'])} |")
+    lines.extend([
+        "",
+        "## Orchestration Controls",
+        "",
+        f"- Mode: `{plan.get('orchestration', {}).get('mode', 'unknown')}`",
+        f"- Auto rollback: `{plan.get('orchestration', {}).get('failure_policy', {}).get('auto_rollback', False)}`",
+        f"- Resume from: `{plan.get('orchestration', {}).get('pause_resume', {}).get('resume_from', 'unknown')}`",
+    ])
     lines.append("")
     return "\n".join(lines)
 

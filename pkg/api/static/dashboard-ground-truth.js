@@ -308,6 +308,52 @@ function showDetectionQualityDashboard() {
   setInvestigationItems(rows.map(row => renderKVItem(row.metric, row.value, row.detail)), 'No detection quality metrics available');
 }
 
+function showModelHealthDashboard() {
+  const alertMetrics = computeAlertQuality(latestWorkflow.alerts || []);
+  const coverage = buildGroundTruthCoverage();
+  const actionable = alertMetrics.true_positive + alertMetrics.false_positive + alertMetrics.benign;
+  const recall = coverage.malicious ? Number((coverage.detected * 100 / coverage.malicious).toFixed(1)) : 0;
+  const precision = alertMetrics.actionable_precision_percent || 0;
+  const f1 = precision + recall ? Number((2 * precision * recall / (precision + recall)).toFixed(1)) : 0;
+  const modelHealth = {
+    schema: 'providapt.dashboard_model_health.v1',
+    metrics: {
+      precision_percent: precision,
+      recall_percent: recall,
+      f1_percent: f1,
+      review_coverage_percent: alertMetrics.review_coverage_percent || 0,
+      duplicate_percent: alertMetrics.duplicate_percent || 0,
+    },
+    governance_bindings: {
+      training_data: latestGroundTruth.files && latestGroundTruth.files.length ? 'loaded' : 'missing local/server evidence',
+      feature_schema: 'required in model-lifecycle-gate',
+      model_artifact: 'required in model-lifecycle-gate',
+      promotion_approval: 'required before promotion',
+      rollback: 'required in governance bindings',
+    },
+  };
+  const cards = '<div class="model-governance-grid">' + [
+    ['Precision', precision + '%', alertMetrics.true_positive + ' TP / ' + actionable + ' reviewed actionable'],
+    ['Recall', recall + '%', coverage.detected + '/' + coverage.malicious + ' malicious covered'],
+    ['F1', f1 + '%', 'balanced promotion signal'],
+    ['Review', alertMetrics.review_coverage_percent + '%', alertMetrics.reviewed_alerts + '/' + alertMetrics.total_alerts + ' alerts reviewed'],
+  ].map(row => '<div class="matrix-card"><div class="label">' + escapeHTML(row[0]) + '</div><div class="value">' + escapeHTML(row[1]) + '</div><div class="sub">' + escapeHTML(row[2]) + '</div></div>').join('') + '</div>';
+  const governanceRows = [
+    { item: 'Training data', state: modelHealth.governance_bindings.training_data, evidence: 'dataset manifest hash' },
+    { item: 'Feature schema', state: modelHealth.governance_bindings.feature_schema, evidence: 'schema hash' },
+    { item: 'Model artifact', state: modelHealth.governance_bindings.model_artifact, evidence: 'artifact hash' },
+    { item: 'Promotion approval', state: modelHealth.governance_bindings.promotion_approval, evidence: 'model owner, security, SOC lead' },
+    { item: 'Rollback', state: modelHealth.governance_bindings.rollback, evidence: 'rollback target and artifact hash' },
+  ];
+  const table = renderDataTable([
+    { key: 'item', label: 'Binding' },
+    { key: 'state', label: 'State' },
+    { key: 'evidence', label: 'Evidence' },
+  ], governanceRows, 'No model governance bindings available');
+  openDetailDrawer('Model Health', 'Model quality and promotion governance bindings', cards + table + renderJSONBlock(modelHealth));
+  setInvestigationItems(governanceRows.map(row => renderKVItem(row.item, row.state, row.evidence)), 'No model health evidence available');
+}
+
 function renderGroundTruthPhases(phases) {
   const grid = document.getElementById('groundTruthPhaseGrid');
   if (!grid) return;

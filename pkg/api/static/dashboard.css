@@ -256,7 +256,7 @@ button.btn-disabled-context { opacity:0.62; cursor:not-allowed; }
 .data-table th, .data-table td { padding:7px 8px; border-bottom:1px solid #21262d; text-align:left; vertical-align:top; overflow-wrap:anywhere; word-break:break-word; }
 .data-table th { color:#8b949e; background:#161b22; position:sticky; top:0; z-index:1; text-transform:uppercase; letter-spacing:0.4px; }
 .data-table tr:hover td { background:#111827; }
-.matrix-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; }
+.matrix-grid, .model-governance-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; min-width:0; }
 .matrix-card { background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:9px; min-width:0; }
 .matrix-card .label { color:#8b949e; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; }
 .matrix-card .value { color:#58a6ff; font-size:18px; font-weight:700; margin-top:3px; overflow-wrap:anywhere; }

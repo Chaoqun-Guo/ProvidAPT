@@ -4,8 +4,8 @@
 .PHONY: attack-sim attack-full-chain export-ground-truth graph-dataset dataset-split-gate graph-augment graph-train ml-training-pipeline ml-readiness-gate alert-quality detection-quality attack-coverage-plan model-closed-loop model-deploy-gate model-lifecycle-gate model-lifecycle-example-gate upgrade-artifact verify-capture loader-smoke demo ext-test cluster-test
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
-.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source github-release github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-manifest release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate capture-quality-trend collect-vm-capture-evidence security-hardening-gate scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
+.PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source release-final github-release github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-manifest release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate support-diagnostics deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate capture-quality-trend collect-vm-capture-evidence security-hardening-gate scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
 
@@ -250,6 +250,10 @@ dist: dist-all
 release-open-source:
 	bash scripts/release/open-source-release.sh
 
+release-final:
+	@if [ -z "$(RELEASE_TAG)" ]; then echo 'usage: make release-final RELEASE_TAG=v1.2.4 [RELEASE_VERSION=v1.2.4] [DRY_RUN=1]'; exit 2; fi
+	python3 scripts/release/release-final.py --release-tag "$(RELEASE_TAG)" --version "$(or $(RELEASE_VERSION),$(RELEASE_TAG))" --evidence-doc "$(or $(RELEASE_EVIDENCE),docs/project/release-evidence-$(RELEASE_TAG).md)" --dist-dir "$(or $(DIST_DIR),dist)" --security-dir "$(or $(SECURITY_DIR),build/security)" --commit "$(or $(FULL_COMMIT),$(shell git rev-parse HEAD 2>/dev/null || echo none))" $(if $(DRY_RUN),--dry-run) $(if $(SKIP_PUSH),--skip-push) --out-json "$(or $(OUT_DIR),build/release-final)/release-final-plan.json" --out-md "$(or $(OUT_DIR),build/release-final)/release-final-plan.md"
+
 github-release:
 	bash scripts/release/github-release.sh
 
@@ -357,6 +361,9 @@ backup-readiness-gate:
 support-bundle-gate:
 	python3 scripts/ops/support-bundle-gate.py --support-summary "$(or $(SUPPORT_SUMMARY),build/support/support-bundle-summary.json)" $(if $(REQUIRE_SUPPORT_ARCHIVE),--require-archive) $(if $(REQUIRE_SUPPORT_REDACTED),--require-redacted) $(if $(REQUIRE_SUPPORT_AUDIT),--require-audit) $(if $(REQUIRE_SUPPORT_DOWNLOAD),--require-download) $(if $(CHECK_SUPPORT_FILES),--check-files) --out-json "$(or $(OUT_DIR),build/support)/support-bundle-gate.json" --out-md "$(or $(OUT_DIR),build/support)/support-bundle-gate.md"
 
+support-diagnostics:
+	python3 scripts/ops/support-diagnostics.py $(if $(STATUS_JSON),--status-json "$(STATUS_JSON)") $(if $(PROVIDAPT_CONFIG),--config "$(PROVIDAPT_CONFIG)") $(if $(PROVIDAPT_LOG),--log "$(PROVIDAPT_LOG)") $(if $(PROVIDAPT_SERVER_URL),--server-url "$(PROVIDAPT_SERVER_URL)") $(foreach port,$(or $(PORTS),18080 50051),--port "$(port)") $(foreach path,$(or $(DISK_PATHS),/var/log/providapt /var/lib/providapt),--disk-path "$(path)") --out-json "$(or $(OUT_DIR),build/support)/support-diagnostics.json" --out-md "$(or $(OUT_DIR),build/support)/support-diagnostics.md"
+
 deployment-diagnostics-gate:
 	python3 scripts/ops/deployment-diagnostics-gate.py --status-json "$(or $(STATUS_JSON),build/deploy/status.json)" $(if $(REQUIRE_TLS),--require-tls) $(if $(REQUIRE_STORAGE_ENCRYPTION),--require-storage-encryption) $(if $(REQUIRE_POLICY_SYNC),--require-policy-sync) $(if $(REQUIRE_KERNEL_ATTACH),--require-kernel-attach) $(if $(REQUIRE_SUPPORT_BUNDLE),--require-support-bundle) $(if $(REQUIRE_CONTROL_PLANE),--require-control-plane) $(if $(REQUIRE_STATE_BACKEND),--require-state-backend) --out-json "$(or $(OUT_DIR),build/deploy)/deployment-diagnostics-gate.json" --out-md "$(or $(OUT_DIR),build/deploy)/deployment-diagnostics-gate.md"
 
@@ -413,8 +420,9 @@ plugin-catalog-gate:
 	python3 scripts/ops/plugin-catalog-gate.py $(foreach gate,$(PLUGIN_GATES),--plugin-gate "$(gate)") $(if $(REQUIRE_PLUGINS),--require-plugins) $(if $(REQUIRE_PLUGIN_SIGNATURE),--require-signatures) $(if $(REQUIRE_PLUGIN_PERMISSIONS),--require-permissions) --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
 
 plugin-example-gates:
-	python3 scripts/ops/plugin-release-gate.py --manifest examples/plugins/sample-detector/plugin.json --signature examples/plugins/sample-detector/sample-detector-1.0.0.bundle.sig --out-json "$(or $(OUT_DIR),build/plugins/sample-detector)/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins/sample-detector)/plugin-release-gate.md"
-	python3 scripts/ops/plugin-catalog-gate.py --plugin-gate "$(or $(OUT_DIR),build/plugins/sample-detector)/plugin-release-gate.json" --require-plugins --require-signatures --require-permissions --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
+	python3 scripts/ops/plugin-release-gate.py --manifest examples/plugins/sample-detector/plugin.json --signature examples/plugins/sample-detector/sample-detector-1.0.0.bundle.sig --out-json "$(or $(OUT_DIR),build/plugins)/sample-detector/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/sample-detector/plugin-release-gate.md"
+	python3 scripts/ops/plugin-release-gate.py --manifest examples/plugins/official-sample-detector/plugin.json --signature examples/plugins/official-sample-detector/official-sample-detector-1.0.0.bundle.sig --out-json "$(or $(OUT_DIR),build/plugins)/official-sample-detector/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/official-sample-detector/plugin-release-gate.md"
+	python3 scripts/ops/plugin-catalog-gate.py --plugin-gate "$(or $(OUT_DIR),build/plugins)/sample-detector/plugin-release-gate.json" --plugin-gate "$(or $(OUT_DIR),build/plugins)/official-sample-detector/plugin-release-gate.json" --require-plugins --require-signatures --require-permissions --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
 
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
@@ -568,10 +576,10 @@ model-deploy-gate:
 
 model-lifecycle-gate:
 	@if [ -z "$(MODEL_CLOSED_LOOP_JSON)" ] || [ -z "$(MODEL_DEPLOY_GATE_JSON)" ]; then echo 'usage: make model-lifecycle-gate MODEL_CLOSED_LOOP_JSON=... MODEL_DEPLOY_GATE_JSON=... [MODEL_APPROVAL=...] [REQUIRED_FEEDBACK_LABELS=\"true_positive false_positive benign duplicate\"]'; exit 2; fi
-	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop "$(MODEL_CLOSED_LOOP_JSON)" --deploy-gate "$(MODEL_DEPLOY_GATE_JSON)" $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(MODEL_APPROVAL),--approval "$(MODEL_APPROVAL)") --min-feedback-records "$(or $(MIN_FEEDBACK_RECORDS),25)" --min-reviewed-labels "$(or $(MIN_REVIEWED_LABELS),10)" $(foreach label,$(REQUIRED_FEEDBACK_LABELS),--required-feedback-label "$(label)") --min-feedback-per-label "$(or $(MIN_FEEDBACK_PER_LABEL),1)" --min-baseline-days "$(or $(MIN_BASELINE_DAYS),7)" $(if $(REQUIRE_MODEL_APPROVAL),--require-approval) --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
+	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop "$(MODEL_CLOSED_LOOP_JSON)" --deploy-gate "$(MODEL_DEPLOY_GATE_JSON)" $(if $(MODEL_DRIFT_JSON),--drift-report "$(MODEL_DRIFT_JSON)") $(if $(MODEL_BASELINE_REPORT),--baseline-report "$(MODEL_BASELINE_REPORT)") $(if $(MODEL_APPROVAL),--approval "$(MODEL_APPROVAL)") $(if $(MODEL_ROLLBACK_RECORD),--rollback-record "$(MODEL_ROLLBACK_RECORD)") --min-feedback-records "$(or $(MIN_FEEDBACK_RECORDS),25)" --min-reviewed-labels "$(or $(MIN_REVIEWED_LABELS),10)" $(foreach label,$(REQUIRED_FEEDBACK_LABELS),--required-feedback-label "$(label)") --min-feedback-per-label "$(or $(MIN_FEEDBACK_PER_LABEL),1)" --min-baseline-days "$(or $(MIN_BASELINE_DAYS),7)" $(if $(REQUIRE_MODEL_APPROVAL),--require-approval) $(if $(REQUIRE_MODEL_BASELINE_REPORT),--require-baseline-report) $(if $(REQUIRE_MODEL_GOVERNANCE_BINDINGS),--require-governance-bindings) --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
 
 model-lifecycle-example-gate:
-	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop examples/model-lifecycle/closed-loop.json --deploy-gate examples/model-lifecycle/deploy-gate.json --drift-report examples/model-lifecycle/drift.json --baseline-report examples/model-lifecycle/baseline.json --approval examples/model-lifecycle/approval.json --require-approval --require-baseline-report --min-baseline-windows 3 --required-feedback-label true_positive --required-feedback-label false_positive --required-feedback-label benign --required-feedback-label duplicate --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
+	python3 scripts/evaluation/model_lifecycle_gate.py --closed-loop examples/model-lifecycle/closed-loop.json --deploy-gate examples/model-lifecycle/deploy-gate.json --drift-report examples/model-lifecycle/drift.json --baseline-report examples/model-lifecycle/baseline.json --approval examples/model-lifecycle/approval.json --rollback-record examples/model-lifecycle/rollback.json --require-approval --require-baseline-report --require-governance-bindings --min-baseline-windows 3 --required-feedback-label true_positive --required-feedback-label false_positive --required-feedback-label benign --required-feedback-label duplicate --out-json "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.json" --out-md "$(or $(OUT_DIR),build/evaluation)/model-lifecycle-gate.md"
 
 verify-capture:
 	@bash test/integration/attack-scenarios/verify_capture.sh
@@ -619,7 +627,7 @@ help:
 	@echo '  make detection-quality Merge coverage and alert quality into precision/recall/F1'
 	@echo '  make attack-coverage-plan Plan safe simulations for missed ATT&CK techniques'
 	@echo '  make model-deploy-gate MODEL_REGISTRY=... MODEL_NAME=... MODEL_VERSION=... Gate model deployment'
-	@echo '  make model-lifecycle-gate MODEL_CLOSED_LOOP_JSON=... MODEL_DEPLOY_GATE_JSON=... Build model promotion packet'
+	@echo '  make model-lifecycle-gate MODEL_CLOSED_LOOP_JSON=... MODEL_DEPLOY_GATE_JSON=... Build model promotion packet and governance bindings'
 	@echo '  make model-lifecycle-example-gate Run sample model lifecycle promotion fixture'
 	@echo '  make verify-capture   Verify provenance chain capture'
 	@echo '  make loader-smoke     Run Linux loader smoke test'
@@ -660,6 +668,7 @@ help:
 	@echo '  make dist-rpm         Build the .rpm package'
 	@echo '  make dist-tar         Build the portable tarball'
 	@echo '  make release-open-source Build open-source release artifacts, SBOMs, checksums, scans, and readiness report'
+	@echo '  make release-final RELEASE_TAG=v1.2.4 Generate ordered final release plan before tagging'
 	@echo '  make github-release RELEASE_TAG=v1.2.3-rc.2 Publish checked dist artifacts to GitHub Releases'
 	@echo '  make github-actions-evidence Collect structured GitHub Actions evidence'
 	@echo '  make release-gates     Collect CI, scanner, approval, and artifact gate status'
@@ -692,6 +701,7 @@ help:
 	@echo '  make rbac-hardening-example-gate Run sample RBAC, audit, role review, and certification fixture'
 	@echo '  make backup-readiness-gate Gate backup, restore, and cutover evidence'
 	@echo '  make support-bundle-gate Gate support bundle redaction and audit evidence'
+	@echo '  make support-diagnostics STATUS_JSON=... PROVIDAPT_CONFIG=... PROVIDAPT_LOG=... Build one-click redacted diagnostics'
 	@echo '  make deployment-diagnostics-gate Gate runtime deployment diagnostics evidence'
 	@echo '  make trace-svg-stress PROVIDAPT_SERVER_URL=... ALERT_IDS="..." Stress Trace SVG layouts'
 	@echo '  make trace-svg-stress-example Run synthetic local Trace SVG stress fixture'
