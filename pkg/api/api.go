@@ -821,6 +821,17 @@ type InvestigationReport struct {
 	Edges           []InvestigationEdge `json:"edges"`
 }
 
+type InvestigationReportBundle struct {
+	Schema        string              `json:"schema"`
+	GeneratedAt   string              `json:"generated_at"`
+	Report        InvestigationReport `json:"report"`
+	Markdown      string              `json:"markdown"`
+	SVG           map[string]string   `json:"svg"`
+	Aggregations  map[string]int      `json:"aggregations"`
+	AnalystSteps  []string            `json:"analyst_steps"`
+	ExportPackage string              `json:"export_package"`
+}
+
 type cachedAlertSVG struct {
 	body      []byte
 	expiresAt time.Time
@@ -2552,10 +2563,15 @@ func (s *Server) handleInvestigationReport(w http.ResponseWriter, r *http.Reques
 		return err
 	}
 	report := buildInvestigationReport(startNode, direction, depth, nodes, edges)
-	if strings.EqualFold(r.URL.Query().Get("format"), "markdown") {
+	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
+	if format == "markdown" {
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 		_, err := w.Write([]byte(renderInvestigationMarkdown(report)))
 		return err
+	}
+	if format == "bundle" {
+		w.Header().Set("Content-Disposition", "attachment; filename=\"providapt-investigation-"+safeDownloadName(startNode)+".json\"")
+		return json.NewEncoder(w).Encode(buildInvestigationBundle(report))
 	}
 	return json.NewEncoder(w).Encode(report)
 }
@@ -2936,6 +2952,49 @@ func renderInvestigationMarkdown(report InvestigationReport) string {
 		fmt.Fprintf(&b, "| %s | %s | `%s` | `%s` | %d |\n", escapeMarkdownCell(edge.Timestamp), escapeMarkdownCell(edge.Relation), escapeMarkdownCell(edge.Source), escapeMarkdownCell(edge.Target), edge.Count)
 	}
 	return b.String()
+}
+
+func buildInvestigationBundle(report InvestigationReport) InvestigationReportBundle {
+	encodedNode := url.QueryEscape(report.StartNode)
+	svgBase := "/api/v1/alerts/" + strings.ReplaceAll(encodedNode, "+", "%20") + "/svg"
+	aggregations := map[string]int{
+		"processes": report.ProcessCount,
+		"files":     report.FileCount,
+		"networks":  report.NetworkCount,
+		"nodes":     report.NodeCount,
+		"edges":     report.EdgeCount,
+	}
+	return InvestigationReportBundle{
+		Schema:      "providapt.investigation_report_bundle.v1",
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Report:      report,
+		Markdown:    renderInvestigationMarkdown(report),
+		SVG: map[string]string{
+			"tree":     svgBase + "?layout=tree",
+			"compact":  svgBase + "?layout=compact",
+			"timeline": svgBase + "?layout=timeline",
+			"grouped":  svgBase + "?layout=grouped",
+			"viewer":   svgBase + "/view",
+		},
+		Aggregations: aggregations,
+		AnalystSteps: []string{
+			"Review process lineage and parent-child edges first.",
+			"Check network edges for external destinations and repeated sessions.",
+			"Inspect file nodes for suspicious writes, deletes, or persistence paths.",
+			"Record true positive, false positive, duplicate, or benign feedback after triage.",
+		},
+		ExportPackage: "json+markdown+svg-links",
+	}
+}
+
+func safeDownloadName(value string) string {
+	replacer := strings.NewReplacer(":", "-", "/", "-", "\\", "-", " ", "-")
+	cleaned := replacer.Replace(strings.TrimSpace(value))
+	cleaned = strings.Trim(cleaned, "-._")
+	if cleaned == "" {
+		return "trace"
+	}
+	return cleaned
 }
 
 func dedupeNodes(nodes []*provenance.Node) []*provenance.Node {

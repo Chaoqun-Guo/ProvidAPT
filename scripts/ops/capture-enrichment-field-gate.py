@@ -13,6 +13,7 @@ from typing import Any
 SCHEMA = "providapt.capture_enrichment_field_gate.v1"
 FILE_EVENT_HINTS = ("file", "open", "read", "write", "unlink", "rename", "chmod", "chown")
 NETWORK_EVENT_HINTS = ("net", "socket", "connect", "accept", "send", "recv")
+SHELL_NAMES = ("sh", "bash", "zsh", "dash", "fish", "csh", "ksh")
 
 
 def iter_event_files(values: list[str]) -> list[Path]:
@@ -84,6 +85,33 @@ def is_network_event(record: dict[str, Any]) -> bool:
     return any(hint in typ for hint in NETWORK_EVENT_HINTS) or has_field(record, ("network.src_ip", "payload.src_ip", "src_ip", "payload.dst_ip", "dst_ip"))
 
 
+def command_text(record: dict[str, Any]) -> str:
+    value = first_value(record, ("process.cmdline", "payload.cmdline", "cmdline", "enrich.cmdline", "process.exe_path", "payload.exe_path", "exe_path"))
+    if isinstance(value, list):
+        return " ".join(str(item) for item in value).lower()
+    return str(value or "").lower()
+
+
+def is_shell_activity(record: dict[str, Any]) -> bool:
+    text = command_text(record)
+    return any(("/" + name) in text or text.startswith(name + " ") or (" " + name + " ") in text for name in SHELL_NAMES)
+
+
+def is_process_chain_event(record: dict[str, Any]) -> bool:
+    return has_field(record, ("process.pid", "pid")) and has_field(record, ("process.ppid", "ppid", "payload.parent_pid"))
+
+
+def is_privilege_change_event(record: dict[str, Any]) -> bool:
+    typ = event_type(record).lower()
+    if any(hint in typ for hint in ("setuid", "setgid", "capset", "chmod", "chown", "privilege", "credential")):
+        return True
+    uid = first_value(record, ("process.uid", "uid"))
+    euid = first_value(record, ("process.euid", "euid", "payload.euid"))
+    gid = first_value(record, ("process.gid", "gid"))
+    egid = first_value(record, ("process.egid", "egid", "payload.egid"))
+    return (uid is not None and euid is not None and str(uid) != str(euid)) or (gid is not None and egid is not None and str(gid) != str(egid))
+
+
 def pct(numerator: int, denominator: int) -> float:
     return round(numerator * 100.0 / denominator, 2) if denominator else 0.0
 
@@ -111,6 +139,13 @@ def field_summary(events: list[dict[str, Any]]) -> dict[str, Any]:
         ),
     }
     event_types = Counter(event_type(event) or "unknown" for event in events)
+    scenario_counts = {
+        "shell_activity": sum(is_shell_activity(event) for event in events),
+        "file_activity": len(file_events),
+        "network_activity": len(network_events),
+        "process_chain": sum(is_process_chain_event(event) for event in events),
+        "privilege_change": sum(is_privilege_change_event(event) for event in events),
+    }
     return {
         "event_count": total,
         "file_event_count": len(file_events),
@@ -128,6 +163,8 @@ def field_summary(events: list[dict[str, Any]]) -> dict[str, Any]:
             "network_tuple_percent": pct(checks["network_tuple"], len(network_events)),
         },
         "event_type_summary": dict(sorted(event_types.items())),
+        "scenario_counts": scenario_counts,
+        "scenario_rates": {name + "_percent": pct(value, total) for name, value in scenario_counts.items()},
     }
 
 
@@ -158,6 +195,17 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         warnings.append("no file events found; pathname coverage could not exercise file capture")
     if summary["network_event_count"] == 0:
         warnings.append("no network events found; network tuple coverage could not exercise network capture")
+    scenario_counts = summary["scenario_counts"]
+    if scenario_counts["shell_activity"] == 0:
+        warnings.append("no shell activity events found; shell behavior coverage was not exercised")
+    if scenario_counts["file_activity"] == 0:
+        warnings.append("no file activity events found; file behavior coverage was not exercised")
+    if scenario_counts["network_activity"] == 0:
+        warnings.append("no network activity events found; network behavior coverage was not exercised")
+    if scenario_counts["process_chain"] == 0:
+        warnings.append("no parent-child process chain evidence found")
+    if scenario_counts["privilege_change"] == 0:
+        warnings.append("no privilege-change evidence found; this may be acceptable for routine captures")
     status = "blocked" if failures else "warn" if warnings else "pass"
     return {
         "schema": SCHEMA,
@@ -187,6 +235,11 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     for name, value in sorted(rates.items()):
         lines.append(f"| {name} | {value}% |")
+    lines.extend(["", "## Behavior Scenarios", "", "| Scenario | Count | Coverage |", "| --- | ---: | ---: |"])
+    scenario_counts = summary.get("scenario_counts", {})
+    scenario_rates = summary.get("scenario_rates", {})
+    for name, value in sorted(scenario_counts.items()):
+        lines.append(f"| {name} | {value} | {scenario_rates.get(name + '_percent', 0.0)}% |")
     if report["failures"]:
         lines.extend(["", "## Failures", ""])
         lines.extend(f"- {item}" for item in report["failures"])

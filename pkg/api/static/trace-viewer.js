@@ -476,6 +476,23 @@ function copyReportSnippet() {
   }
   writeClipboard(report, 'Investigation report snippet copied.');
 }
+async function downloadReportBundle() {
+  const params = new URLSearchParams();
+  params.set('node', alertID);
+  params.set('direction', 'backward');
+  params.set('depth', '5');
+  params.set('format', 'bundle');
+  const url = '/api/v1/investigation/report?' + params.toString();
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const text = await response.text();
+    downloadBlob(new Blob([text], { type: 'application/json;charset=utf-8' }), 'providapt-investigation-' + safeFilename(alertID) + '.json');
+    document.getElementById('viewerStatus').textContent = 'Investigation bundle downloaded.';
+  } catch (error) {
+    document.getElementById('viewerStatus').textContent = 'Investigation bundle failed: ' + error.message;
+  }
+}
 function copySelectedDetail() {
   const selected = canvas.querySelector('.selected');
   if (!selected) {

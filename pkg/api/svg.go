@@ -105,6 +105,7 @@ func renderTraceSVGViewer(alertID string) []byte {
 	rawPath := "/api/v1/alerts/" + encodedID + "/svg"
 	reportPath := "/api/v1/investigation/report?node=" + url.QueryEscape(alertID) + "&direction=backward&depth=5"
 	reportMarkdownPath := reportPath + "&format=markdown"
+	reportBundlePath := reportPath + "&format=bundle"
 	var b strings.Builder
 	fmt.Fprintf(&b, `<!doctype html>
 <html lang="en">
@@ -146,10 +147,12 @@ func renderTraceSVGViewer(alertID string) []byte {
       <button onclick="toggleClusters()">Clusters</button>
       <button onclick="exportPNG()">PNG</button>
       <button onclick="copyReportSnippet()">Report</button>
+      <button onclick="downloadReportBundle()">Bundle</button>
       <a class="tool-link" href="%s" target="_blank" rel="noreferrer">Open Raw SVG</a>
       <a class="tool-link" href="%s" download="providapt-trace.svg">SVG</a>
       <a class="tool-link" href="%s" target="_blank" rel="noreferrer">MD Report</a>
       <a class="tool-link" href="%s" target="_blank" rel="noreferrer">JSON</a>
+      <a class="tool-link" href="%s" download="providapt-investigation-bundle.json">Bundle JSON</a>
     </div>
   </header>
   <main class="viewer">
@@ -190,6 +193,7 @@ func renderTraceSVGViewer(alertID string) []byte {
           <button onclick="downloadInlineSVG()">SVG</button>
           <button onclick="exportPNG()">PNG</button>
           <button onclick="copyReportSnippet()">Report</button>
+          <button onclick="downloadReportBundle()">Bundle</button>
           <button onclick="copySelectedDetail()">Detail</button>
         </div>
       </div>
@@ -202,7 +206,7 @@ func renderTraceSVGViewer(alertID string) []byte {
 <script src="/assets/trace-viewer.js" defer></script>
 </body>
 </html>
-`, escapeXML(alertID), escapeXML(rawPath), escapeXML(alertID), escapeXML(alertID), rawPath, rawPath, reportMarkdownPath, reportPath)
+`, escapeXML(alertID), escapeXML(rawPath), escapeXML(alertID), escapeXML(alertID), rawPath, rawPath, reportMarkdownPath, reportPath, reportBundlePath)
 	return []byte(b.String())
 }
 

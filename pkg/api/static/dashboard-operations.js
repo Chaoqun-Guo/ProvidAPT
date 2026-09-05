@@ -15,6 +15,7 @@ function loadOperationsSummary() {
   const evidenceReady = support.last_status === 'success' || support.last_archive_path || support.last_bundle_path;
   updateFleetAggregateMetrics(fleet.agents || overview.agents || []);
   updateSidebarPosture();
+  updateDutyQueue(totalAgents, healthyAgents, openWorkflow, deadLetters, workflowSummary);
 
   document.getElementById('opFleet').textContent = totalAgents ? healthyAgents + '/' + totalAgents : '--';
   document.getElementById('opWorkflow').textContent = openWorkflow;
@@ -35,6 +36,26 @@ function renderOpsStatusCard(title, severityClass, stage, detail) {
     '<div class="ops-head"><span class="ops-title">' + escapeHTML(title || '--') + '</span><span class="alert-sev ' + escapeHTML(severityClass || 'sev-low') + '">' + escapeHTML(stage || '') + '</span></div>' +
     '<div class="ops-detail">' + escapeHTML(detail || '--') + '</div>' +
     '</div>';
+}
+
+function updateDutyQueue(totalAgents, healthyAgents, openWorkflow, deadLetters, workflowSummary) {
+  const fleetReady = totalAgents > 0 && healthyAgents === totalAgents;
+  const status = totalAgents ? (fleetReady ? 'Healthy' : 'Needs attention') : 'No agents';
+  const detail = totalAgents
+    ? healthyAgents + '/' + totalAgents + ' agents healthy' + (deadLetters ? ' · ' + deadLetters + ' delivery issue(s)' : '')
+    : 'Connect agents to start monitoring';
+  setText('dutyStatus', status);
+  setText('dutyStatusDetail', detail);
+  setText('dutyOpenAlerts', openWorkflow || 0);
+  setText('dutyTraceScope', openWorkflow > 0 ? 'Trace alerts' : 'Trace graph');
+  setText('dutyReviewed', (workflowSummary && workflowSummary.reviewed) || document.getElementById('awReviewed')?.textContent || '--');
+  const statusCard = document.querySelector('.duty-status');
+  if (statusCard) {
+    statusCard.classList.toggle('attention', !fleetReady);
+    statusCard.classList.toggle('ok', fleetReady);
+  }
+  const alertCard = document.querySelector('.duty-alerts');
+  if (alertCard) alertCard.classList.toggle('attention', openWorkflow > 0);
 }
 
 function updateSidebarPosture() {

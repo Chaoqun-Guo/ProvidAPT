@@ -84,6 +84,7 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .workspace-tabs button:hover, .workspace-tools button:hover { border-color:#58a6ff; color:#58a6ff; }
 .workspace-tabs button.active { background:#1f6feb; border-color:#1f6feb; color:#fff; }
 .workspace-view-menu { position:relative; z-index:80; flex:0 0 auto; }
+.workspace-more-menu .workspace-tools { grid-template-columns:86px repeat(3, minmax(86px, 1fr)); }
 .workspace-view-menu summary { list-style:none; background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:6px; padding:0 13px; height:30px; min-width:70px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center; }
 .workspace-view-menu summary::-webkit-details-marker { display:none; }
 .workspace-view-menu[open] { z-index:140; }
@@ -99,6 +100,16 @@ header .status-badge { display: inline-flex; align-items: center; gap: 6px; padd
 .dashboard-density-comfortable .panel { min-height:420px; }
 .dashboard-density-comfortable .alerts-list { max-height:250px; }
 .panel.section-hidden { display:none; }
+.duty-queue { display:grid; grid-template-columns:1.25fr repeat(3, minmax(138px, 1fr)); gap:8px; min-width:0; }
+.duty-card { min-width:0; min-height:86px; text-align:left; display:grid; gap:4px; align-content:center; background:#101722; color:#c9d1d9; border:1px solid #263548; border-radius:8px; padding:11px 12px; cursor:pointer; overflow:hidden; box-shadow:0 8px 24px rgba(1,4,9,0.18); }
+.duty-card:hover { border-color:#58a6ff; transform:translateY(-1px); }
+.duty-card:focus { outline:2px solid #58a6ff; outline-offset:2px; }
+.duty-card strong { display:block; color:#f0f6fc; font-size:20px; line-height:1.1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.duty-card span { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.duty-kicker { color:#7dd3fc; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.7px; }
+.duty-card span:last-child { color:#8b949e; font-size:11px; }
+.duty-card.attention { border-color:#d29922; background:#1c1710; }
+.duty-card.ok { border-color:#238636; background:#0f1b16; }
 .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 10px; min-height: 82px; min-width:0; overflow:hidden; }
 .card.clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease; }
 .card.clickable:hover { border-color: #58a6ff; transform: translateY(-1px); }

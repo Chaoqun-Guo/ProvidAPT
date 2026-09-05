@@ -44,6 +44,15 @@
     <button data-dashboard-section="platform" onclick="switchDashboardSection('platform')">Fleet</button>
   </div>
   <div class="workspace-hint" id="workspaceHint">Today: open alerts, trace shortcuts, fleet health, and next actions.</div>
+  <details class="workspace-view-menu workspace-more-menu">
+    <summary>More</summary>
+    <div class="workspace-tools" aria-label="Secondary dashboard workspaces">
+      <span>Workspaces</span>
+      <button data-dashboard-section="respond" onclick="switchDashboardSection('respond')">Response</button>
+      <button data-dashboard-section="govern" onclick="switchDashboardSection('govern')">Evidence</button>
+      <button data-dashboard-section="detect" onclick="switchDashboardSection('detect')">Model</button>
+    </div>
+  </details>
   <details class="workspace-view-menu">
     <summary>Tools</summary>
     <div class="workspace-tools" aria-label="Dashboard view controls">

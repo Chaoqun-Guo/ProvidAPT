@@ -185,3 +185,11 @@ async function downloadInvestigationReport() {
     setInvestigationLoading('Investigation report download failed: ' + e.message);
   }
 }
+
+async function downloadInvestigationBundle() {
+  try {
+    await downloadWithAuth(investigationReportURL('bundle'), 'providapt-investigation-bundle.json');
+  } catch (e) {
+    setInvestigationLoading('Investigation bundle download failed: ' + e.message);
+  }
+}

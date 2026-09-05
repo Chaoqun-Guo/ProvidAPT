@@ -1916,6 +1916,36 @@ func TestInvestigationReportMarkdown(t *testing.T) {
 	}
 }
 
+func TestInvestigationReportBundle(t *testing.T) {
+	ts := testServer(t)
+	w := apiGet(ts, "/api/v1/investigation/report?node=p:100&format=bundle")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Disposition"); !strings.Contains(got, "providapt-investigation-p-100.json") {
+		t.Fatalf("content-disposition = %q", got)
+	}
+
+	var bundle InvestigationReportBundle
+	if err := json.NewDecoder(w.Body).Decode(&bundle); err != nil {
+		t.Fatalf("decode bundle: %v", err)
+	}
+	if bundle.Schema != "providapt.investigation_report_bundle.v1" {
+		t.Fatalf("schema = %q", bundle.Schema)
+	}
+	if bundle.Report.StartNode != "p:100" || !strings.Contains(bundle.Markdown, "ProvidAPT Investigation Report") {
+		t.Fatalf("unexpected bundle report: %+v", bundle)
+	}
+	for _, key := range []string{"tree", "compact", "timeline", "grouped", "viewer"} {
+		if bundle.SVG[key] == "" {
+			t.Fatalf("bundle missing SVG link %q: %+v", key, bundle.SVG)
+		}
+	}
+	if bundle.Aggregations["nodes"] == 0 || len(bundle.AnalystSteps) == 0 {
+		t.Fatalf("bundle missing investigation aids: %+v", bundle)
+	}
+}
+
 func TestBackwardDepthParam(t *testing.T) {
 	ts := testServer(t)
 	w := apiGet(ts, "/api/v1/graph/node/p:100/backward?depth=2")
@@ -2009,7 +2039,9 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		"applyLayoutMode('grouped')",
 		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5&format=markdown",
 		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5",
+		"/api/v1/investigation/report?node=p%3A100&direction=backward&depth=5&format=bundle",
 		"/api/v1/alerts/p%3A100/svg",
+		"Bundle JSON",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("viewer missing %q in body: %s", want, body)
@@ -2025,6 +2057,7 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		"exportPNG",
 		"downloadInlineSVG",
 		"copyReportSnippet",
+		"downloadReportBundle",
 		"function traceFetchURL()",
 		"new URL(rawURL, window.location.origin).toString()",
 		"encodeURIComponent(alertID)",

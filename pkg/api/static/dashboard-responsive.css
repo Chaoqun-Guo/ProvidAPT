@@ -3,6 +3,7 @@
 .workspace-nav,
 .dashboard-shell,
 .dashboard-main,
+.duty-queue,
 .content,
 .dashboard-panel,
 .dashboard-panel .panel-body,
@@ -107,6 +108,14 @@
     grid-template-columns: repeat(6, minmax(104px, 1fr));
     gap: 6px;
   }
+  .duty-queue {
+    grid-template-columns: repeat(4, minmax(118px, 1fr));
+    gap: 6px;
+  }
+  .duty-card {
+    min-height: 76px;
+    padding: 9px 10px;
+  }
   .dashboard-sidebar {
     padding: 10px;
     position: relative;
@@ -152,6 +161,7 @@
   }
   .sidebar-nav,
   .sidebar-status-grid,
+  .duty-queue,
   .metrics,
   .content {
     grid-template-columns: 1fr;
@@ -190,6 +200,9 @@
   .metrics {
     grid-template-columns: repeat(6, minmax(150px, 1fr));
   }
+  .duty-queue {
+    grid-template-columns: 1.2fr repeat(3, minmax(180px, 1fr));
+  }
   .dashboard-panel[data-panel-id="alert-workflow"],
   .dashboard-panel[data-panel-id="policy-center"],
   .dashboard-panel[data-panel-id="agent-overview"] {
@@ -209,6 +222,9 @@
   }
   .metrics {
     grid-template-columns: repeat(6, minmax(160px, 1fr));
+  }
+  .duty-queue {
+    grid-template-columns: 1.2fr repeat(3, minmax(210px, 1fr));
   }
   .dashboard-panel[data-panel-id="alert-workflow"],
   .dashboard-panel[data-panel-id="policy-center"],

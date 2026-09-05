@@ -182,6 +182,7 @@ func TestDashboardInvestigationConsole(t *testing.T) {
 		"investigationNodeInput",
 		"showInvestigationReport",
 		"downloadInvestigationReport",
+		"downloadInvestigationBundle",
 		"/api/v1/investigation/report?",
 		"showEventDetailsJSON",
 		"eventDetailRows",
@@ -676,6 +677,8 @@ func TestDashboardPolicyValidationGuidance(t *testing.T) {
 func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 	expected := []string{
 		"workspace-nav",
+		"workspace-more-menu",
+		"More",
 		"data-dashboard-section=\"detect\"",
 		"data-dashboard-section=\"investigate\"",
 		"data-dashboard-section=\"respond\"",
@@ -708,6 +711,13 @@ func TestDashboardWorkspaceNavigationRefactor(t *testing.T) {
 		"src=\"/assets/dashboard-graph.js\"",
 		"src=\"/assets/dashboard-runtime.js\"",
 		"src=\"/assets/dashboard-operations.js\"",
+		"duty-queue",
+		"dutyStatus",
+		"dutyOpenAlerts",
+		"dutyTraceScope",
+		"dutyReviewed",
+		"openAlertFeedbackLedger()",
+		"updateDutyQueue",
 	}
 	for _, item := range expected {
 		if !strings.Contains(dashboardTestSurface(), item) {
@@ -750,6 +760,34 @@ func TestDashboardOverviewFocusesDailyOperations(t *testing.T) {
 		if strings.Contains(overviewBlock, item) {
 			t.Fatalf("dashboard overview should keep low-frequency panel %q in secondary workspaces", item)
 		}
+	}
+}
+
+func TestDashboardDutyQueueKeepsHomepageOperatorFocused(t *testing.T) {
+	expected := []string{
+		"Primary duty workflow",
+		"Check Status",
+		"Review Alerts",
+		"Open Trace",
+		"Record Feedback",
+		"switchDashboardSection('platform')",
+		"loadAlertWorkflowFiltered('open')",
+		"switchDashboardSection('investigate')",
+		"openAlertFeedbackLedger()",
+		".duty-queue",
+		".duty-card",
+		".workspace-more-menu",
+	}
+	for _, item := range expected {
+		if !strings.Contains(dashboardTestSurface(), item) {
+			t.Fatalf("dashboard missing duty queue content %q", item)
+		}
+	}
+
+	homeStart := strings.Index(dashboardHTMLDocument(), "<section class=\"duty-queue\"")
+	metricsStart := strings.Index(dashboardHTMLDocument(), "<div class=\"metrics\"")
+	if homeStart < 0 || metricsStart < 0 || homeStart > metricsStart {
+		t.Fatalf("duty queue should be the first dashboard homepage block")
 	}
 }
 

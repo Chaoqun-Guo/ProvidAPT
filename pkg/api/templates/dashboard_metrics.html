@@ -1,3 +1,25 @@
+<section class="duty-queue" aria-label="Primary duty workflow">
+  <button class="duty-card duty-status" onclick="switchDashboardSection('platform')">
+    <span class="duty-kicker">Check Status</span>
+    <strong id="dutyStatus">Loading</strong>
+    <span id="dutyStatusDetail">Fleet and runtime health</span>
+  </button>
+  <button class="duty-card duty-alerts" onclick="loadAlertWorkflowFiltered('open')">
+    <span class="duty-kicker">Review Alerts</span>
+    <strong id="dutyOpenAlerts">--</strong>
+    <span>Open queue</span>
+  </button>
+  <button class="duty-card duty-trace" onclick="switchDashboardSection('investigate')">
+    <span class="duty-kicker">Open Trace</span>
+    <strong id="dutyTraceScope">Trace</strong>
+    <span>Investigate impact</span>
+  </button>
+  <button class="duty-card duty-feedback" onclick="openAlertFeedbackLedger()">
+    <span class="duty-kicker">Record Feedback</span>
+    <strong id="dutyReviewed">--</strong>
+    <span>Reviewed labels</span>
+  </button>
+</section>
 <div class="metrics" id="metrics">
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Nodes</div><div class="sub">Inspect entities</div></div>
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('edges')" onkeydown="handleCardKey(event, () => showGraphSummary('edges'))"><div class="value" id="mEdges">--</div><div class="label">Edges</div><div class="sub">Inspect links</div></div>
