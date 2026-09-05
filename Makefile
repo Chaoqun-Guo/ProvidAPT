@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source release-final github-release github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-manifest release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate support-diagnostics deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate capture-quality-trend collect-vm-capture-evidence vm-daily-evidence-summary security-hardening-gate security-hardening-pack scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-marketplace-lite plugin-example-gates rbac-hardening-example-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate support-diagnostics deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate capture-quality-trend collect-vm-capture-evidence vm-capture-scenarios vm-daily-evidence-summary security-hardening-gate security-hardening-pack scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-marketplace-lite plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
 
@@ -431,7 +431,7 @@ plugin-example-gates:
 	python3 scripts/ops/plugin-catalog-gate.py --plugin-gate "$(or $(OUT_DIR),build/plugins)/sample-detector/plugin-release-gate.json" --plugin-gate "$(or $(OUT_DIR),build/plugins)/official-sample-detector/plugin-release-gate.json" --require-plugins --require-signatures --require-permissions --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
 
 vm-daily-evidence-summary:
-	python3 scripts/ops/vm-daily-evidence-summary.py $(if $(CAPTURE_ENRICHMENT_GATE),--capture-gate "$(CAPTURE_ENRICHMENT_GATE)") $(if $(SERVICE_HEALTH),--service-health "$(SERVICE_HEALTH)") $(if $(TRACE_SVG_STRESS),--trace-svg-stress "$(TRACE_SVG_STRESS)") $(if $(VISUAL_BASELINE),--visual-baseline "$(VISUAL_BASELINE)") $(if $(DISK_LOG_BUDGET),--disk-log-budget "$(DISK_LOG_BUDGET)") --out-json "$(or $(OUT_DIR),build/vm-evidence)/daily-summary.json" --out-md "$(or $(OUT_DIR),build/vm-evidence)/daily-summary.md"
+	python3 scripts/ops/vm-daily-evidence-summary.py $(if $(CAPTURE_ENRICHMENT_GATE),--capture-gate "$(CAPTURE_ENRICHMENT_GATE)") $(if $(CAPTURE_SCENARIOS),--capture-scenarios "$(CAPTURE_SCENARIOS)") $(if $(SERVICE_HEALTH),--service-health "$(SERVICE_HEALTH)") $(if $(TRACE_SVG_STRESS),--trace-svg-stress "$(TRACE_SVG_STRESS)") $(if $(VISUAL_BASELINE),--visual-baseline "$(VISUAL_BASELINE)") $(if $(DISK_LOG_BUDGET),--disk-log-budget "$(DISK_LOG_BUDGET)") --out-json "$(or $(OUT_DIR),build/vm-evidence)/daily-summary.json" --out-md "$(or $(OUT_DIR),build/vm-evidence)/daily-summary.md"
 
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
@@ -502,6 +502,10 @@ capture-quality-trend:
 collect-vm-capture-evidence:
 	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ]; then echo 'usage: make collect-vm-capture-evidence PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" [REMOTE_DIR=/var/log/providapt]'; exit 2; fi
 	python3 scripts/ops/collect-vm-capture-evidence.py $(foreach host,$(PROVIDAPT_VM_HOSTS),--host "$(host)") --remote-dir "$(or $(REMOTE_DIR),/var/log/providapt)" --timeout-seconds "$(or $(SSH_TIMEOUT_SECONDS),15)" --gate-timeout-seconds "$(or $(CAPTURE_GATE_TIMEOUT_SECONDS),60)" --max-files "$(or $(MAX_VM_EVENT_FILES),5)" --lines-per-file "$(or $(VM_EVENT_LINES),5000)" --network-lines "$(or $(VM_NETWORK_LINES),200)" --out-dir "$(or $(OUT_DIR),build/vm-capture-evidence)" $(if $(SKIP_CAPTURE_GATE),--skip-gate)
+
+vm-capture-scenarios:
+	@if [ -z "$(PROVIDAPT_VM_HOSTS)" ]; then echo 'usage: make vm-capture-scenarios PROVIDAPT_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" [PROVIDAPT_SERVER_URL=http://vm-ubuntu-master:18080]'; exit 2; fi
+	python3 scripts/ops/vm-capture-scenario-runner.py $(foreach host,$(PROVIDAPT_VM_HOSTS),--host "$(host)") --server-url "$(or $(PROVIDAPT_SERVER_URL),http://vm-ubuntu-master:18080)" --marker-prefix "$(or $(SCENARIO_MARKER_PREFIX),providapt-capture-scenario)" --timeout-seconds "$(or $(SCENARIO_TIMEOUT_SECONDS),20)" --out-dir "$(or $(OUT_DIR),build/vm-capture-scenarios)"
 
 
 probe:
@@ -715,6 +719,7 @@ help:
 	@echo '  make trace-svg-stress PROVIDAPT_SERVER_URL=... ALERT_IDS="..." Stress Trace SVG layouts'
 	@echo '  make trace-svg-stress-example Run synthetic local Trace SVG stress fixture'
 	@echo '  make collect-vm-capture-evidence PROVIDAPT_VM_HOSTS="..." Collect VM NDJSON and gate field enrichment'
+	@echo '  make vm-capture-scenarios PROVIDAPT_VM_HOSTS="..." Trigger low-noise VM capture scenarios'
 	@echo '  make install-delivery-check Validate installer, config, service, and handoff docs'
 	@echo '  make observability-pack-check Validate Prometheus, alert rules, dashboard, and live metrics'
 	@echo '  make visual-regression-snapshots Capture dashboard and trace viewer screenshots'

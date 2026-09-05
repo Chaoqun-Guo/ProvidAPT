@@ -96,6 +96,8 @@ watchdog
 /build/trace-stress/
 /build/visual-regression/
 /build/vm-capture-evidence/
+/build/vm-capture-scenarios/
+/build/vm-capture-scenarios-*/
 /build/vm-evidence-*/
 /dist/
 /output/

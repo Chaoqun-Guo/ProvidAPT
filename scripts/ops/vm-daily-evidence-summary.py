@@ -66,6 +66,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "dashboard_visual_baseline": section("dashboard_visual_baseline", args.visual_baseline, "dashboard visual baseline"),
         "disk_log_budget": section("disk_log_budget", args.disk_log_budget, "disk and log budget"),
     }
+    if args.capture_scenarios:
+        sections["capture_scenarios"] = section("capture_scenarios", args.capture_scenarios, "capture behavior scenarios")
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -97,6 +99,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Aggregate daily VM continuous evidence into a release-ready summary.")
     parser.add_argument("--capture-gate", default="")
+    parser.add_argument("--capture-scenarios", default="")
     parser.add_argument("--service-health", default="")
     parser.add_argument("--trace-svg-stress", default="")
     parser.add_argument("--visual-baseline", default="")
