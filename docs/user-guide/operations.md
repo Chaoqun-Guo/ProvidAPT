@@ -587,6 +587,34 @@ model lifecycle, visual baseline, onboarding, and plugin evidence are generated:
 make open-source-readiness-gate
 ```
 
+Render the lightweight open-source plugin directory after plugin release gates:
+
+```bash
+make plugin-example-gates
+make plugin-marketplace-lite PLUGIN_CATALOG=build/plugins/plugin-catalog-gate.json
+```
+
+Aggregate daily VM evidence from capture coverage, service health, Trace SVG
+stress, visual baseline, and disk/log budget reports:
+
+```bash
+make vm-daily-evidence-summary \
+  CAPTURE_ENRICHMENT_GATE=build/capture-quality/capture-enrichment-field-gate.json \
+  SERVICE_HEALTH=build/deploy/deployment-diagnostics-gate.json \
+  TRACE_SVG_STRESS=build/trace-stress/trace-svg-stress.json \
+  VISUAL_BASELINE=build/visual-regression/visual-regression-snapshots.json \
+  DISK_LOG_BUDGET=build/support/support-diagnostics.json
+```
+
+Generate the open-source hardening pack before exposing a deployment:
+
+```bash
+make security-hardening-gate
+make security-hardening-pack \
+  SECURITY_HARDENING_GATE=build/security-hardening/security-hardening-gate.json \
+  TAILSCALE_ACL=examples/security/tailscale-acl-example.json
+```
+
 For operator or production-environment certification, aggregate harder
 environment-specific evidence into one gate:
 

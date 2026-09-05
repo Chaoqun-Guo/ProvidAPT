@@ -5,7 +5,7 @@
 .PHONY: graphsketch-test deception-test supplychain-test sbom sbom-syft
 .PHONY: fuzz fuzz-short coverage coverage-html bench-baseline test-e2e test-integration
 .PHONY: dist dist-deb dist-rpm dist-tar dist-all release-open-source release-final github-release github-actions-evidence release-gates release-security-local-gate security-scan-manifest artifact-signing-gate release-evidence-manifest release-evidence-consistency-gate operator-release-gate release-blocker-backlog open-source-readiness-backlog open-source-development-backlog open-source-milestone open-source-evidence-summary open-source-local-closure package-smoke-matrix create-user docker-build docker-run help
-.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate support-diagnostics deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate capture-quality-trend collect-vm-capture-evidence security-hardening-gate scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-example-gates rbac-hardening-example-gate
+.PHONY: ops-secret-template ops-secret-validate ops-secret-backends ops-tls-bootstrap ops-tls-check ops-postgres-drill ops-fleet-list ops-fleet-action ops-fleet-plan ops-siem-verify ops-rbac-audit policy-approval-gate backup-readiness-gate support-bundle-gate support-diagnostics deployment-diagnostics-gate install-delivery-check observability-pack-check visual-regression-snapshots visual-regression-gate trace-svg-stress trace-svg-stress-example capture-enrichment-field-gate capture-quality-trend collect-vm-capture-evidence vm-daily-evidence-summary security-hardening-gate security-hardening-pack scheduled-report-plan open-source-operations production-readiness-gate operations-readiness-gate operator-env-certification-gate open-source-readiness-gate soak-sample soak-readiness upgrade-rollout-plan onboarding-wizard onboarding-example-gate plugin-release-gate plugin-catalog-gate plugin-marketplace-lite plugin-example-gates rbac-hardening-example-gate
 
 SHELL := /bin/bash
 
@@ -376,6 +376,9 @@ observability-pack-check:
 security-hardening-gate:
 	python3 scripts/ops/security-hardening-gate.py --config "$(or $(PROVIDAPT_CONFIG),examples/config/providapt.production.yaml)" --service "$(or $(SERVICE_FILE),deploy/linux/providapt.service)" --env-file "$(or $(ENV_FILE),deploy/linux/providapt.env)" $(if $(RBAC_AUDIT),--rbac-audit "$(RBAC_AUDIT)") $(if $(STRICT_SECURITY),--strict) --out-json "$(or $(OUT_DIR),build/security-hardening)/security-hardening-gate.json" --out-md "$(or $(OUT_DIR),build/security-hardening)/security-hardening-gate.md"
 
+security-hardening-pack:
+	python3 scripts/ops/security-hardening-pack.py --hardening-gate "$(or $(SECURITY_HARDENING_GATE),build/security-hardening/security-hardening-gate.json)" $(if $(TAILSCALE_ACL),--tailscale-acl "$(TAILSCALE_ACL)") --out-json "$(or $(OUT_DIR),build/security-hardening)/security-hardening-pack.json" --out-md "$(or $(OUT_DIR),build/security-hardening)/security-hardening-pack.md"
+
 scheduled-report-plan:
 	python3 scripts/ops/scheduled-report-plan.py --name "$(or $(REPORT_NAME),compliance)" --cadence "$(or $(REPORT_CADENCE),1w)" --formats "$(or $(REPORT_FORMATS),markdown,json)" --recipients "$(or $(REPORT_RECIPIENTS),)" --out-dir "$(or $(REPORT_OUT_DIR),/var/lib/providapt/reports)" --retention-days "$(or $(REPORT_RETENTION_DAYS),90)" --max-report-mb "$(or $(REPORT_MAX_MB),128)" --out-json "$(or $(OUT_DIR),build/reports)/scheduled-report-plan.json" --out-md "$(or $(OUT_DIR),build/reports)/scheduled-report-plan.md"
 
@@ -407,7 +410,7 @@ upgrade-rollout-plan:
 	python3 scripts/upgrade/rollout-plan.py --fleet "$(FLEET_JSON)" --target-version "$(TARGET_VERSION)" $(if $(PACKAGE_PATH),--package-path "$(PACKAGE_PATH)") $(if $(EXPECTED_SHA256),--expected-sha256 "$(EXPECTED_SHA256)") $(if $(SIGNATURE_PATH),--signature-path "$(SIGNATURE_PATH)") --canary-percent "$(or $(CANARY_PERCENT),10)" --max-batch-size "$(or $(MAX_BATCH_SIZE),25)" $(if $(BATCH_BY_GROUP),--batch-by-group) --out-json "$(or $(OUT_DIR),build/upgrade)/rollout-plan.json" --out-md "$(or $(OUT_DIR),build/upgrade)/rollout-plan.md"
 
 onboarding-wizard:
-	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode "$(or $(ONBOARDING_MODE),standalone)" --rest-port "$(or $(REST_PORT),18080)" --grpc-port "$(or $(GRPC_PORT),50051)" $(if $(POSTGRES_DSN),--postgres-dsn "$(POSTGRES_DSN)") $(if $(PROVIDAPT_SERVER_URL),--server-url "$(PROVIDAPT_SERVER_URL)") $(if $(POLICY_ENDPOINT),--policy-endpoint "$(POLICY_ENDPOINT)") $(if $(ONBOARDING_VM_HOSTS),--vm-hosts "$(ONBOARDING_VM_HOSTS)") $(if $(CHECK_RESULTS),--check-results "$(CHECK_RESULTS)")
+	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode "$(or $(ONBOARDING_MODE),standalone)" --rest-port "$(or $(REST_PORT),18080)" --grpc-port "$(or $(GRPC_PORT),50051)" $(if $(POSTGRES_DSN),--postgres-dsn "$(POSTGRES_DSN)") $(if $(PROVIDAPT_SERVER_URL),--server-url "$(PROVIDAPT_SERVER_URL)") $(if $(POLICY_ENDPOINT),--policy-endpoint "$(POLICY_ENDPOINT)") $(if $(ONBOARDING_VM_HOSTS),--vm-hosts "$(ONBOARDING_VM_HOSTS)") $(if $(CHECK_RESULTS),--check-results "$(CHECK_RESULTS)") $(if $(RUN_ONBOARDING_CHECKS),--run-checks) --check-timeout-seconds "$(or $(CHECK_TIMEOUT_SECONDS),8)"
 
 onboarding-example-gate:
 	python3 scripts/ops/onboarding-wizard.py --out-dir "$(or $(OUT_DIR),build/onboarding)" --mode standalone --rest-port 18080 --grpc-port 50051 --postgres-dsn "postgres://fixture/providapt?sslmode=require" --vm-hosts "ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" --check-results examples/onboarding-first-run/check-results.json
@@ -419,10 +422,16 @@ plugin-release-gate:
 plugin-catalog-gate:
 	python3 scripts/ops/plugin-catalog-gate.py $(foreach gate,$(PLUGIN_GATES),--plugin-gate "$(gate)") $(if $(REQUIRE_PLUGINS),--require-plugins) $(if $(REQUIRE_PLUGIN_SIGNATURE),--require-signatures) $(if $(REQUIRE_PLUGIN_PERMISSIONS),--require-permissions) --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
 
+plugin-marketplace-lite:
+	python3 scripts/ops/plugin-marketplace-lite.py --plugin-catalog "$(or $(PLUGIN_CATALOG),build/plugins/plugin-catalog-gate.json)" --out-json "$(or $(OUT_DIR),build/plugins)/plugin-marketplace-lite.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-marketplace-lite.md"
+
 plugin-example-gates:
 	python3 scripts/ops/plugin-release-gate.py --manifest examples/plugins/sample-detector/plugin.json --signature examples/plugins/sample-detector/sample-detector-1.0.0.bundle.sig --out-json "$(or $(OUT_DIR),build/plugins)/sample-detector/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/sample-detector/plugin-release-gate.md"
 	python3 scripts/ops/plugin-release-gate.py --manifest examples/plugins/official-sample-detector/plugin.json --signature examples/plugins/official-sample-detector/official-sample-detector-1.0.0.bundle.sig --out-json "$(or $(OUT_DIR),build/plugins)/official-sample-detector/plugin-release-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/official-sample-detector/plugin-release-gate.md"
 	python3 scripts/ops/plugin-catalog-gate.py --plugin-gate "$(or $(OUT_DIR),build/plugins)/sample-detector/plugin-release-gate.json" --plugin-gate "$(or $(OUT_DIR),build/plugins)/official-sample-detector/plugin-release-gate.json" --require-plugins --require-signatures --require-permissions --out-json "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.json" --out-md "$(or $(OUT_DIR),build/plugins)/plugin-catalog-gate.md"
+
+vm-daily-evidence-summary:
+	python3 scripts/ops/vm-daily-evidence-summary.py $(if $(CAPTURE_ENRICHMENT_GATE),--capture-gate "$(CAPTURE_ENRICHMENT_GATE)") $(if $(SERVICE_HEALTH),--service-health "$(SERVICE_HEALTH)") $(if $(TRACE_SVG_STRESS),--trace-svg-stress "$(TRACE_SVG_STRESS)") $(if $(VISUAL_BASELINE),--visual-baseline "$(VISUAL_BASELINE)") $(if $(DISK_LOG_BUDGET),--disk-log-budget "$(DISK_LOG_BUDGET)") --out-json "$(or $(OUT_DIR),build/vm-evidence)/daily-summary.json" --out-md "$(or $(OUT_DIR),build/vm-evidence)/daily-summary.md"
 
 create-user:
 	@if ! id -u providapt &>/dev/null; then \
@@ -712,6 +721,7 @@ help:
 	@echo '  make visual-regression-gate Gate captured visual regression evidence'
 	@echo '  make capture-enrichment-field-gate EVENTS=... Gate capture/enrichment field coverage'
 	@echo '  make security-hardening-gate Validate production config and systemd hardening'
+	@echo '  make security-hardening-pack SECURITY_HARDENING_GATE=... Generate open-source security hardening pack'
 	@echo '  make scheduled-report-plan Generate executive/compliance report schedule'
 	@echo '  make open-source-operations Aggregate release, secret, PostgreSQL, and detection evidence'
 	@echo '  make operations-readiness-gate      Aggregate production operations readiness evidence'
@@ -719,8 +729,10 @@ help:
 	@echo '  make soak-sample STATUS_URL=... Append accelerated soak samples'
 	@echo '  make soak-readiness SOAK_SAMPLES=... Check accelerated performance budgets'
 	@echo '  make upgrade-rollout-plan FLEET_JSON=... TARGET_VERSION=... [BATCH_BY_GROUP=1] Plan staged upgrades'
-	@echo '  make onboarding-wizard Generate first-run config and checklist'
+	@echo '  make onboarding-wizard [RUN_ONBOARDING_CHECKS=1] Generate first-run config, checklist, and optional live checks'
 	@echo '  make onboarding-example-gate Run sample first-run onboarding fixture'
 	@echo '  make plugin-release-gate PLUGIN_MANIFEST=... Validate plugin signing and compatibility'
+	@echo '  make plugin-marketplace-lite PLUGIN_CATALOG=... Render open-source plugin directory'
 	@echo '  make plugin-example-gates Run signed sample plugin release and catalog gates'
+	@echo '  make vm-daily-evidence-summary CAPTURE_ENRICHMENT_GATE=... SERVICE_HEALTH=... Summarize daily VM evidence'
 	@echo '  make operator-env-certification-gate Aggregate operator environment certification evidence'

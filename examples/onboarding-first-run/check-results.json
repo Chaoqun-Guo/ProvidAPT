@@ -32,6 +32,18 @@
       "evidence": "examples/onboarding-first-run/check-results.json"
     },
     {
+      "name": "disk",
+      "status": "pass",
+      "observed": "fixture log volume has more than 20% free space",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
+      "name": "permissions",
+      "status": "pass",
+      "observed": "fixture config and log paths are owned by the service operator",
+      "evidence": "examples/onboarding-first-run/check-results.json"
+    },
+    {
       "name": "secrets",
       "status": "pass",
       "observed": "fixture secret template validation passed",

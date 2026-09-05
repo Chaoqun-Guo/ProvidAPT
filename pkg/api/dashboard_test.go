@@ -783,11 +783,16 @@ func TestDashboardOverviewFocusesDailyOperations(t *testing.T) {
 
 func TestDashboardDutyQueueKeepsHomepageOperatorFocused(t *testing.T) {
 	expected := []string{
-		"Primary duty workflow",
-		"Check Status",
-		"Review Alerts",
-		"Open Trace",
-		"Record Feedback",
+		`aria-label="Duty mode summary"`,
+		"Current Health",
+		"High-Risk Alerts",
+		"Trace Queue",
+		"Agents Online",
+		"Recent Outcomes",
+		"Advanced / Evidence / Ops",
+		"dashboard-secondary-metrics",
+		"switchDashboardSection('fleet')",
+		"dutyAgentsOnline",
 		"switchDashboardSection('platform')",
 		"loadAlertWorkflowFiltered('open')",
 		"switchDashboardSection('investigate')",

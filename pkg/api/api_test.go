@@ -1944,6 +1944,15 @@ func TestInvestigationReportBundle(t *testing.T) {
 	if bundle.Aggregations["nodes"] == 0 || len(bundle.AnalystSteps) == 0 {
 		t.Fatalf("bundle missing investigation aids: %+v", bundle)
 	}
+	if bundle.PNG["browser_capture"] == "" {
+		t.Fatalf("bundle missing PNG export hint: %+v", bundle.PNG)
+	}
+	if len(bundle.KeyNodes) == 0 || len(bundle.Timeline) == 0 || len(bundle.SuspiciousPaths) == 0 {
+		t.Fatalf("bundle missing report investigation sections: %+v", bundle)
+	}
+	if !strings.Contains(bundle.Markdown, "Suspicious Path Summary") {
+		t.Fatalf("bundle markdown missing suspicious path section: %s", bundle.Markdown)
+	}
 }
 
 func TestBackwardDepthParam(t *testing.T) {
@@ -2080,6 +2089,9 @@ func TestAlertSVGViewerSubroute(t *testing.T) {
 		if strings.Contains(traceViewerJS, forbidden) || strings.Contains(traceViewerCSS, forbidden) {
 			t.Fatalf("trace viewer should not contain legacy access guidance %q", forbidden)
 		}
+	}
+	if strings.Count(body, `data-layout-mode="timeline"`) != 1 {
+		t.Fatalf("viewer should render one timeline layout button, body: %s", body)
 	}
 }
 

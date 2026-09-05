@@ -48,6 +48,7 @@ function updateDutyQueue(totalAgents, healthyAgents, openWorkflow, deadLetters, 
   setText('dutyStatusDetail', detail);
   setText('dutyOpenAlerts', openWorkflow || 0);
   setText('dutyTraceScope', openWorkflow > 0 ? 'Trace alerts' : 'Trace graph');
+  setText('dutyAgentsOnline', totalAgents ? healthyAgents + '/' + totalAgents : '--');
   setText('dutyReviewed', (workflowSummary && workflowSummary.reviewed) || document.getElementById('awReviewed')?.textContent || '--');
   const statusCard = document.querySelector('.duty-status');
   if (statusCard) {
@@ -56,6 +57,8 @@ function updateDutyQueue(totalAgents, healthyAgents, openWorkflow, deadLetters, 
   }
   const alertCard = document.querySelector('.duty-alerts');
   if (alertCard) alertCard.classList.toggle('attention', openWorkflow > 0);
+  const agentCard = document.querySelector('.duty-agents');
+  if (agentCard) agentCard.classList.toggle('attention', totalAgents === 0 || healthyAgents < totalAgents);
 }
 
 function updateSidebarPosture() {

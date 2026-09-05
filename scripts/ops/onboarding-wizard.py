@@ -4,12 +4,19 @@ from __future__ import annotations
 import argparse
 import json
 import shlex
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, NamedTuple
 
 
 SCHEMA = "providapt.onboarding_bundle.v1"
+
+
+class CheckResult(NamedTuple):
+    status: str
+    observed: str
+    stderr: str = ""
 
 
 def config_yaml(args: argparse.Namespace) -> str:
@@ -46,7 +53,7 @@ capture:
 """
 
 
-def build_bundle(args: argparse.Namespace) -> dict[str, object]:
+def build_bundle(args: argparse.Namespace, runner: Callable[[str, int], CheckResult] | None = None) -> dict[str, object]:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     config_path = out_dir / "providapt.onboarding.yaml"
@@ -57,7 +64,10 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
     result_template_path = out_dir / "onboarding-check-results.template.json"
     config_path.write_text(config_yaml(args), encoding="utf-8")
     check_results = load_check_results(getattr(args, "check_results", ""))
-    checks = apply_check_results(environment_checks(args), check_results)
+    checks = environment_checks(args)
+    if getattr(args, "run_checks", False):
+        check_results.update(execute_checks(checks, runner or run_shell_check, int(getattr(args, "check_timeout_seconds", 8))))
+    checks = apply_check_results(checks, check_results)
     summary = check_summary(checks)
     actions = next_actions(checks)
     action_summary = onboarding_action_summary(actions)
@@ -97,6 +107,12 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
         "check_results_path": getattr(args, "check_results", ""),
         "check_summary": summary,
         "environment_checks": checks,
+        "first_run_config": {
+            "generated_config": str(config_path),
+            "next_command": f"providaptd -config {config_path}",
+            "dashboard_url": server_url(args) + "/dashboard",
+            "api_status_url": server_url(args) + "/api/v1/status",
+        },
         "operator_flow": flow,
         "next_actions": actions,
         "action_summary": action_summary,
@@ -114,7 +130,7 @@ def build_bundle(args: argparse.Namespace) -> dict[str, object]:
 
 def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
     vm_targets = vm_hosts(args)
-    ssh_command = " && ".join(f"ssh -o BatchMode=yes {target} true" for target in vm_targets) if vm_targets else "ssh -o BatchMode=yes <user>@<vm-host> true"
+    ssh_command = " && ".join(f"ssh -o BatchMode=yes {shlex.quote(target)} true" for target in vm_targets) if vm_targets else "ssh -o BatchMode=yes <user>@<vm-host> true"
     base_url = server_url(args)
     checks = [
         check("tailscale", "tailscale status", "verify tailnet connectivity", "Fix Tailscale login, DNS, or ACLs before VM checks."),
@@ -122,6 +138,8 @@ def environment_checks(args: argparse.Namespace) -> list[dict[str, str]]:
         check("api", f"curl -fsS {base_url}/api/v1/status", "verify REST API health", "Start providaptd and confirm local firewall rules."),
         check("dashboard", f"curl -fsS {base_url}/dashboard", "verify dashboard shell is reachable", "Check REST bind address, auth settings, and reverse proxy routing."),
         check("tls", "make ops-tls-check CERTS=\"build/tls/server.crt build/tls/agent.crt\"", "verify certificate validity", "Run make ops-tls-bootstrap for lab certificates or install production certificates."),
+        check("disk", f"df -h {shlex.quote(str(getattr(args, 'log_dir', '/var/log/providapt')))}", "verify disk and log budget", "Free disk space or reduce retention before enabling high-rate capture."),
+        check("permissions", "namei -l /etc/providapt /var/log/providapt", "verify config and log directory permissions", "Restrict config ownership and keep log directories writable by the service user only."),
         check("secrets", "make ops-secret-validate SECRET_ENV=build/providapt.secrets.env", "verify required secret references", "Generate a template with make ops-secret-template and replace placeholders."),
     ]
     if args.postgres_dsn:
@@ -167,6 +185,29 @@ def load_check_results(path_value: str) -> dict[str, dict[str, Any]]:
             "status": status,
             "observed": str(entry.get("observed") or entry.get("message") or "").strip(),
             "evidence": str(entry.get("evidence") or entry.get("path") or "").strip(),
+        }
+    return results
+
+
+def run_shell_check(command: str, timeout: int) -> CheckResult:
+    completed = subprocess.run(["bash", "-lc", command], text=True, capture_output=True, timeout=timeout, check=False)
+    observed = (completed.stdout or completed.stderr or "").strip()
+    return CheckResult("pass" if completed.returncode == 0 else "fail", observed[:1000], (completed.stderr or "").strip()[:1000])
+
+
+def execute_checks(
+    checks: list[dict[str, str]],
+    runner: Callable[[str, int], CheckResult],
+    timeout: int,
+) -> dict[str, dict[str, Any]]:
+    results: dict[str, dict[str, Any]] = {}
+    for item in checks:
+        result = runner(item["command"], timeout)
+        observed = result.observed or result.stderr or f"status: {result.status}"
+        results[item["name"]] = {
+            "status": result.status if result.status in {"pass", "warn", "fail", "unknown", "skipped"} else "unknown",
+            "observed": observed,
+            "evidence": "run-checks",
         }
     return results
 
@@ -297,10 +338,10 @@ def operator_flow(args: argparse.Namespace, checks: list[dict[str, str]], action
         flow_step(
             "verify",
             "Verify operations evidence",
-            [f"make visual-regression-snapshots PROVIDAPT_SERVER_URL={server_url(args)} DRY_RUN=1", "make open-source-local-closure"],
+            [f"make visual-regression-snapshots PROVIDAPT_SERVER_URL={server_url(args)} DRY_RUN=1", "df -h /var/log/providapt", "namei -l /etc/providapt /var/log/providapt", "make open-source-local-closure"],
             ["Observed check results copied into onboarding-check-results.template.json"],
-            "Onboarding report has no failed checks and unknowns are reduced to accepted warnings",
-            "blocked" if action_summary.get("blocked_checks") else ("pending" if action_summary.get("unknown_checks") else "ready"),
+            "Check disk budget, verify file permissions, and reduce unknowns to accepted warnings",
+            check_status(checks, ["disk", "permissions"]),
         ),
         flow_step(
             "handoff",
@@ -471,6 +512,8 @@ def main() -> int:
     parser.add_argument("--policy-endpoint", default="", help="Policy endpoint written to the starter config. Defaults to --server-url.")
     parser.add_argument("--vm-hosts", default="", help="Optional space- or comma-separated SSH targets for concrete VM connectivity checks.")
     parser.add_argument("--check-results", default="", help="Optional JSON check result list to merge into the onboarding report.")
+    parser.add_argument("--run-checks", action="store_true", help="Execute first-run checks and merge observed results into the report.")
+    parser.add_argument("--check-timeout-seconds", type=int, default=8)
     args = parser.parse_args()
     manifest = build_bundle(args)
     print(json.dumps(manifest, indent=2, sort_keys=True))

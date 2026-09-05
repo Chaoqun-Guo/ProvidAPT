@@ -822,14 +822,18 @@ type InvestigationReport struct {
 }
 
 type InvestigationReportBundle struct {
-	Schema        string              `json:"schema"`
-	GeneratedAt   string              `json:"generated_at"`
-	Report        InvestigationReport `json:"report"`
-	Markdown      string              `json:"markdown"`
-	SVG           map[string]string   `json:"svg"`
-	Aggregations  map[string]int      `json:"aggregations"`
-	AnalystSteps  []string            `json:"analyst_steps"`
-	ExportPackage string              `json:"export_package"`
+	Schema          string              `json:"schema"`
+	GeneratedAt     string              `json:"generated_at"`
+	Report          InvestigationReport `json:"report"`
+	Markdown        string              `json:"markdown"`
+	SVG             map[string]string   `json:"svg"`
+	PNG             map[string]string   `json:"png"`
+	KeyNodes        []InvestigationNode `json:"key_nodes"`
+	Timeline        []InvestigationNode `json:"timeline"`
+	SuspiciousPaths []string            `json:"suspicious_paths"`
+	Aggregations    map[string]int      `json:"aggregations"`
+	AnalystSteps    []string            `json:"analyst_steps"`
+	ExportPackage   string              `json:"export_package"`
 }
 
 type cachedAlertSVG struct {
@@ -2951,6 +2955,11 @@ func renderInvestigationMarkdown(report InvestigationReport) string {
 	for _, edge := range report.Edges {
 		fmt.Fprintf(&b, "| %s | %s | `%s` | `%s` | %d |\n", escapeMarkdownCell(edge.Timestamp), escapeMarkdownCell(edge.Relation), escapeMarkdownCell(edge.Source), escapeMarkdownCell(edge.Target), edge.Count)
 	}
+	paths := suspiciousPathSummary(report)
+	fmt.Fprintf(&b, "\n## Suspicious Path Summary\n\n")
+	for _, item := range paths {
+		fmt.Fprintf(&b, "- %s\n", escapeMarkdownCell(item))
+	}
 	return b.String()
 }
 
@@ -2976,15 +2985,70 @@ func buildInvestigationBundle(report InvestigationReport) InvestigationReportBun
 			"grouped":  svgBase + "?layout=grouped",
 			"viewer":   svgBase + "/view",
 		},
-		Aggregations: aggregations,
+		PNG: map[string]string{
+			"browser_capture": svgBase + "/view#export-png",
+		},
+		KeyNodes:        keyInvestigationNodes(report, 10),
+		Timeline:        investigationTimeline(report, 20),
+		SuspiciousPaths: suspiciousPathSummary(report),
+		Aggregations:    aggregations,
 		AnalystSteps: []string{
 			"Review process lineage and parent-child edges first.",
 			"Check network edges for external destinations and repeated sessions.",
 			"Inspect file nodes for suspicious writes, deletes, or persistence paths.",
 			"Record true positive, false positive, duplicate, or benign feedback after triage.",
 		},
-		ExportPackage: "json+markdown+svg-links",
+		ExportPackage: "json+markdown+svg+png-hint+key-nodes+timeline+suspicious-paths",
 	}
+}
+
+func keyInvestigationNodes(report InvestigationReport, limit int) []InvestigationNode {
+	nodes := make([]InvestigationNode, 0, len(report.Nodes))
+	for _, node := range report.Nodes {
+		if node.ID == report.StartNode || node.Type == "process" || node.Type == "network" {
+			nodes = append(nodes, node)
+		}
+	}
+	if len(nodes) == 0 {
+		nodes = append(nodes, report.Nodes...)
+	}
+	if len(nodes) > limit {
+		return nodes[:limit]
+	}
+	return nodes
+}
+
+func investigationTimeline(report InvestigationReport, limit int) []InvestigationNode {
+	timeline := make([]InvestigationNode, 0, len(report.Nodes))
+	for _, node := range report.Nodes {
+		if node.FirstSeen != "" || node.LastSeen != "" {
+			timeline = append(timeline, node)
+		}
+	}
+	if len(timeline) == 0 {
+		timeline = append(timeline, report.Nodes...)
+	}
+	if len(timeline) > limit {
+		return timeline[:limit]
+	}
+	return timeline
+}
+
+func suspiciousPathSummary(report InvestigationReport) []string {
+	summary := make([]string, 0, 4)
+	if report.ProcessCount > 1 {
+		summary = append(summary, fmt.Sprintf("Process chain contains %d process node(s); inspect parent-child lineage around %s.", report.ProcessCount, report.StartNode))
+	}
+	if report.NetworkCount > 0 {
+		summary = append(summary, fmt.Sprintf("Trace reaches %d network node(s); review remote endpoints and session timing.", report.NetworkCount))
+	}
+	if report.FileCount > 0 {
+		summary = append(summary, fmt.Sprintf("Trace touches %d file node(s); check writes, deletes, and persistence-sensitive paths.", report.FileCount))
+	}
+	if len(summary) == 0 {
+		summary = append(summary, "No high-signal process, file, or network aggregation was found at the selected depth.")
+	}
+	return summary
 }
 
 func safeDownloadName(value string) string {

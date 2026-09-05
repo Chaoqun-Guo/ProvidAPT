@@ -1,25 +1,31 @@
-<section class="duty-queue" aria-label="Primary duty workflow">
+<section class="duty-queue" aria-label="Duty mode summary">
   <button class="duty-card duty-status" onclick="switchDashboardSection('platform')">
-    <span class="duty-kicker">Check Status</span>
+    <span class="duty-kicker">Current Health</span>
     <strong id="dutyStatus">Loading</strong>
     <span id="dutyStatusDetail">Fleet and runtime health</span>
   </button>
   <button class="duty-card duty-alerts" onclick="loadAlertWorkflowFiltered('open')">
-    <span class="duty-kicker">Review Alerts</span>
+    <span class="duty-kicker">High-Risk Alerts</span>
     <strong id="dutyOpenAlerts">--</strong>
     <span>Open queue</span>
   </button>
   <button class="duty-card duty-trace" onclick="switchDashboardSection('investigate')">
-    <span class="duty-kicker">Open Trace</span>
+    <span class="duty-kicker">Trace Queue</span>
     <strong id="dutyTraceScope">Trace</strong>
     <span>Investigate impact</span>
   </button>
+  <button class="duty-card duty-agents" onclick="switchDashboardSection('fleet')">
+    <span class="duty-kicker">Agents Online</span>
+    <strong id="dutyAgentsOnline">--</strong>
+    <span>Fleet presence</span>
+  </button>
   <button class="duty-card duty-feedback" onclick="openAlertFeedbackLedger()">
-    <span class="duty-kicker">Record Feedback</span>
+    <span class="duty-kicker">Recent Outcomes</span>
     <strong id="dutyReviewed">--</strong>
     <span>Reviewed labels</span>
   </button>
 </section>
+<section class="dashboard-secondary-metrics" aria-label="Advanced / Evidence / Ops">
 <div class="metrics" id="metrics">
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('nodes')" onkeydown="handleCardKey(event, () => showGraphSummary('nodes'))"><div class="value" id="mNodes">--</div><div class="label">Nodes</div><div class="sub">Inspect entities</div></div>
   <div class="card clickable" tabindex="0" role="button" onclick="showGraphSummary('edges')" onkeydown="handleCardKey(event, () => showGraphSummary('edges'))"><div class="value" id="mEdges">--</div><div class="label">Edges</div><div class="sub">Inspect links</div></div>
@@ -28,3 +34,4 @@
   <div class="card clickable" tabindex="0" role="button" onclick="showRuntimeDetails('memory')" onkeydown="handleCardKey(event, () => showRuntimeDetails('memory'))"><div class="value" id="mMemory">--</div><div class="label">Memory</div><div class="sub">Click for runtime details</div></div>
   <div class="card clickable" tabindex="0" role="button" onclick="showRuntimeDetails('uptime')" onkeydown="handleCardKey(event, () => showRuntimeDetails('uptime'))"><div class="value" id="mUptime">--</div><div class="label">Uptime</div><div class="sub">Click for health details</div></div>
 </div>
+</section>

@@ -1,0 +1,26 @@
+{
+  "tagOwners": {
+    "tag:providapt-control": ["group:security-operators"],
+    "tag:providapt-agent": ["group:security-operators"]
+  },
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["group:security-operators"],
+      "dst": ["tag:providapt-control:18080", "tag:providapt-control:50051"]
+    },
+    {
+      "action": "accept",
+      "src": ["tag:providapt-agent"],
+      "dst": ["tag:providapt-control:50051"]
+    }
+  ],
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["group:security-operators"],
+      "dst": ["tag:providapt-control", "tag:providapt-agent"],
+      "users": ["ubuntu", "centos"]
+    }
+  ]
+}

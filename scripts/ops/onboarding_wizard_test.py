@@ -66,7 +66,13 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("ssh", check_names)
         self.assertIn("api", check_names)
         self.assertIn("dashboard", check_names)
+        self.assertIn("tls", check_names)
+        self.assertIn("disk", check_names)
+        self.assertIn("permissions", check_names)
         self.assertIn("postgres", check_names)
+        self.assertIn("first_run_config", loaded)
+        self.assertIn("generated_config", loaded["first_run_config"])
+        self.assertTrue(loaded["first_run_config"]["next_command"].startswith("providaptd -config"))
         self.assertTrue(all(item.get("severity") for item in loaded["environment_checks"]))
         self.assertTrue(all(item.get("next_step") for item in loaded["environment_checks"]))
         checklist = (self.tmp / "onboarding-checklist.md").read_text(encoding="utf-8")
@@ -79,6 +85,8 @@ class OnboardingWizardTest(unittest.TestCase):
         flow = (self.tmp / "onboarding-operator-flow.md").read_text(encoding="utf-8")
         self.assertIn("First-Run Operator Flow", flow)
         self.assertIn("Prepare environment", flow)
+        self.assertIn("Check disk budget", flow)
+        self.assertIn("verify file permissions", flow)
         self.assertIn(f"providaptd -config {self.tmp}/providapt.onboarding.yaml", flow)
         self.assertIn("PROVIDAPT_SERVER_URL=http://vm-ubuntu-master:18080", flow)
         self.assertIn("ONBOARDING_VM_HOSTS='ubuntu@vm-ubuntu-master centos@vm-centos-slave'", flow)
@@ -149,6 +157,36 @@ class OnboardingWizardTest(unittest.TestCase):
         self.assertIn("POLICY_ENDPOINT=http://policy.example:18080", flow)
         config = (self.tmp / "providapt.onboarding.yaml").read_text(encoding="utf-8")
         self.assertIn("endpoint: http://policy.example:18080", config)
+
+    def test_run_checks_executes_first_run_probe_commands(self):
+        seen = []
+
+        def runner(command, timeout):
+            seen.append((command, timeout))
+            return onboarding.CheckResult("pass", "ok: " + command, "")
+
+        manifest = onboarding.build_bundle(Namespace(
+            out_dir=str(self.tmp),
+            mode="standalone",
+            rest_port=18080,
+            grpc_port=50051,
+            log_dir="/var/log/providapt",
+            log_retain_bytes=268435456,
+            alert_retain_bytes=67108864,
+            postgres_dsn="",
+            server_url="http://vm-ubuntu-master:18080",
+            policy_endpoint="",
+            vm_hosts="ubuntu@vm-ubuntu-master",
+            check_results="",
+            run_checks=True,
+            check_timeout_seconds=3,
+        ), runner=runner)
+        self.assertEqual(manifest["status"], "pass")
+        self.assertTrue(seen)
+        self.assertTrue(any(command == "tailscale status" for command, _ in seen))
+        api = next(item for item in manifest["environment_checks"] if item["name"] == "api")
+        self.assertEqual(api["status"], "pass")
+        self.assertIn("curl -fsS http://vm-ubuntu-master:18080/api/v1/status", api["observed"])
 
 
 if __name__ == "__main__":

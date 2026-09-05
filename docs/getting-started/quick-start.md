@@ -10,6 +10,19 @@ test -r /sys/kernel/btf/vmlinux && echo "BTF available"
 make verify-env
 ```
 
+For a guided open-source first run, generate the local configuration and run
+the connectivity checks in one pass:
+
+```bash
+make onboarding-wizard \
+  PROVIDAPT_SERVER_URL=http://<server>:18080 \
+  ONBOARDING_VM_HOSTS="ubuntu@vm-ubuntu-master centos@vm-centos-slave ubuntu@vm-ubuntu-slave" \
+  RUN_ONBOARDING_CHECKS=1
+```
+
+The generated manifest records Tailscale, SSH, API, Dashboard, TLS, disk,
+permission, and secret checks, plus the next command to start `providaptd`.
+
 Recommended baseline:
 
 - Linux kernel 5.8 or later; 5.11 or later for BPF LSM.
